@@ -70,7 +70,7 @@ export function DashboardView({
       />
 
       {/* 2nd row: Candidate Pipeline Board (Kanban Segment) */}
-      <div className="p-4 bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl space-y-4">
+      <div className="p-4 bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl space-y-4">
         <KanbanPipeline
           candidates={candidates}
           onMoveCandidate={onMoveCandidate}
@@ -88,8 +88,8 @@ export function DashboardView({
       {/* 4th row: Upcoming sessions & Recent recruits arrivals list */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Interviews scheduled timeline */}
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-4">
-          <div className="flex justify-between items-center border-b border-[#F1F1F2] pb-2">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-4">
+          <div className="flex justify-between items-center border-b border-[#EAE1CC] pb-2">
             <h4 className="text-xs font-bold font-mono text-gray-400 uppercase tracking-wider">
               Upcoming Panel Interviews ({upcomingInterviews.length})
             </h4>
@@ -103,7 +103,7 @@ export function DashboardView({
               upcomingInterviews.map(i => (
                 <div
                   key={i.id}
-                  className="p-3 border border-[#EAEAEC] rounded-lg bg-[#F1F1F2]/50 flex justify-between items-center hover:border-accent-300 transition duration-150"
+                  className="p-3 border border-[#E1D6BC] rounded-lg bg-[#EAE1CC]/50 flex justify-between items-center hover:border-accent-300 transition duration-150"
                 >
                   <div className="space-y-1">
                     <span className="font-bold text-gray-900 text-xs">{i.candidateName}</span>
@@ -118,7 +118,7 @@ export function DashboardView({
                   </div>
                   <button
                     onClick={() => onSelectCandidate(i.candidateId)}
-                    className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] hover:border-accent-400 hover:text-accent-600 text-gray-600 px-2.5 py-1 rounded-md font-semibold font-mono transition shrink-0 cursor-pointer"
+                    className="text-[10px] bg-[#FFFFFF] border border-[#E1D6BC] hover:border-accent-400 hover:text-accent-600 text-gray-600 px-2.5 py-1 rounded-md font-semibold font-mono transition shrink-0 cursor-pointer"
                   >
                     Assess
                   </button>
@@ -129,8 +129,8 @@ export function DashboardView({
         </div>
 
         {/* Onboarding pipeline alerts */}
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-4">
-          <div className="flex justify-between items-center border-b border-[#F1F1F2] pb-2">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-4">
+          <div className="flex justify-between items-center border-b border-[#EAE1CC] pb-2">
             <h4 className="text-xs font-bold font-mono text-gray-400 uppercase tracking-wider">
               Arrivals Expected This Month ({onboardingArrivals.length})
             </h4>
@@ -146,7 +146,7 @@ export function DashboardView({
               onboardingArrivals.map(oa => (
                 <div
                   key={oa.id}
-                  className="p-3 border border-[#EAEAEC] rounded-lg bg-[#F1F1F2]/50 flex justify-between items-center hover:border-accent-300 transition duration-150"
+                  className="p-3 border border-[#E1D6BC] rounded-lg bg-[#EAE1CC]/50 flex justify-between items-center hover:border-accent-300 transition duration-150"
                 >
                   <div className="space-y-1">
                     <span className="font-bold text-gray-900 text-xs">{oa.fullName}</span>
@@ -165,7 +165,7 @@ export function DashboardView({
 
                   <button
                     onClick={() => onSelectCandidate(oa.id)}
-                    className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] text-gray-600 px-2.5 py-1.5 rounded-lg flex items-center gap-1 hover:border-accent-400 transition font-semibold cursor-pointer"
+                    className="text-[10px] bg-[#FFFFFF] border border-[#E1D6BC] text-gray-600 px-2.5 py-1.5 rounded-lg flex items-center gap-1 hover:border-accent-400 transition font-semibold cursor-pointer"
                   >
                     Check list <ArrowRight size={10} />
                   </button>

@@ -82,10 +82,10 @@ export function ScheduleModal({
     <div className="fixed inset-0 bg-gray-900/45 backdrop-blur-xs flex items-center justify-center z-[130] px-4">
       <form
         onSubmit={submit}
-        className="bg-white rounded-2xl border border-[#EAEAEC] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl border border-[#E1D6BC] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAEAEC]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E1D6BC]">
           <div className="flex items-center gap-2.5">
             <span className="w-9 h-9 rounded-xl bg-accent-50 text-accent-600 flex items-center justify-center">
               <CalendarClock size={17} />
@@ -119,7 +119,7 @@ export function ScheduleModal({
                   className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-[11px] font-semibold transition cursor-pointer ${
                     type === t
                       ? 'border-accent-400 bg-accent-50 text-accent-700'
-                      : 'border-[#EAEAEC] text-gray-600 hover:bg-[#F6F6F7]'
+                      : 'border-[#E1D6BC] text-gray-600 hover:bg-[#F0E7D5]'
                   }`}
                 >
                   {TYPE_META[t].icon}
@@ -137,7 +137,7 @@ export function ScheduleModal({
               type="datetime-local"
               value={dt}
               onChange={e => setDt(e.target.value)}
-              className="w-full px-3 py-2 border border-[#EAEAEC] rounded-lg text-sm bg-[#F6F6F7] focus:bg-white focus:outline-none focus:border-accent-400 transition"
+              className="w-full px-3 py-2 border border-[#E1D6BC] rounded-lg text-sm bg-[#F0E7D5] focus:bg-white focus:outline-none focus:border-accent-400 transition"
               required
             />
           </label>
@@ -167,17 +167,17 @@ export function ScheduleModal({
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Agenda, panel, link…"
-              className="w-full px-3 py-2 border border-[#EAEAEC] rounded-lg text-sm bg-[#F6F6F7] focus:bg-white focus:outline-none focus:border-accent-400 transition"
+              className="w-full px-3 py-2 border border-[#E1D6BC] rounded-lg text-sm bg-[#F0E7D5] focus:bg-white focus:outline-none focus:border-accent-400 transition"
             />
           </label>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-[#EAEAEC]">
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-[#E1D6BC]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-[#EAEAEC] hover:bg-gray-100 rounded-lg text-gray-600 cursor-pointer font-semibold text-sm"
+            className="px-4 py-2 border border-[#E1D6BC] hover:bg-gray-100 rounded-lg text-gray-600 cursor-pointer font-semibold text-sm"
           >
             Cancel
           </button>

@@ -69,7 +69,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <div
               key={t.id}
               role="status"
-              className={`pointer-events-auto flex items-start gap-2.5 bg-white border border-[#EAEAEC] border-l-[3px] ${s.accent} rounded-lg shadow-lg px-3.5 py-3 text-xs text-gray-700 transition-all duration-200 ${
+              className={`pointer-events-auto flex items-start gap-2.5 bg-white border border-[#E1D6BC] border-l-[3px] ${s.accent} rounded-lg shadow-lg px-3.5 py-3 text-xs text-gray-700 transition-all duration-200 ${
                 t.leaving ? 'opacity-0 translate-x-3' : 'toast-enter'
               }`}
             >

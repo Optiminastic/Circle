@@ -145,7 +145,7 @@ export function CandidateListView({
   return (
     <div className="space-y-4 text-xs select-none">
       {/* View Header with CTA triggers */}
-      <div className="flex justify-between items-center bg-[#FAFBFC] border-b border-[#EAEAEC] pb-3">
+      <div className="flex justify-between items-center bg-[#F7F1E4] border-b border-[#E1D6BC] pb-3">
         <div>
           <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
             Candidate Evaluation & ATS Panel
@@ -164,7 +164,7 @@ export function CandidateListView({
       </div>
 
       {/* Advanced Filter Bars */}
-      <div className="bg-[#FFFFFF] border border-[#EAEAEC] p-4 rounded-xl shadow-2xs space-y-3">
+      <div className="bg-[#FFFFFF] border border-[#E1D6BC] p-4 rounded-xl shadow-2xs space-y-3">
         <div className="flex items-center gap-2 text-gray-700 font-semibold mb-1">
           <SlidersHorizontal size={13} className="text-accent-600" />
           <span>Evaluation Filters</span>
@@ -183,7 +183,7 @@ export function CandidateListView({
                 placeholder="Search name, applied role..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-7 pr-3 py-1.5 bg-[#F1F1F2] border border-[#EAEAEC] rounded text-xs focus:bg-[#FFFFFF]"
+                className="w-full pl-7 pr-3 py-1.5 bg-[#EAE1CC] border border-[#E1D6BC] rounded text-xs focus:bg-[#FFFFFF]"
               />
             </div>
           </div>
@@ -193,7 +193,7 @@ export function CandidateListView({
             <Select
               value={selectedDept}
               onChange={e => setSelectedDept(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#F1F1F2] border border-[#EAEAEC] rounded"
+              className="w-full px-2 py-1.5 bg-[#EAE1CC] border border-[#E1D6BC] rounded"
             >
               {departments.map(d => (
                 <option key={d} value={d}>
@@ -208,7 +208,7 @@ export function CandidateListView({
             <Select
               value={maxNoticePeriod}
               onChange={e => setMaxNoticePeriod(Number(e.target.value))}
-              className="w-full px-2 py-1.5 bg-[#F1F1F2] border border-[#EAEAEC] rounded font-mono"
+              className="w-full px-2 py-1.5 bg-[#EAE1CC] border border-[#E1D6BC] rounded font-mono"
             >
               <option value={90}>Any Notice</option>
               <option value={30}>≤ 30 Days</option>
@@ -222,7 +222,7 @@ export function CandidateListView({
             <Select
               value={selectedStatus}
               onChange={e => setSelectedStatus(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#F1F1F2] border border-[#EAEAEC] rounded"
+              className="w-full px-2 py-1.5 bg-[#EAE1CC] border border-[#E1D6BC] rounded"
             >
               {statuses.map(s => (
                 <option key={s} value={s}>
@@ -237,7 +237,7 @@ export function CandidateListView({
             <Select
               value={selectedSource}
               onChange={e => setSelectedSource(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#F1F1F2] border border-[#EAEAEC] rounded"
+              className="w-full px-2 py-1.5 bg-[#EAE1CC] border border-[#E1D6BC] rounded"
             >
               {sources.map(sc => (
                 <option key={sc} value={sc}>
@@ -250,10 +250,10 @@ export function CandidateListView({
       </div>
 
       {/* Main Tabular candidate container */}
-      <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl overflow-hidden shadow-2xs">
+      <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl overflow-hidden shadow-2xs">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-[#FAFBFC] border-b border-[#EAEAEC] text-gray-400 font-mono text-[9px] uppercase font-bold">
+            <tr className="bg-[#F7F1E4] border-b border-[#E1D6BC] text-gray-400 font-mono text-[9px] uppercase font-bold">
               <th className="p-3">Candidate name</th>
               <th className="p-3">Applied position</th>
               <th className="p-3">Department</th>
@@ -266,7 +266,7 @@ export function CandidateListView({
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#EAEAEC]">
+          <tbody className="divide-y divide-[#E1D6BC]">
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={10} className="text-center py-10 text-gray-400 bg-[#FFFFFF]">
@@ -275,7 +275,7 @@ export function CandidateListView({
               </tr>
             ) : (
               filtered.map(cand => (
-                <tr key={cand.id} className="hover:bg-[#FAFBFC] group transition duration-150">
+                <tr key={cand.id} className="hover:bg-[#F7F1E4] group transition duration-150">
                   <td className="p-3 font-semibold text-gray-900">{cand.fullName}</td>
                   <td className="p-3 font-medium text-gray-855 truncate max-w-[150px]">{cand.appliedRole}</td>
                   <td className="p-3 text-gray-600">{cand.department}</td>
@@ -349,7 +349,7 @@ export function CandidateListView({
         <div className="fixed inset-0 bg-gray-900/45 backdrop-blur-xs flex items-center justify-center z-[110] transition-opacity duration-300">
           <form
             onSubmit={handleCreate}
-            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#EAEAEC] shadow-2xl w-full max-w-lg space-y-3.5 max-h-[90vh] overflow-y-auto"
+            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#E1D6BC] shadow-2xl w-full max-w-lg space-y-3.5 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
               <h3 className="font-bold text-gray-900 text-xs font-mono uppercase tracking-wider">
@@ -372,7 +372,7 @@ export function CandidateListView({
                   placeholder="Enter name..."
                   value={newCand.fullName}
                   onChange={e => setNewCand({ ...newCand, fullName: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
                   required
                 />
               </div>
@@ -383,7 +383,7 @@ export function CandidateListView({
                   placeholder="name@gmail.com"
                   value={newCand.email}
                   onChange={e => setNewCand({ ...newCand, email: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
                   required
                 />
               </div>
@@ -397,7 +397,7 @@ export function CandidateListView({
                   placeholder="+1 (555) 234-5678"
                   value={newCand.phone}
                   onChange={e => setNewCand({ ...newCand, phone: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 />
               </div>
               <div className="space-y-1">
@@ -406,7 +406,7 @@ export function CandidateListView({
                   type="text"
                   value={newCand.location}
                   onChange={e => setNewCand({ ...newCand, location: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 />
               </div>
             </div>
@@ -417,7 +417,7 @@ export function CandidateListView({
                 <Select
                   value={newCand.appliedRole}
                   onChange={e => setNewCand({ ...newCand, appliedRole: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] font-semibold"
+                  className="w-full px-2 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] font-semibold"
                 >
                   <option value="Senior React Engineer">Senior React Engineer</option>
                   <option value="Senior Product Manager">Senior Product Manager</option>
@@ -432,7 +432,7 @@ export function CandidateListView({
                 <Select
                   value={newCand.department}
                   onChange={e => setNewCand({ ...newCand, department: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 >
                   <option value="Engineering">Engineering</option>
                   <option value="Product">Product</option>
@@ -446,7 +446,7 @@ export function CandidateListView({
                 <Select
                   value={newCand.sourceOfApplication}
                   onChange={e => setNewCand({ ...newCand, sourceOfApplication: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 >
                   <option value="LinkedIn">LinkedIn</option>
                   <option value="Referral">Referral</option>
@@ -463,7 +463,7 @@ export function CandidateListView({
                   type="number"
                   value={newCand.totalExperienceYears}
                   onChange={e => setNewCand({ ...newCand, totalExperienceYears: Number(e.target.value) })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 />
               </div>
 
@@ -473,7 +473,7 @@ export function CandidateListView({
                   type="number"
                   value={newCand.noticePeriodDays}
                   onChange={e => setNewCand({ ...newCand, noticePeriodDays: Number(e.target.value) })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] font-mono"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] font-mono"
                 />
               </div>
 
@@ -483,7 +483,7 @@ export function CandidateListView({
                   type="text"
                   value={newCand.expectedCtc}
                   onChange={e => setNewCand({ ...newCand, expectedCtc: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 />
               </div>
             </div>
@@ -495,7 +495,7 @@ export function CandidateListView({
                 value={newCand.hrRemarks}
                 onChange={e => setNewCand({ ...newCand, hrRemarks: e.target.value })}
                 rows={2}
-                className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
               />
             </div>
 
@@ -503,7 +503,7 @@ export function CandidateListView({
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-1.5 border border-[#EAEAEC] hover:bg-gray-100 rounded text-gray-650 cursor-pointer font-semibold"
+                className="px-4 py-1.5 border border-[#E1D6BC] hover:bg-gray-100 rounded text-gray-650 cursor-pointer font-semibold"
               >
                 Back
               </button>

@@ -151,7 +151,7 @@ export function JobListView({
         {stats.map(s => (
           <div
             key={s.label}
-            className="bg-white border border-[#EAEAEC] rounded-xl px-4 py-3 shadow-2xs"
+            className="bg-white border border-[#E1D6BC] rounded-xl px-4 py-3 shadow-2xs"
           >
             <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-gray-400">
               <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
@@ -164,7 +164,7 @@ export function JobListView({
 
       {/* Job cards grid */}
       {jobs.length === 0 ? (
-        <div className="bg-white border border-dashed border-[#D0D2D6] rounded-2xl py-16 flex flex-col items-center gap-3 text-center px-6">
+        <div className="bg-white border border-dashed border-[#CDBE9C] rounded-2xl py-16 flex flex-col items-center gap-3 text-center px-6">
           <span className="w-14 h-14 rounded-2xl bg-accent-50 text-accent-500 flex items-center justify-center">
             <Briefcase size={26} />
           </span>
@@ -186,7 +186,7 @@ export function JobListView({
             return (
               <div
                 key={job.id}
-                className="bg-white border border-[#EAEAEC] rounded-2xl p-4 shadow-2xs flex flex-col gap-3 hover:border-accent-300 hover:shadow-sm transition"
+                className="bg-white border border-[#E1D6BC] rounded-2xl p-4 shadow-2xs flex flex-col gap-3 hover:border-accent-300 hover:shadow-sm transition"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -219,7 +219,7 @@ export function JobListView({
 
                 <p className="text-[11px] text-gray-500 line-clamp-2">{job.description}</p>
 
-                <div className="flex items-center justify-between border-t border-[#F1F1F2] pt-2.5 mt-auto">
+                <div className="flex items-center justify-between border-t border-[#EAE1CC] pt-2.5 mt-auto">
                   <span className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700">
                     <Users size={12} className="text-accent-600" />
                     {count} applicant{count === 1 ? '' : 's'}
@@ -227,7 +227,7 @@ export function JobListView({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => copyLink(job.id)}
-                      className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                      className="text-[10px] bg-[#FFFFFF] border border-[#E1D6BC] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
                       title="Copy public application link"
                     >
                       {copiedId === job.id ? (
@@ -244,7 +244,7 @@ export function JobListView({
                       href={publicUrl(job.id)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                      className="text-[10px] bg-[#FFFFFF] border border-[#E1D6BC] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
                       title="Open public posting"
                     >
                       <ExternalLink size={11} /> View
@@ -282,7 +282,7 @@ export function JobListView({
         <div className="fixed inset-0 bg-gray-900/45 backdrop-blur-xs flex items-center justify-center z-[110] transition-opacity duration-300">
           <form
             onSubmit={handleCreate}
-            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#EAEAEC] shadow-2xl w-full max-w-2xl space-y-3.5 max-h-[90vh] overflow-y-auto"
+            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#E1D6BC] shadow-2xl w-full max-w-2xl space-y-3.5 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center border-b border-gray-100 pb-2">
               <h3 className="font-bold text-gray-900 text-xs font-mono uppercase tracking-wider">
@@ -304,7 +304,7 @@ export function JobListView({
                 placeholder="e.g. Senior React Engineer"
                 value={form.title}
                 onChange={e => setForm({ ...form, title: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
                 required
               />
             </div>
@@ -315,7 +315,7 @@ export function JobListView({
                 <Select
                   value={form.department}
                   onChange={e => setForm({ ...form, department: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 >
                   <option value="Engineering">Engineering</option>
                   <option value="Product">Product</option>
@@ -331,7 +331,7 @@ export function JobListView({
                   placeholder="e.g. San Francisco, CA / Remote"
                   value={form.location}
                   onChange={e => setForm({ ...form, location: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
                 />
               </div>
             </div>
@@ -344,7 +344,7 @@ export function JobListView({
                   onChange={e =>
                     setForm({ ...form, employmentType: e.target.value as Job['employmentType'] })
                   }
-                  className="w-full px-2 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 >
                   <option value="Full-time">Full-time</option>
                   <option value="Part-time">Part-time</option>
@@ -358,7 +358,7 @@ export function JobListView({
                 <Select
                   value={form.workMode}
                   onChange={e => setForm({ ...form, workMode: e.target.value as Job['workMode'] })}
-                  className="w-full px-2 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2]"
+                  className="w-full px-2 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC]"
                 >
                   <option value="Onsite">Onsite</option>
                   <option value="Remote">Remote</option>
@@ -374,7 +374,7 @@ export function JobListView({
                   onChange={e =>
                     setForm({ ...form, minExperienceYears: Number(e.target.value) })
                   }
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] font-mono"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] font-mono"
                 />
               </div>
             </div>
@@ -387,7 +387,7 @@ export function JobListView({
                   placeholder="$120,000"
                   value={form.salaryMin}
                   onChange={e => setForm({ ...form, salaryMin: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
                 />
               </div>
               <div className="space-y-1">
@@ -397,7 +397,7 @@ export function JobListView({
                   placeholder="$160,000"
                   value={form.salaryMax}
                   onChange={e => setForm({ ...form, salaryMax: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                  className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
                 />
               </div>
             </div>
@@ -409,7 +409,7 @@ export function JobListView({
                 value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
                 rows={4}
-                className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
               />
             </div>
 
@@ -420,7 +420,7 @@ export function JobListView({
                 value={form.requirements}
                 onChange={e => setForm({ ...form, requirements: e.target.value })}
                 rows={3}
-                className="w-full px-2.5 py-1.5 border border-[#EAEAEC] rounded text-xs bg-[#F1F1F2] focus:bg-[#FFFFFF] focus:outline-none"
+                className="w-full px-2.5 py-1.5 border border-[#E1D6BC] rounded text-xs bg-[#EAE1CC] focus:bg-[#FFFFFF] focus:outline-none"
               />
             </div>
 
@@ -428,7 +428,7 @@ export function JobListView({
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
-                className="px-4 py-1.5 border border-[#EAEAEC] hover:bg-gray-100 rounded text-gray-650 cursor-pointer font-semibold"
+                className="px-4 py-1.5 border border-[#E1D6BC] hover:bg-gray-100 rounded text-gray-650 cursor-pointer font-semibold"
               >
                 Cancel
               </button>

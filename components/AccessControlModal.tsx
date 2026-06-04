@@ -45,9 +45,9 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-gray-900/45 backdrop-blur-xs flex items-center justify-center z-[120] px-4">
-      <div className="bg-white rounded-2xl border border-[#EAEAEC] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl border border-[#E1D6BC] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#EAEAEC]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E1D6BC]">
           <div className="flex items-center gap-2.5">
             <span className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
               <ShieldCheck size={17} />
@@ -76,7 +76,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
             users.map(u => (
               <div
                 key={u.id}
-                className="flex items-center justify-between border border-[#EAEAEC] rounded-lg px-3 py-2.5"
+                className="flex items-center justify-between border border-[#E1D6BC] rounded-lg px-3 py-2.5"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent-500 to-accent-700 text-white flex items-center justify-center text-[11px] font-bold shrink-0">
@@ -104,7 +104,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Reset password */}
-        <form onSubmit={submit} className="px-5 pb-5 pt-1 space-y-3 border-t border-[#EAEAEC]">
+        <form onSubmit={submit} className="px-5 pb-5 pt-1 space-y-3 border-t border-[#E1D6BC]">
           <p className="text-[10px] font-mono uppercase tracking-wider text-gray-400 pt-3 flex items-center gap-1.5">
             <KeyRound size={12} /> Reset a password
           </p>
@@ -114,7 +114,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
             <select
               value={target}
               onChange={e => setTarget(e.target.value)}
-              className="w-full px-3 py-2 border border-[#EAEAEC] rounded-lg text-sm bg-[#F6F6F7] focus:bg-white focus:outline-none focus:border-accent-400 transition"
+              className="w-full px-3 py-2 border border-[#E1D6BC] rounded-lg text-sm bg-[#F0E7D5] focus:bg-white focus:outline-none focus:border-accent-400 transition"
             >
               {(users ?? []).map(u => (
                 <option key={u.id} value={u.email}>
@@ -133,7 +133,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
                 value={newPw}
                 onChange={e => setNewPw(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full pr-10 px-3 py-2 border border-[#EAEAEC] rounded-lg text-sm bg-[#F6F6F7] focus:bg-white focus:outline-none focus:border-accent-400 transition"
+                className="w-full pr-10 px-3 py-2 border border-[#E1D6BC] rounded-lg text-sm bg-[#F0E7D5] focus:bg-white focus:outline-none focus:border-accent-400 transition"
                 required
               />
               <button
@@ -164,7 +164,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-[#EAEAEC] hover:bg-gray-100 rounded-lg text-gray-600 cursor-pointer font-semibold text-sm"
+              className="px-4 py-2 border border-[#E1D6BC] hover:bg-gray-100 rounded-lg text-gray-600 cursor-pointer font-semibold text-sm"
             >
               Close
             </button>

@@ -22,19 +22,19 @@ export function KanbanPipeline({ candidates, onMoveCandidate, onSelectCandidate 
       key: 'New Application',
       label: 'New',
       countColor: 'text-accent-600 bg-accent-50',
-      bg: 'bg-[#F1F1F2]/50',
+      bg: 'bg-[#EAE1CC]/50',
     },
     {
       key: 'Under Review',
       label: 'Review',
       countColor: 'text-purple-600 bg-purple-50',
-      bg: 'bg-[#F1F1F2]/50',
+      bg: 'bg-[#EAE1CC]/50',
     },
     {
       key: 'Shortlisted',
       label: 'Shortlisted',
       countColor: 'text-purple-600 bg-purple-50',
-      bg: 'bg-[#F1F1F2]/50',
+      bg: 'bg-[#EAE1CC]/50',
     },
     {
       key: 'Moved to HR Call',
@@ -74,10 +74,10 @@ export function KanbanPipeline({ candidates, onMoveCandidate, onSelectCandidate 
           return (
             <div
               key={stage.key}
-              className={`border border-[#EAEAEC] rounded-xl p-3 flex flex-col min-h-[300px] ${stage.bg}`}
+              className={`border border-[#E1D6BC] rounded-xl p-3 flex flex-col min-h-[300px] ${stage.bg}`}
             >
               {/* Column Stats Header */}
-              <div className="flex items-center justify-between mb-3 border-b border-[#EAEAEC]/60 pb-2">
+              <div className="flex items-center justify-between mb-3 border-b border-[#E1D6BC]/60 pb-2">
                 <span className="text-xs font-semibold text-gray-800">{stage.label}</span>
                 <span
                   className={`text-[10px] size-5 rounded-full flex items-center justify-center font-bold font-mono ${stage.countColor}`}
@@ -89,14 +89,14 @@ export function KanbanPipeline({ candidates, onMoveCandidate, onSelectCandidate 
               {/* Candidates stacked in column */}
               <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[400px] pr-0.5">
                 {list.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed border-[#EAEAEC] rounded-lg text-[10px] text-gray-400 bg-[#FFFFFF]">
+                  <div className="text-center py-8 border border-dashed border-[#E1D6BC] rounded-lg text-[10px] text-gray-400 bg-[#FFFFFF]">
                     Drop candidates here
                   </div>
                 ) : (
                   list.map(c => (
                     <div
                       key={c.id}
-                      className="bg-[#FFFFFF] border border-[#EAEAEC] p-3 rounded-lg shadow-2xs hover:border-accent-400 hover:shadow-xs transition duration-200 cursor-pointer group flex flex-col justify-between"
+                      className="bg-[#FFFFFF] border border-[#E1D6BC] p-3 rounded-lg shadow-2xs hover:border-accent-400 hover:shadow-xs transition duration-200 cursor-pointer group flex flex-col justify-between"
                     >
                       <div onClick={() => onSelectCandidate(c.id)}>
                         <div className="flex justify-between items-start gap-1">
@@ -117,13 +117,13 @@ export function KanbanPipeline({ candidates, onMoveCandidate, onSelectCandidate 
                       </div>
 
                       {/* Manual Quick Move Trigger Selector to simplify UX */}
-                      <div className="mt-3 pt-2.5 border-t border-[#EAEAEC]/40 flex items-center gap-1.5 justify-between">
+                      <div className="mt-3 pt-2.5 border-t border-[#E1D6BC]/40 flex items-center gap-1.5 justify-between">
                         <span className="text-[9px] font-mono text-gray-400 font-medium">Quick stage:</span>
                         <Select
                           id={`quick-status-move-${c.id}`}
                           value={c.status}
                           onChange={e => onMoveCandidate(c.id, e.target.value as CandidateStatus)}
-                          className="text-[9px] bg-[#F1F1F2] border border-[#EAEAEC] rounded px-1.5 py-0.5 font-medium text-gray-600 focus:outline-none focus:ring-1 focus:ring-accent-600 cursor-pointer"
+                          className="text-[9px] bg-[#EAE1CC] border border-[#E1D6BC] rounded px-1.5 py-0.5 font-medium text-gray-600 focus:outline-none focus:ring-1 focus:ring-accent-600 cursor-pointer"
                         >
                           <option value="New Application">New</option>
                           <option value="Under Review">Review</option>

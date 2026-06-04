@@ -37,7 +37,7 @@ const EMPTY = {
 };
 
 const inputCls =
-  'w-full px-3 py-2 border border-[#EAEAEC] rounded-lg text-sm bg-[#F6F6F7] focus:bg-white focus:outline-none focus:border-accent-400 transition';
+  'w-full px-3 py-2 border border-[#E1D6BC] rounded-lg text-sm bg-[#F0E7D5] focus:bg-white focus:outline-none focus:border-accent-400 transition';
 
 const MAX_RESUME_MB = 5;
 
@@ -178,9 +178,9 @@ export default function PublicJobPage() {
     .filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-[#F6F6F7]">
+    <div className="min-h-screen bg-[#F0E7D5]">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-[#EAEAEC]">
+      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-[#E1D6BC]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2.5">
           <Logo size={26} />
           <div>
@@ -240,7 +240,7 @@ export default function PublicJobPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-5 gap-5 lg:gap-6">
         {/* Job details */}
         <section className="lg:col-span-3 space-y-5">
-          <div className="bg-white border border-[#EAEAEC] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
+          <div className="bg-white border border-[#E1D6BC] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-5">
             <div>
               <h3 className="font-bold text-gray-900 text-sm mb-2">About the role</h3>
               <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">
@@ -265,7 +265,7 @@ export default function PublicJobPage() {
 
         {/* Apply form */}
         <section id="apply" className="lg:col-span-2 scroll-mt-20">
-          <div className="bg-white border border-[#EAEAEC] rounded-2xl p-5 sm:p-6 shadow-2xs lg:sticky lg:top-20">
+          <div className="bg-white border border-[#E1D6BC] rounded-2xl p-5 sm:p-6 shadow-2xs lg:sticky lg:top-20">
             <h3 className="font-bold text-gray-900 text-base mb-1">Apply for this role</h3>
             <p className="text-xs text-gray-400 mb-4">
               Your details go straight to the hiring team.
@@ -364,7 +364,7 @@ export default function PublicJobPage() {
                 </div>
                 <Field label="Resume">
                   {resumeFile ? (
-                    <div className="flex items-center gap-2.5 border border-[#EAEAEC] rounded-lg px-3 py-2.5 bg-accent-50/50">
+                    <div className="flex items-center gap-2.5 border border-[#E1D6BC] rounded-lg px-3 py-2.5 bg-accent-50/50">
                       <span className="w-8 h-8 rounded-md bg-accent-100 text-accent-700 flex items-center justify-center shrink-0">
                         <FileText size={15} />
                       </span>
@@ -386,7 +386,7 @@ export default function PublicJobPage() {
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center gap-1 cursor-pointer border border-dashed border-[#D0D2D6] rounded-lg px-3 py-5 bg-[#F6F6F7] hover:border-accent-400 hover:bg-accent-50/40 transition text-center">
+                    <label className="flex flex-col items-center justify-center gap-1 cursor-pointer border border-dashed border-[#CDBE9C] rounded-lg px-3 py-5 bg-[#F0E7D5] hover:border-accent-400 hover:bg-accent-50/40 transition text-center">
                       <UploadCloud size={20} className="text-accent-500" />
                       <span className="text-xs font-semibold text-gray-600">
                         Click to upload your resume
@@ -468,7 +468,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#F6F6F7] flex flex-col items-center justify-center gap-3 px-5">
+    <div className="min-h-screen bg-[#F0E7D5] flex flex-col items-center justify-center gap-3 px-5">
       {children}
     </div>
   );

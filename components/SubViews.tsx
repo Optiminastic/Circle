@@ -88,10 +88,10 @@ export function IntroductoryCallsView({
         </p>
       </div>
 
-      <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl overflow-hidden shadow-2xs">
+      <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl overflow-hidden shadow-2xs">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-[#FAFBFC] border-b border-[#EAEAEC] text-gray-500 font-mono text-[9px] uppercase font-bold">
+            <tr className="bg-[#F7F1E4] border-b border-[#E1D6BC] text-gray-500 font-mono text-[9px] uppercase font-bold">
               <th className="p-3">Candidate</th>
               <th className="p-3">Applied Position</th>
               <th className="p-3 text-center font-semibold">Comm Rating</th>
@@ -100,7 +100,7 @@ export function IntroductoryCallsView({
               <th className="p-3 text-right">Operational Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#EAEAEC]">
+          <tbody className="divide-y divide-[#E1D6BC]">
             {hrCallCandidates.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-8 text-gray-400">
@@ -109,7 +109,7 @@ export function IntroductoryCallsView({
               </tr>
             ) : (
               hrCallCandidates.map(c => (
-                <tr key={c.id} className="hover:bg-[#FAFBFC] transition">
+                <tr key={c.id} className="hover:bg-[#F7F1E4] transition">
                   <td className="p-3 font-semibold text-gray-900">{c.fullName}</td>
                   <td className="p-3">
                     {c.appliedRole} ({c.department})
@@ -133,7 +133,7 @@ export function IntroductoryCallsView({
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => onSelectCandidate(c.id)}
-                        className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] hover:border-accent-400 text-accent-600 px-3 py-1 rounded-md font-semibold cursor-pointer transition"
+                        className="text-[10px] bg-[#FFFFFF] border border-[#E1D6BC] hover:border-accent-400 text-accent-600 px-3 py-1 rounded-md font-semibold cursor-pointer transition"
                       >
                         {c.hrCall?.completed ? 'View Records' : 'Complete Form'}
                       </button>
@@ -256,7 +256,7 @@ export function InterviewsView({
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center z-50">
           <form
             onSubmit={handleSubmit}
-            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#EAEAEC] shadow-lg w-96 space-y-3.5"
+            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#E1D6BC] shadow-lg w-96 space-y-3.5"
           >
             <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider font-mono">
               Schedule Candidate Panel
@@ -267,7 +267,7 @@ export function InterviewsView({
               <Select
                 value={form.candidateId}
                 onChange={e => setForm({ ...form, candidateId: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               >
                 {candidates.map(c => (
                   <option key={c.id} value={c.id}>
@@ -283,7 +283,7 @@ export function InterviewsView({
                 type="text"
                 value={form.round}
                 onChange={e => setForm({ ...form, round: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
                 required
               />
             </div>
@@ -294,7 +294,7 @@ export function InterviewsView({
                 type="text"
                 value={form.interviewer}
                 onChange={e => setForm({ ...form, interviewer: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
                 required
               />
             </div>
@@ -305,7 +305,7 @@ export function InterviewsView({
                 type="datetime-local"
                 value={form.dateTime}
                 onChange={e => setForm({ ...form, dateTime: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
                 required
               />
             </div>
@@ -315,7 +315,7 @@ export function InterviewsView({
               <Select
                 value={form.mode}
                 onChange={e => setForm({ ...form, mode: e.target.value as any })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               >
                 <option value="Google Meet">Google Meet</option>
                 <option value="Zoom">Zoom Video</option>
@@ -327,7 +327,7 @@ export function InterviewsView({
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="px-3 py-1.5 border border-[#EAEAEC] hover:bg-gray-100 rounded text-gray-600 font-semibold cursor-pointer"
+                className="px-3 py-1.5 border border-[#E1D6BC] hover:bg-gray-100 rounded text-gray-600 font-semibold cursor-pointer"
               >
                 Cancel
               </button>
@@ -347,7 +347,7 @@ export function InterviewsView({
         {interviews.map(i => (
           <div
             key={i.id}
-            className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-4 flex flex-col justify-between hover:shadow-xs transition duration-150 relative"
+            className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-4 flex flex-col justify-between hover:shadow-xs transition duration-150 relative"
           >
             <div className="space-y-2">
               <div className="flex justify-between items-start">
@@ -402,7 +402,7 @@ export function InterviewsView({
                 </p>
               </div>
 
-              <div className="text-[11px] text-gray-600 bg-[#F1F1F2] p-2 rounded-lg space-y-1 font-mono">
+              <div className="text-[11px] text-gray-600 bg-[#EAE1CC] p-2 rounded-lg space-y-1 font-mono">
                 <div className="flex justify-between">
                   <span>Panel Evaluator:</span>
                   <span className="font-semibold text-gray-800">{i.interviewerName}</span>
@@ -424,7 +424,7 @@ export function InterviewsView({
             </div>
 
             {i.grading && (
-              <div className="mt-3 pt-2.5 border-t border-[#EAEAEC]/60 text-[11px] space-y-1">
+              <div className="mt-3 pt-2.5 border-t border-[#E1D6BC]/60 text-[11px] space-y-1">
                 <p className="font-bold text-gray-700">
                   Recommendation: <span className="text-emerald-600">{i.grading.recommendation}</span>
                 </p>
@@ -469,16 +469,16 @@ export function IQTestAssignmentsView({
             Role-based question building, IQ metrics automatic scoring, and trial repo reviews.
           </p>
         </div>
-        <div className="border border-[#EAEAEC] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs">
+        <div className="border border-[#E1D6BC] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs">
           <button
             onClick={() => setActiveTab('iq')}
-            className={`px-3 py-1.5 transition ${activeTab === 'iq' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#F1F1F2]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'iq' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EAE1CC]'}`}
           >
             IQ Test Logs
           </button>
           <button
             onClick={() => setActiveTab('assignments')}
-            className={`px-3 py-1.5 transition ${activeTab === 'assignments' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#F1F1F2]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'assignments' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EAE1CC]'}`}
           >
             Submissions Queue
           </button>
@@ -486,10 +486,10 @@ export function IQTestAssignmentsView({
       </div>
 
       {activeTab === 'iq' ? (
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl overflow-hidden">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#FAFBFC] border-b border-[#EAEAEC] text-gray-400 font-mono text-[9px] uppercase font-bold">
+              <tr className="bg-[#F7F1E4] border-b border-[#E1D6BC] text-gray-400 font-mono text-[9px] uppercase font-bold">
                 <th className="p-3">Candidate</th>
                 <th className="p-3">Test Date</th>
                 <th className="p-3">Attempted questions</th>
@@ -499,9 +499,9 @@ export function IQTestAssignmentsView({
                 <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAEAEC]">
+            <tbody className="divide-y divide-[#E1D6BC]">
               {iqTests.map(idx => (
-                <tr key={idx.id} className="hover:bg-[#FAFBFC] transition">
+                <tr key={idx.id} className="hover:bg-[#F7F1E4] transition">
                   <td className="p-3 font-semibold text-gray-900">{idx.candidateName}</td>
                   <td className="p-3 font-mono">{idx.testDate}</td>
                   <td className="p-3 font-mono">
@@ -562,8 +562,8 @@ export function IQTestAssignmentsView({
       ) : (
         <div className="space-y-4">
           {assignments.map(asm => (
-            <div key={asm.id} className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-4 space-y-3">
-              <div className="flex justify-between items-start border-b border-[#F1F1F2] pb-2">
+            <div key={asm.id} className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-4 space-y-3">
+              <div className="flex justify-between items-start border-b border-[#EAE1CC] pb-2">
                 <div>
                   <h4 className="font-bold text-gray-900">{asm.assignmentTitle}</h4>
                   <p className="text-[10px] text-gray-400 font-mono mt-0.5">
@@ -577,7 +577,7 @@ export function IQTestAssignmentsView({
                 </span>
               </div>
 
-              <p className="text-gray-600 bg-[#F1F1F2] p-3 rounded-lg">{asm.instructions}</p>
+              <p className="text-gray-600 bg-[#EAE1CC] p-3 rounded-lg">{asm.instructions}</p>
 
               <div>
                 <h5 className="font-bold text-[10px] uppercase font-mono text-gray-400 mb-2">
@@ -587,7 +587,7 @@ export function IQTestAssignmentsView({
                   {asm.submissions.map(sub => (
                     <div
                       key={sub.id}
-                      className="border border-gray-100 rounded-lg p-3 flex justify-between items-center text-xs bg-[#FAFBFC]"
+                      className="border border-gray-100 rounded-lg p-3 flex justify-between items-center text-xs bg-[#F7F1E4]"
                     >
                       <div>
                         <span className="font-semibold text-gray-900">{sub.candidateName}</span>
@@ -657,7 +657,7 @@ export function OnboardingChecklistView({
         <Select
           value={selectedCandidate}
           onChange={e => setSelectedCandidate(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-[#EAEAEC] bg-[#FFFFFF] rounded font-medium focus:outline-none"
+          className="px-2.5 py-1 text-xs border border-[#E1D6BC] bg-[#FFFFFF] rounded font-medium focus:outline-none"
         >
           {onboarding.map(o => (
             <option key={o.candidateId} value={o.candidateName}>
@@ -670,7 +670,7 @@ export function OnboardingChecklistView({
       {activeChecklist ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Progress Circular indicators */}
-          <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 flex flex-col justify-between space-y-4">
+          <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 flex flex-col justify-between space-y-4">
             <div className="space-y-1.5">
               <span className="text-[11px] text-gray-400 font-mono font-semibold uppercase tracking-wider">
                 Candidate Progress
@@ -683,7 +683,7 @@ export function OnboardingChecklistView({
               </p>
             </div>
 
-            <div className="flex flex-col items-center justify-center py-4 bg-[#F1F1F2]/50 rounded-lg">
+            <div className="flex flex-col items-center justify-center py-4 bg-[#EAE1CC]/50 rounded-lg">
               <div className="text-3xl font-extrabold text-accent-600 font-display">
                 {activeChecklist.progressPercentage}%
               </div>
@@ -716,8 +716,8 @@ export function OnboardingChecklistView({
           </div>
 
           {/* Checklist Tasks List (Linear style) (Col-span-2) */}
-          <div className="md:col-span-2 bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-4">
-            <div className="border-b border-[#F1F1F2] pb-2">
+          <div className="md:col-span-2 bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-4">
+            <div className="border-b border-[#EAE1CC] pb-2">
               <h4 className="font-bold text-gray-900">Pre-joining & Induction Checklist Items</h4>
               <p className="text-[10px] text-gray-400">Click checkboxes to log finalized state:</p>
             </div>
@@ -727,7 +727,7 @@ export function OnboardingChecklistView({
                 <div
                   key={t.id}
                   onClick={() => onToggleTask(activeChecklist.candidateName, t.id)}
-                  className="flex items-center gap-3 p-2.5 border border-[#EAEAEC] hover:bg-[#F1F1F2] rounded-lg cursor-pointer transition"
+                  className="flex items-center gap-3 p-2.5 border border-[#E1D6BC] hover:bg-[#EAE1CC] rounded-lg cursor-pointer transition"
                 >
                   <div
                     className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition ${
@@ -754,7 +754,7 @@ export function OnboardingChecklistView({
           </div>
         </div>
       ) : (
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-6 text-center text-gray-400">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-6 text-center text-gray-400">
           No candidates in the onboarding pipeline presently.
         </div>
       )}
@@ -808,14 +808,14 @@ export function EmployeeDirectoryView({ employees, onSelectEmployee, onUpdateEmp
               placeholder="Filter names..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-7 pr-3 py-1 bg-[#FFFFFF] border border-[#EAEAEC] rounded text-xs focus:outline-none"
+              className="pl-7 pr-3 py-1 bg-[#FFFFFF] border border-[#E1D6BC] rounded text-xs focus:outline-none"
             />
           </div>
 
           <Select
             value={selectedDept}
             onChange={e => setSelectedDept(e.target.value)}
-            className="px-2 py-1 bg-[#FFFFFF] border border-[#EAEAEC] rounded focus:outline-none font-medium"
+            className="px-2 py-1 bg-[#FFFFFF] border border-[#E1D6BC] rounded focus:outline-none font-medium"
           >
             {departments.map(d => (
               <option key={d} value={d}>
@@ -835,7 +835,7 @@ export function EmployeeDirectoryView({ employees, onSelectEmployee, onUpdateEmp
           <div
             key={emp.id}
             onClick={() => onSelectEmployee(emp.id)}
-            className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-4 flex flex-col justify-between hover:shadow-xs hover:border-accent-400 cursor-pointer transition duration-150"
+            className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-4 flex flex-col justify-between hover:shadow-xs hover:border-accent-400 cursor-pointer transition duration-150"
           >
             <div className="space-y-3">
               <div className="flex justify-between items-start">
@@ -859,7 +859,7 @@ export function EmployeeDirectoryView({ employees, onSelectEmployee, onUpdateEmp
               </div>
             </div>
 
-            <div className="mt-4 pt-2.5 border-t border-[#EAEAEC]/65 flex justify-between items-center text-[10px] font-mono text-gray-400">
+            <div className="mt-4 pt-2.5 border-t border-[#E1D6BC]/65 flex justify-between items-center text-[10px] font-mono text-gray-400">
               <span>ID: {emp.id}</span>
               <span>Joined: {emp.joiningDate}</span>
             </div>
@@ -916,16 +916,16 @@ export function CredentialsAssetsView({
           </p>
         </div>
 
-        <div className="border border-[#EAEAEC] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs shrink-0">
+        <div className="border border-[#E1D6BC] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs shrink-0">
           <button
             onClick={() => setActiveTab('creds')}
-            className={`px-3 py-1.5 transition ${activeTab === 'creds' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#F1F1F2]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'creds' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EAE1CC]'}`}
           >
             System Credentials
           </button>
           <button
             onClick={() => setActiveTab('assets')}
-            className={`px-3 py-1.5 transition ${activeTab === 'assets' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#F1F1F2]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'assets' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EAE1CC]'}`}
           >
             Hardware Inventory
           </button>
@@ -933,10 +933,10 @@ export function CredentialsAssetsView({
       </div>
 
       {activeTab === 'creds' ? (
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl overflow-hidden shadow-2xs">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl overflow-hidden shadow-2xs">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#FAFBFC] border-b border-[#EAEAEC] text-gray-400 font-mono text-[9px] uppercase font-bold">
+              <tr className="bg-[#F7F1E4] border-b border-[#E1D6BC] text-gray-400 font-mono text-[9px] uppercase font-bold">
                 <th className="p-3">Employee</th>
                 <th className="p-3">Target System</th>
                 <th className="p-3">Assigned Identity</th>
@@ -946,10 +946,10 @@ export function CredentialsAssetsView({
                 <th className="p-3 text-right">Moderator Control</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAEAEC]">
+            <tbody className="divide-y divide-[#E1D6BC]">
               {employees.flatMap(emp =>
                 (emp.credentials || []).map(cred => (
-                  <tr key={cred.id} className="hover:bg-[#FAFBFC] transition">
+                  <tr key={cred.id} className="hover:bg-[#F7F1E4] transition">
                     <td className="p-3 font-semibold text-gray-900">{emp.fullName}</td>
                     <td className="p-3 font-medium text-gray-800">{cred.systemName}</td>
                     <td className="p-3 font-mono">{cred.assignedEmail}</td>
@@ -972,7 +972,7 @@ export function CredentialsAssetsView({
                       <Select
                         value={cred.status}
                         onChange={e => onUpdateCredential(emp.id, cred.id, e.target.value)}
-                        className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:ring-1 focus:ring-accent-600 focus:outline-none"
+                        className="text-[10px] bg-[#FFFFFF] border border-[#E1D6BC] px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:ring-1 focus:ring-accent-600 focus:outline-none"
                       >
                         <option value="Active">Grant Active</option>
                         <option value="Suspended">Suspend Access</option>
@@ -986,10 +986,10 @@ export function CredentialsAssetsView({
           </table>
         </div>
       ) : (
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl overflow-hidden shadow-2xs">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl overflow-hidden shadow-2xs">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#FAFBFC] border-b border-[#EAEAEC] text-gray-400 font-mono text-[9px] uppercase font-bold">
+              <tr className="bg-[#F7F1E4] border-b border-[#E1D6BC] text-gray-400 font-mono text-[9px] uppercase font-bold">
                 <th className="p-3">Asset ID</th>
                 <th className="p-3">Specification</th>
                 <th className="p-3">Item Category</th>
@@ -998,9 +998,9 @@ export function CredentialsAssetsView({
                 <th className="p-3 text-right">Condition / Modification</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#EAEAEC]">
+            <tbody className="divide-y divide-[#E1D6BC]">
               {assets.map(ast => (
-                <tr key={ast.id} className="hover:bg-[#FAFBFC] transition">
+                <tr key={ast.id} className="hover:bg-[#F7F1E4] transition">
                   <td className="p-3 font-mono font-bold text-gray-700">{ast.id}</td>
                   <td className="p-3 font-semibold text-gray-900">{ast.assetName}</td>
                   <td className="p-3">{ast.assetType}</td>
@@ -1028,7 +1028,7 @@ export function CredentialsAssetsView({
                     <Select
                       value={ast.status}
                       onChange={e => handleAssetStatusChange(ast.id, e.target.value)}
-                      className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:outline-none"
+                      className="text-[10px] bg-[#FFFFFF] border border-[#E1D6BC] px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:outline-none"
                     >
                       <option value="Available">Available</option>
                       <option value="Assigned">Assigned</option>
@@ -1106,7 +1106,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex justify-between items-center bg-[#FAFBFC] border-b border-[#EAEAEC] pb-3">
+      <div className="flex justify-between items-center bg-[#F7F1E4] border-b border-[#E1D6BC] pb-3">
         <div>
           <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
             Appraisals & Growth Scorecards
@@ -1119,7 +1119,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
         <Select
           value={selectedEmp}
           onChange={e => setSelectedEmp(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-[#EAEAEC] bg-[#FFFFFF] rounded font-medium focus:outline-none"
+          className="px-2.5 py-1 text-xs border border-[#E1D6BC] bg-[#FFFFFF] rounded font-medium focus:outline-none"
         >
           {employees.map(e => (
             <option key={e.id} value={e.fullName}>
@@ -1132,7 +1132,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <form
           onSubmit={handleSubmit}
-          className="md:col-span-2 bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-4"
+          className="md:col-span-2 bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-4"
         >
           <h3 className="font-bold text-gray-900">Conduct Annual Appraisal Cycle Review</h3>
 
@@ -1143,7 +1143,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 type="text"
                 value={reviewForm.reviewPeriod}
                 onChange={e => setReviewForm({ ...reviewForm, reviewPeriod: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               />
             </div>
             <div className="space-y-1">
@@ -1154,7 +1154,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 max="5"
                 value={reviewForm.performanceScore}
                 onChange={e => setReviewForm({ ...reviewForm, performanceScore: Number(e.target.value) })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               />
             </div>
           </div>
@@ -1165,7 +1165,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
               value={reviewForm.targetAchievement}
               onChange={e => setReviewForm({ ...reviewForm, targetAchievement: e.target.value })}
               rows={2}
-              className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+              className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               required
             />
           </div>
@@ -1176,7 +1176,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
               value={reviewForm.managerFeedback}
               onChange={e => setReviewForm({ ...reviewForm, managerFeedback: e.target.value })}
               rows={2}
-              className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+              className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               required
             />
           </div>
@@ -1188,7 +1188,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 type="text"
                 value={reviewForm.recommendedPromotion}
                 onChange={e => setReviewForm({ ...reviewForm, recommendedPromotion: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               />
             </div>
             <div className="space-y-1">
@@ -1197,7 +1197,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 type="text"
                 value={reviewForm.recommendedSalaryRevision}
                 onChange={e => setReviewForm({ ...reviewForm, recommendedSalaryRevision: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
               />
             </div>
           </div>
@@ -1213,14 +1213,14 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
         </form>
 
         {/* Existing Appraisal track lists */}
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-4">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-4">
           <h3 className="font-bold text-gray-900 uppercase font-mono text-[10px] text-gray-400">
             Historic Logs
           </h3>
 
           {targetEmp?.appraisalHistory && targetEmp.appraisalHistory.length > 0 ? (
             targetEmp.appraisalHistory.map(hist => (
-              <div key={hist.id} className="p-3 border border-gray-100 rounded-lg space-y-2 bg-[#FAFBFC]">
+              <div key={hist.id} className="p-3 border border-gray-100 rounded-lg space-y-2 bg-[#F7F1E4]">
                 <div className="flex justify-between items-center font-mono text-[9px]">
                   <span className="font-semibold text-accent-600">{hist.reviewPeriod}</span>
                   <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold">
@@ -1284,7 +1284,7 @@ export function OffboardingChecklistView({
         <Select
           value={selectedCase}
           onChange={e => setSelectedCase(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-[#EAEAEC] bg-[#FFFFFF] rounded font-medium focus:outline-none"
+          className="px-2.5 py-1 text-xs border border-[#E1D6BC] bg-[#FFFFFF] rounded font-medium focus:outline-none"
         >
           {offboarding.map(o => (
             <option key={o.employeeId} value={o.employeeName}>
@@ -1298,7 +1298,7 @@ export function OffboardingChecklistView({
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* KT & Notice Summary Card */}
-          <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 flex flex-col justify-between space-y-4">
+          <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 flex flex-col justify-between space-y-4">
             <div className="space-y-2">
               <span className="text-[10px] text-red-650 bg-red-50 font-bold px-2 py-0.5 rounded">
                 Resignation Triggered
@@ -1310,7 +1310,7 @@ export function OffboardingChecklistView({
                 Notice end:{' '}
                 <span className="font-mono font-bold text-gray-800">{activeCase.lastWorkingDay}</span>
               </p>
-              <div className="bg-[#F1F1F2] p-2.5 rounded-lg text-[10px] border border-[#EAEAEC] space-y-1.5 font-mono">
+              <div className="bg-[#EAE1CC] p-2.5 rounded-lg text-[10px] border border-[#E1D6BC] space-y-1.5 font-mono">
                 <p className="text-gray-400 uppercase font-bold text-[9px]">Knowledge Transfer Summary:</p>
                 <p className="text-gray-700 font-sans">{activeCase.ktRecord?.currentProjects}</p>
                 <div className="flex justify-between mt-2 font-bold py-1 border-t border-gray-150">
@@ -1332,8 +1332,8 @@ export function OffboardingChecklistView({
           </div>
 
           {/* Checkout clearances list */}
-          <div className="md:col-span-2 bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-3">
-            <h4 className="font-bold text-gray-900 border-b border-[#F1F1F2] pb-1.5">
+          <div className="md:col-span-2 bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-3">
+            <h4 className="font-bold text-gray-900 border-b border-[#EAE1CC] pb-1.5">
               Compliance Clearance Checkpoints
             </h4>
             <div className="space-y-2 max-h-[320px] overflow-y-auto">
@@ -1341,7 +1341,7 @@ export function OffboardingChecklistView({
                 <div
                   key={t.id}
                   onClick={() => onToggleExitTask(activeCase.employeeId, t.id)}
-                  className="flex items-center gap-3 p-2.5 border border-[#EAEAEC] hover:bg-gray-55 rounded-lg cursor-pointer transition"
+                  className="flex items-center gap-3 p-2.5 border border-[#E1D6BC] hover:bg-gray-55 rounded-lg cursor-pointer transition"
                 >
                   <div
                     className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition ${
@@ -1367,8 +1367,8 @@ export function OffboardingChecklistView({
           </div>
 
           {/* Exit Deliverables & Handover */}
-          <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-3">
-            <div className="flex items-center justify-between border-b border-[#F1F1F2] pb-1.5">
+          <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-3">
+            <div className="flex items-center justify-between border-b border-[#EAE1CC] pb-1.5">
               <h4 className="font-bold text-gray-900">Exit Deliverables &amp; Handover</h4>
               <span className="text-[10px] font-mono text-gray-400">
                 {(activeCase.deliverables || []).filter(d => d.isSubmitted).length}/
@@ -1385,7 +1385,7 @@ export function OffboardingChecklistView({
                   <div
                     key={d.id}
                     onClick={() => onToggleDeliverable(activeCase.employeeId, d.id)}
-                    className="flex items-center gap-3 p-2.5 border border-[#EAEAEC] hover:bg-gray-55 rounded-lg cursor-pointer transition"
+                    className="flex items-center gap-3 p-2.5 border border-[#E1D6BC] hover:bg-gray-55 rounded-lg cursor-pointer transition"
                   >
                     <div
                       className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition ${
@@ -1423,7 +1423,7 @@ export function OffboardingChecklistView({
           />
         </div>
       ) : (
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-6 text-center text-gray-400">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-6 text-center text-gray-400">
           No live employee offboarding case in notice cycle currently.
         </div>
       )}
@@ -1476,7 +1476,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Template selector & trigger */}
-        <form onSubmit={handleSend} className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-4">
+        <form onSubmit={handleSend} className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-4">
           <h3 className="font-bold text-gray-900">Email Draft Trigger Creator</h3>
 
           <div className="space-y-1">
@@ -1484,7 +1484,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
             <Select
               value={activeTemplateId}
               onChange={e => setActiveTemplateId(e.target.value)}
-              className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+              className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
             >
               {emailTemplates.map(t => (
                 <option key={t.id} value={t.id}>
@@ -1494,14 +1494,14 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
             </Select>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-[#F1F1F2]">
+          <div className="space-y-2 pt-2 border-t border-[#EAE1CC]">
             <div className="space-y-1">
               <label className="font-semibold text-gray-700">Recipient Name</label>
               <input
                 type="text"
                 value={recipientName}
                 onChange={e => setRecipientName(e.target.value)}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
                 required
               />
             </div>
@@ -1511,7 +1511,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
                 type="email"
                 value={recipientEmail}
                 onChange={e => setRecipientEmail(e.target.value)}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
                 required
               />
             </div>
@@ -1521,7 +1521,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
                 type="text"
                 value={roleField}
                 onChange={e => setRoleField(e.target.value)}
-                className="w-full px-2 py-1.5 border border-[#EAEAEC] bg-[#F1F1F2] rounded"
+                className="w-full px-2 py-1.5 border border-[#E1D6BC] bg-[#EAE1CC] rounded"
                 required
               />
             </div>
@@ -1537,12 +1537,12 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
 
         {/* Live WYSIWYG Parser Preview */}
         {selectedTemplate && (
-          <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 flex flex-col justify-between">
+          <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 flex flex-col justify-between">
             <div className="space-y-2">
               <span className="text-[10px] text-gray-400 font-mono uppercase tracking-wider font-semibold">
                 Live Variable Compilation Parser
               </span>
-              <div className="border border-[#EAEAEC] p-3 rounded-lg bg-[#FAFBFC] font-mono text-[11px] text-gray-700 space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="border border-[#E1D6BC] p-3 rounded-lg bg-[#F7F1E4] font-mono text-[11px] text-gray-700 space-y-2 max-h-[300px] overflow-y-auto">
                 <p className="font-bold text-gray-900 border-b border-gray-150 pb-1">
                   Subject: {selectedTemplate.subject.replace('{{ROLE}}', roleField)}
                 </p>
@@ -1562,13 +1562,13 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
         )}
 
         {/* Sent Mails Ledger */}
-        <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-5 space-y-3 overflow-y-auto max-h-[380px]">
+        <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-5 space-y-3 overflow-y-auto max-h-[380px]">
           <h3 className="font-bold text-gray-900 uppercase font-mono text-[10px] text-gray-400">
             Sent Triggers Log
           </h3>
           <div className="space-y-2">
             {sentMails.map(m => (
-              <div key={m.id} className="p-2.5 border border-gray-100 bg-[#FAFBFC] rounded-lg">
+              <div key={m.id} className="p-2.5 border border-gray-100 bg-[#F7F1E4] rounded-lg">
                 <div className="flex justify-between text-[10px]">
                   <span className="font-semibold text-gray-800">{m.recipientName}</span>
                   <span className="text-green-600 font-bold">{m.status}</span>
@@ -1594,7 +1594,7 @@ export function SettingsView() {
   const [activeTab, setActiveTab] = useState<'general' | 'roles' | 'rules'>('general');
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-6 text-xs select-none space-y-5">
+    <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-6 text-xs select-none space-y-5">
       <div>
         <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
           Circle HR Workspace Settings
@@ -1634,7 +1634,7 @@ export function SettingsView() {
                 type="text"
                 value="Opti Corp HQ Inc"
                 disabled
-                className="w-full bg-[#F1F1F2] px-2.5 py-1.5 rounded border border-[#EAEAEC]"
+                className="w-full bg-[#EAE1CC] px-2.5 py-1.5 rounded border border-[#E1D6BC]"
               />
             </div>
             <div className="space-y-1">
@@ -1643,7 +1643,7 @@ export function SettingsView() {
                 type="text"
                 value="https://projectcircle.optiprime.io"
                 disabled
-                className="w-full bg-[#F1F1F2] px-2.5 py-1.5 rounded border border-[#EAEAEC]"
+                className="w-full bg-[#EAE1CC] px-2.5 py-1.5 rounded border border-[#E1D6BC]"
               />
             </div>
           </div>
@@ -1660,7 +1660,7 @@ export function SettingsView() {
       {activeTab === 'roles' && (
         <div className="space-y-3">
           <h4 className="font-bold text-gray-850">Regulatory Role permissions matrix</h4>
-          <div className="border border-[#EAEAEC] rounded bg-[#F1F1F2] p-3 space-y-2 font-mono text-[11px]">
+          <div className="border border-[#E1D6BC] rounded bg-[#EAE1CC] p-3 space-y-2 font-mono text-[11px]">
             <div className="flex justify-between">
               <span className="font-semibold">HR Specialist Role:</span>
               <span>Reads CRM, Uploads CVs, Schedules slots, triggers email templates drafts.</span>
@@ -1678,7 +1678,7 @@ export function SettingsView() {
       {activeTab === 'rules' && (
         <div className="space-y-3">
           <h4 className="font-bold text-gray-850">Corporate BGV Dependency Checklist Rules</h4>
-          <div className="space-y-2 bg-[#FAFBFC] p-3 rounded-lg border border-gray-100">
+          <div className="space-y-2 bg-[#F7F1E4] p-3 rounded-lg border border-gray-100">
             <div className="flex items-center gap-2">
               <div className="w-3.5 h-3.5 bg-accent-600 rounded flex items-center justify-center text-white">
                 <Check size={8} />

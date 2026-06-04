@@ -71,7 +71,7 @@ export function KPICards({
           <div
             key={k.id}
             onClick={() => onCardClick?.(k.id)}
-            className={`bg-[#FFFFFF] border border-[#EAEAEC] p-4 rounded-xl flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs group ${
+            className={`bg-[#FFFFFF] border border-[#E1D6BC] p-4 rounded-xl flex flex-col justify-between cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs group ${
               isSelected ? 'ring-1 ring-accent-600 border-accent-200 shadow-xs' : ''
             }`}
           >

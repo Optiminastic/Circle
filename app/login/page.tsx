@@ -35,7 +35,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F6F7] flex flex-col">
+    <div className="min-h-screen bg-[#F0E7D5] flex flex-col">
       {/* Brand strip */}
       <div className="h-1.5 bg-gradient-to-r from-accent-500 via-accent-600 to-accent-800" />
 
@@ -53,7 +53,7 @@ export default function LoginPage() {
           </div>
 
           {/* Card */}
-          <div className="bg-white border border-[#EAEAEC] rounded-2xl shadow-2xs p-6 sm:p-7">
+          <div className="bg-white border border-[#E1D6BC] rounded-2xl shadow-2xs p-6 sm:p-7">
             <h2 className="text-base font-bold text-gray-900">Sign in</h2>
             <p className="text-xs text-gray-400 mt-0.5 mb-5">
               Authorized HR team members only.
@@ -74,7 +74,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="you@optiminastic.com"
-                    className="w-full pl-9 pr-3 py-2.5 border border-[#EAEAEC] rounded-lg text-sm bg-[#F6F6F7] focus:bg-white focus:outline-none focus:border-accent-400 transition"
+                    className="w-full pl-9 pr-3 py-2.5 border border-[#E1D6BC] rounded-lg text-sm bg-[#F0E7D5] focus:bg-white focus:outline-none focus:border-accent-400 transition"
                     required
                   />
                 </div>
@@ -93,7 +93,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-10 py-2.5 border border-[#EAEAEC] rounded-lg text-sm bg-[#F6F6F7] focus:bg-white focus:outline-none focus:border-accent-400 transition"
+                    className="w-full pl-9 pr-10 py-2.5 border border-[#E1D6BC] rounded-lg text-sm bg-[#F0E7D5] focus:bg-white focus:outline-none focus:border-accent-400 transition"
                     required
                   />
                   <button

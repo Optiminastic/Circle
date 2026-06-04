@@ -81,7 +81,7 @@ export function Header({
   return (
     <header
       id="app-header"
-      className="bg-[#FFFFFF] border-b border-[#EAEAEC] h-14 px-6 flex items-center justify-between sticky top-0 z-50 select-none"
+      className="bg-[#FFFFFF] border-b border-[#E1D6BC] h-14 px-6 flex items-center justify-between sticky top-0 z-50 select-none"
     >
       {/* Global Search Bar */}
       <div className="relative w-80">
@@ -98,13 +98,13 @@ export function Header({
           onFocus={() => {
             if (searchQuery.length > 1) setShowSearchResults(true);
           }}
-          className="w-full pl-9 pr-4 py-1.5 text-xs bg-[#F1F1F2] border border-[#EAEAEC] rounded-md focus:bg-[#FFFFFF] focus:outline-none focus:ring-1 focus:ring-accent-600 focus:border-accent-600 transition"
+          className="w-full pl-9 pr-4 py-1.5 text-xs bg-[#EAE1CC] border border-[#E1D6BC] rounded-md focus:bg-[#FFFFFF] focus:outline-none focus:ring-1 focus:ring-accent-600 focus:border-accent-600 transition"
         />
 
         {/* Global Quick Search Results overlay */}
         {showSearchResults && filteredCandidates.length > 0 && (
-          <div className="absolute top-11 left-0 w-96 bg-[#FFFFFF] border border-[#EAEAEC] rounded-md shadow-lg py-2 z-50 text-xs">
-            <div className="px-3 py-1 font-semibold text-[10px] text-gray-400 font-mono uppercase tracking-wider border-b border-[#EAEAEC] mb-1">
+          <div className="absolute top-11 left-0 w-96 bg-[#FFFFFF] border border-[#E1D6BC] rounded-md shadow-lg py-2 z-50 text-xs">
+            <div className="px-3 py-1 font-semibold text-[10px] text-gray-400 font-mono uppercase tracking-wider border-b border-[#E1D6BC] mb-1">
               Matching Candidates ({filteredCandidates.length})
             </div>
             {filteredCandidates.map(c => (
@@ -115,7 +115,7 @@ export function Header({
                   setSearchQuery('');
                   setShowSearchResults(false);
                 }}
-                className="w-full text-left px-3 py-2 hover:bg-[#F1F1F2] flex items-center justify-between group"
+                className="w-full text-left px-3 py-2 hover:bg-[#EAE1CC] flex items-center justify-between group"
               >
                 <div>
                   <div className="font-semibold text-gray-900 group-hover:text-accent-600 transition truncate">
@@ -165,7 +165,7 @@ export function Header({
           <button
             id="btn-notifications"
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-1.5 hover:bg-[#F1F1F2] border border-[#EAEAEC] rounded-md text-gray-500 hover:text-gray-700 cursor-pointer relative transition"
+            className="p-1.5 hover:bg-[#EAE1CC] border border-[#E1D6BC] rounded-md text-gray-500 hover:text-gray-700 cursor-pointer relative transition"
           >
             <Bell size={14} />
             {notifications.some(n => n.unread) && (
@@ -174,8 +174,8 @@ export function Header({
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 top-10 w-80 bg-[#FFFFFF] border border-[#EAEAEC] rounded-md shadow-lg py-2 z-50 text-xs">
-              <div className="px-4 py-2 font-semibold text-gray-900 border-b border-[#EAEAEC] flex justify-between items-center">
+            <div className="absolute right-0 top-10 w-80 bg-[#FFFFFF] border border-[#E1D6BC] rounded-md shadow-lg py-2 z-50 text-xs">
+              <div className="px-4 py-2 font-semibold text-gray-900 border-b border-[#E1D6BC] flex justify-between items-center">
                 <span>System Notifications</span>
                 <span className="text-[10px] text-accent-600 font-normal">Mark all read</span>
               </div>
@@ -183,7 +183,7 @@ export function Header({
                 {notifications.map(n => (
                   <div
                     key={n.id}
-                    className={`p-3 border-b border-[#EAEAEC] hover:bg-[#F1F1F2] last:border-none transition ${n.unread ? 'bg-accent-50/30' : ''}`}
+                    className={`p-3 border-b border-[#E1D6BC] hover:bg-[#EAE1CC] last:border-none transition ${n.unread ? 'bg-accent-50/30' : ''}`}
                   >
                     <div className="flex justify-between items-start gap-2">
                       <span
@@ -204,12 +204,12 @@ export function Header({
         </div>
 
         {/* Help icon */}
-        <button className="p-1.5 hover:bg-[#F1F1F2] border border-[#EAEAEC] rounded-md text-gray-500 cursor-pointer transition">
+        <button className="p-1.5 hover:bg-[#EAE1CC] border border-[#E1D6BC] rounded-md text-gray-500 cursor-pointer transition">
           <HelpCircle size={14} />
         </button>
 
         {/* Active Profile */}
-        <div className="relative border-l border-[#EAEAEC] pl-4">
+        <div className="relative border-l border-[#E1D6BC] pl-4">
           <button
             id="btn-profile-menu"
             onClick={() => setShowProfile(s => !s)}
@@ -230,8 +230,8 @@ export function Header({
           </button>
 
           {showProfile && (
-            <div className="absolute right-0 top-12 w-60 bg-white border border-[#EAEAEC] rounded-lg shadow-lg py-1.5 z-50 text-xs">
-              <div className="px-3 py-2 border-b border-[#EAEAEC]">
+            <div className="absolute right-0 top-12 w-60 bg-white border border-[#E1D6BC] rounded-lg shadow-lg py-1.5 z-50 text-xs">
+              <div className="px-3 py-2 border-b border-[#E1D6BC]">
                 <p className="font-semibold text-gray-900 truncate">
                   {user?.name || displayName(user?.email)}
                   {isAdmin && (
@@ -248,7 +248,7 @@ export function Header({
                 <button
                   id="btn-manage-access"
                   onMouseDown={() => setShowAccess(true)}
-                  className="w-full text-left px-3 py-2 flex items-center gap-2 text-gray-600 hover:bg-[#F1F1F2] hover:text-accent-600 cursor-pointer transition font-medium"
+                  className="w-full text-left px-3 py-2 flex items-center gap-2 text-gray-600 hover:bg-[#EAE1CC] hover:text-accent-600 cursor-pointer transition font-medium"
                 >
                   <ShieldCheck size={13} /> Manage access
                 </button>

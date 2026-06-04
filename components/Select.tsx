@@ -141,7 +141,7 @@ export function Select({
               transform: coords.openUp ? 'translateY(-100%)' : undefined,
               marginTop: coords.openUp ? -4 : 4,
             }}
-            className="z-[200] w-max max-w-[280px] overflow-y-auto bg-white border border-[#EAEAEC] rounded-lg shadow-lg py-1"
+            className="z-[200] w-max max-w-[280px] overflow-y-auto bg-white border border-[#E1D6BC] rounded-lg shadow-lg py-1"
           >
             {options.map((o, i) => {
               const isSel = o.value === current;
@@ -156,7 +156,7 @@ export function Select({
                       ? 'text-gray-300 cursor-not-allowed'
                       : isSel
                         ? 'bg-accent-50 text-accent-700 font-semibold'
-                        : 'text-gray-700 hover:bg-[#F1F1F2] cursor-pointer'
+                        : 'text-gray-700 hover:bg-[#EAE1CC] cursor-pointer'
                   }`}
                 >
                   <span className="truncate">{o.label}</span>

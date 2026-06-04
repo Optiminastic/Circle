@@ -52,7 +52,7 @@ export function EmployeeProfileModal({
     <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-xs flex justify-end z-[100] transition-opacity duration-300">
       <div className="bg-[#FFFFFF] w-full max-w-2xl h-full flex flex-col shadow-2xl relative animate-slide-in select-none">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#EAEAEC] bg-[#FAFBFC] flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 border-b border-[#E1D6BC] bg-[#F7F1E4] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-purple-600 flex items-center justify-center text-white text-md font-bold">
               {employee.fullName
@@ -76,7 +76,7 @@ export function EmployeeProfileModal({
         </div>
 
         {/* Tab Selection */}
-        <div className="border-b border-[#EAEAEC] px-6 bg-[#FFFFFF] shrink-0 flex gap-4 text-xs font-medium">
+        <div className="border-b border-[#E1D6BC] px-6 bg-[#FFFFFF] shrink-0 flex gap-4 text-xs font-medium">
           <button
             onClick={() => setActiveTab('info')}
             className={`py-3 border-b-2 font-semibold ${activeTab === 'info' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
@@ -98,7 +98,7 @@ export function EmployeeProfileModal({
         </div>
 
         {/* Modal body content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FAFBFC]">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#F7F1E4]">
           {activeTab === 'info' && (
             <div className="space-y-5 text-xs">
               <DocumentsPanel
@@ -108,7 +108,7 @@ export function EmployeeProfileModal({
                 title="Important Documents"
               />
               {/* Job Details Card */}
-              <div className="bg-[#FFFFFF] border border-[#EAEAEC] p-4 rounded-xl space-y-3.5">
+              <div className="bg-[#FFFFFF] border border-[#E1D6BC] p-4 rounded-xl space-y-3.5">
                 <h3 className="font-bold text-gray-900 font-mono text-[10px] uppercase tracking-wider text-gray-400">
                   Corporate Assignment Details
                 </h3>
@@ -133,32 +133,32 @@ export function EmployeeProfileModal({
               </div>
 
               {/* Secure personal data */}
-              <div className="bg-[#FFFFFF] border border-[#EAEAEC] p-4 rounded-xl space-y-3">
+              <div className="bg-[#FFFFFF] border border-[#E1D6BC] p-4 rounded-xl space-y-3">
                 <h3 className="font-bold text-gray-900 font-mono text-[10px] uppercase tracking-wider text-gray-400">
                   Masked Personal Records
                 </h3>
                 <div className="space-y-2.5">
-                  <div className="flex justify-between py-1 border-b border-[#F1F1F2]">
+                  <div className="flex justify-between py-1 border-b border-[#EAE1CC]">
                     <span className="text-gray-500">Contact Email:</span>
                     <span className="font-semibold text-gray-900 select-all">{employee.email}</span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-[#F1F1F2]">
+                  <div className="flex justify-between py-1 border-b border-[#EAE1CC]">
                     <span className="text-gray-500">Phone Code:</span>
                     <span className="font-semibold text-gray-900 select-all">{employee.phone}</span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-[#F1F1F2]">
+                  <div className="flex justify-between py-1 border-b border-[#EAE1CC]">
                     <span className="text-gray-500">Mailing Address:</span>
                     <span className="font-semibold text-gray-900 text-right">
                       {employee.personalDetails.address}
                     </span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-[#F1F1F2]">
+                  <div className="flex justify-between py-1 border-b border-[#EAE1CC]">
                     <span className="text-gray-500">Emergency Contacts:</span>
                     <span className="font-semibold text-gray-900 text-right">
                       {employee.personalDetails.emergencyContact}
                     </span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-[#F1F1F2]">
+                  <div className="flex justify-between py-1 border-b border-[#EAE1CC]">
                     <span className="text-gray-500">Bank Routing Code:</span>
                     <span className="font-mono font-semibold text-gray-500">
                       {employee.personalDetails.bankAccount}
@@ -186,7 +186,7 @@ export function EmployeeProfileModal({
                         <Select
                           value={offboardReason}
                           onChange={e => setOffboardReason(e.target.value as any)}
-                          className="w-full px-2 py-1.5 bg-[#FFFFFF] border border-[#EAEAEC] rounded"
+                          className="w-full px-2 py-1.5 bg-[#FFFFFF] border border-[#E1D6BC] rounded"
                         >
                           <option value="Resignation">Resignation Clearance</option>
                           <option value="Termination">Termination Dispatch</option>
@@ -205,7 +205,7 @@ export function EmployeeProfileModal({
                         <button
                           type="button"
                           onClick={() => setShowOffboardForm(false)}
-                          className="border border-[#EAEAEC] bg-[#FFFFFF] text-gray-650 font-medium px-3.5 py-1 rounded cursor-pointer transition text-[11px]"
+                          className="border border-[#E1D6BC] bg-[#FFFFFF] text-gray-650 font-medium px-3.5 py-1 rounded cursor-pointer transition text-[11px]"
                         >
                           Back
                         </button>
@@ -227,7 +227,7 @@ export function EmployeeProfileModal({
           {activeTab === 'sec' && (
             <div className="space-y-5 text-xs">
               {/* Credentials listed */}
-              <div className="bg-[#FFFFFF] border border-[#EAEAEC] p-4 rounded-xl space-y-3">
+              <div className="bg-[#FFFFFF] border border-[#E1D6BC] p-4 rounded-xl space-y-3">
                 <h3 className="font-bold text-gray-900 font-mono text-[10px] uppercase tracking-wider text-gray-400">
                   Active System Logins
                 </h3>
@@ -236,7 +236,7 @@ export function EmployeeProfileModal({
                     employee.credentials.map(cr => (
                       <div
                         key={cr.id}
-                        className="flex justify-between items-center bg-[#FAFBFC] p-2.5 rounded border border-gray-100"
+                        className="flex justify-between items-center bg-[#F7F1E4] p-2.5 rounded border border-gray-100"
                       >
                         <div className="flex items-center gap-2">
                           <KeyRound size={12} className="text-gray-400" />
@@ -259,7 +259,7 @@ export function EmployeeProfileModal({
               </div>
 
               {/* Assets allocated list */}
-              <div className="bg-[#FFFFFF] border border-[#EAEAEC] p-4 rounded-xl space-y-3">
+              <div className="bg-[#FFFFFF] border border-[#E1D6BC] p-4 rounded-xl space-y-3">
                 <h3 className="font-bold text-gray-900 font-mono text-[10px] uppercase tracking-wider text-gray-400">
                   IT hardware Inventory records
                 </h3>
@@ -268,7 +268,7 @@ export function EmployeeProfileModal({
                     employee.assets.map(as => (
                       <div
                         key={as.id}
-                        className="flex justify-between items-center bg-[#FAFBFC] p-2.5 rounded border border-gray-100"
+                        className="flex justify-between items-center bg-[#F7F1E4] p-2.5 rounded border border-gray-100"
                       >
                         <div className="flex items-center gap-2">
                           <Laptop size={12} className="text-gray-400" />
@@ -303,9 +303,9 @@ export function EmployeeProfileModal({
                 employee.appraisalHistory.map(ap => (
                   <div
                     key={ap.id}
-                    className="bg-[#FFFFFF] border border-[#EAEAEC] p-4 rounded-xl space-y-3 shadow-2xs"
+                    className="bg-[#FFFFFF] border border-[#E1D6BC] p-4 rounded-xl space-y-3 shadow-2xs"
                   >
-                    <div className="flex justify-between font-mono text-[9px] border-b border-[#F1F1F2] pb-1 font-bold">
+                    <div className="flex justify-between font-mono text-[9px] border-b border-[#EAE1CC] pb-1 font-bold">
                       <span className="text-accent-600 uppercase">Review: {ap.reviewPeriod}</span>
                       <span className="text-green-600">{ap.status}</span>
                     </div>
@@ -313,14 +313,14 @@ export function EmployeeProfileModal({
                       <span className="font-semibold text-gray-900 block">Performance Grade Rank:</span>
                       <span className="font-bold text-sm text-gray-900">⭐ {ap.performanceScore} / 5</span>
                     </div>
-                    <div className="space-y-1 bg-[#F1F1F2] p-2.5 rounded text-gray-700 leading-normal">
+                    <div className="space-y-1 bg-[#EAE1CC] p-2.5 rounded text-gray-700 leading-normal">
                       <p className="font-bold">Manager Feedback Summary:</p>
                       <p className="italic">"{ap.managerFeedback}"</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="bg-[#FFFFFF] p-6 border border-[#EAEAEC] rounded-xl text-center text-gray-400">
+                <div className="bg-[#FFFFFF] p-6 border border-[#E1D6BC] rounded-xl text-center text-gray-400">
                   <Award size={20} className="mx-auto text-gray-300 mb-1.5" />
                   No direct performance appraisal forms filed for this cycle.
                 </div>

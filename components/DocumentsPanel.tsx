@@ -34,7 +34,7 @@ export function DocumentsPanel({
   };
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#EAEAEC] rounded-xl p-4 space-y-3">
+    <div className="bg-[#FFFFFF] border border-[#E1D6BC] rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
           <FileText size={13} className="text-accent-600" /> {title}
@@ -65,7 +65,7 @@ export function DocumentsPanel({
           {docs.map(doc => (
             <div
               key={doc.id}
-              className="flex items-center gap-2 p-2 border border-[#EAEAEC] rounded-lg text-[11px] hover:bg-[#F1F1F2] transition"
+              className="flex items-center gap-2 p-2 border border-[#E1D6BC] rounded-lg text-[11px] hover:bg-[#EAE1CC] transition"
             >
               <FileText size={14} className="text-gray-400 shrink-0" />
               <div className="flex-1 min-w-0">

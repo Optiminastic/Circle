@@ -56,7 +56,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // Hold rendering until we know the auth state (avoids a flash of the dashboard).
   if (!ready || !user) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#F6F6F7]">
+      <div className="h-screen flex items-center justify-center bg-[#F0E7D5]">
         <div className="w-6 h-6 border-2 border-accent-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -75,7 +75,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       id="master-viewport"
-      className="flex h-screen overflow-hidden bg-[#F6F6F7] font-sans antialiased text-gray-950"
+      className="flex h-screen overflow-hidden bg-[#F0E7D5] font-sans antialiased text-gray-950"
     >
       <Sidebar userRole={userRole} setUserRole={setUserRole} />
 
@@ -88,7 +88,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           onQuickSelectCandidate={onQuickSelectCandidate}
         />
 
-        <main className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-[#F6F6F7]">
+        <main className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-[#F0E7D5]">
           {error ? (
             <div className="max-w-md mx-auto mt-20 text-center">
               <div className="bg-white border border-red-200 rounded-xl p-6">

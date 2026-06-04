@@ -78,7 +78,7 @@ export function ActionMenu({ items, className = '' }: ActionMenuProps) {
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-[#F1F1F2] cursor-pointer transition ${open ? 'bg-[#F1F1F2] text-gray-700' : ''} ${className}`}
+        className={`p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-[#EAE1CC] cursor-pointer transition ${open ? 'bg-[#EAE1CC] text-gray-700' : ''} ${className}`}
         title="Actions"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -100,7 +100,7 @@ export function ActionMenu({ items, className = '' }: ActionMenuProps) {
               transform: coords.openUp ? 'translateY(-100%)' : undefined,
               marginTop: coords.openUp ? -6 : 6,
             }}
-            className="z-[200] bg-white border border-[#EAEAEC] rounded-lg shadow-lg py-1"
+            className="z-[200] bg-white border border-[#E1D6BC] rounded-lg shadow-lg py-1"
             role="menu"
           >
             {items.map(item => (
@@ -117,7 +117,7 @@ export function ActionMenu({ items, className = '' }: ActionMenuProps) {
                     ? 'text-gray-300 cursor-not-allowed'
                     : item.danger
                       ? 'text-gray-600 hover:bg-red-50 hover:text-red-600'
-                      : 'text-gray-700 hover:bg-[#F1F1F2] hover:text-accent-600'
+                      : 'text-gray-700 hover:bg-[#EAE1CC] hover:text-accent-600'
                 }`}
                 role="menuitem"
               >

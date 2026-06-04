@@ -54,13 +54,13 @@ export function Sidebar({ userRole, setUserRole }: SidebarProps) {
         href={href}
         className={`w-full flex items-center gap-3 px-3 py-1.5 text-xs rounded-lg transition-all duration-150 group font-medium ${
           isActive
-            ? 'bg-white text-gray-900 font-semibold'
-            : 'text-gray-500 hover:bg-[#DBDEE3] hover:text-gray-900'
+            ? 'bg-white text-gray-900 font-semibold shadow-sm'
+            : 'text-gray-600 hover:bg-[#DECFAE] hover:text-gray-900'
         }`}
         title={label}
       >
         <span
-          className={`w-4 h-4 shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-600'}`}
+          className={`w-4 h-4 shrink-0 ${isActive ? 'text-accent-700' : 'text-gray-400 group-hover:text-gray-700'}`}
         >
           {icon}
         </span>
@@ -72,12 +72,12 @@ export function Sidebar({ userRole, setUserRole }: SidebarProps) {
   return (
     <aside
       id="app-sidebar"
-      className={`bg-[#E4E6EA] border-r border-[#EAEAEC] h-screen select-none flex flex-col shrink-0 transition-all duration-200 sticky top-0 ${
+      className={`bg-[#E7DABF] border-r border-[#DBCDAD] h-screen select-none flex flex-col shrink-0 transition-all duration-200 sticky top-0 ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
     >
       {/* Brand Header */}
-      <div className="p-4 border-b border-[#EAEAEC] flex items-center justify-between">
+      <div className="p-4 border-b border-[#DBCDAD] flex items-center justify-between">
         {!isCollapsed ? (
           <div className="flex items-center gap-2">
             <Logo size={28} className="shrink-0" />
@@ -190,14 +190,14 @@ export function Sidebar({ userRole, setUserRole }: SidebarProps) {
         </div>
 
         {/* ANALYTICS & SETTINGS */}
-        <div className="pt-2 border-t border-[#EAEAEC] space-y-0.5">
+        <div className="pt-2 border-t border-[#DBCDAD] space-y-0.5">
           {navItem('/reports', 'Enterprise Reports', <BarChart3 size={14} />)}
           {navItem('/settings', 'Global Settings', <Settings size={14} />)}
         </div>
       </div>
 
       {/* Role Manager Switcher */}
-      <div className="p-3 border-t border-[#EAEAEC] bg-[#DDE0E5] flex flex-col gap-2">
+      <div className="p-3 border-t border-[#DBCDAD] bg-[#E1D4B6] flex flex-col gap-2">
         {!isCollapsed ? (
           <div className="flex flex-col gap-1">
             <span className="text-[9px] text-gray-400 font-mono font-semibold uppercase tracking-wider">
@@ -214,7 +214,7 @@ export function Sidebar({ userRole, setUserRole }: SidebarProps) {
               <button
                 id="btn-toggle-role"
                 onClick={() => setUserRole(userRole === 'HR' ? 'Admin' : 'HR')}
-                className="text-[9px] bg-[#FFFFFF] border border-[#EAEAEC] hover:bg-gray-100 text-gray-900 px-1.5 py-0.5 rounded font-mono font-bold uppercase cursor-pointer"
+                className="text-[9px] bg-[#FFFFFF] border border-[#E1D6BC] hover:bg-gray-100 text-gray-900 px-1.5 py-0.5 rounded font-mono font-bold uppercase cursor-pointer"
               >
                 SWAP
               </button>
