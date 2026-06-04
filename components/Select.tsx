@@ -141,7 +141,7 @@ export function Select({
               transform: coords.openUp ? 'translateY(-100%)' : undefined,
               marginTop: coords.openUp ? -4 : 4,
             }}
-            className="z-[100] w-max max-w-[280px] overflow-y-auto bg-white border border-[#EAEAEC] rounded-lg shadow-lg py-1"
+            className="z-[200] w-max max-w-[280px] overflow-y-auto bg-white border border-[#EAEAEC] rounded-lg shadow-lg py-1"
           >
             {options.map((o, i) => {
               const isSel = o.value === current;

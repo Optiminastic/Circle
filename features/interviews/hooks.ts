@@ -64,5 +64,12 @@ export function useInterviewMutations() {
     },
   });
 
-  return { add, grade, schedule };
+  const remove = useMutation({
+    mutationFn: (id: string) => repositories.interviews.remove(id),
+    ...optimisticOptions<string, Interview>(qc, qk.interviews.all, id =>
+      listOps.removeBy(i => i.id === id),
+    ),
+  });
+
+  return { add, grade, schedule, remove };
 }

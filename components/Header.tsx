@@ -5,8 +5,22 @@
  */
 
 import React, { useState } from 'react';
-import { Search, Bell, Plus, HelpCircle, Check, MapPin, Briefcase, Mail } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import {
+  Search,
+  Bell,
+  Plus,
+  HelpCircle,
+  Check,
+  MapPin,
+  Briefcase,
+  Mail,
+  LogOut,
+  ShieldCheck,
+} from 'lucide-react';
 import { Candidate } from '../types';
+import { useAuth, displayName, initials } from '@/store/auth-store';
+import { AccessControlModal } from './AccessControlModal';
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -23,9 +37,18 @@ export function Header({
   candidatesList,
   onQuickSelectCandidate,
 }: HeaderProps) {
+  const router = useRouter();
+  const { user, isAdmin, logout } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showAccess, setShowAccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+
+  const onLogout = () => {
+    logout();
+    router.replace('/login');
+  };
 
   const notifications = [
     {
@@ -186,17 +209,62 @@ export function Header({
         </button>
 
         {/* Active Profile */}
-        <div className="flex items-center gap-2 border-l border-[#EAEAEC] pl-4">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent-500 to-accent-700 flex items-center justify-center text-white text-xs font-bold font-display">
-            SJ
-          </div>
-          <div className="hidden md:block">
-            <p className="text-xs font-semibold text-gray-900">Sarah Jenkins</p>
-            <p className="text-[10px] text-gray-400 font-mono">
-              {userRole === 'Admin' ? 'Admin / CEO' : 'HR Director'}
-            </p>
-          </div>
+        <div className="relative border-l border-[#EAEAEC] pl-4">
+          <button
+            id="btn-profile-menu"
+            onClick={() => setShowProfile(s => !s)}
+            onBlur={() => setTimeout(() => setShowProfile(false), 200)}
+            className="flex items-center gap-2 cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent-500 to-accent-700 flex items-center justify-center text-white text-xs font-bold font-display">
+              {initials(user?.email)}
+            </div>
+            <div className="hidden md:block text-left">
+              <p className="text-xs font-semibold text-gray-900 group-hover:text-accent-600 transition">
+                {user?.name || displayName(user?.email)}
+              </p>
+              <p className="text-[10px] text-gray-400 font-mono">
+                {isAdmin ? 'Administrator' : 'HR Specialist'}
+              </p>
+            </div>
+          </button>
+
+          {showProfile && (
+            <div className="absolute right-0 top-12 w-60 bg-white border border-[#EAEAEC] rounded-lg shadow-lg py-1.5 z-50 text-xs">
+              <div className="px-3 py-2 border-b border-[#EAEAEC]">
+                <p className="font-semibold text-gray-900 truncate">
+                  {user?.name || displayName(user?.email)}
+                  {isAdmin && (
+                    <span className="ml-1.5 text-[9px] font-mono bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-full align-middle">
+                      ADMIN
+                    </span>
+                  )}
+                </p>
+                <p className="text-[10px] text-gray-400 font-mono truncate flex items-center gap-1 mt-0.5">
+                  <Mail size={10} /> {user?.email}
+                </p>
+              </div>
+              {isAdmin && (
+                <button
+                  id="btn-manage-access"
+                  onMouseDown={() => setShowAccess(true)}
+                  className="w-full text-left px-3 py-2 flex items-center gap-2 text-gray-600 hover:bg-[#F1F1F2] hover:text-accent-600 cursor-pointer transition font-medium"
+                >
+                  <ShieldCheck size={13} /> Manage access
+                </button>
+              )}
+              <button
+                id="btn-logout"
+                onMouseDown={onLogout}
+                className="w-full text-left px-3 py-2 flex items-center gap-2 text-gray-600 hover:bg-red-50 hover:text-red-600 cursor-pointer transition font-medium"
+              >
+                <LogOut size={13} /> Sign out
+              </button>
+            </div>
+          )}
         </div>
+
+        {showAccess && <AccessControlModal onClose={() => setShowAccess(false)} />}
       </div>
     </header>
   );

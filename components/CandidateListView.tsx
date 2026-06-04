@@ -1,5 +1,6 @@
 'use client';
 import { Select } from './Select';
+import { ActionMenu } from './ActionMenu';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -16,6 +17,7 @@ import {
   SlidersHorizontal,
   Eye,
   Trash2,
+  UserCheck,
   X,
 } from 'lucide-react';
 
@@ -24,6 +26,7 @@ interface CandidateListViewProps {
   onSelectCandidate: (id: string) => void;
   onAddCandidate: (cand: Candidate) => void;
   onDeleteCandidate?: (id: string) => void;
+  onShortlistCandidate?: (id: string, name: string) => void;
 }
 
 export function CandidateListView({
@@ -31,6 +34,7 @@ export function CandidateListView({
   onSelectCandidate,
   onAddCandidate,
   onDeleteCandidate,
+  onShortlistCandidate,
 }: CandidateListViewProps) {
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
@@ -298,26 +302,37 @@ export function CandidateListView({
                   </td>
                   <td className="p-3 text-gray-500 font-mono text-[10px]">{cand.sourceOfApplication}</td>
                   <td className="p-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => onSelectCandidate(cand.id)}
-                        className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2.5 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                        title="View profile evaluation file"
-                      >
-                        <Eye size={11} /> File
-                      </button>
-                      {onDeleteCandidate && (
-                        <button
-                          onClick={() => {
-                            if (confirm('Delete candidate profile safely from secure ATS database?')) {
-                              onDeleteCandidate(cand.id);
-                            }
-                          }}
-                          className="text-[10px] text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 cursor-pointer"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      )}
+                    <div className="flex items-center justify-end">
+                      <ActionMenu
+                        items={[
+                          {
+                            key: 'file',
+                            label: 'View File',
+                            icon: <Eye size={13} />,
+                            onClick: () => onSelectCandidate(cand.id),
+                          },
+                          {
+                            key: 'shortlist',
+                            label:
+                              cand.status === 'Shortlisted' ? 'Shortlisted' : 'Shortlist & Schedule',
+                            icon: <UserCheck size={13} />,
+                            disabled: cand.status === 'Shortlisted' || !onShortlistCandidate,
+                            onClick: () => onShortlistCandidate?.(cand.id, cand.fullName),
+                          },
+                          {
+                            key: 'delete',
+                            label: 'Delete',
+                            icon: <Trash2 size={13} />,
+                            danger: true,
+                            disabled: !onDeleteCandidate,
+                            onClick: () => {
+                              if (confirm('Delete candidate profile safely from secure ATS database?')) {
+                                onDeleteCandidate?.(cand.id);
+                              }
+                            },
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

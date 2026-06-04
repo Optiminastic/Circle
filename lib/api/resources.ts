@@ -4,6 +4,9 @@
  */
 
 export const RESOURCES = {
+  authUsers: { slug: 'auth-users', idField: 'id' },
+  schedules: { slug: 'schedules', idField: 'id' },
+  jobs: { slug: 'jobs', idField: 'id' },
   candidates: { slug: 'candidates', idField: 'id' },
   interviews: { slug: 'interviews', idField: 'id' },
   iqTests: { slug: 'iq-tests', idField: 'id' },

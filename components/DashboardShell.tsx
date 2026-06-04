@@ -1,23 +1,39 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { ModalHost } from './ModalHost';
 import { useUiStore } from '@/store/ui-store';
+import { useAuth } from '@/store/auth-store';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useEmployees } from '@/features/employees/hooks';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { user, ready } = useAuth();
   const { userRole, setUserRole, setSearchQuery, setSelectedCandidateId } = useUiStore();
+
+  // Access gate: bounce unauthenticated visitors to the login screen.
+  useEffect(() => {
+    if (ready && !user) router.replace('/login');
+  }, [ready, user, router]);
 
   // Bootstrap status comes from the primary queries — no manual loading flags.
   const candidates = useCandidates();
   const employees = useEmployees();
   const loading = candidates.isLoading || employees.isLoading;
   const error = candidates.isError || employees.isError;
+
+  // Hold rendering until we know the auth state (avoids a flash of the dashboard).
+  if (!ready || !user) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#F6F6F7]">
+        <div className="w-6 h-6 border-2 border-accent-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const onAddCandidateClick = () => {
     router.push('/candidates');

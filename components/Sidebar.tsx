@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   UserSearch,
   FileText,
+  Briefcase,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -105,6 +106,7 @@ export function Sidebar({ userRole, setUserRole }: SidebarProps) {
         {/* Top-level shortcuts */}
         <div className="space-y-0.5">
           {navItem('/', 'Dashboard', <LayoutDashboard size={14} />)}
+          {navItem('/jobs', 'Job Postings', <Briefcase size={14} />)}
           {navItem('/calendar', 'Recruitment Calendar', <CalendarRange size={14} />)}
           {navItem('/candidates', 'Candidates', <UserSearch size={14} />)}
         </div>

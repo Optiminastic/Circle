@@ -1,14 +1,17 @@
 import {
   AssetRecord,
   Assignment,
+  AuthUser,
   BGVRequirement,
   Candidate,
   EmailTemplate,
   Employee,
   IQTest,
   Interview,
+  Job,
   OffboardingWorkflow,
   OnboardingChecklist,
+  ScheduleEvent,
   SentEmailLog,
 } from '@/types';
 import { RESOURCES } from './resources';
@@ -16,6 +19,9 @@ import { ResourceRepository } from './resource-repository';
 
 /** Typed repository instances — the single place HTTP resources are bound to models. */
 export const repositories = {
+  authUsers: new ResourceRepository<AuthUser>(RESOURCES.authUsers.slug),
+  schedules: new ResourceRepository<ScheduleEvent>(RESOURCES.schedules.slug),
+  jobs: new ResourceRepository<Job>(RESOURCES.jobs.slug),
   candidates: new ResourceRepository<Candidate>(RESOURCES.candidates.slug),
   interviews: new ResourceRepository<Interview>(RESOURCES.interviews.slug),
   iqTests: new ResourceRepository<IQTest>(RESOURCES.iqTests.slug),

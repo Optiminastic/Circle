@@ -12,17 +12,18 @@ import {
   Phone,
   CalendarDays,
 } from 'lucide-react';
-import { Interview, IQTest, Candidate } from '../types';
+import { Interview, IQTest, Candidate, ScheduleEvent } from '../types';
 
 interface CalendarViewProps {
   interviews: Interview[];
   iqTests: IQTest[];
   candidates: Candidate[];
+  schedules?: ScheduleEvent[];
   onSelectCandidate: (id: string) => void;
 }
 
 type ViewMode = 'month' | 'week';
-type CalType = 'Interview' | 'IQ Test' | 'HR Call';
+type CalType = 'Interview' | 'IQ Test' | 'HR Call' | 'Assessment';
 
 interface CalEvent {
   id: string;
@@ -68,6 +69,12 @@ function typeStyle(type: CalType) {
         pill: 'bg-violet-50 text-violet-700 hover:bg-violet-100 border-violet-200',
         Icon: BrainCircuit,
       };
+    case 'Assessment':
+      return {
+        dot: 'bg-sky-500',
+        pill: 'bg-sky-50 text-sky-700 hover:bg-sky-100 border-sky-200',
+        Icon: BrainCircuit,
+      };
     case 'HR Call':
       return {
         dot: 'bg-amber-500',
@@ -93,7 +100,76 @@ const hourLabel = (h: number) => {
 };
 const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-export function CalendarView({ interviews, iqTests, candidates, onSelectCandidate }: CalendarViewProps) {
+interface TimedPlacement {
+  ev: CalEvent;
+  top: number;
+  height: number;
+  col: number;
+  cols: number;
+}
+
+/**
+ * Lay out a day's timed events so none overlap visually: events whose pixel
+ * blocks intersect are grouped into a cluster and split into side-by-side
+ * columns (Google Calendar style).
+ */
+function layoutTimed(timed: CalEvent[]): TimedPlacement[] {
+  const blocks = timed
+    .map(ev => {
+      const startHrs = ev.date.getHours() + ev.date.getMinutes() / 60;
+      const top = (startHrs - START_HOUR) * HOUR_HEIGHT;
+      const height = Math.min(MIN_EVENT_HEIGHT, TOTAL_HEIGHT - top);
+      return { ev, startHrs, top, bottom: top + height, height };
+    })
+    .filter(b => b.startHrs >= START_HOUR && b.startHrs < END_HOUR)
+    .sort((a, b) => a.top - b.top || a.bottom - b.bottom);
+
+  const placements: TimedPlacement[] = [];
+  let cluster: typeof blocks = [];
+  let clusterEnd = -Infinity;
+
+  const flush = () => {
+    if (!cluster.length) return;
+    const colEnds: number[] = []; // bottom of the last block in each column
+    const colOf = new Map<string, number>();
+    for (const b of cluster) {
+      let placed = -1;
+      for (let i = 0; i < colEnds.length; i++) {
+        if (b.top >= colEnds[i]) {
+          colEnds[i] = b.bottom;
+          placed = i;
+          break;
+        }
+      }
+      if (placed === -1) {
+        colEnds.push(b.bottom);
+        placed = colEnds.length - 1;
+      }
+      colOf.set(b.ev.id, placed);
+    }
+    const cols = colEnds.length;
+    for (const b of cluster) {
+      placements.push({ ev: b.ev, top: b.top, height: b.height, col: colOf.get(b.ev.id) ?? 0, cols });
+    }
+    cluster = [];
+  };
+
+  for (const b of blocks) {
+    if (cluster.length && b.top >= clusterEnd) flush();
+    cluster.push(b);
+    clusterEnd = Math.max(clusterEnd, b.bottom);
+  }
+  flush();
+  return placements;
+}
+
+export function CalendarView({
+  interviews,
+  iqTests,
+  candidates,
+  schedules = [],
+  onSelectCandidate,
+}: CalendarViewProps) {
   const today = new Date();
   const [view, setView] = useState<ViewMode>('week');
   const [anchor, setAnchor] = useState<Date>(
@@ -145,8 +221,22 @@ export function CalendarView({ interviews, iqTests, candidates, onSelectCandidat
         });
       }
     }
+    for (const s of schedules) {
+      if (s.status === 'Cancelled') continue;
+      const d = new Date(s.dateTime);
+      if (isNaN(d.getTime())) continue;
+      list.push({
+        id: `sch-${s.id}`,
+        candidateId: s.candidateId,
+        candidateName: s.candidateName,
+        subtitle: `${s.type} (scheduled)`,
+        date: d,
+        hasTime: true,
+        type: s.type,
+      });
+    }
     return list;
-  }, [interviews, iqTests, candidates]);
+  }, [interviews, iqTests, candidates, schedules]);
 
   const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
@@ -305,6 +395,9 @@ export function CalendarView({ interviews, iqTests, candidates, onSelectCandidat
           <span className="w-2 h-2 rounded-full bg-violet-500"></span> IQ Test
         </span>
         <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-sky-500"></span> Assessment
+        </span>
+        <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-accent-500"></span> Interview
         </span>
       </div>
@@ -403,19 +496,21 @@ function WeekGrid({
                 <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-[#F2F2F3]" />
               ))}
               <div style={{ height: BOTTOM_BUFFER }} className="bg-[#FAFAFB]" />
-              {timed.map(ev => {
-                const startHrs = ev.date.getHours() + ev.date.getMinutes() / 60;
-                if (startHrs < START_HOUR || startHrs >= END_HOUR) return null;
-                const top = (startHrs - START_HOUR) * HOUR_HEIGHT;
-                const maxH = TOTAL_HEIGHT - top;
-                const height = Math.min(Math.max(MIN_EVENT_HEIGHT, MIN_EVENT_HEIGHT), maxH);
+              {layoutTimed(timed).map(({ ev, top, height, col, cols }) => {
                 const s = typeStyle(ev.type);
+                const widthPct = 100 / cols;
+                const leftPct = col * widthPct;
                 return (
                   <button
                     key={ev.id}
                     onClick={() => onSelectCandidate(ev.candidateId)}
                     title={`${ev.candidateName} • ${ev.subtitle} • ${fmtTime(ev.date)}`}
-                    style={{ top, height, left: 3, right: 3 }}
+                    style={{
+                      top,
+                      height,
+                      left: `calc(${leftPct}% + 3px)`,
+                      width: `calc(${widthPct}% - 6px)`,
+                    }}
                     className={`absolute rounded-md border px-1.5 py-1 text-[10px] leading-tight overflow-hidden text-left cursor-pointer transition ${s.pill}`}
                   >
                     <div className="flex items-center gap-1 font-mono font-semibold">

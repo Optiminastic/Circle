@@ -27,9 +27,60 @@ export interface Candidate {
   status: CandidateStatus;
   appliedDate: string;
 
+  // Set when the candidate applied through a public job posting link.
+  jobId?: string;
+
   // HR introductory call info (if completed or moved to HR Call)
   hrCall?: HRCallRecord;
 }
+
+/** A planned recruitment event (call/test/assessment/interview) shown on the calendar. */
+export type ScheduleType = 'HR Call' | 'IQ Test' | 'Assessment' | 'Interview';
+
+export interface ScheduleEvent {
+  id: string;
+  candidateId: string;
+  candidateName: string;
+  type: ScheduleType;
+  title: string;
+  dateTime: string; // ISO 8601 with time
+  notes?: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  createdAt: string;
+}
+
+/** A dashboard login account. Stored server-side; `id` is the email. */
+export interface AuthUser {
+  id: string; // email (primary key)
+  email: string;
+  password: string;
+  role: 'admin' | 'hr';
+  name: string;
+}
+
+/** A job opening that HR posts and shares via a public link. */
+export interface Job {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  employmentType: EmploymentType;
+  workMode: WorkMode;
+  minExperienceYears: number;
+  salaryMin: string; // e.g. "$120,000" / "₹15,00,000"
+  salaryMax: string;
+  description: string; // detailed role description
+  requirements: string; // skills / must-haves, one per line
+  status: JobStatus;
+  postedBy: string;
+  postedDate: string;
+}
+
+export type EmploymentType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship' | 'Temporary';
+
+export type WorkMode = 'Onsite' | 'Remote' | 'Hybrid';
+
+export type JobStatus = 'Open' | 'Closed' | 'Draft' | 'On Hold';
 
 export type CandidateStatus =
   | 'New Application'

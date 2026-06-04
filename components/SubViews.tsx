@@ -1,6 +1,7 @@
 'use client';
 import { Select } from './Select';
 import { DocumentsPanel } from './DocumentsPanel';
+import { ActionMenu } from './ActionMenu';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -30,6 +31,7 @@ import {
   SlidersHorizontal,
   X,
   Eye,
+  Trash2,
   KeyRound,
   Laptop,
   Network,
@@ -60,12 +62,16 @@ interface HRCallsViewProps {
   candidates: Candidate[];
   onSelectCandidate: (id: string) => void;
   onUpdateCandidate: (updated: Candidate) => void;
+  onShortlistCandidate?: (id: string, name: string) => void;
+  onDeleteCandidate?: (id: string) => void;
 }
 
 export function IntroductoryCallsView({
   candidates,
   onSelectCandidate,
   onUpdateCandidate,
+  onShortlistCandidate,
+  onDeleteCandidate,
 }: HRCallsViewProps) {
   const hrCallCandidates = candidates.filter(c => c.status === 'Moved to HR Call' || c.hrCall?.completed);
 
@@ -122,13 +128,44 @@ export function IntroductoryCallsView({
                       {c.hrCall?.completed ? 'Summary Filed' : 'Action Required'}
                     </span>
                   </td>
-                  <td className="p-3 text-right">
-                    <button
-                      onClick={() => onSelectCandidate(c.id)}
-                      className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] hover:border-accent-400 text-accent-600 px-3 py-1 rounded-md font-semibold cursor-pointer transition"
-                    >
-                      {c.hrCall?.completed ? 'View Records' : 'Complete Form'}
-                    </button>
+                  <td className="p-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => onSelectCandidate(c.id)}
+                        className="text-[10px] bg-[#FFFFFF] border border-[#EAEAEC] hover:border-accent-400 text-accent-600 px-3 py-1 rounded-md font-semibold cursor-pointer transition"
+                      >
+                        {c.hrCall?.completed ? 'View Records' : 'Complete Form'}
+                      </button>
+                      <ActionMenu
+                        items={[
+                          {
+                            key: 'file',
+                            label: 'View File',
+                            icon: <Eye size={13} />,
+                            onClick: () => onSelectCandidate(c.id),
+                          },
+                          {
+                            key: 'shortlist',
+                            label: c.status === 'Shortlisted' ? 'Shortlisted' : 'Shortlist & Schedule',
+                            icon: <UserCheck size={13} />,
+                            disabled: c.status === 'Shortlisted' || !onShortlistCandidate,
+                            onClick: () => onShortlistCandidate?.(c.id, c.fullName),
+                          },
+                          {
+                            key: 'delete',
+                            label: 'Delete',
+                            icon: <Trash2 size={13} />,
+                            danger: true,
+                            disabled: !onDeleteCandidate,
+                            onClick: () => {
+                              if (confirm(`Remove ${c.fullName} from the pipeline?`)) {
+                                onDeleteCandidate?.(c.id);
+                              }
+                            },
+                          },
+                        ]}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))
@@ -147,9 +184,19 @@ interface InterviewsViewProps {
   interviews: Interview[];
   candidates: Candidate[];
   onAddNewInterview: (newInt: Interview) => void;
+  onSelectCandidate?: (id: string) => void;
+  onShortlistCandidate?: (id: string, name: string) => void;
+  onDeleteInterview?: (id: string) => void;
 }
 
-export function InterviewsView({ interviews, candidates, onAddNewInterview }: InterviewsViewProps) {
+export function InterviewsView({
+  interviews,
+  candidates,
+  onAddNewInterview,
+  onSelectCandidate,
+  onShortlistCandidate,
+  onDeleteInterview,
+}: InterviewsViewProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [form, setForm] = useState({
     candidateId: candidates[0]?.id || '',
@@ -305,13 +352,45 @@ export function InterviewsView({ interviews, candidates, onAddNewInterview }: In
                 <span className="text-[10px] bg-accent-50 text-accent-600 font-bold px-2 py-0.5 rounded font-mono">
                   {i.interviewRound}
                 </span>
-                <span
-                  className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold ${
-                    i.status === 'Completed' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
-                  }`}
-                >
-                  {i.status}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span
+                    className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                      i.status === 'Completed' ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+                    }`}
+                  >
+                    {i.status}
+                  </span>
+                  <ActionMenu
+                    items={[
+                      {
+                        key: 'file',
+                        label: 'View File',
+                        icon: <Eye size={13} />,
+                        disabled: !onSelectCandidate,
+                        onClick: () => onSelectCandidate?.(i.candidateId),
+                      },
+                      {
+                        key: 'shortlist',
+                        label: 'Shortlist & Schedule',
+                        icon: <UserCheck size={13} />,
+                        disabled: !onShortlistCandidate,
+                        onClick: () => onShortlistCandidate?.(i.candidateId, i.candidateName),
+                      },
+                      {
+                        key: 'delete',
+                        label: 'Delete',
+                        icon: <Trash2 size={13} />,
+                        danger: true,
+                        disabled: !onDeleteInterview,
+                        onClick: () => {
+                          if (confirm(`Delete the ${i.interviewRound} interview for ${i.candidateName}?`)) {
+                            onDeleteInterview?.(i.id);
+                          }
+                        },
+                      },
+                    ]}
+                  />
+                </div>
               </div>
 
               <div>
@@ -363,9 +442,18 @@ export function InterviewsView({ interviews, candidates, onAddNewInterview }: In
 interface IQViewProps {
   iqTests: IQTest[];
   assignments: Assignment[];
+  onSelectCandidate?: (id: string) => void;
+  onShortlistCandidate?: (id: string, name: string) => void;
+  onDeleteTest?: (id: string) => void;
 }
 
-export function IQTestAssignmentsView({ iqTests, assignments }: IQViewProps) {
+export function IQTestAssignmentsView({
+  iqTests,
+  assignments,
+  onSelectCandidate,
+  onShortlistCandidate,
+  onDeleteTest,
+}: IQViewProps) {
   const [activeTab, setActiveTab] = useState<'iq' | 'assignments'>('iq');
 
   return (
@@ -405,7 +493,8 @@ export function IQTestAssignmentsView({ iqTests, assignments }: IQViewProps) {
                 <th className="p-3">Attempted questions</th>
                 <th className="p-3">Succeeded percentage</th>
                 <th className="p-3">Qualification</th>
-                <th className="p-3 text-right">Remarks</th>
+                <th className="p-3">Remarks</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EAEAEC]">
@@ -428,7 +517,41 @@ export function IQTestAssignmentsView({ iqTests, assignments }: IQViewProps) {
                       {idx.qualificationStatus}
                     </span>
                   </td>
-                  <td className="p-3 text-gray-500 text-right">{idx.remarks}</td>
+                  <td className="p-3 text-gray-500">{idx.remarks}</td>
+                  <td className="p-3">
+                    <div className="flex items-center justify-end">
+                      <ActionMenu
+                        items={[
+                          {
+                            key: 'file',
+                            label: 'View File',
+                            icon: <Eye size={13} />,
+                            disabled: !onSelectCandidate,
+                            onClick: () => onSelectCandidate?.(idx.candidateId),
+                          },
+                          {
+                            key: 'shortlist',
+                            label: 'Shortlist & Schedule',
+                            icon: <UserCheck size={13} />,
+                            disabled: !onShortlistCandidate,
+                            onClick: () => onShortlistCandidate?.(idx.candidateId, idx.candidateName),
+                          },
+                          {
+                            key: 'delete',
+                            label: 'Delete',
+                            icon: <Trash2 size={13} />,
+                            danger: true,
+                            disabled: !onDeleteTest,
+                            onClick: () => {
+                              if (confirm(`Delete this IQ test record for ${idx.candidateName}?`)) {
+                                onDeleteTest?.(idx.id);
+                              }
+                            },
+                          },
+                        ]}
+                      />
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
