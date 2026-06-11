@@ -582,7 +582,13 @@ export default function CandidateDetailPage() {
             </div>
           </div>
 
-          <DocumentsPanel entityType="candidate" entityId={candidate.id} title="Resume & documents" />
+          <DocumentsPanel
+            entityType="candidate"
+            entityId={candidate.id}
+            category="resume"
+            title="Resume & documents"
+            previewOnly
+          />
         </div>
       </div>
     </div>

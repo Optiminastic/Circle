@@ -4,11 +4,11 @@
  */
 export const BRAND = {
   /** Full wordmark shown next to the logo. */
-  name: 'Optiminastic × Circle',
+  name: 'Circle by Optiminastic',
   /** Short form for tight spaces / second line. */
   short: 'Circle',
   /** Product name (app title, proctor footer). */
-  product: 'Optiminastic × Circle HRMS',
+  product: 'Circle by Optiminastic',
   /** Sign-off used by HR-facing copy. */
-  hrTeam: 'Optiminastic × Circle HR Team',
+  hrTeam: 'Circle by Optiminastic HR Team',
 } as const;

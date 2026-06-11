@@ -5,13 +5,13 @@
  */
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search,
   Bell,
-  Plus,
-  HelpCircle,
+  CalendarRange,
   Check,
   MapPin,
   Briefcase,
@@ -28,7 +28,6 @@ import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { cn } from '@/lib/utils';
 import { ui } from '@/components/ui/styles';
-import { workspace } from '@/lib/config';
 import { AccessControlModal } from './AccessControlModal';
 
 /** "5 Jun 2026" -> "2h ago" style relative label (falls back to the raw date). */
@@ -47,8 +46,6 @@ function relativeTime(iso: string): string {
 
 interface HeaderProps {
   onSearch: (query: string) => void;
-  onAddCandidateClick: () => void;
-  userRole: 'HR' | 'Admin';
   candidatesList: Candidate[];
   onQuickSelectCandidate: (candidateId: string) => void;
   sidebarCollapsed: boolean;
@@ -57,8 +54,6 @@ interface HeaderProps {
 
 export function Header({
   onSearch,
-  onAddCandidateClick,
-  userRole,
   candidatesList,
   onQuickSelectCandidate,
   sidebarCollapsed,
@@ -185,23 +180,18 @@ export function Header({
 
       {/* Right Actions & Profile */}
       <div className="flex items-center gap-4">
-        {/* Workspace status label */}
-        <span className="text-[11px] font-medium text-gray-600 bg-[#E6E1D8] px-2 py-0.5 rounded-full flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-          {workspace.name || 'Workspace'}
-        </span>
-
-        {/* Quick Action additions button */}
-        {userRole === 'HR' && (
-          <button
-            id="btn-quick-add-candidate"
-            onClick={onAddCandidateClick}
-            className="flex items-center gap-1.5 bg-accent-600 hover:bg-accent-700 text-white font-medium text-xs px-3 py-1.5 rounded-md shadow-sm cursor-pointer transition"
-          >
-            <Plus size={12} />
-            <span>Add Candidate</span>
-          </button>
-        )}
+        {/* Recruitment calendar */}
+        <Link
+          href="/calendar"
+          aria-label="Recruitment Calendar"
+          title="Recruitment Calendar"
+          className={cn(
+            'rounded-md border border-[#DAD4C8] p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+            ui.focusRing,
+          )}
+        >
+          <CalendarRange size={14} />
+        </Link>
 
         {/* Notification bell */}
         <Popover.Root open={showNotifications} onOpenChange={setShowNotifications}>
@@ -258,11 +248,6 @@ export function Header({
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
-
-        {/* Help icon */}
-        <button className="p-1.5 hover:bg-[#E6E1D8] border border-[#DAD4C8] rounded-md text-gray-500 cursor-pointer transition">
-          <HelpCircle size={14} />
-        </button>
 
         {/* Active Profile */}
         <div className="border-l border-[#DAD4C8] pl-4">

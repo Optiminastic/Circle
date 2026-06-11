@@ -18,7 +18,6 @@ import {
   FileText,
   ChevronRight,
   SlidersHorizontal,
-  Eye,
   Trash2,
   UserCheck,
   UserSearch,
@@ -52,6 +51,8 @@ interface CandidateListViewProps {
   onDeleteCandidate?: (id: string) => void;
   onShortlistCandidate?: (id: string, name: string) => void;
   onSetFit?: (id: string, rating: FitRating) => void;
+  /** Show the "Candidate Evaluation & ATS Panel" header with the Add Candidate button. */
+  showHeader?: boolean;
 }
 
 export function CandidateListView({
@@ -61,6 +62,7 @@ export function CandidateListView({
   onDeleteCandidate,
   onShortlistCandidate,
   onSetFit,
+  showHeader = true,
 }: CandidateListViewProps) {
   const toast = useToast();
   const qc = useQueryClient();
@@ -203,26 +205,28 @@ export function CandidateListView({
   return (
     <div className="space-y-4 text-xs select-none">
       {/* View Header with CTA triggers */}
-      <div className="flex justify-between items-center bg-[#F2EEE7] border-b border-[#DAD4C8] pb-3">
-        <div>
-          <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
-            Candidate Evaluation & ATS Panel
-          </h2>
-          <p className="text-gray-500 text-[11px]">
-            Secure enterprise dashboard to review profiles, salaries limits, resumes, and actions.
-          </p>
+      {showHeader && (
+        <div className="flex justify-between items-center bg-[#F2EEE7] border-b border-[#DAD4C8] pb-3">
+          <div>
+            <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
+              Candidate Evaluation & ATS Panel
+            </h2>
+            <p className="text-gray-500 text-[11px]">
+              Secure enterprise dashboard to review profiles, salaries limits, resumes, and actions.
+            </p>
+          </div>
+          <button
+            id="btn-add-candidate-directory"
+            onClick={() => {
+              setResume(null);
+              setShowAddForm(true);
+            }}
+            className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition font-medium"
+          >
+            <Plus size={14} /> Add Candidate
+          </button>
         </div>
-        <button
-          id="btn-add-candidate-directory"
-          onClick={() => {
-            setResume(null);
-            setShowAddForm(true);
-          }}
-          className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition font-medium"
-        >
-          <Plus size={14} /> Add Candidate
-        </button>
-      </div>
+      )}
 
       {/* Advanced Filter Bars */}
       <div className="bg-[#F7F4EE] border border-[#DAD4C8] p-4 rounded-xl shadow-2xs space-y-3">
@@ -346,14 +350,15 @@ export function CandidateListView({
               </tr>
             ) : (
               filtered.map(cand => (
-                <tr key={cand.id} className="hover:bg-[#F2EEE7] group transition duration-150">
+                <tr
+                  key={cand.id}
+                  onClick={() => onSelectCandidate(cand.id)}
+                  className="hover:bg-[#F2EEE7] group transition duration-150 cursor-pointer"
+                >
                   <td className="p-3">
-                    <button
-                      onClick={() => onSelectCandidate(cand.id)}
-                      className="cursor-pointer text-left font-semibold text-gray-900 hover:text-accent-600 hover:underline"
-                    >
+                    <span className="font-semibold text-gray-900 group-hover:text-accent-600 group-hover:underline">
                       {cand.fullName}
-                    </button>
+                    </span>
                   </td>
                   <td className="p-3 font-medium text-gray-855 truncate max-w-[150px]">{cand.appliedRole}</td>
                   <td className="p-3 text-gray-600">{cand.department}</td>
@@ -398,16 +403,10 @@ export function CandidateListView({
                     })()}
                   </td>
                   <td className="p-3 text-gray-500 font-mono text-[10px]">{cand.sourceOfApplication}</td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end">
                       <ActionMenu
                         items={[
-                          {
-                            key: 'file',
-                            label: 'View File',
-                            icon: <Eye size={13} />,
-                            onClick: () => onSelectCandidate(cand.id),
-                          },
                           {
                             key: 'shortlist',
                             label:
@@ -477,7 +476,7 @@ export function CandidateListView({
           if (!open) setResume(null);
         }}
       >
-        <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="flex max-h-[90vh] w-[min(96vw,56rem)] max-w-4xl sm:max-w-4xl flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
             <DialogTitle className="font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
               Candidate Admission Profile

@@ -378,6 +378,7 @@ export function CandidateProfileModal({
                     entityId={candidate.id}
                     category="resume"
                     title="Resume & Documents"
+                    previewOnly
                   />
                 </div>
               </div>

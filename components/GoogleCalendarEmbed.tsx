@@ -10,8 +10,8 @@
 
 import { CalendarDays, ExternalLink } from 'lucide-react';
 
-const SRC = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_SRC ?? '';
-const TZ = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_TZ ?? 'Asia/Kolkata';
+const SRC = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_SRC ?? 'tech5@optiminastic.com';
+const TZ = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_TZ ?? 'America/New_York';
 
 export function GoogleCalendarEmbed() {
   if (!SRC) {

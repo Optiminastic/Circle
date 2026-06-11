@@ -130,10 +130,24 @@ export function JobListView({
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim()) {
-      toast.error('A job title is required to publish the posting.');
+
+    // Every field is compulsory — block publishing until they're all filled.
+    const missing: string[] = [];
+    if (!form.title.trim()) missing.push('Job title');
+    if (!form.department) missing.push('Department');
+    if (!form.location.trim()) missing.push('Location');
+    if (!form.employmentType) missing.push('Employment type');
+    if (!form.workMode) missing.push('Work mode');
+    if (form.minExperienceYears === null || Number.isNaN(Number(form.minExperienceYears)))
+      missing.push('Min experience');
+    if (!form.description.trim()) missing.push('Job description');
+    if (!form.requirements.trim()) missing.push('Requirements');
+
+    if (missing.length > 0) {
+      toast.error(`Please fill all fields before publishing: ${missing.join(', ')}.`);
       return;
     }
+
     const created: Job = {
       id: `JOB-${Math.floor(1000 + Math.random() * 9000)}`,
       title: form.title.trim(),
@@ -569,7 +583,7 @@ export function JobListView({
 
       {/* Create job modal */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="flex max-h-[90vh] w-[min(96vw,72rem)] max-w-[72rem] flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className="flex max-h-[90vh] w-[min(96vw,72rem)] max-w-[72rem] sm:max-w-[72rem] flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
             <DialogTitle className="font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
               Publish a New Job Opening
@@ -590,7 +604,7 @@ export function JobListView({
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <Label htmlFor="job-title" className="text-sm font-medium">
-                        Job title
+                        Job title <span className="text-accent-600">*</span>
                       </Label>
                       <Input
                         id="job-title"
@@ -676,7 +690,7 @@ export function JobListView({
                     </div>
                     <div>
                       <Label htmlFor="job-exp" className="text-sm font-medium">
-                        Min exp. (yrs)
+                        Min exp. (yrs) <span className="text-accent-600">*</span>
                       </Label>
                       <Input
                         id="job-exp"
@@ -687,6 +701,7 @@ export function JobListView({
                           setForm({ ...form, minExperienceYears: Number(e.target.value) })
                         }
                         className="mt-2"
+                        required
                       />
                     </div>
                     <div>
@@ -730,7 +745,7 @@ export function JobListView({
                 <div className="space-y-4 md:col-span-2">
                   <div>
                     <Label htmlFor="job-desc" className="text-sm font-medium">
-                      Job description (JD)
+                      Job description (JD) <span className="text-accent-600">*</span>
                     </Label>
                     <Textarea
                       id="job-desc"
@@ -740,6 +755,7 @@ export function JobListView({
                       rows={10}
                       maxLength={2000}
                       className="mt-2"
+                      required
                     />
                     <p className="mt-1 text-right text-[11px] font-mono text-muted-foreground">
                       {form.description.length}/2000
@@ -747,7 +763,7 @@ export function JobListView({
                   </div>
                   <div>
                     <Label htmlFor="job-req" className="text-sm font-medium">
-                      Requirements (one per line)
+                      Requirements (one per line) <span className="text-accent-600">*</span>
                     </Label>
                     <Textarea
                       id="job-req"
@@ -756,6 +772,7 @@ export function JobListView({
                       onChange={e => setForm({ ...form, requirements: e.target.value })}
                       rows={3}
                       className="mt-2"
+                      required
                     />
                   </div>
                 </div>

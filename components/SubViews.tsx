@@ -138,7 +138,11 @@ export function IntroductoryCallsView({
               </tr>
             ) : (
               hrCallCandidates.map(c => (
-                <tr key={c.id} className="hover:bg-[#F2EEE7] transition">
+                <tr
+                  key={c.id}
+                  onClick={() => onSelectCandidate(c.id)}
+                  className="hover:bg-[#F2EEE7] transition cursor-pointer"
+                >
                   <td className="p-3 font-semibold text-gray-900">{c.fullName}</td>
                   <td className="p-3">
                     {c.appliedRole} ({c.department})
@@ -158,22 +162,10 @@ export function IntroductoryCallsView({
                       {c.hrCall?.completed ? 'Summary Filed' : 'Action Required'}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => onSelectCandidate(c.id)}
-                        className="text-[10px] bg-[#F7F4EE] border border-[#DAD4C8] hover:border-accent-400 text-accent-600 px-3 py-1 rounded-md font-semibold cursor-pointer transition"
-                      >
-                        {c.hrCall?.completed ? 'View Records' : 'Complete Form'}
-                      </button>
                       <ActionMenu
                         items={[
-                          {
-                            key: 'file',
-                            label: 'View File',
-                            icon: <Eye size={13} />,
-                            onClick: () => onSelectCandidate(c.id),
-                          },
                           {
                             key: 'shortlist',
                             label: c.status === 'Shortlisted' ? 'Shortlisted' : 'Shortlist & Schedule',
@@ -437,7 +429,11 @@ export function InterviewsView({
               </tr>
             ) : (
               allInterviews.map(i => (
-                <tr key={i.id} className="transition hover:bg-[#F2EEE7]">
+                <tr
+                  key={i.id}
+                  onClick={onSelectCandidate ? () => onSelectCandidate(i.candidateId) : undefined}
+                  className={`transition hover:bg-[#F2EEE7] ${onSelectCandidate ? 'cursor-pointer' : ''}`}
+                >
                   <td className="p-3 font-semibold text-gray-900">{i.candidateName}</td>
                   <td className="p-3 text-gray-600">
                     {i.appliedRole} <span className="text-gray-400">• {i.department}</span>
@@ -467,17 +463,10 @@ export function InterviewsView({
                       {i.status}
                     </span>
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end">
                       <ActionMenu
                         items={[
-                          {
-                            key: 'file',
-                            label: 'View File',
-                            icon: <Eye size={13} />,
-                            disabled: !onSelectCandidate,
-                            onClick: () => onSelectCandidate?.(i.candidateId),
-                          },
                           {
                             key: 'select',
                             label: 'Select for role',
@@ -622,7 +611,11 @@ export function IQTestAssignmentsView({
                   {awaitingIq.map(c => {
                     const sched = scheduledIq.get(c.id);
                     return (
-                      <tr key={c.id} className="hover:bg-[#F2EEE7] transition">
+                      <tr
+                        key={c.id}
+                        onClick={onSelectCandidate ? () => onSelectCandidate(c.id) : undefined}
+                        className={`hover:bg-[#F2EEE7] transition ${onSelectCandidate ? 'cursor-pointer' : ''}`}
+                      >
                         <td className="p-3 font-semibold text-gray-900">{c.fullName}</td>
                         <td className="p-3">
                           {c.appliedRole} ({c.department})
@@ -638,7 +631,7 @@ export function IQTestAssignmentsView({
                               : 'Ready to schedule'}
                           </span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => openSchedule(c.id, c.fullName, 'IQ Test')}
@@ -648,13 +641,6 @@ export function IQTestAssignmentsView({
                             </button>
                             <ActionMenu
                               items={[
-                                {
-                                  key: 'file',
-                                  label: 'View File',
-                                  icon: <Eye size={13} />,
-                                  disabled: !onSelectCandidate,
-                                  onClick: () => onSelectCandidate?.(c.id),
-                                },
                                 {
                                   key: 'bgv',
                                   label: 'BGV Verification',
@@ -688,7 +674,11 @@ export function IQTestAssignmentsView({
             </thead>
             <tbody className="divide-y divide-[#DAD4C8]">
               {iqTests.map(idx => (
-                <tr key={idx.id} className="hover:bg-[#F2EEE7] transition">
+                <tr
+                  key={idx.id}
+                  onClick={onSelectCandidate ? () => onSelectCandidate(idx.candidateId) : undefined}
+                  className={`hover:bg-[#F2EEE7] transition ${onSelectCandidate ? 'cursor-pointer' : ''}`}
+                >
                   <td className="p-3 font-semibold text-gray-900">{idx.candidateName}</td>
                   <td className="p-3 font-mono">{idx.testDate}</td>
                   <td className="p-3 font-mono">
@@ -707,17 +697,10 @@ export function IQTestAssignmentsView({
                     </span>
                   </td>
                   <td className="p-3 text-gray-500">{idx.remarks}</td>
-                  <td className="p-3">
+                  <td className="p-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-end">
                       <ActionMenu
                         items={[
-                          {
-                            key: 'file',
-                            label: 'View File',
-                            icon: <Eye size={13} />,
-                            disabled: !onSelectCandidate,
-                            onClick: () => onSelectCandidate?.(idx.candidateId),
-                          },
                           {
                             key: 'shortlist',
                             label: 'Shortlist & Schedule',
@@ -1100,13 +1083,12 @@ export function EmployeeDirectoryView({
               <th className="p-3">Location</th>
               <th className="p-3">Joined</th>
               <th className="p-3">Status</th>
-              <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-3">
+                <td colSpan={7} className="p-3">
                   <EmptyState
                     icon={Users}
                     title={employees.length === 0 ? 'No employees yet' : 'No matches'}
@@ -1163,19 +1145,6 @@ export function EmployeeDirectoryView({
                     >
                       {emp.status}
                     </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center justify-end">
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          onSelectEmployee(emp.id);
-                        }}
-                        className="text-[10px] bg-[#F7F4EE] border border-[#DAD4C8] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                      >
-                        <Eye size={11} /> File
-                      </button>
-                    </div>
                   </td>
                 </tr>
               ))

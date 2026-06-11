@@ -44,6 +44,13 @@ const inputCls =
 
 const MAX_RESUME_MB = 5;
 
+// Per-field input sanitisers — keep each field to its own data type.
+const onlyLetters = (v: string) => v.replace(/[^A-Za-z\s.'-]/g, ''); // names, titles
+const onlyCompany = (v: string) => v.replace(/[^A-Za-z0-9\s.,&'-]/g, ''); // company names
+const onlyDigits = (v: string) => v.replace(/\D/g, ''); // phone
+const onlyDecimal = (v: string) => v.replace(/[^0-9.]/g, ''); // CTC
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const formatSize = (bytes: number): string =>
   bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -82,11 +89,34 @@ export default function PublicJobPage() {
     setResumeFile(file);
   };
 
+  // Every field is required except "Previous company" and the Google Drive link.
+  const validateDetails = (): string | null => {
+    if (!form.fullName.trim()) return 'Please enter your full name.';
+    if (!form.email.trim()) return 'Please enter your email.';
+    if (!EMAIL_RE.test(form.email.trim())) return 'Please enter a valid email address.';
+    if (!form.phone.trim()) return 'Please enter your phone number.';
+    if (form.phone.trim().length !== 10)
+      return 'Please enter a valid 10-digit phone number.';
+    if (!form.currentDesignation.trim()) return 'Please enter your current title.';
+    if (!String(form.currentCtc).trim()) return 'Please enter your current CTC.';
+    if (!String(form.expectedCtc).trim()) return 'Please enter your expected CTC.';
+    if (String(form.totalExperienceYears).trim() === '')
+      return 'Please enter your total experience.';
+    if (String(form.noticePeriodDays).trim() === '')
+      return 'Please enter your notice period.';
+    if (!resumeFile) return 'Please upload your resume.';
+    if (!form.linkedInUrl.trim()) return 'Please enter your LinkedIn profile URL.';
+    if (!form.coverNote.trim()) return 'Please add a short cover note.';
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!job) return;
-    if (!form.fullName.trim() || !form.email.trim()) {
-      toast.error('Please provide your full name and email.');
+    const detailsError = validateDetails();
+    if (detailsError) {
+      toast.error(detailsError);
+      setStep(0);
       return;
     }
     const questions = job.screeningQuestions ?? [];
@@ -110,7 +140,7 @@ export default function PublicJobPage() {
       id,
       fullName: form.fullName.trim(),
       email: form.email.trim(),
-      phone: form.phone,
+      phone: form.phone ? `+91 ${form.phone}` : '',
       location: form.location,
       currentCompany: form.currentCompany,
       currentDesignation: form.currentDesignation,
@@ -162,8 +192,9 @@ export default function PublicJobPage() {
 
   // Step 1 (details) → next: validate the basics, then move to the questions.
   const goNext = () => {
-    if (!form.fullName.trim() || !form.email.trim()) {
-      toast.error('Please provide your full name and email.');
+    const detailsError = validateDetails();
+    if (detailsError) {
+      toast.error(detailsError);
       return;
     }
     setError(null);
@@ -326,8 +357,8 @@ export default function PublicJobPage() {
                   <input
                     className={inputCls}
                     value={form.fullName}
-                    onChange={e => set({ fullName: e.target.value })}
-                    placeholder="Jane Doe"
+                    onChange={e => set({ fullName: onlyLetters(e.target.value) })}
+                    placeholder="Enter your full name"
                     required
                   />
                 </Field>
@@ -338,17 +369,24 @@ export default function PublicJobPage() {
                       className={inputCls}
                       value={form.email}
                       onChange={e => set({ email: e.target.value })}
-                      placeholder="jane@email.com"
+                      placeholder="example@email.com"
                       required
                     />
                   </Field>
-                  <Field label="Phone">
-                    <input
-                      className={inputCls}
-                      value={form.phone}
-                      onChange={e => set({ phone: e.target.value })}
-                      placeholder="+1 555 123 4567"
-                    />
+                  <Field label="Phone *">
+                    <div className="flex items-stretch">
+                      <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-[#DAD4C8] bg-[#E6E1D8] text-sm text-gray-600">
+                        +91
+                      </span>
+                      <input
+                        inputMode="numeric"
+                        className={`${inputCls} rounded-l-none`}
+                        value={form.phone}
+                        onChange={e => set({ phone: onlyDigits(e.target.value).slice(0, 10) })}
+                        placeholder="98765 43210"
+                        required
+                      />
+                    </div>
                   </Field>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -356,58 +394,67 @@ export default function PublicJobPage() {
                     <input
                       className={inputCls}
                       value={form.currentCompany}
-                      onChange={e => set({ currentCompany: e.target.value })}
-                      placeholder="Acme Inc."
+                      onChange={e => set({ currentCompany: onlyCompany(e.target.value) })}
+                      placeholder="Enter your previous company"
                     />
                   </Field>
-                  <Field label="Current title">
+                  <Field label="Current title *">
                     <input
                       className={inputCls}
                       value={form.currentDesignation}
-                      onChange={e => set({ currentDesignation: e.target.value })}
-                      placeholder="Frontend Engineer"
+                      onChange={e => set({ currentDesignation: onlyLetters(e.target.value) })}
+                      placeholder="Enter your current job title"
+                      required
                     />
                   </Field>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="Current CTC (LPA)">
+                  <Field label="Current CTC (LPA) *">
                     <input
+                      inputMode="decimal"
                       className={inputCls}
                       value={form.currentCtc}
-                      onChange={e => set({ currentCtc: e.target.value })}
-                      placeholder="e.g. 12 LPA"
+                      onChange={e => set({ currentCtc: onlyDecimal(e.target.value) })}
+                      placeholder="e.g. 12"
+                      required
                     />
                   </Field>
-                  <Field label="Expected CTC (LPA)">
+                  <Field label="Expected CTC (LPA) *">
                     <input
+                      inputMode="decimal"
                       className={inputCls}
                       value={form.expectedCtc}
-                      onChange={e => set({ expectedCtc: e.target.value })}
-                      placeholder="e.g. 15 LPA"
+                      onChange={e => set({ expectedCtc: onlyDecimal(e.target.value) })}
+                      placeholder="e.g. 15"
+                      required
                     />
                   </Field>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="Experience (yrs)">
+                  <Field label="Experience (yrs) *">
                     <input
                       type="number"
                       min={0}
                       className={inputCls}
                       value={form.totalExperienceYears}
                       onChange={e => set({ totalExperienceYears: Number(e.target.value) })}
+                      placeholder="e.g. 3"
+                      required
                     />
                   </Field>
-                  <Field label="Notice period (days)">
+                  <Field label="Notice period (days) *">
                     <input
                       type="number"
                       min={0}
                       className={inputCls}
                       value={form.noticePeriodDays}
                       onChange={e => set({ noticePeriodDays: Number(e.target.value) })}
+                      placeholder="e.g. 30"
+                      required
                     />
                   </Field>
                 </div>
-                <Field label="Resume">
+                <Field label="Resume *">
                   {resumeFile ? (
                     <div className="flex items-center gap-2.5 border border-[#DAD4C8] rounded-lg px-3 py-2.5 bg-accent-50/50">
                       <span className="w-8 h-8 rounded-md bg-accent-100 text-accent-700 flex items-center justify-center shrink-0">
@@ -450,29 +497,33 @@ export default function PublicJobPage() {
                     </label>
                   )}
                 </Field>
-                <Field label="Or resume link (optional)">
+                <Field label="Google Drive resume link">
                   <input
+                    type="url"
                     className={inputCls}
                     value={form.resumeUrl}
                     onChange={e => set({ resumeUrl: e.target.value })}
-                    placeholder="Google Drive / Dropbox / portfolio URL"
+                    placeholder="https://drive.google.com/your-resume"
                   />
                 </Field>
-                <Field label="LinkedIn">
+                <Field label="LinkedIn *">
                   <input
+                    type="url"
                     className={inputCls}
                     value={form.linkedInUrl}
                     onChange={e => set({ linkedInUrl: e.target.value })}
-                    placeholder="https://linkedin.com/in/…"
+                    placeholder="https://linkedin.com/in/your-profile"
+                    required
                   />
                 </Field>
-                <Field label="Cover note">
+                <Field label="Cover note *">
                   <textarea
                     rows={3}
                     className={inputCls}
                     value={form.coverNote}
                     onChange={e => set({ coverNote: e.target.value })}
-                    placeholder="Why are you a great fit?"
+                    placeholder="Why are you a great fit for this role?"
+                    required
                   />
                 </Field>
                   </>
@@ -584,7 +635,7 @@ export default function PublicJobPage() {
       </main>
 
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-6 text-center text-[11px] text-gray-500">
-        Powered by {BRAND.name} HR · {job.department}
+        {BRAND.name}
       </footer>
     </div>
   );

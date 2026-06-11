@@ -80,6 +80,7 @@ export default function JobApplicantsPage() {
 
       {/* Same candidates experience, scoped to this job's applicants */}
       <CandidateListView
+        showHeader={false}
         candidates={applicants}
         onSelectCandidate={setSelectedCandidateId}
         onAddCandidate={candidate =>

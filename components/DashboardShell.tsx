@@ -66,11 +66,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const onAddCandidateClick = () => {
-    router.push('/candidates');
-    setTimeout(() => document.getElementById('btn-add-candidate-directory')?.click(), 150);
-  };
-
   const onQuickSelectCandidate = (id: string) => {
     setSelectedCandidateId(id);
     router.push('/candidates');
@@ -91,8 +86,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header
           onSearch={setSearchQuery}
-          onAddCandidateClick={onAddCandidateClick}
-          userRole={userRole}
           candidatesList={candidates.data ?? []}
           onQuickSelectCandidate={onQuickSelectCandidate}
           sidebarCollapsed={sidebarCollapsed}
