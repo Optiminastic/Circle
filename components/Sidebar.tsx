@@ -6,18 +6,14 @@ import { usePathname } from 'next/navigation';
 import { Logo } from './Logo';
 import { BRAND } from '@/lib/brand';
 import {
-  Clock,
   LayoutDashboard,
   Users,
-  CalendarDays,
   CalendarRange,
-  BrainCircuit,
   ListTodo,
   LogOut,
   BarChart3,
   Settings,
   ShieldCheck,
-  FileText,
   Briefcase,
   UserSearch,
 } from 'lucide-react';
@@ -32,7 +28,6 @@ interface SidebarProps {
 export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState({
-    recruitment: true,
     employees: true,
     offboarding: true,
   });
@@ -95,27 +90,6 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
           {navItem('/jobs', 'Job Postings', <Briefcase size={14} />)}
           {navItem('/calendar', 'Recruitment Calendar', <CalendarRange size={14} />)}
           {navItem('/candidates', 'Candidates', <UserSearch size={14} />)}
-        </div>
-
-        {/* RECRUITMENT DIVISION */}
-        <div className="space-y-1">
-          {!isCollapsed && (
-            <div
-              onClick={() => toggleSection('recruitment')}
-              className="px-3 py-1 flex items-center justify-between text-[10px] font-semibold text-gray-500 uppercase font-mono tracking-wider cursor-pointer hover:text-gray-600"
-            >
-              <span>Recruitment</span>
-              <span className="text-[8px]">{expandedSections.recruitment ? '▼' : '▶'}</span>
-            </div>
-          )}
-          {(isCollapsed || expandedSections.recruitment) && (
-            <div className="space-y-0.5">
-              {navItem('/hr-calls', 'HR Introductory Calls', <Clock size={14} />)}
-              {navItem('/iq-tests', 'IQ Test Modules', <BrainCircuit size={14} />)}
-              {navItem('/assignments', 'Role Assignments', <FileText size={14} />)}
-              {navItem('/interviews', 'Interviews & Panel', <CalendarDays size={14} />)}
-            </div>
-          )}
         </div>
 
         {/* EMPLOYEES DIVISION */}

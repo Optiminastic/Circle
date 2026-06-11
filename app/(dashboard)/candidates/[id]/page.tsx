@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Check,
@@ -23,19 +23,39 @@ import {
   CheckCircle2,
   XCircle,
   Download,
+  Star,
+  Award,
+  ThumbsDown,
+  MessageSquarePlus,
 } from 'lucide-react';
-import { Candidate, TestInvite } from '@/types';
-import { useCandidates } from '@/features/candidates/hooks';
+import { CandidateStatus, HRCallRecord, Interview, ScheduleType, ScreeningReview, TestInvite } from '@/types';
+import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
 import { useSchedules } from '@/features/schedule/hooks';
-import { useInterviews } from '@/features/interviews/hooks';
+import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
 import { useScheduler } from '@/store/schedule-store';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { effectiveFit, fitStyle } from '@/lib/screening';
+import { sendTestEmail } from '@/lib/api/notifications';
+import { ASSIGNMENT_MAX_MARKS, ASSIGNMENT_PASS_MARKS } from '@/data/test-banks';
+import { useToast } from '@/components/Toaster';
 import { DocumentsPanel } from '@/components/DocumentsPanel';
 import { openDocument } from '@/features/documents/hooks';
 import { PageLoading } from '@/components/PageLoading';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetBody,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import {
   Stepper,
   StepperNav,
@@ -59,6 +79,40 @@ const fmtDateTime = (iso?: string) => {
 
 type StepState = 'done' | 'current' | 'todo' | 'rejected';
 
+const blankScreening = (): ScreeningReview => ({
+  resumeRelevance: 3,
+  experienceMatch: 3,
+  skillMatch: 3,
+  standoutFactor: 3,
+  communication: 3,
+  remarks: '',
+});
+
+const SCREENING_CRITERIA: { key: keyof ScreeningReview; label: string }[] = [
+  { key: 'resumeRelevance', label: 'Resume relevance' },
+  { key: 'experienceMatch', label: 'Experience match' },
+  { key: 'skillMatch', label: 'Skill match' },
+  { key: 'standoutFactor', label: 'Stands out / different' },
+  { key: 'communication', label: 'Communication & profile' },
+];
+
+const blankHrCall = (): HRCallRecord => ({
+  completed: true,
+  candidateAvailability: '',
+  communicationRating: 3,
+  professionalBackgroundSummary: '',
+  reasonForJobChange: '',
+  currentCtc: '',
+  expectedCtc: '',
+  noticePeriodDays: 0,
+  workModePreference: 'Onsite',
+  roleUnderstanding: '',
+  interestLevel: 3,
+  culturalFitRemarks: '',
+  hrRecommendation: '',
+  nextStep: 'Proceed to Interview',
+});
+
 export default function CandidateDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
@@ -72,6 +126,10 @@ export default function CandidateDetailPage() {
     queryFn: () => repositories.testInvites.list(),
   });
   const { openSchedule } = useScheduler();
+  const { move } = useCandidateMutations();
+  const { grade: gradeInterview } = useInterviewMutations();
+  const toast = useToast();
+  const qc = useQueryClient();
 
   const candidate = candidates.find(c => c.id === id);
 
@@ -79,13 +137,95 @@ export default function CandidateDetailPage() {
   const [stepIn, setStepIn] = useState(false);
   // Which stage's detail is shown in the side panel (null = follow current stage).
   const [picked, setPicked] = useState<number | null>(null);
+  // Right-side drawer used to fill in a stage's details from the candidate flow.
+  const [openForm, setOpenForm] = useState<null | 'screening' | 'hrcall' | 'grade' | 'feedback'>(null);
+  const [sr, setSr] = useState<ScreeningReview>(blankScreening());
+  const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
+  const [gradeScore, setGradeScore] = useState('');
+  const [gradeComments, setGradeComments] = useState('');
+  const [fbInterview, setFbInterview] = useState<Interview | null>(null);
+  const [fbRec, setFbRec] = useState('Hire');
+  const [fbComments, setFbComments] = useState('');
   useEffect(() => {
     if (!candidate) return;
     setStepIn(false);
     setPicked(null);
+    setOpenForm(null);
     const t = setTimeout(() => setStepIn(true), 60);
     return () => clearTimeout(t);
   }, [candidate?.id]);
+
+  // Grade the take-home assignment from the candidate's own flow — a pass
+  // schedules the interview; a fail rejects the candidate and emails them.
+  const gradeAssignment = useMutation({
+    mutationFn: async ({ invite, value, notes }: { invite: TestInvite; value: number; notes: string }) => {
+      const passed = value >= ASSIGNMENT_PASS_MARKS;
+      await repositories.testInvites.patch(invite.id, {
+        status: 'Graded',
+        score: value,
+        passed,
+        gradeComments: notes,
+      });
+      if (!passed) {
+        await repositories.candidates.patch(invite.candidateId, { status: 'Rejected' }).catch(() => {});
+        sendTestEmail({
+          to: invite.email,
+          candidateName: invite.candidateName,
+          template: 'assessment_failed',
+          position: invite.position,
+        }).catch(() => {});
+      }
+      return { invite, passed };
+    },
+    onSuccess: ({ invite, passed }) => {
+      qc.invalidateQueries({ queryKey: qk.testInvites.all });
+      qc.invalidateQueries({ queryKey: qk.candidates.all });
+      setOpenForm(null);
+      setGradeScore('');
+      setGradeComments('');
+      if (passed) {
+        toast.success('Assignment cleared — schedule the interview.');
+        openSchedule(invite.candidateId, invite.candidateName, 'Interview');
+      } else {
+        toast.info('Candidate was not moved forward.');
+      }
+    },
+    onError: () => toast.error('Could not save the grade — try again.'),
+  });
+
+  // Record HR's screening review (why we're reaching out, what stands out, etc.).
+  const saveScreening = useMutation({
+    mutationFn: async (review: ScreeningReview) => {
+      await repositories.candidates.patch(id, {
+        screeningReview: { ...review, reviewedDate: review.reviewedDate ?? new Date().toISOString() },
+      });
+      return review;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.candidates.all });
+      setOpenForm(null);
+      toast.success('Screening notes saved.');
+    },
+    onError: () => toast.error('Could not save screening notes — try again.'),
+  });
+
+  // Record the HR introductory call outcome from the candidate's own flow.
+  const saveHrCall = useMutation({
+    mutationFn: async (record: HRCallRecord) => {
+      const patch: Partial<{ hrCall: HRCallRecord; status: CandidateStatus }> = {
+        hrCall: { ...record, completedDate: record.completedDate ?? new Date().toISOString() },
+      };
+      if (record.nextStep === 'Reject') patch.status = 'Rejected';
+      await repositories.candidates.patch(id, patch);
+      return record;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.candidates.all });
+      setOpenForm(null);
+      toast.success('HR call details saved.');
+    },
+    onError: () => toast.error('Could not save the HR call — try again.'),
+  });
 
   if (isLoading) return <PageLoading />;
   if (!candidate) {
@@ -269,9 +409,26 @@ export default function CandidateDetailPage() {
       );
 
     if (label === 'Screening') {
-      if (!candidate.screeningAnswers?.length) return empty('No screening questions were answered.');
+      const review = candidate.screeningReview;
+      const hasAny = Boolean(review) || Boolean(candidate.screeningAnswers?.length);
+      if (!hasAny) return empty('No screening notes or questions recorded yet.');
       return (
         <div className="space-y-3">
+          {review && (
+            <div className="space-y-1.5 rounded-lg border border-[#E2DDD2] bg-[#ECE6DA] p-2.5">
+              {SCREENING_CRITERIA.map(c => (
+                <div key={c.key} className="flex items-center justify-between">
+                  <span className="text-[11px] text-gray-600">{c.label}</span>
+                  <span className="font-mono text-[11px] font-bold text-gray-700">{review[c.key] as number}/5</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between border-t border-[#DAD4C8] pt-1.5">
+                <span className="text-[11px] font-semibold text-gray-700">Average</span>
+                <span className="font-mono text-[11px] font-bold text-accent-600">{screeningAvg(review).toFixed(1)}/5</span>
+              </div>
+              {review.remarks && <ReviewRow k="Remarks" v={review.remarks} />}
+            </div>
+          )}
           {[
             { label: 'Must-have', items: mustHaves },
             { label: 'Good to have', items: goodToHaves },
@@ -412,6 +569,195 @@ export default function CandidateDetailPage() {
     );
   };
 
+  // ---- the next round to schedule from this candidate's flow ----
+  // The next round to schedule — only suggested once the prior round is actually
+  // done (a scheduled-but-incomplete round shows "in progress" instead).
+  const nextRound: ScheduleType | null = decided
+    ? null
+    : !hrCallReached
+      ? 'HR Call'
+      : !iqReached
+        ? 'IQ Test'
+        : iqDone && !asgReached
+          ? 'Assessment'
+          : asgDone && asgInvite?.passed && !interviewReached
+            ? 'Interview'
+            : null;
+  const roundLabel: Record<ScheduleType, string> = {
+    'HR Call': 'Schedule HR call',
+    'IQ Test': 'Schedule IQ test',
+    Assessment: 'Send assignment',
+    Interview: 'Schedule interview',
+  };
+
+  const schedule = (type: ScheduleType) => openSchedule(candidate.id, candidate.fullName, type);
+
+  const selectForRole = () => {
+    move.mutate({ id: candidate.id, status: 'Selected' });
+    if (!candidate.email) {
+      toast.info('Selected, but no email on file — candidate not notified.');
+      return;
+    }
+    sendTestEmail({
+      to: candidate.email,
+      candidateName: candidate.fullName,
+      template: 'offer_selected',
+      position: candidate.appliedRole || candidate.department,
+    })
+      .then(res => {
+        if (res.sent) toast.success('Selected — availability email sent.');
+        else if (res.reason === 'not_configured')
+          toast.info('Selected. Email not sent — SMTP is not configured yet.');
+        else toast.info('Selected, but the candidate was not emailed.');
+      })
+      .catch(() => toast.error('Selected, but sending the email failed.'));
+  };
+
+  const rejectCandidate = () => {
+    move.mutate({ id: candidate.id, status: 'Rejected' });
+    toast.info('Candidate marked as rejected.');
+  };
+
+  const openScreening = () => {
+    setSr(candidate.screeningReview ?? blankScreening());
+    setOpenForm('screening');
+  };
+  const updateSr = <K extends keyof ScreeningReview>(key: K, value: ScreeningReview[K]) =>
+    setSr(prev => ({ ...prev, [key]: value }));
+
+  const openHrCall = () => {
+    setHc(candidate.hrCall ?? {
+      ...blankHrCall(),
+      currentCtc: candidate.currentCtc ?? '',
+      expectedCtc: candidate.expectedCtc ?? '',
+      noticePeriodDays: candidate.noticePeriodDays ?? 0,
+    });
+    setOpenForm('hrcall');
+  };
+  const updateHc = <K extends keyof HRCallRecord>(key: K, value: HRCallRecord[K]) =>
+    setHc(prev => ({ ...prev, [key]: value }));
+
+  const openGrade = () => {
+    if (!asgInvite) return;
+    setGradeScore(asgInvite.score != null ? String(asgInvite.score) : '');
+    setGradeComments(asgInvite.gradeComments ?? '');
+    setOpenForm('grade');
+  };
+  const submitGrade = () => {
+    if (!asgInvite) return;
+    const value = Number(gradeScore);
+    if (Number.isNaN(value) || value < 0 || value > ASSIGNMENT_MAX_MARKS) {
+      toast.error(`Enter a score between 0 and ${ASSIGNMENT_MAX_MARKS}.`);
+      return;
+    }
+    gradeAssignment.mutate({ invite: asgInvite, value, notes: gradeComments });
+  };
+
+  const openFeedback = (iv: Interview) => {
+    setFbInterview(iv);
+    setFbRec(iv.grading?.recommendation ?? 'Hire');
+    setFbComments(iv.grading?.interviewerComments ?? '');
+    setOpenForm('feedback');
+  };
+  const submitFeedback = () => {
+    if (!fbInterview) return;
+    gradeInterview.mutate(
+      { interviewId: fbInterview.id, recommendation: fbRec, comments: fbComments },
+      {
+        onSuccess: () => {
+          toast.success('Interview feedback saved.');
+          setOpenForm(null);
+          setFbInterview(null);
+        },
+        onError: () => toast.error('Could not save feedback — try again.'),
+      },
+    );
+  };
+
+  const latestInterview = myInterviews[myInterviews.length - 1];
+
+  const scheduleBtn = (type: ScheduleType, text: string, primary = true) => (
+    <Button key={text} size="sm" variant={primary ? 'default' : 'outline'} onClick={() => schedule(type)}>
+      <CalendarPlus size={13} /> {text}
+    </Button>
+  );
+
+  const stageActions = (): React.ReactNode => {
+    const label = stages[activeStage].label;
+    const btns: React.ReactNode[] = [];
+
+    if (label === 'Screening')
+      btns.push(
+        <Button key="screen" size="sm" variant="outline" onClick={openScreening}>
+          <ClipboardList size={13} /> {candidate.screeningReview ? 'Edit screening notes' : 'Record screening'}
+        </Button>,
+      );
+
+    if ((label === 'Applied' || label === 'Screening') && !decided && !hrCallReached)
+      btns.push(scheduleBtn('HR Call', 'Schedule HR call'));
+
+    if (label === 'HR Call') {
+      if (!hrCallReached) btns.push(scheduleBtn('HR Call', 'Schedule HR call'));
+      if (hrCallReached && !decided)
+        btns.push(
+          <Button key="hrform" size="sm" onClick={openHrCall}>
+            <Phone size={13} /> {candidate.hrCall?.completed ? 'Edit call notes' : 'Record HR call'}
+          </Button>,
+        );
+      if (hrCallDone && !decided && !iqReached)
+        btns.push(scheduleBtn('IQ Test', 'Schedule IQ test', false));
+    }
+
+    if (label === 'IQ Test') {
+      if (!iqReached) btns.push(scheduleBtn('IQ Test', 'Schedule IQ test'));
+      else if (!decided && iqDone && !asgReached) btns.push(scheduleBtn('Assessment', 'Send assignment'));
+    }
+
+    if (label === 'Assignment') {
+      if (!asgReached) btns.push(scheduleBtn('Assessment', 'Send assignment'));
+      if (asgInvite?.status === 'Submitted')
+        btns.push(
+          <Button key="grade" size="sm" onClick={openGrade}>
+            <Star size={13} /> Grade submission
+          </Button>,
+        );
+      if (asgInvite?.status === 'Graded')
+        btns.push(
+          <Button key="review" size="sm" variant="outline" onClick={openGrade}>
+            <CheckCircle2 size={13} /> Review grade
+          </Button>,
+        );
+      if (asgInvite?.status === 'Graded' && asgInvite.passed && !interviewReached && !decided)
+        btns.push(scheduleBtn('Interview', 'Schedule interview'));
+    }
+
+    if (label === 'Interview') {
+      if (!interviewReached) btns.push(scheduleBtn('Interview', 'Schedule interview'));
+      if (latestInterview)
+        btns.push(
+          <Button key="fb" size="sm" variant="outline" onClick={() => openFeedback(latestInterview)}>
+            <MessageSquarePlus size={13} /> {latestInterview.grading ? 'Edit feedback' : 'Add feedback'}
+          </Button>,
+        );
+      if (latestInterview && !decided) {
+        btns.push(
+          <Button key="select" size="sm" onClick={selectForRole}>
+            <Award size={13} /> Select for role
+          </Button>,
+        );
+        btns.push(scheduleBtn('Interview', 'Another round', false));
+        btns.push(
+          <Button key="reject" size="sm" variant="outline" onClick={rejectCandidate}>
+            <ThumbsDown size={13} /> Reject
+          </Button>,
+        );
+      }
+    }
+
+    if (!btns.length) return null;
+    return <div className="mt-4 flex flex-wrap gap-2 border-t border-[#E2DDD2] pt-3">{btns}</div>;
+  };
+
   return (
     <div className="space-y-5 text-xs">
       {/* Back + header */}
@@ -446,12 +792,23 @@ export default function CandidateDetailPage() {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => openSchedule(candidate.id, candidate.fullName, 'HR Call')}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 font-semibold text-white transition hover:bg-accent-700"
-        >
-          <CalendarPlus size={14} /> Schedule a round
-        </button>
+        {nextRound ? (
+          <button
+            onClick={() => schedule(nextRound)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 font-semibold text-white transition hover:bg-accent-700"
+          >
+            <CalendarPlus size={14} /> {roundLabel[nextRound]}
+          </button>
+        ) : (
+          <span
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-semibold ${
+              selected ? 'bg-emerald-50 text-emerald-700' : rejected ? 'bg-red-50 text-red-600' : 'bg-[#ECE6DA] text-gray-500'
+            }`}
+          >
+            {selected ? <Award size={14} /> : rejected ? <Flag size={14} /> : <Clock4 size={14} />}
+            {selected ? 'Selected for role' : rejected ? 'Rejected' : 'Round in progress'}
+          </span>
+        )}
       </div>
 
       {/* Vertical pipeline stepper (ReUI) + per-stage detail panel */}
@@ -540,6 +897,7 @@ export default function CandidateDetailPage() {
               </span>
             </div>
             {stageDetail()}
+            {stageActions()}
           </div>
         </div>
       </div>
@@ -585,6 +943,420 @@ export default function CandidateDetailPage() {
           <DocumentsPanel entityType="candidate" entityId={candidate.id} title="Resume & documents" />
         </div>
       </div>
+
+      {/* Right-side drawer — fill in the details for the active stage */}
+      <Sheet open={openForm !== null} onOpenChange={open => !open && setOpenForm(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {openForm === 'screening' && <ShieldCheck size={15} className="text-accent-600" />}
+              {openForm === 'hrcall' && <Phone size={15} className="text-accent-600" />}
+              {openForm === 'grade' && <Star size={15} className="text-accent-600" />}
+              {openForm === 'feedback' && <MessageSquarePlus size={15} className="text-accent-600" />}
+              {openForm === 'screening'
+                ? 'Screening review'
+                : openForm === 'hrcall'
+                  ? 'HR introductory call'
+                  : openForm === 'grade'
+                    ? 'Grade assignment'
+                    : openForm === 'feedback'
+                      ? `Interview feedback${fbInterview ? ` — ${fbInterview.interviewRound}` : ''}`
+                      : ''}
+            </SheetTitle>
+            <SheetDescription>
+              {candidate.fullName} · {candidate.appliedRole}
+            </SheetDescription>
+          </SheetHeader>
+
+          <SheetBody className="space-y-4">
+            {/* Screening review form */}
+            {openForm === 'screening' && (
+              <div className="space-y-5 text-xs">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F2EEE7] px-3 py-2">
+                  <p className="text-[11px] italic text-gray-500">
+                    Capture why this candidate is worth a call and what stands out.
+                  </p>
+                  {fit && (
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${fitStyle(fit)}`}>
+                      {fit}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <SectionLabel>Screening ratings</SectionLabel>
+                  {SCREENING_CRITERIA.map(c => (
+                    <div key={c.key} className="flex items-center justify-between gap-3">
+                      <label className="font-semibold text-gray-700">{c.label}</label>
+                      <RatingRow
+                        value={sr[c.key] as number}
+                        onChange={v => updateSr(c.key, v as ScreeningReview[typeof c.key])}
+                      />
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between rounded-lg bg-[#F2EEE7] px-3 py-2">
+                    <span className="font-semibold text-gray-700">Average</span>
+                    <span className="font-mono text-sm font-bold text-accent-600">
+                      {screeningAvg(sr).toFixed(1)} / 5
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <SectionLabel>Summary</SectionLabel>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-gray-700">Overall screening remarks</label>
+                    <textarea
+                      placeholder="Your overall read on this candidate before the HR call…"
+                      value={sr.remarks}
+                      onChange={e => updateSr('remarks', e.target.value)}
+                      rows={3}
+                      className={FIELD_CLS}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* HR call form — grouped sections + rating pills */}
+            {openForm === 'hrcall' && (
+              <div className="space-y-5 text-xs">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F2EEE7] px-3 py-2">
+                  <p className="text-[11px] italic text-gray-500">
+                    Document the candidate call securely.
+                  </p>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      candidate.hrCall?.completed
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-yellow-50 text-yellow-600'
+                    }`}
+                  >
+                    {candidate.hrCall?.completed ? 'Completed' : 'Pending Call'}
+                  </span>
+                </div>
+
+                {/* Engagement ratings */}
+                <div className="space-y-3">
+                  <SectionLabel>Engagement</SectionLabel>
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Communication Quality</label>
+                      <RatingRow value={hc.communicationRating} onChange={v => updateHc('communicationRating', v)} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Interest Level</label>
+                      <RatingRow value={hc.interestLevel} onChange={v => updateHc('interestLevel', v)} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Availability & compensation */}
+                <div className="space-y-3">
+                  <SectionLabel>Availability & Compensation</SectionLabel>
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Availability to Join</label>
+                      <input
+                        type="text"
+                        placeholder="Immediate, 15 days, 1 month..."
+                        value={hc.candidateAvailability}
+                        onChange={e => updateHc('candidateAvailability', e.target.value)}
+                        className={FIELD_CLS}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Notice Period (days)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={hc.noticePeriodDays}
+                        onChange={e => updateHc('noticePeriodDays', Number(e.target.value))}
+                        className={FIELD_CLS}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Current CTC (LPA)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 12 LPA"
+                        value={hc.currentCtc}
+                        onChange={e => updateHc('currentCtc', e.target.value)}
+                        className={FIELD_CLS}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Expected CTC (LPA)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 18 LPA"
+                        value={hc.expectedCtc}
+                        onChange={e => updateHc('expectedCtc', e.target.value)}
+                        className={FIELD_CLS}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-gray-700">Work Mode Preference</label>
+                    <select
+                      value={hc.workModePreference}
+                      onChange={e => updateHc('workModePreference', e.target.value as HRCallRecord['workModePreference'])}
+                      className={FIELD_CLS}
+                    >
+                      <option value="Onsite">Onsite</option>
+                      <option value="Remote">Remote</option>
+                      <option value="Hybrid">Hybrid</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Assessment notes */}
+                <div className="space-y-3">
+                  <SectionLabel>Assessment Notes</SectionLabel>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-gray-700">Professional Background Summary</label>
+                    <textarea
+                      placeholder="Brief technical stack & experience outline..."
+                      value={hc.professionalBackgroundSummary}
+                      onChange={e => updateHc('professionalBackgroundSummary', e.target.value)}
+                      rows={3}
+                      className={FIELD_CLS}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Role Understanding</label>
+                      <input
+                        type="text"
+                        placeholder="How well they grasp the role"
+                        value={hc.roleUnderstanding}
+                        onChange={e => updateHc('roleUnderstanding', e.target.value)}
+                        className={FIELD_CLS}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-gray-700">Reason for Job Change</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Looking for growth"
+                        value={hc.reasonForJobChange}
+                        onChange={e => updateHc('reasonForJobChange', e.target.value)}
+                        className={FIELD_CLS}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-gray-700">Cultural Fit Remarks</label>
+                    <input
+                      type="text"
+                      placeholder="Attitude matches our horizontal principles..."
+                      value={hc.culturalFitRemarks}
+                      onChange={e => updateHc('culturalFitRemarks', e.target.value)}
+                      className={FIELD_CLS}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-gray-700">HR Recommendation</label>
+                    <textarea
+                      placeholder="Your overall recommendation on this candidate..."
+                      value={hc.hrRecommendation}
+                      onChange={e => updateHc('hrRecommendation', e.target.value)}
+                      rows={2}
+                      className={FIELD_CLS}
+                    />
+                  </div>
+                </div>
+
+                {/* Outcome */}
+                <div className="space-y-3">
+                  <SectionLabel>Outcome</SectionLabel>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-gray-700">Recommended Next Step</label>
+                    <select
+                      value={hc.nextStep}
+                      onChange={e => updateHc('nextStep', e.target.value as HRCallRecord['nextStep'])}
+                      className={FIELD_CLS}
+                    >
+                      <option value="Proceed to Interview">Proceed to Panel Interview</option>
+                      <option value="Schedule Follow-Up Call">Schedule Follow-Up Call</option>
+                      <option value="Request More Information">Request More Information</option>
+                      <option value="Keep on Hold">Keep on Hold</option>
+                      <option value="Reject">Reject Candidate</option>
+                    </select>
+                  </div>
+                  {hc.nextStep === 'Reject' && (
+                    <p className="rounded-md bg-red-50 px-2.5 py-1.5 text-[11px] font-medium text-red-600">
+                      Completing will mark the candidate as rejected.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Assignment grade form */}
+            {openForm === 'grade' && (
+              <>
+                {asgInvite?.submissionDocId && (
+                  <button
+                    onClick={() => openDocument(asgInvite.submissionDocId!)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
+                  >
+                    <Download size={14} /> {asgInvite.submissionFileName ?? 'Download submission'}
+                  </button>
+                )}
+                <div>
+                  <Label htmlFor="grade-score" className="text-sm font-medium">
+                    Score (out of {ASSIGNMENT_MAX_MARKS}) — pass ≥ {ASSIGNMENT_PASS_MARKS}
+                  </Label>
+                  <Input
+                    id="grade-score"
+                    type="number"
+                    min={0}
+                    max={ASSIGNMENT_MAX_MARKS}
+                    value={gradeScore}
+                    onChange={e => setGradeScore(e.target.value)}
+                    placeholder="e.g. 72"
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="grade-comments" className="text-sm font-medium">
+                    Evaluator comments
+                  </Label>
+                  <Textarea
+                    id="grade-comments"
+                    value={gradeComments}
+                    onChange={e => setGradeComments(e.target.value)}
+                    placeholder="Strengths, gaps, overall assessment…"
+                    rows={4}
+                    className="mt-2"
+                  />
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  A pass schedules the interview and notifies the candidate. A fail marks them not
+                  selected and sends the outcome email.
+                </p>
+              </>
+            )}
+
+            {/* Interview feedback form */}
+            {openForm === 'feedback' && (
+              <>
+                <div>
+                  <Label htmlFor="fb-rec" className="text-sm font-medium">
+                    Recommendation
+                  </Label>
+                  <select
+                    id="fb-rec"
+                    value={fbRec}
+                    onChange={e => setFbRec(e.target.value)}
+                    className={SELECT_CLS}
+                  >
+                    <option value="Strong Hire">Strong Hire</option>
+                    <option value="Hire">Hire</option>
+                    <option value="Hold">Hold</option>
+                    <option value="Re-Interview Required">Re-Interview Required</option>
+                    <option value="Reject">Reject</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="fb-comments" className="text-sm font-medium">
+                    Interviewer comments
+                  </Label>
+                  <Textarea
+                    id="fb-comments"
+                    value={fbComments}
+                    onChange={e => setFbComments(e.target.value)}
+                    placeholder="Strengths, concerns, overall fit…"
+                    rows={4}
+                    className="mt-2"
+                  />
+                </div>
+              </>
+            )}
+          </SheetBody>
+
+          <SheetFooter className="justify-end">
+            <Button variant="outline" onClick={() => setOpenForm(null)}>
+              Cancel
+            </Button>
+            {openForm === 'screening' && (
+              <Button onClick={() => saveScreening.mutate(sr)} disabled={saveScreening.isPending}>
+                Save screening
+              </Button>
+            )}
+            {openForm === 'hrcall' && (
+              <Button onClick={() => saveHrCall.mutate(hc)} disabled={saveHrCall.isPending}>
+                Complete HR Call
+              </Button>
+            )}
+            {openForm === 'grade' && (
+              <Button onClick={submitGrade} disabled={gradeAssignment.isPending}>
+                Save grade
+              </Button>
+            )}
+            {openForm === 'feedback' && (
+              <Button onClick={submitFeedback} disabled={gradeInterview.isPending}>
+                Save feedback
+              </Button>
+            )}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+const SELECT_CLS =
+  'mt-1.5 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring/40 focus:outline-none';
+
+// Greige field styling that matches the candidate profile feedback panel.
+const FIELD_CLS =
+  'mt-1.5 w-full rounded-md border border-[#DAD4C8] bg-[#E6E1D8] px-2.5 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+
+function screeningAvg(r: ScreeningReview): number {
+  const vals = [r.resumeRelevance, r.experienceMatch, r.skillMatch, r.standoutFactor, r.communication];
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+function ReviewRow({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">{k}</p>
+      <p className="text-[12px] text-gray-700">{v}</p>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
+      {children}
+      <span className="h-px flex-1 bg-[#DAD4C8]" />
+    </p>
+  );
+}
+
+function RatingRow({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="mt-1.5 flex gap-1.5">
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`grid size-8 place-items-center rounded-md border text-xs font-bold transition ${
+            n <= value
+              ? 'border-accent-600 bg-accent-600 text-white shadow-sm'
+              : 'border-[#DAD4C8] bg-[#E6E1D8] text-gray-400 hover:border-accent-400 hover:text-accent-600'
+          }`}
+          aria-label={`Rate ${n}`}
+        >
+          {n}
+        </button>
+      ))}
     </div>
   );
 }

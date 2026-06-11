@@ -7,10 +7,6 @@ import {
   Briefcase,
   CalendarRange,
   UserSearch,
-  Clock,
-  BrainCircuit,
-  FileText,
-  CalendarDays,
   ListTodo,
   Users,
   Gauge,
@@ -41,10 +37,6 @@ const NAV: NavEntry[] = [
   { href: '/jobs', label: 'Job Postings', icon: Briefcase, group: 'General' },
   { href: '/calendar', label: 'Recruitment Calendar', icon: CalendarRange, group: 'General' },
   { href: '/candidates', label: 'Candidates', icon: UserSearch, group: 'General' },
-  { href: '/hr-calls', label: 'HR Introductory Calls', icon: Clock, group: 'Recruitment' },
-  { href: '/iq-tests', label: 'IQ Test Modules', icon: BrainCircuit, group: 'Recruitment' },
-  { href: '/assignments', label: 'Role Assignments', icon: FileText, group: 'Recruitment' },
-  { href: '/interviews', label: 'Interviews & Panel', icon: CalendarDays, group: 'Recruitment' },
   { href: '/onboarding', label: 'Onboarding Checklist', icon: ListTodo, group: 'Employees' },
   { href: '/directory', label: 'Employee Directory', icon: Users, group: 'Employees' },
   { href: '/performance', label: 'Task Performance', icon: Gauge, group: 'Performance' },
@@ -55,7 +47,7 @@ const NAV: NavEntry[] = [
   { href: '/settings', label: 'Global Settings', icon: Settings, group: 'Workspace' },
 ];
 
-const GROUPS = ['General', 'Recruitment', 'Employees', 'Performance', 'Offboarding', 'Workspace'];
+const GROUPS = ['General', 'Employees', 'Performance', 'Offboarding', 'Workspace'];
 
 /**
  * Global ⌘K / Ctrl+K command palette for quick navigation. Mounted once in the

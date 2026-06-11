@@ -36,9 +36,28 @@ export interface Candidate {
   fitRating?: FitRating;
   /** HR's manual override of the computed rating, if any. */
   fitRatingOverride?: FitRating;
+  /** HR's screening review recorded before/while reaching out to the candidate. */
+  screeningReview?: ScreeningReview;
 
   // HR introductory call info (if completed or moved to HR Call)
   hrCall?: HRCallRecord;
+}
+
+/** HR's rating-based screening review (each criterion 1-5, plus a free remark). */
+export interface ScreeningReview {
+  /** How relevant the resume is to the role (1-5). */
+  resumeRelevance: number;
+  /** How well their experience matches (1-5). */
+  experienceMatch: number;
+  /** How well their skills match the role (1-5). */
+  skillMatch: number;
+  /** How much the candidate stands out / sounds different (1-5). */
+  standoutFactor: number;
+  /** Communication / profile clarity (1-5). */
+  communication: number;
+  /** Overall screening remarks (free text). */
+  remarks: string;
+  reviewedDate?: string;
 }
 
 export type QuestionCategory = 'Field' | 'Cultural Fit';
