@@ -50,6 +50,10 @@ const onlyCompany = (v: string) => v.replace(/[^A-Za-z0-9\s.,&'-]/g, ''); // com
 const onlyDigits = (v: string) => v.replace(/\D/g, ''); // phone
 const onlyDecimal = (v: string) => v.replace(/[^0-9.]/g, ''); // CTC
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// LinkedIn profile/company URL (linkedin.com or its country/sub domains).
+const LINKEDIN_RE = /^https?:\/\/([a-z0-9-]+\.)*linkedin\.com\/.+/i;
+// Google Drive / Docs share link.
+const DRIVE_RE = /^https?:\/\/(drive|docs)\.google\.com\/.+/i;
 
 const formatSize = (bytes: number): string =>
   bytes < 1024 * 1024
@@ -105,7 +109,11 @@ export default function PublicJobPage() {
     if (String(form.noticePeriodDays).trim() === '')
       return 'Please enter your notice period.';
     if (!resumeFile) return 'Please upload your resume.';
+    if (form.resumeUrl.trim() && !DRIVE_RE.test(form.resumeUrl.trim()))
+      return 'Please enter a valid Google Drive link (e.g. https://drive.google.com/…).';
     if (!form.linkedInUrl.trim()) return 'Please enter your LinkedIn profile URL.';
+    if (!LINKEDIN_RE.test(form.linkedInUrl.trim()))
+      return 'Please enter a valid LinkedIn URL (e.g. https://linkedin.com/in/your-profile).';
     if (!form.coverNote.trim()) return 'Please add a short cover note.';
     return null;
   };
@@ -233,6 +241,9 @@ export default function PublicJobPage() {
       </Centered>
     );
   }
+
+  const driveInvalid = form.resumeUrl.trim() !== '' && !DRIVE_RE.test(form.resumeUrl.trim());
+  const linkedinInvalid = form.linkedInUrl.trim() !== '' && !LINKEDIN_RE.test(form.linkedInUrl.trim());
 
   const closed = job.status === 'Closed' || job.status === 'On Hold';
   const requirements = job.requirements
@@ -500,21 +511,31 @@ export default function PublicJobPage() {
                 <Field label="Google Drive resume link">
                   <input
                     type="url"
-                    className={inputCls}
+                    className={`${inputCls} ${driveInvalid ? 'border-red-400 focus-visible:ring-red-500' : ''}`}
                     value={form.resumeUrl}
                     onChange={e => set({ resumeUrl: e.target.value })}
                     placeholder="https://drive.google.com/your-resume"
                   />
+                  {driveInvalid && (
+                    <span className="text-[10px] text-red-600">
+                      Enter a valid Google Drive link (drive.google.com/…).
+                    </span>
+                  )}
                 </Field>
                 <Field label="LinkedIn *">
                   <input
                     type="url"
-                    className={inputCls}
+                    className={`${inputCls} ${linkedinInvalid ? 'border-red-400 focus-visible:ring-red-500' : ''}`}
                     value={form.linkedInUrl}
                     onChange={e => set({ linkedInUrl: e.target.value })}
                     placeholder="https://linkedin.com/in/your-profile"
                     required
                   />
+                  {linkedinInvalid && (
+                    <span className="text-[10px] text-red-600">
+                      Enter a valid LinkedIn URL (linkedin.com/in/…).
+                    </span>
+                  )}
                 </Field>
                 <Field label="Cover note *">
                   <textarea
