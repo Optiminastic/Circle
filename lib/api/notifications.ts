@@ -32,6 +32,29 @@ export type TestEmailTemplate =
   | 'assessment_failed'
   | 'offer_selected';
 
+/**
+ * Send an HR-composed (and possibly edited) email — e.g. an interview invitation.
+ * When event fields are provided, a Google Calendar invite (.ics) is attached so
+ * the event lands on every attendee's calendar (organizer = HR account).
+ */
+export function sendCustomEmail(input: {
+  to: string;
+  subject: string;
+  body: string;
+  cc?: string[];
+  eventStartIso?: string;
+  eventDurationMin?: number;
+  eventSummary?: string;
+  eventLocation?: string;
+  eventDescription?: string;
+  organizerEmail?: string;
+  organizerName?: string;
+  attendees?: string[];
+  eventUid?: string;
+}): Promise<ScheduleEmailResult> {
+  return http.post<ScheduleEmailResult>('/notifications/custom-email', input);
+}
+
 /** Send one of the online-test pipeline emails (invite links, pass/fail results). */
 export function sendTestEmail(input: {
   to: string;

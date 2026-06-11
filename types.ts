@@ -41,7 +41,16 @@ export interface Candidate {
 
   // HR introductory call info (if completed or moved to HR Call)
   hrCall?: HRCallRecord;
+
+  /**
+   * Per-stage HR gate decision, keyed by pipeline stage label
+   * (e.g. 'Screening', 'HR Call'). 'Accepted' unlocks the next step;
+   * 'Rejected' / 'On Hold' stop the candidate from moving forward.
+   */
+  stageDecisions?: Record<string, StageDecision>;
 }
+
+export type StageDecision = 'Accepted' | 'Rejected' | 'On Hold';
 
 /** HR's rating-based screening review (each criterion 1-5, plus a free remark). */
 export interface ScreeningReview {
@@ -238,6 +247,17 @@ export interface Interview {
   status: InterviewStatus;
   interviewerRemarks?: string;
   hrRemarks?: string;
+
+  // --- Interview-scheduling enhancement (Schedule Interview modal) ---
+  interviewType?: 'Online' | 'Offline';
+  location?: string; // office address (Offline) or meeting link (Online)
+  candidateEmail?: string;
+  candidatePhone?: string;
+  interviewerEmail?: string;
+  additionalNotes?: string;
+  googleEventId?: string;
+  emailStatus?: 'Sent' | 'Delivered' | 'Failed' | 'Not Sent';
+  createdAt?: string;
 
   // Grading details
   grading?: InterviewGrading;
@@ -594,6 +614,6 @@ export interface SentEmailLog {
   templateTitle: string;
   subject: string;
   dateSent: string;
-  status: 'Sent' | 'Delivered' | 'Opened' | 'Bounced';
+  status: 'Sent' | 'Delivered' | 'Opened' | 'Bounced' | 'Failed';
   relatedEntity: string; // e.g., Candidate or Employee
 }

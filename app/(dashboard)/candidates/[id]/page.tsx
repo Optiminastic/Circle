@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Check,
+  ChevronRight,
   Mail,
   Phone,
   MapPin,
@@ -14,6 +15,7 @@ import {
   Wallet,
   Clock4,
   CalendarDays,
+  CalendarClock,
   CalendarPlus,
   FileText,
   BrainCircuit,
@@ -27,22 +29,35 @@ import {
   Award,
   ThumbsDown,
   MessageSquarePlus,
+  Pause,
+  Send,
+  Eye,
 } from 'lucide-react';
-import { CandidateStatus, HRCallRecord, Interview, ScheduleType, ScreeningReview, TestInvite } from '@/types';
+import { CandidateStatus, HRCallRecord, Interview, ScheduleType, ScreeningReview, StageDecision, TestInvite } from '@/types';
 import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
 import { useScheduler } from '@/store/schedule-store';
+import { useInterviewScheduler } from '@/store/interview-schedule-store';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { effectiveFit, fitStyle } from '@/lib/screening';
-import { sendTestEmail } from '@/lib/api/notifications';
-import { ASSIGNMENT_MAX_MARKS, ASSIGNMENT_PASS_MARKS } from '@/data/test-banks';
+import { sendTestEmail, sendCustomEmail } from '@/lib/api/notifications';
+import {
+  ASSIGNMENT_MAX_MARKS,
+  ASSIGNMENT_PASS_MARKS,
+  IQ_DURATION_MIN,
+  ASSIGNMENT_DEADLINE_DAYS,
+  assignmentBriefFor,
+} from '@/data/test-banks';
+import { randomId, randomToken, nowISO } from '@/lib/utils';
+import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
 import { useToast } from '@/components/Toaster';
-import { DocumentsPanel } from '@/components/DocumentsPanel';
-import { openDocument } from '@/features/documents/hooks';
+import { openDocument, useDocuments } from '@/features/documents/hooks';
+import { documentPreviewUrl } from '@/lib/api/documents';
 import { PageLoading } from '@/components/PageLoading';
+import { Tip } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -125,8 +140,10 @@ export default function CandidateDetailPage() {
     queryKey: qk.testInvites.all,
     queryFn: () => repositories.testInvites.list(),
   });
+  const { data: candidateDocs = [] } = useDocuments('candidate', id);
   const { openSchedule } = useScheduler();
-  const { move } = useCandidateMutations();
+  const { openInterviewSchedule } = useInterviewScheduler();
+  const { move, update } = useCandidateMutations();
   const { grade: gradeInterview } = useInterviewMutations();
   const toast = useToast();
   const qc = useQueryClient();
@@ -146,6 +163,10 @@ export default function CandidateDetailPage() {
   const [fbInterview, setFbInterview] = useState<Interview | null>(null);
   const [fbRec, setFbRec] = useState('Hire');
   const [fbComments, setFbComments] = useState('');
+  // "Send IQ test" / "Send Assessment" modal — the invite id/link is generated up front.
+  const [sendTest, setSendTest] = useState<{ kind: 'iq' | 'assignment'; id: string; url: string } | null>(
+    null,
+  );
   useEffect(() => {
     if (!candidate) return;
     setStepIn(false);
@@ -240,6 +261,17 @@ export default function CandidateDetailPage() {
   }
 
   const fit = effectiveFit(candidate);
+  // The candidate's résumé (falls back to the first uploaded doc) — opened from the
+  // eye icon in the header.
+  const resumeDoc = candidateDocs.find(d => d.category === 'resume') ?? candidateDocs[0];
+  const openResume = () => {
+    if (!resumeDoc) {
+      toast.info('No resume uploaded for this candidate yet.');
+      return;
+    }
+    // Stream inline via the preview endpoint so it opens in a tab, not a download.
+    window.open(documentPreviewUrl(resumeDoc.id), '_blank', 'noopener,noreferrer');
+  };
   const mySchedules = schedules.filter(s => s.candidateId === id && s.status !== 'Cancelled');
   const myIq = iqTests.filter(t => t.candidateId === id);
   const myInterviews = interviews.filter(iv => iv.candidateId === id);
@@ -257,9 +289,13 @@ export default function CandidateDetailPage() {
   const asgReached = Boolean(asgInvite) || mySchedules.some(s => s.type === 'Assessment');
   const interviewDone = myInterviews.some(iv => iv.status === 'Completed');
   const interviewReached = myInterviews.length > 0 || mySchedules.some(s => s.type === 'Interview');
+  // The in-person round is "reached" once the interview has actually happened
+  // (completed or feedback recorded) — scheduling alone only fills Interview Schedule.
+  const interviewConducted = interviewDone || myInterviews.some(iv => !!iv.grading);
   const rejected = candidate.status === 'Rejected';
   const selected = candidate.status === 'Selected';
   const decided = rejected || selected;
+  const onHold = candidate.status === 'On Hold';
 
   const stages = [
     { label: 'Applied', Icon: FileText, reached: true, done: true, desc: fmtDate(candidate.appliedDate) },
@@ -267,8 +303,8 @@ export default function CandidateDetailPage() {
       label: 'Screening',
       Icon: ShieldCheck,
       reached: true,
-      done: Boolean(candidate.fitRating),
-      desc: fit ? `Rated ${fit}` : 'Pending',
+      done: Boolean(candidate.screeningReview) || Boolean(candidate.fitRating),
+      desc: candidate.screeningReview ? 'Screened' : fit ? `Rated ${fit}` : 'Pending',
     },
     {
       label: 'HR Call',
@@ -278,9 +314,16 @@ export default function CandidateDetailPage() {
       desc: hrCallDone ? candidate.hrCall!.nextStep : hrCallReached ? 'Scheduled' : 'Pending',
     },
     {
+      label: 'Interview Schedule',
+      Icon: CalendarClock,
+      reached: interviewReached || candidate.stageDecisions?.['HR Call'] === 'Accepted',
+      done: interviewReached,
+      desc: interviewReached ? 'Scheduled' : 'Pending',
+    },
+    {
       label: 'IQ Test',
       Icon: BrainCircuit,
-      reached: iqReached,
+      reached: iqReached || candidate.stageDecisions?.['Interview Schedule'] === 'Accepted',
       done: iqDone,
       desc: myIq[0]
         ? `${myIq[0].qualificationStatus} · ${myIq[0].scorePercentage}%`
@@ -289,9 +332,9 @@ export default function CandidateDetailPage() {
           : 'Pending',
     },
     {
-      label: 'Assignment',
+      label: 'Assessment',
       Icon: ClipboardList,
-      reached: asgReached,
+      reached: asgReached || candidate.stageDecisions?.['IQ Test'] === 'Accepted',
       done: asgDone,
       desc: asgDone
         ? asgInvite!.passed
@@ -304,11 +347,11 @@ export default function CandidateDetailPage() {
             : 'Pending',
     },
     {
-      label: 'Interview',
+      label: 'Physical Interview',
       Icon: CalendarDays,
-      reached: interviewReached,
+      reached: interviewConducted || candidate.stageDecisions?.['Assessment'] === 'Accepted',
       done: interviewDone,
-      desc: interviewDone ? 'Completed' : interviewReached ? 'Scheduled' : 'Pending',
+      desc: interviewDone ? 'Completed' : interviewReached ? 'Awaiting' : 'Pending',
     },
     {
       label: 'Decision',
@@ -501,7 +544,7 @@ export default function CandidateDetailPage() {
       return empty(s ? `Scheduled for ${fmtDateTime(s.dateTime)}.` : 'IQ test not started.');
     }
 
-    if (label === 'Assignment') {
+    if (label === 'Assessment') {
       if (asgInvite)
         return (
           <div className="space-y-2.5">
@@ -534,18 +577,68 @@ export default function CandidateDetailPage() {
       return empty(s ? `Scheduled for ${fmtDateTime(s.dateTime)}.` : 'Assignment not assigned yet.');
     }
 
-    if (label === 'Interview') {
+    if (label === 'Interview Schedule') {
       if (!myInterviews.length) {
         const s = schedOf('Interview')[0];
-        return empty(s ? `Interview scheduled for ${fmtDateTime(s.dateTime)}.` : 'No interview yet.');
+        return empty(
+          s ? `Interview scheduled for ${fmtDateTime(s.dateTime)}.` : 'No interview scheduled yet.',
+        );
       }
+      return (
+        <div className="space-y-2.5">
+          {myInterviews.map(iv => {
+            const online = iv.interviewType === 'Online' || iv.meetingMode !== 'In-Person';
+            return (
+              <div key={iv.id} className="space-y-2 rounded-lg border border-[#E2DDD2] bg-[#ECE6DA] p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[12px] font-semibold text-gray-800">
+                    {online ? 'Online' : 'Offline'} interview
+                  </p>
+                  <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
+                    {iv.status}
+                  </span>
+                </div>
+                <KV k="When" v={fmtDateTime(iv.dateTime)} />
+                {iv.interviewerName && iv.interviewerName !== 'To be assigned' && (
+                  <KV k="Interviewer" v={iv.interviewerName} />
+                )}
+                {iv.interviewerEmail && <KV k="Interviewer email" v={iv.interviewerEmail} />}
+                <KV k="Mode" v={online ? 'Online' : 'Offline (office)'} />
+                <KV
+                  k="Invitation email"
+                  v={iv.emailStatus === 'Sent' ? 'Sent ✓ (Yes)' : iv.emailStatus || 'Not sent'}
+                />
+                <KV k="Calendar invite" v={iv.emailStatus === 'Sent' ? 'Sent ✓ (Yes)' : 'Not sent'} />
+                {iv.emailStatus === 'Sent' && (
+                  <div className="mt-1 flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
+                    <CheckCircle2 size={12} /> Candidate invited — calendar event sent; expected to attend on{' '}
+                    {fmtDateTime(iv.dateTime)}
+                  </div>
+                )}
+                {iv.additionalNotes && (
+                  <p className="rounded bg-white/60 p-2 text-[11px] italic text-gray-600">
+                    “{iv.additionalNotes}”
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (label === 'Physical Interview') {
+      if (!interviewReached) return empty('Schedule the interview first.');
+      if (!interviewConducted) return empty('Interview scheduled — feedback not recorded yet.');
       return (
         <div className="space-y-2.5">
           {myInterviews.map(iv => (
             <div key={iv.id} className="rounded-lg border border-[#E2DDD2] bg-[#ECE6DA] p-2.5">
-              <p className="text-[12px] font-semibold text-gray-800">{iv.interviewRound}</p>
+              <p className="text-[12px] font-semibold text-gray-800">
+                {iv.interviewRound} · {iv.status}
+              </p>
               <p className="text-[11px] text-gray-500">
-                {iv.interviewerName} · {fmtDateTime(iv.dateTime)} · {iv.meetingMode}
+                {iv.interviewerName} · {fmtDateTime(iv.dateTime)}
               </p>
               {iv.grading && (
                 <p className="mt-1 text-[11px] text-gray-600">
@@ -590,7 +683,10 @@ export default function CandidateDetailPage() {
     Interview: 'Schedule interview',
   };
 
-  const schedule = (type: ScheduleType) => openSchedule(candidate.id, candidate.fullName, type);
+  const schedule = (type: ScheduleType) =>
+    type === 'Interview'
+      ? openInterviewSchedule(candidate)
+      : openSchedule(candidate.id, candidate.fullName, type);
 
   const selectForRole = () => {
     move.mutate({ id: candidate.id, status: 'Selected' });
@@ -613,8 +709,104 @@ export default function CandidateDetailPage() {
       .catch(() => toast.error('Selected, but sending the email failed.'));
   };
 
-  const rejectCandidate = () => {
-    move.mutate({ id: candidate.id, status: 'Rejected' });
+  // ---- per-stage Accept / On Hold / Reject gate ----
+  const decisionOf = (label: string): StageDecision | undefined => candidate.stageDecisions?.[label];
+
+  const setStageDecision = (label: string, decision: StageDecision, status?: CandidateStatus) => {
+    const stageDecisions = { ...(candidate.stageDecisions ?? {}), [label]: decision };
+    update.mutate({ ...candidate, stageDecisions, ...(status ? { status } : {}) });
+  };
+
+  const acceptStage = (label: string) => {
+    const intoHrCalls = (label === 'Screening' || label === 'Applied') && !hrCallReached;
+    // Accepting screening forwards the candidate into the HR Calls flow; any
+    // accept also un-holds a paused candidate.
+    const status: CandidateStatus | undefined = intoHrCalls
+      ? 'Moved to HR Call'
+      : candidate.status === 'On Hold'
+        ? 'Under Review'
+        : undefined;
+    setStageDecision(label, 'Accepted', status);
+    toast.success(
+      intoHrCalls
+        ? 'Screening accepted — candidate moved to HR Calls.'
+        : `${label} accepted — you can move to the next step.`,
+    );
+  };
+  const holdStage = (label: string) => {
+    setStageDecision(label, 'On Hold', 'On Hold');
+    toast.info(`Candidate placed on hold at ${label}.`);
+  };
+  // From Interview Schedule onward there's no accept/hold gate — just "Next",
+  // which always advances the candidate to the following stage.
+  const nextStage = (label: string) => {
+    setStageDecision(label, 'Accepted');
+    toast.success('Moved to the next step.');
+  };
+
+  // ---- Send IQ test / Send Assessment (manual, editable email) ----
+  const openSendTest = (kind: 'iq' | 'assignment') => {
+    const id = randomToken('TIV');
+    const path = kind === 'iq' ? 'test' : 'assignment';
+    const url = `${window.location.origin}/${path}/${id}`;
+    setSendTest({ kind, id, url });
+  };
+
+  const confirmSendTest = async (r: SendTestResult) => {
+    if (!sendTest) return;
+    const { kind, id } = sendTest;
+    const position = candidate.appliedRole || candidate.department || 'the role';
+    const invite: TestInvite = {
+      id,
+      kind,
+      candidateId: candidate.id,
+      candidateName: candidate.fullName,
+      email: r.to,
+      position,
+      department: candidate.department,
+      jobId: candidate.jobId,
+      durationMin: kind === 'iq' ? IQ_DURATION_MIN : 0,
+      status: 'Pending',
+      ...(kind === 'assignment'
+        ? {
+            instructions: assignmentBriefFor(position, candidate.department),
+            deadlineIso: new Date(Date.now() + ASSIGNMENT_DEADLINE_DAYS * 86_400_000).toISOString(),
+          }
+        : {}),
+      createdAt: nowISO(),
+    };
+    setSendTest(null);
+    try {
+      await repositories.testInvites.create(invite);
+    } catch {
+      toast.error('Could not create the test — please try again.');
+      return;
+    }
+    qc.invalidateQueries({ queryKey: qk.testInvites.all });
+
+    const label = kind === 'iq' ? 'IQ test' : 'Assessment';
+    try {
+      const res = await sendCustomEmail({ to: r.to, subject: r.subject, body: r.body });
+      repositories.sentEmails
+        .create({
+          id: randomId('EML'),
+          recipientName: candidate.fullName,
+          recipientEmail: r.to,
+          templateTitle: `${label} invite`,
+          subject: r.subject,
+          dateSent: nowISO(),
+          status: res.sent ? 'Sent' : 'Failed',
+          relatedEntity: candidate.fullName,
+        })
+        .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+        .catch(() => {});
+      toast.success(res.sent ? `${label} link sent to the candidate.` : `${label} created — email could not be sent.`);
+    } catch {
+      toast.error(`${label} created, but sending the email failed.`);
+    }
+  };
+  const rejectStage = (label: string) => {
+    setStageDecision(label, 'Rejected', 'Rejected');
     toast.info('Candidate marked as rejected.');
   };
 
@@ -676,6 +868,15 @@ export default function CandidateDetailPage() {
 
   const latestInterview = myInterviews[myInterviews.length - 1];
 
+  // Future, still-open interviews — surfaced in the "Upcoming interviews" card.
+  const upcomingInterviews = myInterviews
+    .filter(iv => iv.status !== 'Cancelled' && iv.status !== 'Completed')
+    .filter(iv => {
+      const t = new Date(iv.dateTime).getTime();
+      return !Number.isNaN(t) && t >= Date.now() - 60 * 60 * 1000;
+    })
+    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
   const scheduleBtn = (type: ScheduleType, text: string, primary = true) => (
     <Button key={text} size="sm" variant={primary ? 'default' : 'outline'} onClick={() => schedule(type)}>
       <CalendarPlus size={13} /> {text}
@@ -693,28 +894,27 @@ export default function CandidateDetailPage() {
         </Button>,
       );
 
-    if ((label === 'Applied' || label === 'Screening') && !decided && !hrCallReached)
-      btns.push(scheduleBtn('HR Call', 'Schedule HR call'));
+    if (label === 'HR Call' && hrCallReached && !decided)
+      btns.push(
+        <Button key="hrform" size="sm" onClick={openHrCall}>
+          <Phone size={13} /> {candidate.hrCall?.completed ? 'Edit call notes' : 'Record HR call'}
+        </Button>,
+      );
 
-    if (label === 'HR Call') {
-      if (!hrCallReached) btns.push(scheduleBtn('HR Call', 'Schedule HR call'));
-      if (hrCallReached && !decided)
+    if (label === 'IQ Test' && !iqReached)
+      btns.push(
+        <Button key="sendiq" size="sm" onClick={() => openSendTest('iq')}>
+          <Send size={13} /> Send IQ test
+        </Button>,
+      );
+
+    if (label === 'Assessment') {
+      if (!asgReached)
         btns.push(
-          <Button key="hrform" size="sm" onClick={openHrCall}>
-            <Phone size={13} /> {candidate.hrCall?.completed ? 'Edit call notes' : 'Record HR call'}
+          <Button key="sendasm" size="sm" onClick={() => openSendTest('assignment')}>
+            <Send size={13} /> Send Assessment
           </Button>,
         );
-      if (hrCallDone && !decided && !iqReached)
-        btns.push(scheduleBtn('IQ Test', 'Schedule IQ test', false));
-    }
-
-    if (label === 'IQ Test') {
-      if (!iqReached) btns.push(scheduleBtn('IQ Test', 'Schedule IQ test'));
-      else if (!decided && iqDone && !asgReached) btns.push(scheduleBtn('Assessment', 'Send assignment'));
-    }
-
-    if (label === 'Assignment') {
-      if (!asgReached) btns.push(scheduleBtn('Assessment', 'Send assignment'));
       if (asgInvite?.status === 'Submitted')
         btns.push(
           <Button key="grade" size="sm" onClick={openGrade}>
@@ -727,31 +927,25 @@ export default function CandidateDetailPage() {
             <CheckCircle2 size={13} /> Review grade
           </Button>,
         );
-      if (asgInvite?.status === 'Graded' && asgInvite.passed && !interviewReached && !decided)
-        btns.push(scheduleBtn('Interview', 'Schedule interview'));
     }
 
-    if (label === 'Interview') {
-      if (!interviewReached) btns.push(scheduleBtn('Interview', 'Schedule interview'));
+    if (label === 'Interview Schedule') {
+      if (!interviewReached) btns.push(scheduleBtn('Interview', 'Schedule Interview'));
+    }
+
+    if (label === 'Physical Interview') {
       if (latestInterview)
         btns.push(
           <Button key="fb" size="sm" variant="outline" onClick={() => openFeedback(latestInterview)}>
             <MessageSquarePlus size={13} /> {latestInterview.grading ? 'Edit feedback' : 'Add feedback'}
           </Button>,
         );
-      if (latestInterview && !decided) {
+      if (latestInterview && !decided)
         btns.push(
           <Button key="select" size="sm" onClick={selectForRole}>
             <Award size={13} /> Select for role
           </Button>,
         );
-        btns.push(scheduleBtn('Interview', 'Another round', false));
-        btns.push(
-          <Button key="reject" size="sm" variant="outline" onClick={rejectCandidate}>
-            <ThumbsDown size={13} /> Reject
-          </Button>,
-        );
-      }
     }
 
     if (!btns.length) return null;
@@ -792,7 +986,17 @@ export default function CandidateDetailPage() {
             </div>
           </div>
         </div>
-        {nextRound ? (
+        <div className="flex items-center gap-2">
+          <Tip label="View resume">
+            <button
+              onClick={openResume}
+              aria-label="View resume"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] text-gray-600 transition hover:bg-[#E6E1D8] hover:text-accent-600"
+            >
+              <Eye size={16} />
+            </button>
+          </Tip>
+        {nextRound && decisionOf(stages[currentIndex].label) === 'Accepted' ? (
           <button
             onClick={() => schedule(nextRound)}
             className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 font-semibold text-white transition hover:bg-accent-700"
@@ -802,13 +1006,34 @@ export default function CandidateDetailPage() {
         ) : (
           <span
             className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-semibold ${
-              selected ? 'bg-emerald-50 text-emerald-700' : rejected ? 'bg-red-50 text-red-600' : 'bg-[#ECE6DA] text-gray-500'
+              selected
+                ? 'bg-emerald-50 text-emerald-700'
+                : rejected
+                  ? 'bg-red-50 text-red-600'
+                  : onHold
+                    ? 'bg-yellow-50 text-yellow-700'
+                    : 'bg-[#ECE6DA] text-gray-500'
             }`}
           >
-            {selected ? <Award size={14} /> : rejected ? <Flag size={14} /> : <Clock4 size={14} />}
-            {selected ? 'Selected for role' : rejected ? 'Rejected' : 'Round in progress'}
+            {selected ? (
+              <Award size={14} />
+            ) : rejected ? (
+              <Flag size={14} />
+            ) : onHold ? (
+              <Pause size={14} />
+            ) : (
+              <Clock4 size={14} />
+            )}
+            {selected
+              ? 'Selected for role'
+              : rejected
+                ? 'Rejected'
+                : onHold
+                  ? 'On hold'
+                  : 'Round in progress'}
           </span>
         )}
+        </div>
       </div>
 
       {/* Vertical pipeline stepper (ReUI) + per-stage detail panel */}
@@ -892,9 +1117,77 @@ export default function CandidateDetailPage() {
                 );
               })()}
               <h4 className="text-sm font-bold text-gray-900">{stages[activeStage].label}</h4>
-              <span className="ml-auto rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
-                {stages[activeStage].desc}
-              </span>
+              <div className="ml-auto flex items-center gap-2">
+                {(() => {
+                  const label = stages[activeStage].label;
+                  const isCurrent = activeStage === currentIndex && !decided;
+                  // Accept / On Hold / Reject gate only up to the HR Call.
+                  const showGate = isCurrent && ['Applied', 'Screening', 'HR Call'].includes(label);
+                  // After the IQ test / Assessment results are in, HR accepts or rejects.
+                  const showResultDecision =
+                    isCurrent && ((label === 'IQ Test' && iqDone) || (label === 'Assessment' && asgDone));
+                  // Interview Schedule advances with a single "Next" once booked.
+                  const showNext = isCurrent && label === 'Interview Schedule' && interviewReached;
+
+                  if (showGate)
+                    return (
+                      <>
+                        <button
+                          onClick={() => acceptStage(label)}
+                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
+                        >
+                          <Check size={12} /> Accept
+                        </button>
+                        <button
+                          onClick={() => holdStage(label)}
+                          className="inline-flex items-center gap-1 rounded-md border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition hover:bg-[#E6E1D8]"
+                        >
+                          <Pause size={12} /> On Hold
+                        </button>
+                        <button
+                          onClick={() => rejectStage(label)}
+                          className="inline-flex items-center gap-1 rounded-md border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          <ThumbsDown size={12} /> Reject
+                        </button>
+                      </>
+                    );
+
+                  if (showResultDecision)
+                    return (
+                      <>
+                        <button
+                          onClick={() => acceptStage(label)}
+                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
+                        >
+                          <Check size={12} /> Accept
+                        </button>
+                        <button
+                          onClick={() => rejectStage(label)}
+                          className="inline-flex items-center gap-1 rounded-md border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          <ThumbsDown size={12} /> Reject
+                        </button>
+                      </>
+                    );
+
+                  if (showNext)
+                    return (
+                      <button
+                        onClick={() => nextStage(label)}
+                        className="inline-flex items-center gap-1 rounded-md bg-accent-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700"
+                      >
+                        Next <ChevronRight size={12} />
+                      </button>
+                    );
+
+                  return (
+                    <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
+                      {stages[activeStage].desc}
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
             {stageDetail()}
             {stageActions()}
@@ -940,13 +1233,42 @@ export default function CandidateDetailPage() {
             </div>
           </div>
 
-          <DocumentsPanel
-            entityType="candidate"
-            entityId={candidate.id}
-            category="resume"
-            title="Resume & documents"
-            previewOnly
-          />
+          {upcomingInterviews.length > 0 && (
+            <div className="rounded-xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs">
+              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-gray-900">
+                <CalendarClock size={14} className="text-accent-600" /> Upcoming interviews
+              </h3>
+              <div className="space-y-2.5">
+                {upcomingInterviews.map(iv => {
+                  const online = iv.interviewType === 'Online' || iv.meetingMode !== 'In-Person';
+                  return (
+                    <div key={iv.id} className="rounded-lg border border-[#E2DDD2] bg-[#F2EEE7] p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[12px] font-semibold text-gray-800">
+                          {online ? 'Online' : 'Offline'} interview
+                        </p>
+                        <span className="rounded-full bg-accent-50 px-2 py-0.5 font-mono text-[9px] font-bold text-accent-600">
+                          {iv.status}
+                        </span>
+                      </div>
+                      <p className="mt-1 flex items-center gap-1.5 text-[11px] text-gray-600">
+                        <CalendarDays size={11} className="text-gray-400" /> {fmtDateTime(iv.dateTime)}
+                      </p>
+                      {iv.interviewerName && iv.interviewerName !== 'To be assigned' && (
+                        <p className="mt-0.5 text-[11px] text-gray-500">Interviewer: {iv.interviewerName}</p>
+                      )}
+                      {iv.emailStatus && (
+                        <p className="mt-1 font-mono text-[10px] text-gray-400">
+                          Invite email: {iv.emailStatus}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -1311,6 +1633,16 @@ export default function CandidateDetailPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {sendTest && (
+        <SendTestModal
+          candidate={candidate}
+          kind={sendTest.kind}
+          testUrl={sendTest.url}
+          onClose={() => setSendTest(null)}
+          onConfirm={confirmSendTest}
+        />
+      )}
     </div>
   );
 }

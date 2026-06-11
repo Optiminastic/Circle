@@ -64,6 +64,11 @@ export async function importDriveDocument(params: {
   return res.json();
 }
 
+/** Direct URL that streams a document inline (opens in a tab, no download). */
+export function documentPreviewUrl(id: string): string {
+  return `${BASE}/api/documents/${id}/preview`;
+}
+
 export async function getDocumentUrl(id: string): Promise<{ url: string; fileName: string }> {
   const res = await fetch(`${BASE}/api/documents/${id}/url`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to get download link');
