@@ -12,6 +12,7 @@ export interface CalendarPushResult {
   pushed: boolean;
   reason?: 'not_configured' | 'not_connected' | 'error';
   meetLink?: string | null;
+  googleEventId?: string | null;
 }
 
 export interface CalendarStatus {
@@ -30,6 +31,10 @@ export function pushCalendarEvent(input: {
   durationMin?: number;
   notes?: string;
   attendeeEmail?: string;
+  /** Extra attendees (candidate / interviewer / HR) invited via Google. */
+  attendees?: string[];
+  /** Office address (offline) or meeting link (online). */
+  location?: string;
 }): Promise<CalendarPushResult> {
   return http.post<CalendarPushResult>('/calendar/events', input);
 }
