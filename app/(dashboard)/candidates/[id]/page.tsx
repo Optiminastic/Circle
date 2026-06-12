@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  X,
   Download,
   Star,
   Award,
@@ -365,9 +366,21 @@ export default function CandidateDetailPage() {
   stages.forEach((s, i) => {
     if (s.reached) currentIndex = i;
   });
+  // The stage the candidate was rejected at (from the stage gate) — everything
+  // from here on is shown as rejected. Falls back to the current stage.
+  const rejectedIndex = rejected
+    ? (() => {
+        const i = stages.findIndex(s => candidate.stageDecisions?.[s.label] === 'Rejected');
+        return i >= 0 ? i : currentIndex;
+      })()
+    : -1;
+  // How far the candidate genuinely progressed (green portion of the stepper).
+  const progressBoundary = rejected ? rejectedIndex : currentIndex;
   const stepState = (i: number): StepState => {
+    // Once rejected, the stage it happened at and every remaining stage are rejected.
+    if (rejected) return i < rejectedIndex ? 'done' : 'rejected';
     if (i < currentIndex) return 'done';
-    if (i === currentIndex) return rejected ? 'rejected' : stages[i].done ? 'done' : 'current';
+    if (i === currentIndex) return stages[i].done ? 'done' : 'current';
     return 'todo';
   };
   const activeStage = picked ?? currentIndex; // detail panel follows the current stage by default
@@ -807,6 +820,49 @@ export default function CandidateDetailPage() {
   };
   const rejectStage = (label: string) => {
     setStageDecision(label, 'Rejected', 'Rejected');
+
+    // For the test rounds, send a result-based rejection email that includes the score.
+    const isTestRound = label === 'IQ Test' || label === 'Assessment';
+    if (isTestRound && candidate.email) {
+      const isIq = label === 'IQ Test';
+      const score = isIq
+        ? myIq[0]
+          ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
+          : undefined
+        : asgInvite?.score != null
+          ? `${asgInvite.score}/${ASSIGNMENT_MAX_MARKS}`
+          : undefined;
+      const subject = isIq
+        ? 'Update on your IQ test result'
+        : 'Update on your assessment result';
+      sendTestEmail({
+        to: candidate.email,
+        candidateName: candidate.fullName,
+        template: isIq ? 'iq_failed' : 'assessment_failed',
+        position: candidate.appliedRole || candidate.department,
+        score,
+      })
+        .then(res =>
+          toast.info(
+            res.sent ? 'Candidate rejected — result email sent.' : 'Candidate rejected.',
+          ),
+        )
+        .catch(() => toast.info('Candidate rejected, but the email could not be sent.'));
+      repositories.sentEmails
+        .create({
+          id: randomId('EML'),
+          recipientName: candidate.fullName,
+          recipientEmail: candidate.email,
+          templateTitle: `${isIq ? 'IQ test' : 'Assessment'} result`,
+          subject,
+          dateSent: nowISO(),
+          status: 'Sent',
+          relatedEntity: candidate.fullName,
+        })
+        .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+        .catch(() => {});
+      return;
+    }
     toast.info('Candidate marked as rejected.');
   };
 
@@ -884,6 +940,9 @@ export default function CandidateDetailPage() {
   );
 
   const stageActions = (): React.ReactNode => {
+    // Once the candidate is decided (rejected/selected) the flow is locked — no
+    // further actions on any remaining step.
+    if (decided) return null;
     const label = stages[activeStage].label;
     const btns: React.ReactNode[] = [];
 
@@ -1070,12 +1129,22 @@ export default function CandidateDetailPage() {
                             state === 'rejected' ? '!bg-red-500 !text-white' : ''
                           }`}
                         >
-                          {state === 'done' ? <Check size={15} /> : <StageIcon size={14} />}
+                          {state === 'rejected' ? (
+                            <X size={15} />
+                          ) : state === 'done' ? (
+                            <Check size={15} />
+                          ) : (
+                            <StageIcon size={14} />
+                          )}
                         </StepperIndicator>
                         {!last && (
                           <div
                             className={`my-1 w-0.5 flex-1 rounded ${
-                              i < currentIndex ? 'bg-emerald-400' : 'bg-[#DAD4C8]'
+                              i < progressBoundary
+                                ? 'bg-emerald-400'
+                                : rejected
+                                  ? 'bg-red-300'
+                                  : 'bg-[#DAD4C8]'
                             }`}
                           />
                         )}
@@ -1095,7 +1164,7 @@ export default function CandidateDetailPage() {
                                   : '!text-gray-400'
                           }`}
                         >
-                          {stage.desc}
+                          {state === 'rejected' ? 'Rejected' : stage.desc}
                         </StepperDescription>
                       </div>
                     </StepperItem>
