@@ -147,6 +147,13 @@ export default function PublicJobPage() {
     }
     setError(null);
 
+    // Resume is mandatory — never save a candidate without it.
+    if (!resumeFile) {
+      toast.error('Please upload your resume before submitting.');
+      setStep(0);
+      return;
+    }
+
     const screeningAnswers = questions.length ? buildAnswers(questions, responses) : undefined;
     const fitRating = screeningAnswers ? computeFit(screeningAnswers) : undefined;
 
@@ -180,18 +187,24 @@ export default function PublicJobPage() {
       fitRating,
     };
 
+    // 1) Upload the resume FIRST (entityType "candidate" / category "resume" — the
+    //    same scope the HR candidate profile reads). If this fails, we abort and
+    //    DO NOT save the candidate, so no one is ever recorded without a resume.
+    try {
+      await uploadDocument({
+        entityType: 'candidate',
+        entityId: id,
+        category: 'resume',
+        file: resumeFile,
+      });
+    } catch {
+      setError('Your resume could not be uploaded. Please try again — your application was not submitted.');
+      return;
+    }
+
+    // 2) Resume is in storage — now save the candidate so it appears for this role.
     try {
       await apply.mutateAsync(candidate);
-      // Upload the resume under the same scope the HR candidate profile reads
-      // (entityType "candidate" / category "resume") so it appears there.
-      if (resumeFile) {
-        await uploadDocument({
-          entityType: 'candidate',
-          entityId: id,
-          category: 'resume',
-          file: resumeFile,
-        });
-      }
       setSubmitted(true);
     } catch (err) {
       setError(
