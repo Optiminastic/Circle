@@ -6,7 +6,7 @@ import type { TestQuestion } from '@/data/test-banks';
 import { Button } from '@/components/ui/button';
 
 const inputCls =
-  'w-full rounded-lg border border-[#DAD4C8] bg-[#ECE8E0] px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-[#F7F4EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'w-full rounded-lg border border-[#E4E6EA] bg-[#F1F3F5] px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 interface QuestionCardsProps {
   questions: TestQuestion[];
@@ -41,7 +41,7 @@ export function QuestionCards({
   return (
     <div className="mx-auto w-full max-w-3xl">
       {questions.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#CFC8BA] bg-[#F7F4EE] px-6 py-16 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#D7DAE0] bg-[#FFFFFF] px-6 py-16 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
             <EmptyIcon size={26} />
           </span>
@@ -55,7 +55,7 @@ export function QuestionCards({
           {questions.map((item, qi) => (
             <div
               key={item.id}
-              className="rounded-xl border border-[#DAD4C8] bg-[#F7F4EE] p-4 shadow-2xs"
+              className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs"
             >
               {/* Card header: number + delete */}
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -89,7 +89,7 @@ export function QuestionCards({
                     <div
                       key={oi}
                       className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 transition ${
-                        correct ? 'border-accent-500 bg-accent-50' : 'border-[#DAD4C8] bg-[#ECE8E0]'
+                        correct ? 'border-accent-500 bg-accent-50' : 'border-[#E4E6EA] bg-[#F1F3F5]'
                       }`}
                     >
                       <button

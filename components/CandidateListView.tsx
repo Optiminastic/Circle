@@ -17,6 +17,7 @@ import {
   Plus,
   FileText,
   ChevronRight,
+  SlidersHorizontal,
   Trash2,
   UserCheck,
   UserSearch,
@@ -362,49 +363,6 @@ export function CandidateListView({
             </Select>
           </div>
         </div>
-        <Select
-          value={selectedDept}
-          onChange={e => setSelectedDept(e.target.value)}
-          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs"
-        >
-          {departments.map(d => (
-            <option key={d} value={d}>
-              {d === 'All' ? 'All departments' : d}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={maxNoticePeriod}
-          onChange={e => setMaxNoticePeriod(Number(e.target.value))}
-          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs font-mono"
-        >
-          <option value={9999}>Any notice</option>
-          <option value={30}>≤ 30 days</option>
-          <option value={15}>≤ 15 days</option>
-          <option value={0}>Immediate</option>
-        </Select>
-        <Select
-          value={selectedStatus}
-          onChange={e => setSelectedStatus(e.target.value)}
-          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs"
-        >
-          {statuses.map(s => (
-            <option key={s} value={s}>
-              {s === 'All' ? 'All statuses' : s}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={selectedSource}
-          onChange={e => setSelectedSource(e.target.value)}
-          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs"
-        >
-          {sources.map(sc => (
-            <option key={sc} value={sc}>
-              {sc === 'All' ? 'All sources' : sc}
-            </option>
-          ))}
-        </Select>
       </div>
 
       {/* Main Tabular candidate container */}

@@ -109,7 +109,7 @@ export function IqQuestionEditor() {
         <div className="flex items-center gap-3">
           <span
             className={`rounded-full px-3 py-1 font-mono text-[11px] font-semibold ${
-              atMax ? 'bg-amber-50 text-amber-700' : 'bg-[#ECE8E0] text-gray-600'
+              atMax ? 'bg-amber-50 text-amber-700' : 'bg-[#F1F3F5] text-gray-600'
             }`}
           >
             {questions.length} / {MAX_QUESTIONS}

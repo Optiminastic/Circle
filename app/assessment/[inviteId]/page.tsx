@@ -65,7 +65,7 @@ export default function AssessmentPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#ECE8E0]">
+    <div className="flex min-h-screen flex-col bg-[#F1F3F5]">
       <header className="flex items-center gap-2.5 px-5 py-4">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-sm">
           <Logo size={20} />
@@ -119,7 +119,7 @@ export default function AssessmentPage() {
 
         {(phase === 'ready' || phase === 'submitting') && invite && (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs">
+            <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs">
               <h2 className="flex items-center gap-1.5 text-base font-bold text-gray-900">
                 <ClipboardList size={18} className="text-accent-600" /> {invite.position} Assessment
               </h2>
@@ -133,7 +133,7 @@ export default function AssessmentPage() {
               {questions.map((q, i) => (
                 <li
                   key={i}
-                  className="rounded-2xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs"
+                  className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs"
                 >
                   <div className="flex gap-2.5">
                     <span className="font-mono text-[12px] font-bold text-accent-700">{i + 1}.</span>
@@ -150,7 +150,7 @@ export default function AssessmentPage() {
                           className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-[13px] transition ${
                             active
                               ? 'border-accent-500 bg-accent-50 text-accent-800'
-                              : 'border-[#DAD4C8] bg-[#ECE8E0] text-gray-700 hover:border-accent-300'
+                              : 'border-[#E4E6EA] bg-[#F1F3F5] text-gray-700 hover:border-accent-300'
                           }`}
                         >
                           <span

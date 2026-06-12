@@ -492,7 +492,7 @@ export function JobListView({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search jobs…"
-              className="w-44 sm:w-56 pl-8 pr-3 py-2 text-xs bg-[#F7F4EE] border border-[#DAD4C8] rounded-lg focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 transition"
+              className="w-44 sm:w-56 pl-8 pr-3 py-2 text-xs bg-[#FFFFFF] border border-[#E4E6EA] rounded-lg focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 transition"
             />
           </div>
           <button
@@ -650,7 +650,7 @@ export function JobListView({
                                 onSetStatus(job.id, job.status === 'Open' ? 'Closed' : 'Open');
                               }}
                               className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${
-                                job.status === 'Open' ? 'bg-accent-600' : 'bg-[#CFC8BA]'
+                                job.status === 'Open' ? 'bg-accent-600' : 'bg-[#D7DAE0]'
                               }`}
                             >
                               <span

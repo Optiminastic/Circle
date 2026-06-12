@@ -137,7 +137,7 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
 
       {/* Banks table */}
       {banks.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#CFC8BA] bg-[#F7F4EE] px-6 py-16 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#D7DAE0] bg-[#FFFFFF] px-6 py-16 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
             <Icon size={26} />
           </span>
@@ -150,22 +150,22 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
           </Button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[#DAD4C8] bg-[#F7F4EE] shadow-2xs">
+        <div className="overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-[#DAD4C8] bg-[#ECE8E0] font-mono text-[10px] uppercase tracking-wider text-gray-500">
+                <tr className="border-b border-[#E4E6EA] bg-[#F1F3F5] font-mono text-[10px] uppercase tracking-wider text-gray-500">
                   <th scope="col" className="px-4 py-2.5 font-semibold">Role</th>
                   <th scope="col" className="px-4 py-2.5 text-center font-semibold">Questions</th>
                   <th scope="col" className="px-4 py-2.5 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E6E1D8]">
+              <tbody className="divide-y divide-[#EDEEF1]">
                 {banks.map(bank => (
                   <tr
                     key={bank.id}
                     onClick={() => router.push(`/question-library/${slug}/${bank.id}`)}
-                    className="cursor-pointer align-middle transition hover:bg-[#ECE8E0]"
+                    className="cursor-pointer align-middle transition hover:bg-[#F1F3F5]"
                     title={`Edit ${bank.jobTitle} questions`}
                   >
                     <td className="px-4 py-3">
@@ -203,7 +203,7 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
                           onClick={() => router.push(`/question-library/${slug}/${bank.id}`)}
                           title="Edit this question bank"
                           aria-label="Edit question bank"
-                          className="rounded-md p-1.5 text-gray-500 transition hover:bg-[#ECE8E0] hover:text-accent-600"
+                          className="rounded-md p-1.5 text-gray-500 transition hover:bg-[#F1F3F5] hover:text-accent-600"
                         >
                           <ChevronRight size={16} />
                         </button>

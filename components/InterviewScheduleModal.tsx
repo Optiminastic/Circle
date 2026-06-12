@@ -92,6 +92,15 @@ export function InterviewScheduleModal({
   const [interviewerEmail, setInterviewerEmail] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Interviewers are picked from active employees — selecting one fills the email.
+  const { data: employees = [] } = useEmployees();
+  const interviewerPool = useMemo(() => employees.filter(e => e.status !== 'Offboarded'), [employees]);
+  const pickInterviewer = (name: string) => {
+    setInterviewerName(name);
+    const match = interviewerPool.find(e => e.fullName === name);
+    if (match?.email) setInterviewerEmail(match.email);
+  };
+
   // Interview question sets from the Question Library — auto-select the one whose
   // role matches what the candidate applied for; HR can switch to any other.
   const [interviewBanks, setInterviewBanks] = useState<RoleQuestionBank[]>([]);

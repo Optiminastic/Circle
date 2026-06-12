@@ -256,7 +256,7 @@ export function Header({
           aria-label="Question Library"
           title="Question Library"
           className={cn(
-            'rounded-md border border-[#DAD4C8] p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+            'rounded-md border border-[#E4E6EA] p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700',
             ui.focusRing,
           )}
         >

@@ -272,9 +272,9 @@ export default function PublicJobPage() {
     .filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-[#ECE8E0]">
+    <div className="min-h-screen bg-[#F1F3F5]">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 bg-[#F7F4EE]/90 backdrop-blur border-b border-[#DAD4C8]">
+      <header className="sticky top-0 z-20 bg-[#FFFFFF]/90 backdrop-blur border-b border-[#E4E6EA]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2.5">
           <a
             href={BRAND.url}

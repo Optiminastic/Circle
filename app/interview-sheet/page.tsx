@@ -79,12 +79,12 @@ export default function InterviewSheetPage() {
   }, []);
 
   if (!ready) {
-    return <div className="min-h-screen bg-[#ECE8E0]" />;
+    return <div className="min-h-screen bg-[#F1F3F5]" />;
   }
 
   if (!data) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#ECE8E0] px-5 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#F1F3F5] px-5 text-center">
         <AlertTriangle className="text-amber-500" size={28} />
         <p className="font-semibold text-gray-800">This interview sheet link is invalid</p>
         <p className="max-w-sm text-sm text-gray-500">
@@ -111,9 +111,9 @@ export default function InterviewSheetPage() {
   ].filter(d => d.value);
 
   return (
-    <div className="min-h-screen bg-[#ECE8E0]">
+    <div className="min-h-screen bg-[#F1F3F5]">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 border-b border-[#DAD4C8] bg-[#F7F4EE]/90 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-[#E4E6EA] bg-[#FFFFFF]/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-2.5 px-4 sm:px-6">
           <Logo size={26} />
           <div>
@@ -129,7 +129,7 @@ export default function InterviewSheetPage() {
 
       <main className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
         {/* Candidate basics */}
-        <section className="rounded-2xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs sm:p-6">
+        <section className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs sm:p-6">
           <div className="flex items-center gap-3">
             <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent-500 to-accent-700 text-base font-bold text-white">
               {data.candidateName.slice(0, 2).toUpperCase()}
@@ -165,7 +165,7 @@ export default function InterviewSheetPage() {
         </section>
 
         {/* Questions */}
-        <section className="rounded-2xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs sm:p-6">
+        <section className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs sm:p-6">
           <h3 className="mb-1 flex items-center gap-1.5 text-sm font-bold text-gray-900">
             <User size={15} className="text-accent-600" /> Interview questions
           </h3>
@@ -189,7 +189,7 @@ export default function InterviewSheetPage() {
                 {data.questions.map((q, i) => {
                   const picked = responses[i]?.selected;
                   return (
-                    <li key={i} className="rounded-xl border border-[#E2DDD2] bg-[#ECE8E0]/50 p-4">
+                    <li key={i} className="rounded-xl border border-[#ECEDF0] bg-[#F1F3F5]/50 p-4">
                       <div className="flex gap-2.5">
                         <span className="font-mono text-[12px] font-bold text-accent-700">
                           {i + 1}.
@@ -208,7 +208,7 @@ export default function InterviewSheetPage() {
                                 className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[13px] transition ${
                                   active
                                     ? 'border-accent-500 bg-accent-50 text-accent-800'
-                                    : 'border-[#DAD4C8] bg-[#F7F4EE] text-gray-700 hover:border-accent-300'
+                                    : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-700 hover:border-accent-300'
                                 }`}
                               >
                                 <span
@@ -230,7 +230,7 @@ export default function InterviewSheetPage() {
                             value={responses[i]?.note ?? ''}
                             onChange={e => setNote(i, e.target.value)}
                             placeholder="Add a note (optional)"
-                            className="w-full rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-3 py-1.5 text-[12px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                            className="w-full rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 py-1.5 text-[12px] text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                           />
                         </div>
                       )}

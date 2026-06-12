@@ -14,7 +14,6 @@ import {
   Settings,
   Briefcase,
   UserSearch,
-  Library,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -88,7 +87,6 @@ export function Sidebar({ collapsed: isCollapsed }: SidebarProps) {
           {navItem('/', 'Dashboard', <LayoutDashboard size={14} />)}
           {navItem('/jobs', 'Job Postings', <Briefcase size={14} />)}
           {navItem('/candidates', 'Candidates', <UserSearch size={14} />)}
-          {navItem('/question-library', 'Question Library', <Library size={14} />)}
         </div>
 
         {/* EMPLOYEES DIVISION */}

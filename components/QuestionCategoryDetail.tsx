@@ -51,11 +51,11 @@ export function QuestionCategoryDetail({ slug }: { slug: string }) {
       </div>
 
       {/* Question table shell */}
-      <div className="overflow-hidden rounded-2xl border border-[#DAD4C8] bg-[#F7F4EE] shadow-2xs">
+      <div className="overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="border-b border-[#DAD4C8] bg-[#ECE8E0] font-mono text-[10px] uppercase tracking-wider text-gray-500">
+              <tr className="border-b border-[#E4E6EA] bg-[#F1F3F5] font-mono text-[10px] uppercase tracking-wider text-gray-500">
                 <th scope="col" className="px-4 py-2.5 font-semibold">#</th>
                 <th scope="col" className="px-4 py-2.5 font-semibold">Question</th>
                 <th scope="col" className="px-4 py-2.5 font-semibold">Type</th>

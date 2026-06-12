@@ -95,7 +95,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-[#F1F3F5]">
           {error ? (
             <div className="max-w-md mx-auto mt-20 text-center">
-              <div className="bg-[#F7F4EE] border border-red-200 rounded-xl p-6">
+              <div className="bg-[#FFFFFF] border border-red-200 rounded-xl p-6">
                 <p className="text-sm font-semibold text-red-600">Service is down!</p>
                 <p className="text-xs text-gray-500 mt-2">
                   Please contact the developer team.
