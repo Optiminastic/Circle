@@ -23,7 +23,9 @@ export function computeFit(answers: ScreeningAnswer[]): FitRating {
 /**
  * Turn raw answers (keyed by question id) into scored ScreeningAnswers.
  *  - yes/no  → passes when the answer matches expectedAnswer
- *  - choice  → passes when the picked option equals expectedOption
+ *  - choice  → passes when the picked option equals expectedOption; if no
+ *              expected option is defined (e.g. reused Question-Library sets),
+ *              it is informational and always passes
  *  - text    → informational, always passes (HR reads it)
  */
 export function buildAnswers(
@@ -35,7 +37,7 @@ export function buildAnswers(
     const answer = responses[q.id] ?? '';
     let passed: boolean;
     if (type === 'yesno') passed = (answer === 'Yes') === Boolean(q.expectedAnswer);
-    else if (type === 'choice') passed = Boolean(q.expectedOption) && answer === q.expectedOption;
+    else if (type === 'choice') passed = q.expectedOption ? answer === q.expectedOption : true;
     else passed = true; // text — not auto-scored
     return {
       questionId: q.id,

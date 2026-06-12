@@ -1,8 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Select } from './Select';
+import {
+  loadScreeningBanks,
+  type ScreeningBank,
+  type ScreeningItem,
+} from '@/lib/question-banks';
 import { Button } from '@/components/ui/button';
 import { Tip } from '@/components/ui/tooltip';
 import {
@@ -36,8 +41,7 @@ import {
   Trash2,
   Users,
   MapPin,
-  Lock,
-  Unlock,
+  Search,
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
@@ -82,6 +86,28 @@ const newQuestion = (importance: QuestionImportance): ScreeningQuestion => ({
   type: 'yesno',
   expectedAnswer: true,
 });
+
+// A reusable screening-set question (with 2+ options) becomes a choice question;
+// otherwise it falls back to a short-text question. No expected option is set —
+// these are informational on the public form (see buildAnswers).
+const itemToQuestion = (it: ScreeningItem, importance: QuestionImportance): ScreeningQuestion => {
+  const options = it.options.map(o => o.trim()).filter(Boolean);
+  const hasChoices = options.length >= 2;
+  return {
+    id: `Q${Date.now().toString(36)}${qSeq++}`,
+    text: it.text.trim(),
+    category: 'Field',
+    importance,
+    type: hasChoices ? 'choice' : 'text',
+    ...(hasChoices ? { options } : {}),
+  };
+};
+
+/** Flatten a saved screening set into the job's screeningQuestions shape. */
+const bankToQuestions = (bank: ScreeningBank): ScreeningQuestion[] => [
+  ...bank.mustHave.filter(it => it.text.trim()).map(it => itemToQuestion(it, 'Must Have')),
+  ...bank.goodToHave.filter(it => it.text.trim()).map(it => itemToQuestion(it, 'Good to Have')),
+];
 
 type SortKey = 'title' | 'exp' | 'salary' | 'status' | 'applicants';
 
@@ -132,6 +158,25 @@ export function JobListView({
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  // Reusable Must-have/Good-to-have sets from the Question Library.
+  const [screeningBanks, setScreeningBanks] = useState<ScreeningBank[]>([]);
+  const [screeningSetId, setScreeningSetId] = useState('');
+
+  // Refresh the available screening sets each time the create form opens.
+  useEffect(() => {
+    if (showAddForm) {
+      setScreeningBanks(loadScreeningBanks());
+      setScreeningSetId('');
+    }
+  }, [showAddForm]);
+
+  // Apply a saved set: replace the form's screening questions with its questions.
+  const applyScreeningSet = (id: string) => {
+    setScreeningSetId(id);
+    const bank = screeningBanks.find(b => b.id === id);
+    setForm(f => ({ ...f, screeningQuestions: bank ? bankToQuestions(bank) : [] }));
+  };
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
     key: 'title',
     dir: 'asc',
@@ -140,6 +185,8 @@ export function JobListView({
   const toggleSort = (key: SortKey) =>
     setSort(s => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
   const toNum = (s: string) => Number(String(s).replace(/[^0-9.]/g, '')) || 0;
+  // Auto-capitalise the first letter of the job title (stored & shown that way).
+  const capitalizeFirst = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   const openApplicants = (id: string) => router.push(`/jobs/${id}/applicants`);
 
@@ -179,7 +226,7 @@ export function JobListView({
 
     const created: Job = {
       id: `JOB-${Math.floor(1000 + Math.random() * 9000)}`,
-      title: form.title.trim(),
+      title: capitalizeFirst(form.title.trim()),
       department: form.department,
       location: form.location,
       employmentType: form.employmentType,
@@ -345,7 +392,18 @@ export function JobListView({
   const closedCount = jobs.filter(j => j.status === 'Closed' || j.status === 'On Hold').length;
   const totalApplicants = Object.values(applicantCounts).reduce((a, b) => a + b, 0);
 
-  const sortedJobs = [...jobs].sort((a, b) => {
+  const q = search.trim().toLowerCase();
+  const visibleJobs = q
+    ? jobs.filter(
+        j =>
+          j.title.toLowerCase().includes(q) ||
+          j.department.toLowerCase().includes(q) ||
+          j.location.toLowerCase().includes(q) ||
+          j.id.toLowerCase().includes(q),
+      )
+    : jobs;
+
+  const sortedJobs = [...visibleJobs].sort((a, b) => {
     const dir = sort.dir === 'asc' ? 1 : -1;
     switch (sort.key) {
       case 'exp':
@@ -424,13 +482,27 @@ export function JobListView({
             </p>
           </div>
         </div>
-        <button
-          id="btn-post-job"
-          onClick={() => setShowAddForm(true)}
-          className="bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition font-medium shrink-0 shadow-2xs"
-        >
-          <Plus size={15} /> Post New Job
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500">
+              <Search size={14} />
+            </span>
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search jobs…"
+              className="w-44 sm:w-56 pl-8 pr-3 py-2 text-xs bg-[#F7F4EE] border border-[#DAD4C8] rounded-lg focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 transition"
+            />
+          </div>
+          <button
+            id="btn-post-job"
+            onClick={() => setShowAddForm(true)}
+            className="bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition font-medium shrink-0 shadow-2xs"
+          >
+            <Plus size={15} /> Post New Job
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -567,20 +639,26 @@ export function JobListView({
                               <ExternalLink size={11} /> View
                             </a>
                           </Button>
-                          <Tip label={job.status === 'Open' ? 'Close this posting' : 'Reopen this posting'}>
-                            <Button
+                          <Tip label={job.status === 'Open' ? 'Active — click to pause' : 'Paused — click to activate'}>
+                            <button
                               type="button"
-                              variant="ghost"
-                              size="icon-xs"
+                              role="switch"
+                              aria-checked={job.status === 'Open'}
+                              aria-label={job.status === 'Open' ? 'Pause this posting' : 'Activate this posting'}
                               onClick={e => {
                                 e.stopPropagation();
                                 onSetStatus(job.id, job.status === 'Open' ? 'Closed' : 'Open');
                               }}
-                              className="text-gray-500 hover:text-gray-800"
-                              aria-label={job.status === 'Open' ? 'Close this posting' : 'Reopen this posting'}
+                              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${
+                                job.status === 'Open' ? 'bg-accent-600' : 'bg-[#CFC8BA]'
+                              }`}
                             >
-                              {job.status === 'Open' ? <Lock size={12} /> : <Unlock size={12} />}
-                            </Button>
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                                  job.status === 'Open' ? 'translate-x-[18px]' : 'translate-x-0.5'
+                                }`}
+                              />
+                            </button>
                           </Tip>
                           <Tip label="Delete posting">
                             <Button
@@ -641,7 +719,7 @@ export function JobListView({
                         id="job-title"
                         placeholder="e.g. Senior React Engineer"
                         value={form.title}
-                        onChange={e => setForm({ ...form, title: e.target.value })}
+                        onChange={e => setForm({ ...form, title: capitalizeFirst(e.target.value) })}
                         className="mt-2"
                         required
                       />
@@ -823,6 +901,38 @@ export function JobListView({
                   </p>
                 </div>
                 <div className="space-y-5 md:col-span-2">
+                  {/* Reuse a saved Must-have/Good-to-have set from the Question Library */}
+                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
+                    <label className="text-xs font-semibold text-foreground">
+                      Reuse a saved screening set
+                    </label>
+                    <p className="mb-2 mt-0.5 text-[11px] text-muted-foreground">
+                      Pick a role&apos;s set from the Question Library to attach its questions — you
+                      can still edit them below.
+                    </p>
+                    {screeningBanks.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        No screening sets yet — create one in Question Library → Must-have &amp;
+                        Good-to-have.
+                      </p>
+                    ) : (
+                      <Select
+                        value={screeningSetId}
+                        onChange={e => applyScreeningSet(e.target.value)}
+                        className="h-8 w-full rounded-md border border-input bg-secondary/50 px-2 text-xs"
+                        placeholder="Select a screening set"
+                      >
+                        <option value="">— None (add manually) —</option>
+                        {screeningBanks.map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.roleName} ({b.mustHave.length} must-have · {b.goodToHave.length}{' '}
+                            good-to-have)
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </div>
+
                   {(
                     [
                       { key: 'Must Have', label: 'Must-have' },

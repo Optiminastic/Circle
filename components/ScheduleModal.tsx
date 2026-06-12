@@ -130,7 +130,7 @@ export function ScheduleModal({
                     }`}
                   >
                     {TYPE_META[t].icon}
-                    {t === 'Assessment' ? 'Assignment' : t}
+                    {t}
                   </Button>
                 ))}
               </div>

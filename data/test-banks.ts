@@ -971,6 +971,131 @@ export const GENERAL_ASSESSMENT: TestQuestion[] = [
   },
 ];
 
-export function assessmentBankFor(department: string): TestQuestion[] {
+/**
+ * Role-specific assessment banks, keyed by a lowercase role keyword found in the
+ * candidate's applied position (e.g. "Senior React Engineer" → "react"). These
+ * take priority over the department bank.
+ */
+export const ROLE_ASSESSMENT_BANKS: Record<string, TestQuestion[]> = {
+  react: [
+    {
+      id: 'RE01',
+      q: 'Which hook adds local state to a function component?',
+      options: ['useEffect', 'useState', 'useRef', 'useMemo'],
+      answer: 1,
+    },
+    {
+      id: 'RE02',
+      q: 'Where should side effects (data fetching, subscriptions) go in a function component?',
+      options: ['Directly in the render body', 'In useEffect', 'In useState', 'In the JSX'],
+      answer: 1,
+    },
+    {
+      id: 'RE03',
+      q: 'Why does React need a "key" prop on list items?',
+      options: [
+        'To style each item',
+        'To help React identify which items changed for efficient reconciliation',
+        'It is required for accessibility',
+        'To set the item order in CSS',
+      ],
+      answer: 1,
+    },
+    {
+      id: 'RE04',
+      q: 'What does useMemo do?',
+      options: [
+        'Memoizes a function reference',
+        'Caches an expensive computed value between renders',
+        'Stores state that survives unmount',
+        'Forces a re-render',
+      ],
+      answer: 1,
+    },
+    {
+      id: 'RE05',
+      q: 'Which of these will cause a component to re-render?',
+      options: [
+        'Mutating a variable outside state',
+        'A change to its state or props',
+        'Logging to the console',
+        'Adding a comment',
+      ],
+      answer: 1,
+    },
+    {
+      id: 'RE06',
+      q: 'Per the Rules of Hooks, hooks must be called:',
+      options: [
+        'Inside loops for each item',
+        'At the top level of a component, not inside conditions or loops',
+        'Only inside event handlers',
+        'After an early return',
+      ],
+      answer: 1,
+    },
+    {
+      id: 'RE07',
+      q: 'What does useCallback return?',
+      options: [
+        'A memoized value',
+        'A memoized callback function with a stable identity',
+        'A ref object',
+        'A piece of state',
+      ],
+      answer: 1,
+    },
+    {
+      id: 'RE08',
+      q: '"Lifting state up" means:',
+      options: [
+        'Storing state in localStorage',
+        'Moving shared state to the closest common ancestor of the components that need it',
+        'Using a global variable',
+        'Wrapping state in useRef',
+      ],
+      answer: 1,
+    },
+    {
+      id: 'RE09',
+      q: 'What is the purpose of React.Fragment (<>…</>)?',
+      options: [
+        'To add a styled wrapper div',
+        'To group children without adding an extra DOM node',
+        'To memoize a component',
+        'To create a portal',
+      ],
+      answer: 1,
+    },
+    {
+      id: 'RE10',
+      q: 'useRef is commonly used to:',
+      options: [
+        'Trigger re-renders when its value changes',
+        'Hold a mutable value or DOM reference that persists across renders without re-rendering',
+        'Replace useState entirely',
+        'Fetch data on mount',
+      ],
+      answer: 1,
+    },
+  ],
+};
+
+/** Match a role keyword from the candidate's applied position. */
+function roleKeyFor(position: string): string | null {
+  const p = (position || '').toLowerCase();
+  for (const key of Object.keys(ROLE_ASSESSMENT_BANKS)) {
+    if (p.includes(key)) return key;
+  }
+  return null;
+}
+
+/**
+ * The assessment/interview question bank for a candidate — a role-specific bank
+ * (e.g. React) takes priority, otherwise the department bank, otherwise General.
+ */
+export function assessmentBankFor(department: string, position = ''): TestQuestion[] {
+  const roleKey = roleKeyFor(position);
+  if (roleKey) return ROLE_ASSESSMENT_BANKS[roleKey];
   return ASSESSMENT_BANKS[department] ?? GENERAL_ASSESSMENT;
 }

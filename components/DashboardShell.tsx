@@ -13,7 +13,6 @@ import { useCandidates } from '@/features/candidates/hooks';
 import { useEmployees } from '@/features/employees/hooks';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
-import { apiBase } from '@/lib/api-base';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -96,13 +95,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-[#F1F3F5]">
           {error ? (
             <div className="max-w-md mx-auto mt-20 text-center">
-              <div className="bg-[#FFFFFF] border border-red-200 rounded-xl p-6">
-                <p className="text-sm font-semibold text-red-600">Backend unavailable</p>
+              <div className="bg-[#F7F4EE] border border-red-200 rounded-xl p-6">
+                <p className="text-sm font-semibold text-red-600">Service is down!</p>
                 <p className="text-xs text-gray-500 mt-2">
-                  Could not reach {apiBase()}
-                </p>
-                <p className="text-[11px] text-gray-500 mt-3 font-mono">
-                  Start it: <span className="text-gray-600">uvicorn app.main:app --port 8000</span>
+                  Please contact the developer team.
                 </p>
               </div>
             </div>
@@ -110,7 +106,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-3 text-gray-500">
                 <div className="w-6 h-6 border-2 border-accent-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-mono">Loading from backend…</span>
+                <span className="text-xs font-mono">Loading…</span>
               </div>
             </div>
           ) : (
