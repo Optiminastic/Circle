@@ -8,8 +8,7 @@ import { BRAND } from '@/lib/brand';
 import { TestInvite, IQTest } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
-import { sendTestEmail } from '@/lib/api/notifications';
-import { nowISO, randomId, randomToken } from '@/lib/utils';
+import { nowISO, randomId } from '@/lib/utils';
 import {
   TestQuestion,
   IQ_QUESTIONS,
@@ -18,14 +17,12 @@ import {
   IQ_PASS_SCORE,
   IQ_TOTAL_MARKS,
   ASSESSMENT_PASS_PERCENT,
-  ASSESSMENT_DURATION_MIN,
 } from '@/data/test-banks';
 import {
   BrainCircuit,
   ClipboardList,
   Clock4,
   ShieldAlert,
-  ShieldCheck,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -137,8 +134,8 @@ export default function PublicTestPage() {
 function TestFlow({ invite }: { invite: TestInvite }) {
   const isIq = invite.kind === 'iq';
   const questions: TestQuestion[] = useMemo(
-    () => (isIq ? IQ_QUESTIONS : assessmentBankFor(invite.department)),
-    [isIq, invite.department],
+    () => (isIq ? IQ_QUESTIONS : assessmentBankFor(invite.department, invite.position)),
+    [isIq, invite.department, invite.position],
   );
 
   // The invite is the source of truth for completion + start time, so a
@@ -266,63 +263,19 @@ function TestFlow({ invite }: { invite: TestInvite }) {
           };
           await repositories.iqTests.create(iqRecord).catch(() => {});
 
-          if (passed) {
-            // Auto-chain: assign the role-specific MCQ ASSESSMENT and email its link.
-            const assessment: TestInvite = {
-              id: randomToken('TIV'),
-              kind: 'assessment',
-              candidateId: invite.candidateId,
-              candidateName: invite.candidateName,
-              email: invite.email,
-              position: invite.position,
-              department: invite.department,
-              jobId: invite.jobId,
-              durationMin: ASSESSMENT_DURATION_MIN,
-              status: 'Pending',
-              createdAt: nowISO(),
-            };
-            await repositories.testInvites.create(assessment).catch(() => {});
-            sendTestEmail({
-              to: invite.email,
-              candidateName: invite.candidateName,
-              template: 'iq_passed',
-              testUrl: `${window.location.origin}/test/${assessment.id}`,
-              position: invite.position,
-              score: String(score),
-            }).catch(() => {});
-          } else {
+          // A failed / disqualified attempt rejects the candidate (HR can re-assign).
+          // No result email is sent — HR drives next steps manually.
+          if (!passed) {
             repositories.candidates
               .patch(invite.candidateId, { status: 'Rejected' })
               .catch(() => {});
-            sendTestEmail({
-              to: invite.email,
-              candidateName: invite.candidateName,
-              template: 'iq_failed',
-              position: invite.position,
-              score: disqualified ? undefined : String(score),
-            }).catch(() => {});
           }
         } else {
-          // Assessment round
-          if (passed) {
-            sendTestEmail({
-              to: invite.email,
-              candidateName: invite.candidateName,
-              template: 'assessment_passed',
-              position: invite.position,
-              score: `${score}%`,
-            }).catch(() => {});
-          } else {
+          // Assessment round — a failed attempt rejects the candidate (no email).
+          if (!passed) {
             repositories.candidates
               .patch(invite.candidateId, { status: 'Rejected' })
               .catch(() => {});
-            sendTestEmail({
-              to: invite.email,
-              candidateName: invite.candidateName,
-              template: 'assessment_failed',
-              position: invite.position,
-              score: disqualified ? undefined : `${score}%`,
-            }).catch(() => {});
           }
         }
       } finally {
@@ -808,17 +761,17 @@ function Shell({ children }: { children: React.ReactNode }) {
             </p>
           </div>
         </div>
-        <span className="hidden items-center gap-1.5 rounded-full border border-[#DAD4C8] bg-white/60 px-3 py-1 text-[10px] font-semibold text-gray-600 sm:inline-flex">
-          <ShieldCheck size={12} className="text-accent-600" /> Proctored
-        </span>
       </header>
 
       <main className="relative z-10 flex-1 flex flex-col justify-center w-full max-w-xl mx-auto px-4 py-6">
         {children}
       </main>
 
-      <footer className="relative z-10 text-center text-[10px] text-gray-500 py-5 font-mono">
-        Proctored online test · {BRAND.product}
+      <footer className="relative z-10 flex items-center justify-center gap-2 py-5 text-[11px] text-gray-500">
+        <span className="grid h-5 w-5 place-items-center rounded-md bg-gradient-to-br from-accent-500 to-accent-700 text-white">
+          <Logo size={12} />
+        </span>
+        <span className="font-semibold">{BRAND.name}</span>
       </footer>
     </div>
   );

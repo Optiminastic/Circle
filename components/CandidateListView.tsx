@@ -17,7 +17,6 @@ import {
   Plus,
   FileText,
   ChevronRight,
-  SlidersHorizontal,
   Trash2,
   UserCheck,
   UserSearch,
@@ -228,90 +227,63 @@ export function CandidateListView({
         </div>
       )}
 
-      {/* Advanced Filter Bars */}
-      <div className="bg-[#F7F4EE] border border-[#DAD4C8] p-4 rounded-xl shadow-2xs space-y-3">
-        <div className="flex items-center gap-2 text-gray-700 font-semibold mb-1">
-          <SlidersHorizontal size={13} className="text-accent-600" />
-          <span>Evaluation Filters</span>
+      {/* Inline filter toolbar */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative min-w-[200px] flex-1">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500">
+            <Search size={13} />
+          </span>
+          <input
+            type="text"
+            placeholder="Search name, applied role…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] py-1.5 pl-8 pr-3 text-xs transition focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          />
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3.5 text-xs">
-          {/* Text filters */}
-          <div className="space-y-1 col-span-1 sm:col-span-2">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Candidate search</span>
-            <div className="relative">
-              <span className="absolute left-2.5 top-2.5 text-gray-500">
-                <Search size={12} />
-              </span>
-              <input
-                type="text"
-                placeholder="Search name, applied role..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-7 pr-3 py-1.5 bg-[#E6E1D8] border border-[#DAD4C8] rounded text-xs focus:bg-[#F7F4EE]"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Department</span>
-            <Select
-              value={selectedDept}
-              onChange={e => setSelectedDept(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#E6E1D8] border border-[#DAD4C8] rounded"
-            >
-              {departments.map(d => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Notice period</span>
-            <Select
-              value={maxNoticePeriod}
-              onChange={e => setMaxNoticePeriod(Number(e.target.value))}
-              className="w-full px-2 py-1.5 bg-[#E6E1D8] border border-[#DAD4C8] rounded font-mono"
-            >
-              <option value={9999}>Any Notice</option>
-              <option value={30}>≤ 30 Days</option>
-              <option value={15}>≤ 15 Days</option>
-              <option value={0}>Immediate</option>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Hiring status</span>
-            <Select
-              value={selectedStatus}
-              onChange={e => setSelectedStatus(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#E6E1D8] border border-[#DAD4C8] rounded"
-            >
-              {statuses.map(s => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Medium Source</span>
-            <Select
-              value={selectedSource}
-              onChange={e => setSelectedSource(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#E6E1D8] border border-[#DAD4C8] rounded"
-            >
-              {sources.map(sc => (
-                <option key={sc} value={sc}>
-                  {sc}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
+        <Select
+          value={selectedDept}
+          onChange={e => setSelectedDept(e.target.value)}
+          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs"
+        >
+          {departments.map(d => (
+            <option key={d} value={d}>
+              {d === 'All' ? 'All departments' : d}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={maxNoticePeriod}
+          onChange={e => setMaxNoticePeriod(Number(e.target.value))}
+          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs font-mono"
+        >
+          <option value={9999}>Any notice</option>
+          <option value={30}>≤ 30 days</option>
+          <option value={15}>≤ 15 days</option>
+          <option value={0}>Immediate</option>
+        </Select>
+        <Select
+          value={selectedStatus}
+          onChange={e => setSelectedStatus(e.target.value)}
+          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs"
+        >
+          {statuses.map(s => (
+            <option key={s} value={s}>
+              {s === 'All' ? 'All statuses' : s}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={selectedSource}
+          onChange={e => setSelectedSource(e.target.value)}
+          className="rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1.5 text-xs"
+        >
+          {sources.map(sc => (
+            <option key={sc} value={sc}>
+              {sc === 'All' ? 'All sources' : sc}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {/* Main Tabular candidate container */}
@@ -662,8 +634,8 @@ export function CandidateListView({
                   <FileDropzone
                     value={resume}
                     onChange={setResume}
-                    accept=".pdf,.doc,.docx"
-                    hint="PDF, DOC or DOCX up to 15 MB"
+                    accept=".pdf"
+                    hint="PDF only, up to 15 MB"
                   />
                 </div>
               </div>

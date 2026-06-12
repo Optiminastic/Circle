@@ -56,6 +56,7 @@ export function sendCustomEmail(input: {
   organizerName?: string;
   attendees?: string[];
   eventUid?: string;
+  links?: { label: string; url: string }[];
 }): Promise<ScheduleEmailResult> {
   return http.post<ScheduleEmailResult>('/notifications/custom-email', input);
 }

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export function bankFor(invite: TestInvite): TestQuestion[] {
-  return invite.kind === 'iq' ? IQ_QUESTIONS : assessmentBankFor(invite.department);
+  return invite.kind === 'iq' ? IQ_QUESTIONS : assessmentBankFor(invite.department, invite.position);
 }
 
 export function timeTakenMin(invite: TestInvite): number | null {

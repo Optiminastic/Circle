@@ -8,6 +8,9 @@ import { useToast } from '@/components/Toaster';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { sendCustomEmail } from '@/lib/api/notifications';
+import { pushCalendarEvent } from '@/lib/api/calendar';
+import { listDocuments, documentPreviewUrl } from '@/lib/api/documents';
+import { encodeInterviewSheet } from '@/lib/interview-sheet';
 import { BRAND } from '@/lib/brand';
 import { HR_EMAIL } from '@/lib/config';
 import { randomId, nowISO } from '@/lib/utils';
@@ -121,17 +124,46 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
     ]
       .filter(Boolean)
       .join('\n');
-    const eventFields = {
-      eventStartIso: input.dateTimeIso,
-      eventDurationMin: input.durationMin,
-      eventSummary: `Interview - ${c.fullName} - ${position}`,
-      eventLocation: input.location,
-      eventDescription,
-      organizerEmail: HR_EMAIL,
-      organizerName: `${BRAND.name} HR`,
-      attendees,
-      eventUid: id,
-    };
+    // 2) Create the event on the connected HR Google Calendar. Google emails its
+    // own invite to the attendees (candidate + interviewer + HR) via
+    // sendUpdates=all, and the event shows on the HR calendar embedded on the
+    // Calendar page. No-op (returns pushed:false) if Google isn't connected.
+    let pushed = false;
+    let meetLink: string | null | undefined;
+    let googleEventId: string | null | undefined;
+    try {
+      const res = await pushCalendarEvent({
+        appEventId: id,
+        type: 'Interview',
+        title: `Interview - ${c.fullName} - ${position}`,
+        dateTimeIso: input.dateTimeIso,
+        durationMin: input.durationMin,
+        location: input.location,
+        attendees,
+        notes: eventDescription,
+      });
+      pushed = res.pushed;
+      meetLink = res.meetLink;
+      googleEventId = res.googleEventId;
+    } catch {
+      /* calendar sync is best-effort */
+    }
+
+    // Attach an .ics invite to the emails only when Google did NOT create the
+    // event (e.g. the shared account isn't connected) — avoids duplicate entries.
+    const eventFields = pushed
+      ? {}
+      : {
+          eventStartIso: input.dateTimeIso,
+          eventDurationMin: input.durationMin,
+          eventSummary: `Interview - ${c.fullName} - ${position}`,
+          eventLocation: input.location,
+          eventDescription,
+          organizerEmail: HR_EMAIL,
+          organizerName: `${BRAND.name} HR`,
+          attendees,
+          eventUid: id,
+        };
 
     // 2) Email the candidate the (possibly edited) invitation, with the calendar
     // invite attached and HR cc'd. Log delivery status.
@@ -164,8 +196,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         .catch(() => {});
     }
 
-    // 3) Notify the interviewer (if provided) with the full candidate brief and
-    // the same calendar invite.
+    // 3) Notify the interviewer (if provided) with the full candidate brief, the
+    // candidate's resume link, a public question sheet, and the calendar invite.
     if (input.interviewerEmail) {
       const when = new Date(input.dateTimeIso);
       const whenStr = Number.isNaN(when.getTime())
@@ -178,6 +210,42 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             hour: '2-digit',
             minute: '2-digit',
           });
+
+      // Resolve the candidate's uploaded resume to a public inline-preview link.
+      let resumeUrl = '';
+      try {
+        const docs = await listDocuments('candidate', c.id);
+        const resumeDoc = docs.find(d => d.category === 'resume') ?? docs[0];
+        if (resumeDoc) resumeUrl = documentPreviewUrl(resumeDoc.id);
+      } catch {
+        /* resume optional — proceed without it */
+      }
+
+      // Build the public question-sheet link (candidate basics + questions encoded
+      // in the URL, so it works for an external interviewer with no app access).
+      let sheetUrl = '';
+      if (input.questionSet && input.questionSet.questions.length) {
+        const encoded = encodeInterviewSheet({
+          interviewId: id,
+          candidateName: c.fullName,
+          role: position,
+          department: c.department,
+          experienceYears: c.totalExperienceYears,
+          relevantExperienceYears: c.relevantExperienceYears,
+          email: c.email,
+          phone: c.phone,
+          currentCompany: c.currentCompany,
+          currentDesignation: c.currentDesignation,
+          resumeUrl,
+          interviewerName: input.interviewerName,
+          whenIso: input.dateTimeIso,
+          mode: input.type,
+          roleLabel: input.questionSet.roleLabel,
+          questions: input.questionSet.questions,
+        });
+        sheetUrl = `${window.location.origin}/interview-sheet?d=${encodeURIComponent(encoded)}`;
+      }
+
       const ivBody = [
         `Hi ${input.interviewerName || 'there'},`,
         '',
@@ -197,17 +265,27 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         '',
         `— ${BRAND.name}`,
       ].join('\n');
+      // Resume + question sheet go as labelled buttons (anchors), not raw URLs.
+      const links = [
+        ...(resumeUrl ? [{ label: 'View candidate resume', url: resumeUrl }] : []),
+        ...(sheetUrl ? [{ label: 'Open interview questions', url: sheetUrl }] : []),
+      ];
       sendCustomEmail({
         to: input.interviewerEmail,
         subject: `Interview scheduled: ${c.fullName} for ${position}`,
         body: ivBody,
+        ...(links.length ? { links } : {}),
         ...eventFields,
       }).catch(() => {});
     }
 
-    // 4) Backfill the interview record with the calendar UID + email status.
+    // 4) Backfill the interview record with the calendar id, meet link + status.
     repositories.interviews
-      .patch(id, { emailStatus, googleEventId: id })
+      .patch(id, {
+        emailStatus,
+        googleEventId: googleEventId ?? id,
+        ...(meetLink ? { meetingLink: meetLink } : {}),
+      })
       .then(() => qc.invalidateQueries({ queryKey: qk.interviews.all }))
       .catch(() => {});
 

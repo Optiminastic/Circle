@@ -18,6 +18,7 @@ import { Select } from './Select';
 import { BRAND } from '@/lib/brand';
 import { OFFICE_LOCATION_URL } from '@/lib/config';
 import { Candidate } from '@/types';
+import { loadBanks, type RoleQuestionBank } from '@/lib/question-banks';
 
 /** An existing interview window used for conflict detection. */
 export interface BusyInterview {
@@ -37,6 +38,8 @@ export interface InterviewScheduleResult {
   notes?: string;
   emailSubject: string;
   emailBody: string;
+  /** Interview questions (from the Question Library) to send to the interviewer. */
+  questionSet?: { roleLabel: string; questions: { text: string; options: string[] }[] };
 }
 
 interface InterviewScheduleModalProps {
@@ -87,6 +90,19 @@ export function InterviewScheduleModal({
   const [interviewerName, setInterviewerName] = useState('');
   const [interviewerEmail, setInterviewerEmail] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Interview question sets from the Question Library — auto-select the one whose
+  // role matches what the candidate applied for; HR can switch to any other.
+  const [interviewBanks, setInterviewBanks] = useState<RoleQuestionBank[]>([]);
+  const [questionBankId, setQuestionBankId] = useState('');
+  useEffect(() => {
+    const banks = loadBanks('interview');
+    setInterviewBanks(banks);
+    const match = banks.find(
+      b => b.jobTitle.trim().toLowerCase() === position.trim().toLowerCase(),
+    );
+    if (match) setQuestionBankId(match.id);
+  }, [position]);
 
   const [subject, setSubject] = useState(`Interview Invitation - ${position} - ${BRAND.name}`);
   const [body, setBody] = useState('');
@@ -150,6 +166,15 @@ export function InterviewScheduleModal({
 
   const submit = () => {
     if (error || startMs == null) return;
+    const bank = interviewBanks.find(b => b.id === questionBankId);
+    const questionSet = bank
+      ? {
+          roleLabel: bank.jobTitle,
+          questions: bank.questions
+            .filter(q => q.q.trim())
+            .map(q => ({ text: q.q.trim(), options: q.options.map(o => o.trim()).filter(Boolean) })),
+        }
+      : undefined;
     onConfirm({
       dateTimeIso: `${date}T${time}:00`,
       durationMin: DURATION_MIN,
@@ -160,6 +185,7 @@ export function InterviewScheduleModal({
       notes: notes.trim() || undefined,
       emailSubject: subject.trim() || `Interview Invitation - ${position} - ${BRAND.name}`,
       emailBody: body,
+      questionSet,
     });
   };
 
@@ -278,6 +304,32 @@ export function InterviewScheduleModal({
                   onChange={e => setInterviewerEmail(e.target.value)}
                   className="mt-1"
                 />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-[11px] font-medium text-gray-600">
+                  Interviewer Questions{' '}
+                  <span className="text-gray-400">(auto-selected by role — sent to the interviewer)</span>
+                </Label>
+                {interviewBanks.length === 0 ? (
+                  <p className="mt-1 rounded-md border border-dashed border-input bg-secondary/20 px-3 py-2 text-[11px] text-gray-500">
+                    No interview question sets found. Create one in Question Library → Interview
+                    Questions.
+                  </p>
+                ) : (
+                  <Select
+                    value={questionBankId}
+                    onChange={e => setQuestionBankId(e.target.value)}
+                    className="mt-1 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm"
+                    placeholder="Select an interview question set"
+                  >
+                    <option value="">— None —</option>
+                    {interviewBanks.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.jobTitle} ({b.questions.length} question{b.questions.length === 1 ? '' : 's'})
+                      </option>
+                    ))}
+                  </Select>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <Label htmlFor="iv-notes" className="text-[11px] font-medium text-gray-600">

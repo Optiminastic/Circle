@@ -161,7 +161,18 @@ export interface TestInvite {
   violations?: number;
   /** Question id -> selected option index, recorded at submit for HR analysis. */
   answers?: Record<string, number>;
+  /** Assessment questions (from the Question Library) the candidate answers on
+   *  the public assessment link. */
+  assessmentQuestions?: AssessmentQuestion[];
   createdAt: string;
+}
+
+/** One library-sourced assessment question attached to an invite. */
+export interface AssessmentQuestion {
+  text: string;
+  options: string[];
+  /** Index of the correct option (used to auto-score the submission). */
+  answer: number;
 }
 
 /** A dashboard login account. Stored server-side; `id` is the email. */
@@ -262,6 +273,19 @@ export interface Interview {
 
   // Grading details
   grading?: InterviewGrading;
+
+  /** Per-question answers the interviewer recorded via the public question sheet. */
+  questionResponses?: InterviewQuestionResponse[];
+}
+
+/** One interview question + the answer the interviewer recorded for the candidate. */
+export interface InterviewQuestionResponse {
+  text: string;
+  options: string[];
+  /** The option the candidate answered (if a choice). */
+  selected?: string;
+  /** Optional free-text note from the interviewer. */
+  note?: string;
 }
 
 export type InterviewStatus =

@@ -82,6 +82,13 @@ export default function PublicJobPage() {
       setResumeFile(null);
       return;
     }
+    const isPdf =
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      setError('Your resume must be a PDF file.');
+      setResumeFile(null);
+      return;
+    }
     if (file.size > MAX_RESUME_MB * 1024 * 1024) {
       setError(
         `Your resume must be ${MAX_RESUME_MB} MB or smaller — "${file.name}" is ${formatSize(file.size)}.`,
@@ -256,15 +263,23 @@ export default function PublicJobPage() {
       {/* Top bar */}
       <header className="sticky top-0 z-20 bg-[#F7F4EE]/90 backdrop-blur border-b border-[#DAD4C8]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2.5">
-          <Logo size={26} />
-          <div>
-            <h1 className="text-sm font-bold text-gray-900 tracking-tight font-display leading-none">
-              {BRAND.name}
-            </h1>
-            <p className="text-[10px] text-gray-500 uppercase font-mono font-semibold tracking-wider">
-              Careers
-            </p>
-          </div>
+          <a
+            href={BRAND.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 transition hover:opacity-80"
+            title="Optiminastic"
+          >
+            <Logo size={26} />
+            <div>
+              <h1 className="text-sm font-bold text-gray-900 tracking-tight font-display leading-none">
+                {BRAND.name}
+              </h1>
+              <p className="text-[10px] text-gray-500 uppercase font-mono font-semibold tracking-wider">
+                Careers
+              </p>
+            </div>
+          </a>
         </div>
       </header>
 
@@ -497,11 +512,11 @@ export default function PublicJobPage() {
                         Click to upload your resume
                       </span>
                       <span className="text-[10px] text-gray-500">
-                        PDF, DOC, DOCX · up to {MAX_RESUME_MB} MB
+                        PDF only · up to {MAX_RESUME_MB} MB
                       </span>
                       <input
                         type="file"
-                        accept=".pdf,.doc,.docx,.rtf,.txt"
+                        accept="application/pdf,.pdf"
                         className="hidden"
                         onChange={e => pickResume(e.target.files?.[0] ?? null)}
                       />
@@ -655,8 +670,17 @@ export default function PublicJobPage() {
         </section>
       </main>
 
-      <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-6 text-center text-[11px] text-gray-500">
-        {BRAND.name}
+      <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-6 flex justify-center">
+        <a
+          href={BRAND.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-[12px] font-semibold text-gray-600 transition hover:opacity-80"
+          title="Optiminastic"
+        >
+          <Logo size={20} />
+          {BRAND.name}
+        </a>
       </footer>
     </div>
   );

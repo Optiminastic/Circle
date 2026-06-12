@@ -49,8 +49,6 @@ import {
   ASSIGNMENT_MAX_MARKS,
   ASSIGNMENT_PASS_MARKS,
   IQ_DURATION_MIN,
-  ASSIGNMENT_DEADLINE_DAYS,
-  assignmentBriefFor,
 } from '@/data/test-banks';
 import { randomId, randomToken, nowISO } from '@/lib/utils';
 import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
@@ -189,13 +187,8 @@ export default function CandidateDetailPage() {
         gradeComments: notes,
       });
       if (!passed) {
+        // Reject on a failed assessment — no result email is sent to the candidate.
         await repositories.candidates.patch(invite.candidateId, { status: 'Rejected' }).catch(() => {});
-        sendTestEmail({
-          to: invite.email,
-          candidateName: invite.candidateName,
-          template: 'assessment_failed',
-          position: invite.position,
-        }).catch(() => {});
       }
       return { invite, passed };
     },
@@ -206,7 +199,7 @@ export default function CandidateDetailPage() {
       setGradeScore('');
       setGradeComments('');
       if (passed) {
-        toast.success('Assignment cleared — schedule the interview.');
+        toast.success('Assessment cleared — schedule the interview.');
         openSchedule(invite.candidateId, invite.candidateName, 'Interview');
       } else {
         toast.info('Candidate was not moved forward.');
@@ -420,13 +413,13 @@ export default function CandidateDetailPage() {
       if (i.status === 'Graded')
         events.push({
           date: i.completedAt ?? i.createdAt,
-          title: `Assignment graded — ${i.passed ? 'cleared' : 'not selected'}`,
+          title: `Assessment graded — ${i.passed ? 'cleared' : 'not selected'}`,
           detail: i.score != null ? `${i.score}/100` : undefined,
           tone: i.passed ? 'green' : 'red',
         });
       else if (i.submissionFileName)
-        events.push({ date: i.completedAt ?? i.createdAt, title: 'Assignment submitted', detail: i.submissionFileName, tone: 'accent' });
-      else events.push({ date: i.createdAt, title: 'Assignment sent', tone: 'gray' });
+        events.push({ date: i.completedAt ?? i.createdAt, title: 'Assessment submitted', detail: i.submissionFileName, tone: 'accent' });
+      else events.push({ date: i.createdAt, title: 'Assessment sent', tone: 'gray' });
     });
   myInterviews.forEach(iv =>
     events.push({ date: iv.dateTime, title: `${iv.interviewRound} interview`, detail: iv.interviewerName, tone: 'gray' }),
@@ -587,7 +580,7 @@ export default function CandidateDetailPage() {
           </div>
         );
       const s = schedOf('Assessment')[0];
-      return empty(s ? `Scheduled for ${fmtDateTime(s.dateTime)}.` : 'Assignment not assigned yet.');
+      return empty(s ? `Scheduled for ${fmtDateTime(s.dateTime)}.` : 'Assessment not assigned yet.');
     }
 
     if (label === 'Interview Schedule') {
@@ -642,7 +635,9 @@ export default function CandidateDetailPage() {
 
     if (label === 'Physical Interview') {
       if (!interviewReached) return empty('Schedule the interview first.');
-      if (!interviewConducted) return empty('Interview scheduled — feedback not recorded yet.');
+      const anyResponses = myInterviews.some(iv => iv.questionResponses?.length);
+      if (!interviewConducted && !anyResponses)
+        return empty('Interview scheduled — feedback not recorded yet.');
       return (
         <div className="space-y-2.5">
           {myInterviews.map(iv => (
@@ -658,6 +653,28 @@ export default function CandidateDetailPage() {
                   <span className="font-semibold">{iv.grading.recommendation}</span> — “
                   {iv.grading.interviewerComments}”
                 </p>
+              )}
+              {iv.questionResponses && iv.questionResponses.length > 0 && (
+                <div className="mt-2 space-y-1.5 border-t border-[#DAD4C8] pt-2">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
+                    Interviewer responses
+                  </p>
+                  {iv.questionResponses.map((r, i) => (
+                    <div key={i}>
+                      <p className="text-[12px] text-gray-700">
+                        {i + 1}. {r.text}
+                      </p>
+                      <p className="text-[11px] font-semibold text-gray-600">
+                        {r.selected ? (
+                          <span className="text-emerald-700">Answered: {r.selected}</span>
+                        ) : (
+                          <span className="text-gray-400">No answer recorded</span>
+                        )}
+                        {r.note ? <span className="text-gray-500"> · {r.note}</span> : null}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           ))}
@@ -692,7 +709,7 @@ export default function CandidateDetailPage() {
   const roundLabel: Record<ScheduleType, string> = {
     'HR Call': 'Schedule HR call',
     'IQ Test': 'Schedule IQ test',
-    Assessment: 'Send assignment',
+    Assessment: 'Send assessment',
     Interview: 'Schedule interview',
   };
 
@@ -760,7 +777,7 @@ export default function CandidateDetailPage() {
   // ---- Send IQ test / Send Assessment (manual, editable email) ----
   const openSendTest = (kind: 'iq' | 'assignment') => {
     const id = randomToken('TIV');
-    const path = kind === 'iq' ? 'test' : 'assignment';
+    const path = kind === 'iq' ? 'test' : 'assessment';
     const url = `${window.location.origin}/${path}/${id}`;
     setSendTest({ kind, id, url });
   };
@@ -780,12 +797,9 @@ export default function CandidateDetailPage() {
       jobId: candidate.jobId,
       durationMin: kind === 'iq' ? IQ_DURATION_MIN : 0,
       status: 'Pending',
-      ...(kind === 'assignment'
-        ? {
-            instructions: assignmentBriefFor(position, candidate.department),
-            deadlineIso: new Date(Date.now() + ASSIGNMENT_DEADLINE_DAYS * 86_400_000).toISOString(),
-          }
-        : {}),
+      // Assessment now carries Question-Library questions the candidate answers
+      // on the public assessment link (auto-scored), not a take-home upload.
+      ...(kind === 'assignment' && r.questions ? { assessmentQuestions: r.questions } : {}),
       createdAt: nowISO(),
     };
     setSendTest(null);
@@ -819,50 +833,8 @@ export default function CandidateDetailPage() {
     }
   };
   const rejectStage = (label: string) => {
+    // Reject without emailing the candidate any IQ/assessment result.
     setStageDecision(label, 'Rejected', 'Rejected');
-
-    // For the test rounds, send a result-based rejection email that includes the score.
-    const isTestRound = label === 'IQ Test' || label === 'Assessment';
-    if (isTestRound && candidate.email) {
-      const isIq = label === 'IQ Test';
-      const score = isIq
-        ? myIq[0]
-          ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
-          : undefined
-        : asgInvite?.score != null
-          ? `${asgInvite.score}/${ASSIGNMENT_MAX_MARKS}`
-          : undefined;
-      const subject = isIq
-        ? 'Update on your IQ test result'
-        : 'Update on your assessment result';
-      sendTestEmail({
-        to: candidate.email,
-        candidateName: candidate.fullName,
-        template: isIq ? 'iq_failed' : 'assessment_failed',
-        position: candidate.appliedRole || candidate.department,
-        score,
-      })
-        .then(res =>
-          toast.info(
-            res.sent ? 'Candidate rejected — result email sent.' : 'Candidate rejected.',
-          ),
-        )
-        .catch(() => toast.info('Candidate rejected, but the email could not be sent.'));
-      repositories.sentEmails
-        .create({
-          id: randomId('EML'),
-          recipientName: candidate.fullName,
-          recipientEmail: candidate.email,
-          templateTitle: `${isIq ? 'IQ test' : 'Assessment'} result`,
-          subject,
-          dateSent: nowISO(),
-          status: 'Sent',
-          relatedEntity: candidate.fullName,
-        })
-        .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
-        .catch(() => {});
-      return;
-    }
     toast.info('Candidate marked as rejected.');
   };
 
@@ -960,12 +932,23 @@ export default function CandidateDetailPage() {
         </Button>,
       );
 
-    if (label === 'IQ Test' && !iqReached)
-      btns.push(
-        <Button key="sendiq" size="sm" onClick={() => openSendTest('iq')}>
-          <Send size={13} /> Send IQ test
-        </Button>,
-      );
+    if (label === 'IQ Test') {
+      const iqPassed = myIq[0]?.qualificationStatus === 'Passed';
+      if (!iqReached)
+        btns.push(
+          <Button key="sendiq" size="sm" onClick={() => openSendTest('iq')}>
+            <Send size={13} /> Send IQ test
+          </Button>,
+        );
+      // Failed, disqualified (tab-switch), or any other issue — re-assign a fresh
+      // link so the candidate can retake (shown even if they were rejected).
+      else if (!iqPassed)
+        btns.push(
+          <Button key="resendiq" size="sm" variant="outline" onClick={() => openSendTest('iq')}>
+            <Send size={13} /> Re-assign IQ test
+          </Button>,
+        );
+    }
 
     if (label === 'Assessment') {
       if (!asgReached)
@@ -984,6 +967,25 @@ export default function CandidateDetailPage() {
         btns.push(
           <Button key="review" size="sm" variant="outline" onClick={openGrade}>
             <CheckCircle2 size={13} /> Review grade
+          </Button>,
+        );
+      // Failed, disqualified, or any other issue — re-assign a fresh link (shown
+      // even if rejected; hidden only while a submission is awaiting grading or
+      // it was already cleared).
+      if (
+        asgReached &&
+        asgInvite &&
+        asgInvite.status !== 'Submitted' &&
+        !(asgInvite.status === 'Graded' && asgInvite.passed)
+      )
+        btns.push(
+          <Button
+            key="resendasm"
+            size="sm"
+            variant="outline"
+            onClick={() => openSendTest('assignment')}
+          >
+            <Send size={13} /> Re-assign Assessment
           </Button>,
         );
     }
@@ -1355,7 +1357,7 @@ export default function CandidateDetailPage() {
                 : openForm === 'hrcall'
                   ? 'HR introductory call'
                   : openForm === 'grade'
-                    ? 'Grade assignment'
+                    ? 'Grade assessment'
                     : openForm === 'feedback'
                       ? `Interview feedback${fbInterview ? ` — ${fbInterview.interviewRound}` : ''}`
                       : ''}

@@ -14,13 +14,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Select } from './Select';
 import { BRAND } from '@/lib/brand';
-import { Candidate } from '@/types';
+import { Candidate, AssessmentQuestion } from '@/types';
+import { loadBanks, type RoleQuestionBank } from '@/lib/question-banks';
 
 export interface SendTestResult {
   to: string;
   subject: string;
   body: string;
+  /** Selected assessment questions (assessment only). */
+  questions?: AssessmentQuestion[];
 }
 
 interface SendTestModalProps {
@@ -42,6 +46,24 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
   // Candidate's email is pre-filled but HR can change it before sending.
   const [to, setTo] = useState(candidate.email || '');
   const [subject, setSubject] = useState(`Your ${what} for ${position} — ${BRAND.name}`);
+
+  // Assessment question sets from the Question Library — auto-select by role.
+  const [assessmentBanks, setAssessmentBanks] = useState<RoleQuestionBank[]>([]);
+  const [bankId, setBankId] = useState('');
+  useEffect(() => {
+    if (isIq) return;
+    const banks = loadBanks('assessment');
+    setAssessmentBanks(banks);
+    const match = banks.find(b => b.jobTitle.trim().toLowerCase() === position.trim().toLowerCase());
+    if (match) setBankId(match.id);
+  }, [isIq, position]);
+
+  const selectedBank = assessmentBanks.find(b => b.id === bankId);
+  const selectedQuestions: AssessmentQuestion[] = selectedBank
+    ? selectedBank.questions
+        .filter(q => q.q.trim())
+        .map(q => ({ text: q.q.trim(), options: [...q.options], answer: q.answer }))
+    : [];
 
   const composed = useMemo(
     () =>
@@ -72,7 +94,11 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
     ? 'Candidate email is required.'
     : !EMAIL_RE.test(to.trim())
       ? 'Please enter a valid email address.'
-      : null;
+      : !isIq && assessmentBanks.length === 0
+        ? 'No assessment question sets — create one in Question Library → Assessment Questions.'
+        : !isIq && selectedQuestions.length === 0
+          ? 'Select an assessment question set to send.'
+          : null;
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
@@ -100,6 +126,44 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
               className="mt-1"
             />
           </div>
+
+          {!isIq && (
+            <div>
+              <Label className="text-[11px] font-medium text-gray-600">
+                Assessment questions{' '}
+                <span className="text-gray-400">(auto-selected by role)</span>
+              </Label>
+              {assessmentBanks.length === 0 ? (
+                <p className="mt-1 rounded-md border border-dashed border-input bg-secondary/20 px-3 py-2 text-[11px] text-gray-500">
+                  No assessment question sets found. Create one in Question Library → Assessment
+                  Questions.
+                </p>
+              ) : (
+                <>
+                  <Select
+                    value={bankId}
+                    onChange={e => setBankId(e.target.value)}
+                    className="mt-1 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm"
+                    placeholder="Select an assessment question set"
+                  >
+                    <option value="">— Select a role —</option>
+                    {assessmentBanks.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.jobTitle} ({b.questions.length} question
+                        {b.questions.length === 1 ? '' : 's'})
+                      </option>
+                    ))}
+                  </Select>
+                  {selectedQuestions.length > 0 && (
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      {selectedQuestions.length} question
+                      {selectedQuestions.length === 1 ? '' : 's'} will be sent to the candidate.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           <div>
             <Label className="flex items-center gap-1 text-[11px] font-medium text-gray-600">
@@ -171,7 +235,14 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
           <Button
             type="button"
             disabled={!!error}
-            onClick={() => onConfirm({ to: to.trim(), subject: subject.trim(), body })}
+            onClick={() =>
+              onConfirm({
+                to: to.trim(),
+                subject: subject.trim(),
+                body,
+                ...(isIq ? {} : { questions: selectedQuestions }),
+              })
+            }
           >
             <Send size={14} /> Send {what}
           </Button>
