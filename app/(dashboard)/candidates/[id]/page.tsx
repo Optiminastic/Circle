@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
+  ChevronDown,
   Mail,
   Phone,
   MapPin,
@@ -24,21 +25,22 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
-  X,
-  Download,
-  Star,
   Award,
   ThumbsDown,
   MessageSquarePlus,
   Pause,
   Send,
   Eye,
+  Star,
+  UserCheck,
+  Download,
 } from 'lucide-react';
 import { CandidateStatus, HRCallRecord, Interview, ScheduleType, ScreeningReview, StageDecision, TestInvite } from '@/types';
 import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
+import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { useScheduler } from '@/store/schedule-store';
 import { useInterviewScheduler } from '@/store/interview-schedule-store';
 import { repositories } from '@/lib/api/repositories';
@@ -70,14 +72,6 @@ import {
   SheetBody,
   SheetFooter,
 } from '@/components/ui/sheet';
-import {
-  Stepper,
-  StepperNav,
-  StepperItem,
-  StepperIndicator,
-  StepperTitle,
-  StepperDescription,
-} from '@/components/ui/stepper';
 
 const fmtDate = (iso?: string) => {
   if (!iso) return '—';
@@ -144,6 +138,7 @@ export default function CandidateDetailPage() {
   const { openInterviewSchedule } = useInterviewScheduler();
   const { move, update } = useCandidateMutations();
   const { grade: gradeInterview } = useInterviewMutations();
+  const ensureOnboarding = useEnsureOnboarding();
   const toast = useToast();
   const qc = useQueryClient();
 
@@ -151,14 +146,15 @@ export default function CandidateDetailPage() {
 
   // Replay the stepper entrance animation each time the page (or candidate) loads.
   const [stepIn, setStepIn] = useState(false);
-  // Which stage's detail is shown in the side panel (null = follow current stage).
-  const [picked, setPicked] = useState<number | null>(null);
   // Right-side drawer used to fill in a stage's details from the candidate flow.
   const [openForm, setOpenForm] = useState<null | 'screening' | 'hrcall' | 'grade' | 'feedback'>(null);
   const [sr, setSr] = useState<ScreeningReview>(blankScreening());
   const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
   const [gradeScore, setGradeScore] = useState('');
   const [gradeComments, setGradeComments] = useState('');
+  // Per-step collapse overrides for the pipeline accordion (default: future steps
+  // start collapsed). Keyed by stage index; value = explicitly collapsed?
+  const [collapsedSteps, setCollapsedSteps] = useState<Record<number, boolean>>({});
   const [fbInterview, setFbInterview] = useState<Interview | null>(null);
   const [fbRec, setFbRec] = useState('Hire');
   const [fbComments, setFbComments] = useState('');
@@ -169,44 +165,10 @@ export default function CandidateDetailPage() {
   useEffect(() => {
     if (!candidate) return;
     setStepIn(false);
-    setPicked(null);
     setOpenForm(null);
     const t = setTimeout(() => setStepIn(true), 60);
     return () => clearTimeout(t);
   }, [candidate?.id]);
-
-  // Grade the take-home assignment from the candidate's own flow — a pass
-  // schedules the interview; a fail rejects the candidate and emails them.
-  const gradeAssignment = useMutation({
-    mutationFn: async ({ invite, value, notes }: { invite: TestInvite; value: number; notes: string }) => {
-      const passed = value >= ASSIGNMENT_PASS_MARKS;
-      await repositories.testInvites.patch(invite.id, {
-        status: 'Graded',
-        score: value,
-        passed,
-        gradeComments: notes,
-      });
-      if (!passed) {
-        // Reject on a failed assessment — no result email is sent to the candidate.
-        await repositories.candidates.patch(invite.candidateId, { status: 'Rejected' }).catch(() => {});
-      }
-      return { invite, passed };
-    },
-    onSuccess: ({ invite, passed }) => {
-      qc.invalidateQueries({ queryKey: qk.testInvites.all });
-      qc.invalidateQueries({ queryKey: qk.candidates.all });
-      setOpenForm(null);
-      setGradeScore('');
-      setGradeComments('');
-      if (passed) {
-        toast.success('Assessment cleared — schedule the interview.');
-        openSchedule(invite.candidateId, invite.candidateName, 'Interview');
-      } else {
-        toast.info('Candidate was not moved forward.');
-      }
-    },
-    onError: () => toast.error('Could not save the grade — try again.'),
-  });
 
   // Record HR's screening review (why we're reaching out, what stands out, etc.).
   const saveScreening = useMutation({
@@ -242,6 +204,39 @@ export default function CandidateDetailPage() {
     onError: () => toast.error('Could not save the HR call — try again.'),
   });
 
+  // Grade the take-home assignment from the candidate's own flow — a pass
+  // schedules the interview; a fail rejects the candidate and emails them.
+  const gradeAssignment = useMutation({
+    mutationFn: async ({ invite, value, notes }: { invite: TestInvite; value: number; notes: string }) => {
+      const passed = value >= ASSIGNMENT_PASS_MARKS;
+      await repositories.testInvites.patch(invite.id, {
+        status: 'Graded',
+        score: value,
+        passed,
+        gradeComments: notes,
+      });
+      if (!passed) {
+        // Reject on a failed assessment — no result email is sent to the candidate.
+        await repositories.candidates.patch(invite.candidateId, { status: 'Rejected' }).catch(() => {});
+      }
+      return { invite, passed };
+    },
+    onSuccess: ({ invite, passed }) => {
+      qc.invalidateQueries({ queryKey: qk.testInvites.all });
+      qc.invalidateQueries({ queryKey: qk.candidates.all });
+      setOpenForm(null);
+      setGradeScore('');
+      setGradeComments('');
+      if (passed) {
+        toast.success('Assignment cleared — schedule the interview.');
+        openSchedule(invite.candidateId, invite.candidateName, 'Interview');
+      } else {
+        toast.info('Candidate was not moved forward.');
+      }
+    },
+    onError: () => toast.error('Could not save the grade — try again.'),
+  });
+
   if (isLoading) return <PageLoading />;
   if (!candidate) {
     return (
@@ -271,10 +266,11 @@ export default function CandidateDetailPage() {
   const myInterviews = interviews.filter(iv => iv.candidateId === id);
   const myInvites = (invites as TestInvite[]).filter(i => i.candidateId === id);
 
-  // ---- pipeline stage states ----
+  // ---- pipeline stage states (shared with the dashboard Kanban) ----
   const hrCallDone = Boolean(candidate.hrCall?.completed);
   const hrCallReached =
     hrCallDone || mySchedules.some(s => s.type === 'HR Call') || candidate.status === 'Moved to HR Call';
+  const offerShortlisted = candidate.status === 'Offer Shortlisted';
   const iqInvite = myInvites.find(i => i.kind === 'iq');
   const iqDone = myIq.length > 0 || Boolean(iqInvite && ['Completed', 'Auto-Submitted'].includes(iqInvite.status));
   const iqReached = iqDone || Boolean(iqInvite) || mySchedules.some(s => s.type === 'IQ Test');
@@ -332,13 +328,11 @@ export default function CandidateDetailPage() {
       done: asgDone,
       desc: asgDone
         ? asgInvite!.passed
-          ? 'Cleared'
+          ? `Cleared · ${asgInvite!.score}%`
           : 'Not selected'
-        : asgInvite?.submissionFileName
-          ? 'Submitted'
-          : asgReached
-            ? 'Assigned'
-            : 'Pending',
+        : asgReached
+          ? 'Scheduled'
+          : 'Pending',
     },
     {
       label: 'Physical Interview',
@@ -350,33 +344,26 @@ export default function CandidateDetailPage() {
     {
       label: 'Decision',
       Icon: Flag,
-      reached: decided,
+      reached: decided || offerShortlisted,
       done: decided,
-      desc: selected ? 'Selected for role' : rejected ? 'Rejected' : 'Pending',
+      desc: selected
+        ? 'Selected for role'
+        : rejected
+          ? 'Rejected'
+          : offerShortlisted
+            ? 'Shortlisted'
+            : 'Pending',
     },
   ];
   let currentIndex = 0;
   stages.forEach((s, i) => {
     if (s.reached) currentIndex = i;
   });
-  // The stage the candidate was rejected at (from the stage gate) — everything
-  // from here on is shown as rejected. Falls back to the current stage.
-  const rejectedIndex = rejected
-    ? (() => {
-        const i = stages.findIndex(s => candidate.stageDecisions?.[s.label] === 'Rejected');
-        return i >= 0 ? i : currentIndex;
-      })()
-    : -1;
-  // How far the candidate genuinely progressed (green portion of the stepper).
-  const progressBoundary = rejected ? rejectedIndex : currentIndex;
   const stepState = (i: number): StepState => {
-    // Once rejected, the stage it happened at and every remaining stage are rejected.
-    if (rejected) return i < rejectedIndex ? 'done' : 'rejected';
     if (i < currentIndex) return 'done';
-    if (i === currentIndex) return stages[i].done ? 'done' : 'current';
+    if (i === currentIndex) return rejected ? 'rejected' : stages[i].done ? 'done' : 'current';
     return 'todo';
   };
-  const activeStage = picked ?? currentIndex; // detail panel follows the current stage by default
 
   // ---- activity timeline (line flow) ----
   type Ev = { date: string; title: string; detail?: string; tone: 'accent' | 'green' | 'red' | 'gray' };
@@ -408,22 +395,22 @@ export default function CandidateDetailPage() {
     }),
   );
   myInvites
-    .filter(i => i.kind === 'assignment')
+    .filter(i => i.kind === 'assessment')
     .forEach(i => {
-      if (i.status === 'Graded')
+      if (['Completed', 'Auto-Submitted'].includes(i.status))
         events.push({
           date: i.completedAt ?? i.createdAt,
-          title: `Assessment graded — ${i.passed ? 'cleared' : 'not selected'}`,
-          detail: i.score != null ? `${i.score}/100` : undefined,
+          title: `Assessment — ${i.passed ? 'cleared' : 'not selected'}`,
+          detail: i.score != null ? `${i.score}%${i.correct != null ? ` · ${i.correct}/${i.total}` : ''}` : undefined,
           tone: i.passed ? 'green' : 'red',
         });
-      else if (i.submissionFileName)
-        events.push({ date: i.completedAt ?? i.createdAt, title: 'Assessment submitted', detail: i.submissionFileName, tone: 'accent' });
       else events.push({ date: i.createdAt, title: 'Assessment sent', tone: 'gray' });
     });
   myInterviews.forEach(iv =>
     events.push({ date: iv.dateTime, title: `${iv.interviewRound} interview`, detail: iv.interviewerName, tone: 'gray' }),
   );
+  if (offerShortlisted)
+    events.push({ date: candidate.appliedDate, title: 'Shortlisted for the offer', detail: 'Confirmation email sent', tone: 'green' });
   if (selected)
     events.push({ date: candidate.appliedDate, title: 'Selected for the role', detail: 'Availability email sent', tone: 'green' });
   if (rejected) events.push({ date: candidate.appliedDate, title: 'Rejected', tone: 'red' });
@@ -443,8 +430,8 @@ export default function CandidateDetailPage() {
     mySchedules.filter(s => s.type === t).sort((a, b) => +new Date(a.dateTime) - +new Date(b.dateTime));
   const empty = (txt: string) => <p className="text-[12px] text-gray-500">{txt}</p>;
 
-  const stageDetail = (): React.ReactNode => {
-    const label = stages[activeStage].label;
+  const stageDetail = (idx: number): React.ReactNode => {
+    const label = stages[idx].label;
 
     if (label === 'Applied')
       return (
@@ -464,14 +451,14 @@ export default function CandidateDetailPage() {
       return (
         <div className="space-y-3">
           {review && (
-            <div className="space-y-1.5 rounded-lg border border-[#E2DDD2] bg-[#ECE6DA] p-2.5">
+            <div className="space-y-1.5 rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-2.5">
               {SCREENING_CRITERIA.map(c => (
                 <div key={c.key} className="flex items-center justify-between">
                   <span className="text-[11px] text-gray-600">{c.label}</span>
                   <span className="font-mono text-[11px] font-bold text-gray-700">{review[c.key] as number}/5</span>
                 </div>
               ))}
-              <div className="flex items-center justify-between border-t border-[#DAD4C8] pt-1.5">
+              <div className="flex items-center justify-between border-t border-[#E4E6EA] pt-1.5">
                 <span className="text-[11px] font-semibold text-gray-700">Average</span>
                 <span className="font-mono text-[11px] font-bold text-accent-600">{screeningAvg(review).toFixed(1)}/5</span>
               </div>
@@ -522,7 +509,7 @@ export default function CandidateDetailPage() {
             <KV k="Availability" v={h.candidateAvailability || '—'} />
             <KV k="Work mode" v={h.workModePreference} />
             {h.professionalBackgroundSummary && (
-              <p className="rounded-lg bg-[#ECE6DA] p-2.5 text-[11px] italic text-gray-600">
+              <p className="rounded-lg bg-[#F1F3F5] p-2.5 text-[11px] italic text-gray-600">
                 “{h.professionalBackgroundSummary}”
               </p>
             )}
@@ -554,33 +541,30 @@ export default function CandidateDetailPage() {
       if (asgInvite)
         return (
           <div className="space-y-2.5">
-            <KV k="Status" v={asgInvite.status} />
-            {asgInvite.submissionFileName && (
-              <div>
-                <p className="text-[10px] uppercase text-gray-400">Submission</p>
-                <button
-                  onClick={() => asgInvite.submissionDocId && openDocument(asgInvite.submissionDocId)}
-                  className="inline-flex items-center gap-1 text-[12px] font-medium text-accent-600 hover:underline"
-                >
-                  <Download size={12} /> {asgInvite.submissionFileName}
-                </button>
-              </div>
+            <KV k="Role" v={`${asgInvite.position} MCQ`} />
+            <KV k="Result" v={asgInvite.passed ? 'Cleared' : 'Not selected'} />
+            <KV k="Score" v={asgInvite.score != null ? `${asgInvite.score}%` : '—'} />
+            {asgInvite.correct != null && asgInvite.total != null && (
+              <KV k="Correct" v={`${asgInvite.correct} / ${asgInvite.total}`} />
             )}
-            {asgInvite.status === 'Graded' && (
-              <>
-                <KV k="Score" v={asgInvite.score != null ? `${asgInvite.score}/100` : '—'} />
-                <KV k="Outcome" v={asgInvite.passed ? 'Cleared' : 'Not selected'} />
-                {asgInvite.gradeComments && (
-                  <p className="rounded-lg bg-[#ECE6DA] p-2.5 text-[11px] italic text-gray-600">
-                    “{asgInvite.gradeComments}”
-                  </p>
-                )}
-              </>
+            {asgInvite.disqualified && (
+              <p className="rounded-lg bg-red-50 p-2.5 text-[11px] font-medium text-red-600">
+                Disqualified — {asgInvite.violations ?? 0} rule violation(s).
+              </p>
             )}
           </div>
         );
+      if (asgInvite)
+        return (
+          <div className="space-y-2.5">
+            <KV k="Role" v={`${asgInvite.position} MCQ`} />
+            <KV k="Status" v={asgInvite.status} />
+            <KV k="Duration" v={`${asgInvite.durationMin} min`} />
+            {empty('Role-specific MCQ sent — awaiting the candidate to take it.')}
+          </div>
+        );
       const s = schedOf('Assessment')[0];
-      return empty(s ? `Scheduled for ${fmtDateTime(s.dateTime)}.` : 'Assessment not assigned yet.');
+      return empty(s ? `Scheduled for ${fmtDateTime(s.dateTime)}.` : 'Assessment not sent yet.');
     }
 
     if (label === 'Interview Schedule') {
@@ -595,7 +579,7 @@ export default function CandidateDetailPage() {
           {myInterviews.map(iv => {
             const online = iv.interviewType === 'Online' || iv.meetingMode !== 'In-Person';
             return (
-              <div key={iv.id} className="space-y-2 rounded-lg border border-[#E2DDD2] bg-[#ECE6DA] p-3">
+              <div key={iv.id} className="space-y-2 rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-3">
                 <div className="flex items-center justify-between">
                   <p className="text-[12px] font-semibold text-gray-800">
                     {online ? 'Online' : 'Offline'} interview
@@ -641,7 +625,7 @@ export default function CandidateDetailPage() {
       return (
         <div className="space-y-2.5">
           {myInterviews.map(iv => (
-            <div key={iv.id} className="rounded-lg border border-[#E2DDD2] bg-[#ECE6DA] p-2.5">
+            <div key={iv.id} className="rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-2.5">
               <p className="text-[12px] font-semibold text-gray-800">
                 {iv.interviewRound} · {iv.status}
               </p>
@@ -655,7 +639,7 @@ export default function CandidateDetailPage() {
                 </p>
               )}
               {iv.questionResponses && iv.questionResponses.length > 0 && (
-                <div className="mt-2 space-y-1.5 border-t border-[#DAD4C8] pt-2">
+                <div className="mt-2 space-y-1.5 border-t border-[#E4E6EA] pt-2">
                   <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
                     Interviewer responses
                   </p>
@@ -688,7 +672,9 @@ export default function CandidateDetailPage() {
         ? 'Selected for the role — an availability-to-join email was sent to the candidate.'
         : rejected
           ? 'The candidate was not moved forward.'
-          : 'No final decision yet.',
+          : offerShortlisted
+            ? 'Shortlisted for the offer — a confirmation email was sent asking the candidate to confirm their availability. Finalize with “Select for role” when ready.'
+            : 'No final decision yet.',
     );
   };
 
@@ -709,7 +695,7 @@ export default function CandidateDetailPage() {
   const roundLabel: Record<ScheduleType, string> = {
     'HR Call': 'Schedule HR call',
     'IQ Test': 'Schedule IQ test',
-    Assessment: 'Send assessment',
+    Assessment: 'Send assignment',
     Interview: 'Schedule interview',
   };
 
@@ -720,8 +706,12 @@ export default function CandidateDetailPage() {
 
   const selectForRole = () => {
     move.mutate({ id: candidate.id, status: 'Selected' });
+    // Selecting confirms the hire — move them into onboarding regardless of email delivery.
+    ensureOnboarding.mutate(candidate, {
+      onError: () => toast.error('Selected, but could not start onboarding — try again.'),
+    });
     if (!candidate.email) {
-      toast.info('Selected, but no email on file — candidate not notified.');
+      toast.info('Selected & moved to onboarding, but no email on file — candidate not notified.');
       return;
     }
     sendTestEmail({
@@ -731,12 +721,40 @@ export default function CandidateDetailPage() {
       position: candidate.appliedRole || candidate.department,
     })
       .then(res => {
-        if (res.sent) toast.success('Selected — availability email sent.');
+        if (res.sent) toast.success('Selected — onboarding started, availability email sent.');
         else if (res.reason === 'not_configured')
-          toast.info('Selected. Email not sent — SMTP is not configured yet.');
-        else toast.info('Selected, but the candidate was not emailed.');
+          toast.info('Selected & moved to onboarding. Email not sent — SMTP is not configured yet.');
+        else toast.info('Selected & moved to onboarding, but the candidate was not emailed.');
       })
-      .catch(() => toast.error('Selected, but sending the email failed.'));
+      .catch(() => toast.error('Selected & moved to onboarding, but sending the email failed.'));
+  };
+
+  // First positive decision after the interview: shortlist for the offer and send
+  // a confirmation email. "Select for role" then finalizes it.
+  const shortlistForOffer = () => {
+    move.mutate({ id: candidate.id, status: 'Offer Shortlisted' });
+    if (!candidate.email) {
+      toast.info('Shortlisted, but no email on file — candidate not notified.');
+      return;
+    }
+    sendTestEmail({
+      to: candidate.email,
+      candidateName: candidate.fullName,
+      template: 'offer_shortlisted',
+      position: candidate.appliedRole || candidate.department,
+    })
+      .then(res => {
+        if (res.sent) toast.success('Shortlisted — confirmation email sent.');
+        else if (res.reason === 'not_configured')
+          toast.info('Shortlisted. Email not sent — SMTP is not configured yet.');
+        else toast.info('Shortlisted, but the candidate was not emailed.');
+      })
+      .catch(() => toast.error('Shortlisted, but sending the email failed.'));
+  };
+
+  const rejectCandidate = () => {
+    move.mutate({ id: candidate.id, status: 'Rejected' });
+    toast.info('Candidate marked as rejected.');
   };
 
   // ---- per-stage Accept / On Hold / Reject gate ----
@@ -797,8 +815,8 @@ export default function CandidateDetailPage() {
       jobId: candidate.jobId,
       durationMin: kind === 'iq' ? IQ_DURATION_MIN : 0,
       status: 'Pending',
-      // Assessment now carries Question-Library questions the candidate answers
-      // on the public assessment link (auto-scored), not a take-home upload.
+      // Assessment carries Question-Library questions the candidate answers on the
+      // public assessment link (auto-scored), not a take-home upload.
       ...(kind === 'assignment' && r.questions ? { assessmentQuestions: r.questions } : {}),
       createdAt: nowISO(),
     };
@@ -833,7 +851,6 @@ export default function CandidateDetailPage() {
     }
   };
   const rejectStage = (label: string) => {
-    // Reject without emailing the candidate any IQ/assessment result.
     setStageDecision(label, 'Rejected', 'Rejected');
     toast.info('Candidate marked as rejected.');
   };
@@ -911,11 +928,8 @@ export default function CandidateDetailPage() {
     </Button>
   );
 
-  const stageActions = (): React.ReactNode => {
-    // Once the candidate is decided (rejected/selected) the flow is locked — no
-    // further actions on any remaining step.
-    if (decided) return null;
-    const label = stages[activeStage].label;
+  const stageActions = (idx: number): React.ReactNode => {
+    const label = stages[idx].label;
     const btns: React.ReactNode[] = [];
 
     if (label === 'Screening')
@@ -940,8 +954,7 @@ export default function CandidateDetailPage() {
             <Send size={13} /> Send IQ test
           </Button>,
         );
-      // Failed, disqualified (tab-switch), or any other issue — re-assign a fresh
-      // link so the candidate can retake (shown even if they were rejected).
+      // Failed, disqualified, or any other issue — re-assign a fresh link.
       else if (!iqPassed)
         btns.push(
           <Button key="resendiq" size="sm" variant="outline" onClick={() => openSendTest('iq')}>
@@ -969,9 +982,7 @@ export default function CandidateDetailPage() {
             <CheckCircle2 size={13} /> Review grade
           </Button>,
         );
-      // Failed, disqualified, or any other issue — re-assign a fresh link (shown
-      // even if rejected; hidden only while a submission is awaiting grading or
-      // it was already cleared).
+      // Failed or hasn't completed it (any issue) — re-assign a fresh link.
       if (
         asgReached &&
         asgInvite &&
@@ -1009,8 +1020,82 @@ export default function CandidateDetailPage() {
         );
     }
 
+    if (label === 'Decision' && !decided) {
+      // Reached only once shortlisted — let HR finalize the offer or step back.
+      if (!offerShortlisted && interviewDone)
+        btns.push(
+          <Button key="d-shortlist" size="sm" onClick={shortlistForOffer}>
+            <UserCheck size={13} /> Shortlist for offer
+          </Button>,
+        );
+      if (offerShortlisted) {
+        btns.push(
+          <Button key="d-select" size="sm" onClick={selectForRole}>
+            <Award size={13} /> Select for role
+          </Button>,
+        );
+        btns.push(
+          <Button key="d-reject" size="sm" variant="outline" onClick={rejectCandidate}>
+            <ThumbsDown size={13} /> Reject
+          </Button>,
+        );
+      }
+    }
+
     if (!btns.length) return null;
-    return <div className="mt-4 flex flex-wrap gap-2 border-t border-[#E2DDD2] pt-3">{btns}</div>;
+    return <div className="mt-4 flex flex-wrap gap-2 border-t border-[#ECEDF0] pt-3">{btns}</div>;
+  };
+
+  // The Accept / On Hold / Reject (or Next) gate shown in each step's header.
+  const stageGate = (idx: number): React.ReactNode => {
+    const label = stages[idx].label;
+    // Actionable on any reached stage at or before the candidate's current position,
+    // as long as they haven't been finally selected/rejected.
+    const isCurrent = idx <= currentIndex && !decided;
+    const showGate = isCurrent && ['Applied', 'Screening', 'HR Call'].includes(label);
+    const showResultDecision =
+      isCurrent && ((label === 'IQ Test' && iqDone) || (label === 'Assessment' && asgDone));
+    const showNext = isCurrent && label === 'Interview Schedule' && interviewReached;
+
+    if (showGate || showResultDecision)
+      return (
+        <>
+          <button
+            onClick={() => acceptStage(label)}
+            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
+          >
+            <Check size={12} /> Accept
+          </button>
+          <button
+            onClick={() => holdStage(label)}
+            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition hover:bg-[#EDEEF1]"
+          >
+            <Pause size={12} /> On Hold
+          </button>
+          <button
+            onClick={() => rejectStage(label)}
+            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
+          >
+            <ThumbsDown size={12} /> Reject
+          </button>
+        </>
+      );
+
+    if (showNext)
+      return (
+        <button
+          onClick={() => nextStage(label)}
+          className="inline-flex items-center gap-1 rounded-md bg-accent-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700"
+        >
+          Next <ChevronRight size={12} />
+        </button>
+      );
+
+    return (
+      <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
+        {stages[idx].desc}
+      </span>
+    );
   };
 
   return (
@@ -1023,17 +1108,23 @@ export default function CandidateDetailPage() {
         <ArrowLeft size={13} /> Back to candidates
       </Link>
 
-      <div className="flex flex-col gap-4 rounded-xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent-500 to-accent-700 text-lg font-bold text-white">
-            {candidate.fullName.slice(0, 2).toUpperCase()}
-          </span>
-          <div>
-            <h1 className="font-display text-lg font-bold text-gray-900">{candidate.fullName}</h1>
-            <p className="text-[12px] text-gray-500">
-              {candidate.appliedRole} · {candidate.department}
-            </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
+        {/* LEFT — profile, contact, documents */}
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 text-center shadow-2xs">
+            <div className="relative mx-auto w-fit">
+              <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-2xl font-bold text-white">
+                {candidate.fullName.slice(0, 2).toUpperCase()}
+              </span>
+              <span
+                className={`absolute bottom-1 right-1 size-4 rounded-full ring-4 ring-[#FFFFFF] ${
+                  selected ? 'bg-emerald-500' : rejected ? 'bg-red-500' : onHold ? 'bg-yellow-500' : 'bg-accent-500'
+                }`}
+              />
+            </div>
+            <h1 className="mt-3 font-display text-base font-bold text-gray-900">{candidate.fullName}</h1>
+            <p className="text-[12px] text-gray-500">{candidate.appliedRole}</p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
               <span className="rounded-full bg-accent-50 px-2 py-0.5 font-mono text-[9px] font-bold text-accent-600">
                 {candidate.status}
               </span>
@@ -1043,240 +1134,232 @@ export default function CandidateDetailPage() {
                   {candidate.fitRatingOverride && <span className="ml-0.5 opacity-60">*</span>}
                 </span>
               )}
+            </div>
+            <div className="mt-4 flex items-center justify-center gap-2.5">
+              <a
+                href={candidate.phone ? `tel:${candidate.phone}` : undefined}
+                aria-label="Call candidate"
+                className="grid size-10 place-items-center rounded-full bg-accent-50 text-accent-600 transition hover:bg-accent-100"
+              >
+                <Phone size={16} />
+              </a>
+              <a
+                href={candidate.email ? `mailto:${candidate.email}` : undefined}
+                aria-label="Email candidate"
+                className="grid size-10 place-items-center rounded-full bg-accent-50 text-accent-600 transition hover:bg-accent-100"
+              >
+                <Mail size={16} />
+              </a>
+            </div>
+          </div>
+
+          {/* Contact details */}
+          <div className="space-y-2.5 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Details</h3>
               <span className="font-mono text-[10px] text-gray-400">{candidate.id}</span>
             </div>
+            <Detail icon={<Mail size={13} />} value={candidate.email} />
+            <Detail icon={<Phone size={13} />} value={candidate.phone || '—'} />
+            <Detail icon={<MapPin size={13} />} value={candidate.location || '—'} />
+            <Detail
+              icon={<Briefcase size={13} />}
+              value={`${candidate.currentCompany || '—'} · ${candidate.currentDesignation || '—'}`}
+            />
+            <Detail
+              icon={<Clock4 size={13} />}
+              value={`${candidate.totalExperienceYears} yrs · ${candidate.noticePeriodDays}d notice`}
+            />
+            <Detail
+              icon={<Wallet size={13} />}
+              value={`Current ${candidate.currentCtc || '—'} → Expected ${candidate.expectedCtc || '—'}`}
+            />
+            <Detail
+              icon={<CalendarDays size={13} />}
+              value={`Applied ${fmtDate(candidate.appliedDate)} · ${candidate.sourceOfApplication}`}
+            />
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Tip label="View resume">
+
+          {/* Documents */}
+          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">Documents</h3>
             <button
               onClick={openResume}
-              aria-label="View resume"
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#DAD4C8] bg-[#F7F4EE] text-gray-600 transition hover:bg-[#E6E1D8] hover:text-accent-600"
+              className="flex w-full items-center gap-2 rounded-lg border border-[#ECEDF0] bg-[#F7F8FA] px-3 py-2 text-left text-[12px] font-medium text-gray-700 transition hover:bg-[#EDEEF1] hover:text-accent-600"
             >
-              <Eye size={16} />
+              <FileText size={14} className="text-accent-600" /> Résumé
+              <Eye size={13} className="ml-auto text-gray-400" />
             </button>
-          </Tip>
-        {nextRound && decisionOf(stages[currentIndex].label) === 'Accepted' ? (
-          <button
-            onClick={() => schedule(nextRound)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 font-semibold text-white transition hover:bg-accent-700"
-          >
-            <CalendarPlus size={14} /> {roundLabel[nextRound]}
-          </button>
-        ) : (
-          <span
-            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 font-semibold ${
-              selected
-                ? 'bg-emerald-50 text-emerald-700'
-                : rejected
-                  ? 'bg-red-50 text-red-600'
-                  : onHold
-                    ? 'bg-yellow-50 text-yellow-700'
-                    : 'bg-[#ECE6DA] text-gray-500'
-            }`}
-          >
-            {selected ? (
-              <Award size={14} />
-            ) : rejected ? (
-              <Flag size={14} />
-            ) : onHold ? (
-              <Pause size={14} />
-            ) : (
-              <Clock4 size={14} />
+            {candidateDocs.length > 0 && (
+              <p className="mt-2 font-mono text-[10px] text-gray-400">{candidateDocs.length} document(s) on file</p>
             )}
-            {selected
-              ? 'Selected for role'
-              : rejected
-                ? 'Rejected'
-                : onHold
-                  ? 'On hold'
-                  : 'Round in progress'}
-          </span>
-        )}
-        </div>
-      </div>
-
-      {/* Vertical pipeline stepper (ReUI) + per-stage detail panel */}
-      <div
-        className="rounded-xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs transition-all duration-500 ease-out"
-        style={{ opacity: stepIn ? 1 : 0, transform: stepIn ? 'translateY(0)' : 'translateY(10px)' }}
-      >
-        <p className="mb-4 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          Pipeline progress <span className="text-gray-400">· click a stage for details</span>
-        </p>
-        <div className="flex flex-col gap-5 lg:flex-row">
-          {/* Stepper */}
-          <div className="lg:w-60 lg:shrink-0">
-            <Stepper orientation="vertical" value={currentIndex + 1}>
-              <StepperNav className="gap-0">
-                {stages.map((stage, i) => {
-                  const state = stepState(i);
-                  const StageIcon = stage.Icon;
-                  const last = i === stages.length - 1;
-                  return (
-                    <StepperItem
-                      key={stage.label}
-                      step={i + 1}
-                      completed={state === 'done'}
-                      onClick={() => setPicked(i)}
-                      className={`-mx-2 !flex-row !items-stretch !justify-start gap-3 rounded-lg px-2 transition-all duration-500 cursor-pointer ${
-                        i === activeStage ? 'bg-[#ECE6DA]' : 'hover:bg-[#F2EEE7]'
-                      }`}
-                      style={{ transitionDelay: `${i * 90}ms`, opacity: stepIn ? 1 : 0 }}
-                    >
-                      <div className="flex flex-col items-center pt-0.5">
-                        <StepperIndicator
-                          className={`size-8 border-2 border-background ${
-                            state === 'rejected' ? '!bg-red-500 !text-white' : ''
-                          }`}
-                        >
-                          {state === 'rejected' ? (
-                            <X size={15} />
-                          ) : state === 'done' ? (
-                            <Check size={15} />
-                          ) : (
-                            <StageIcon size={14} />
-                          )}
-                        </StepperIndicator>
-                        {!last && (
-                          <div
-                            className={`my-1 w-0.5 flex-1 rounded ${
-                              i < progressBoundary
-                                ? 'bg-emerald-400'
-                                : rejected
-                                  ? 'bg-red-300'
-                                  : 'bg-[#DAD4C8]'
-                            }`}
-                          />
-                        )}
-                      </div>
-                      <div className={last ? 'pt-1 pb-1' : 'pt-1 pb-5'}>
-                        <StepperTitle className={state === 'todo' ? '!text-gray-400' : '!text-gray-800'}>
-                          {stage.label}
-                        </StepperTitle>
-                        <StepperDescription
-                          className={`!text-[11px] ${
-                            state === 'done'
-                              ? '!text-emerald-600'
-                              : state === 'rejected'
-                                ? '!text-red-500'
-                                : state === 'current'
-                                  ? '!text-accent-600'
-                                  : '!text-gray-400'
-                          }`}
-                        >
-                          {state === 'rejected' ? 'Rejected' : stage.desc}
-                        </StepperDescription>
-                      </div>
-                    </StepperItem>
-                  );
-                })}
-              </StepperNav>
-            </Stepper>
           </div>
+        </aside>
 
-          {/* Detail panel */}
-          <div className="min-h-[220px] flex-1 rounded-xl border border-[#E2DDD2] bg-[#F2EEE7] p-4">
-            <div className="mb-3 flex items-center gap-2 border-b border-[#E2DDD2] pb-2.5">
-              {(() => {
-                const Ic = stages[activeStage].Icon;
-                return (
-                  <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
-                    <Ic size={14} />
-                  </span>
-                );
-              })()}
-              <h4 className="text-sm font-bold text-gray-900">{stages[activeStage].label}</h4>
-              <div className="ml-auto flex items-center gap-2">
-                {(() => {
-                  const label = stages[activeStage].label;
-                  const isCurrent = activeStage === currentIndex && !decided;
-                  // Accept / On Hold / Reject gate only up to the HR Call.
-                  const showGate = isCurrent && ['Applied', 'Screening', 'HR Call'].includes(label);
-                  // After the IQ test / Assessment results are in, HR accepts or rejects.
-                  const showResultDecision =
-                    isCurrent && ((label === 'IQ Test' && iqDone) || (label === 'Assessment' && asgDone));
-                  // Interview Schedule advances with a single "Next" once booked.
-                  const showNext = isCurrent && label === 'Interview Schedule' && interviewReached;
-
-                  if (showGate)
-                    return (
-                      <>
-                        <button
-                          onClick={() => acceptStage(label)}
-                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
-                        >
-                          <Check size={12} /> Accept
-                        </button>
-                        <button
-                          onClick={() => holdStage(label)}
-                          className="inline-flex items-center gap-1 rounded-md border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition hover:bg-[#E6E1D8]"
-                        >
-                          <Pause size={12} /> On Hold
-                        </button>
-                        <button
-                          onClick={() => rejectStage(label)}
-                          className="inline-flex items-center gap-1 rounded-md border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
-                        >
-                          <ThumbsDown size={12} /> Reject
-                        </button>
-                      </>
-                    );
-
-                  if (showResultDecision)
-                    return (
-                      <>
-                        <button
-                          onClick={() => acceptStage(label)}
-                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
-                        >
-                          <Check size={12} /> Accept
-                        </button>
-                        <button
-                          onClick={() => rejectStage(label)}
-                          className="inline-flex items-center gap-1 rounded-md border border-[#DAD4C8] bg-[#F7F4EE] px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
-                        >
-                          <ThumbsDown size={12} /> Reject
-                        </button>
-                      </>
-                    );
-
-                  if (showNext)
-                    return (
-                      <button
-                        onClick={() => nextStage(label)}
-                        className="inline-flex items-center gap-1 rounded-md bg-accent-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700"
-                      >
-                        Next <ChevronRight size={12} />
-                      </button>
-                    );
-
-                  return (
-                    <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
-                      {stages[activeStage].desc}
-                    </span>
-                  );
-                })()}
-              </div>
+        {/* CENTER — pipeline */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-3 shadow-2xs">
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                Pipeline progress
+              </p>
+              <p className="truncate text-[12px] text-gray-700">
+                {candidate.appliedRole} · {candidate.department}
+              </p>
             </div>
-            {stageDetail()}
-            {stageActions()}
+            {nextRound && decisionOf(stages[currentIndex].label) === 'Accepted' ? (
+              <button
+                onClick={() => schedule(nextRound)}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
+              >
+                <CalendarPlus size={14} /> {roundLabel[nextRound]}
+              </button>
+            ) : (
+              <span
+                className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
+                  selected
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : rejected
+                      ? 'bg-red-50 text-red-600'
+                      : onHold
+                        ? 'bg-yellow-50 text-yellow-700'
+                        : 'bg-[#F1F3F5] text-gray-500'
+                }`}
+              >
+                {selected ? (
+                  <Award size={14} />
+                ) : rejected ? (
+                  <Flag size={14} />
+                ) : onHold ? (
+                  <Pause size={14} />
+                ) : (
+                  <Clock4 size={14} />
+                )}
+                {selected ? 'Selected for role' : rejected ? 'Rejected' : onHold ? 'On hold' : 'Round in progress'}
+              </span>
+            )}
+          </div>
+
+          <div
+            className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs transition-all duration-500 ease-out"
+            style={{ opacity: stepIn ? 1 : 0, transform: stepIn ? 'translateY(0)' : 'translateY(10px)' }}
+          >
+            <ol className="relative">
+          {stages.map((stage, i) => {
+            const state = stepState(i);
+            const StageIcon = stage.Icon;
+            const last = i === stages.length - 1;
+            const pathDone = i < currentIndex; // the rail below this node is already travelled
+            const muted = state === 'todo';
+            const badgeCls =
+              state === 'done'
+                ? 'bg-emerald-600 text-white'
+                : state === 'rejected'
+                  ? 'bg-red-600 text-white'
+                  : state === 'current'
+                    ? 'bg-accent-600 text-white ring-4 ring-accent-100'
+                    : 'bg-[#EDEEF1] text-gray-500';
+            // Accordion: future (todo) steps start collapsed; any step can be toggled.
+            const isCollapsed = collapsedSteps[i] ?? state === 'todo';
+            const toggleStep = () => setCollapsedSteps(prev => ({ ...prev, [i]: !isCollapsed }));
+            return (
+              <li
+                key={stage.label}
+                className="relative flex gap-3 transition-all duration-500 sm:gap-4"
+                style={{
+                  transitionDelay: `${i * 80}ms`,
+                  opacity: stepIn ? 1 : 0,
+                  transform: stepIn ? 'translateY(0)' : 'translateY(8px)',
+                }}
+              >
+                {/* Rail: "Step N" badge + connector */}
+                <div className="flex flex-col items-center">
+                  <span
+                    className={`grid h-7 place-items-center whitespace-nowrap rounded-md px-2.5 text-[11px] font-bold shadow-sm transition-all duration-300 ${badgeCls}`}
+                  >
+                    {state === 'done' ? (
+                      <span className="flex items-center gap-1">
+                        <Check size={12} strokeWidth={2.5} /> Step {i + 1}
+                      </span>
+                    ) : (
+                      <>Step {i + 1}</>
+                    )}
+                  </span>
+                  {!last && (
+                    <span
+                      className={`my-1.5 w-0 flex-1 border-l-2 ${
+                        pathDone ? 'border-emerald-400' : 'border-dashed border-[#D7DAE0]'
+                      }`}
+                    />
+                  )}
+                </div>
+
+                {/* Content card */}
+                <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-5'}`}>
+                  <div
+                    className={`rounded-xl border p-4 transition-all ${
+                      state === 'current'
+                        ? 'border-accent-200 bg-[#F7F8FA] shadow-2xs'
+                        : 'border-[#ECEDF0] bg-[#F7F8FA]'
+                    } ${muted ? 'opacity-80' : ''}`}
+                  >
+                    <div className={`flex items-center gap-2 ${isCollapsed ? '' : 'mb-3 border-b border-[#ECEDF0] pb-2.5'}`}>
+                      <button
+                        type="button"
+                        onClick={toggleStep}
+                        className="flex min-w-0 items-center gap-2 text-left"
+                        aria-expanded={!isCollapsed}
+                      >
+                        <span
+                          className={`grid size-7 shrink-0 place-items-center rounded-lg ${
+                            muted ? 'bg-[#F1F3F5] text-gray-400' : 'bg-accent-50 text-accent-600'
+                          }`}
+                        >
+                          <StageIcon size={14} />
+                        </span>
+                        <h4 className={`truncate text-sm font-bold ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
+                          {stage.label}
+                        </h4>
+                        {isCollapsed && (
+                          <span className="truncate font-mono text-[10px] text-gray-400">· {stage.desc}</span>
+                        )}
+                      </button>
+                      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                        {!isCollapsed && stageGate(i)}
+                        <button
+                          type="button"
+                          onClick={toggleStep}
+                          aria-label={isCollapsed ? 'Expand step' : 'Collapse step'}
+                          className="grid size-6 shrink-0 place-items-center rounded-md text-gray-400 transition hover:bg-[#EDEEF1] hover:text-gray-700"
+                        >
+                          {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                    {!isCollapsed && (
+                      <>
+                        {stageDetail(i)}
+                        {stageActions(i)}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+            </ol>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Left: screening + timeline */}
-        <div className="space-y-5 lg:col-span-2">
-          {/* Timeline / line flow */}
-          <div className="rounded-xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs">
-            <h3 className="mb-4 text-sm font-bold text-gray-900">Activity timeline</h3>
-            <ol className="relative space-y-4 border-l border-[#DAD4C8] pl-5">
+        {/* RIGHT — activity feed + upcoming interviews */}
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+            <h3 className="mb-3 text-sm font-bold text-gray-900">Activity</h3>
+            <ol className="relative space-y-4 border-l border-[#E4E6EA] pl-5">
               {events.map((ev, i) => (
                 <li key={i} className="relative">
                   <span
-                    className={`absolute -left-[23px] top-1 size-2.5 rounded-full ring-4 ring-[#F7F4EE] ${toneDot[ev.tone]}`}
+                    className={`absolute -left-[23px] top-1 size-2.5 rounded-full ring-4 ring-[#FFFFFF] ${toneDot[ev.tone]}`}
                   />
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-[12px] font-semibold text-gray-800">{ev.title}</p>
@@ -1287,25 +1370,9 @@ export default function CandidateDetailPage() {
               ))}
             </ol>
           </div>
-        </div>
-
-        {/* Right: details + documents */}
-        <div className="space-y-5">
-          <div className="rounded-xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs">
-            <h3 className="mb-3 text-sm font-bold text-gray-900">Candidate details</h3>
-            <div className="space-y-2.5">
-              <Detail icon={<Mail size={13} />} value={candidate.email} />
-              <Detail icon={<Phone size={13} />} value={candidate.phone || '—'} />
-              <Detail icon={<MapPin size={13} />} value={candidate.location || '—'} />
-              <Detail icon={<Briefcase size={13} />} value={`${candidate.currentCompany || '—'} · ${candidate.currentDesignation || '—'}`} />
-              <Detail icon={<Clock4 size={13} />} value={`${candidate.totalExperienceYears} yrs experience · ${candidate.noticePeriodDays}d notice`} />
-              <Detail icon={<Wallet size={13} />} value={`Current ${candidate.currentCtc || '—'} → Expected ${candidate.expectedCtc || '—'}`} />
-              <Detail icon={<CalendarDays size={13} />} value={`Applied ${fmtDate(candidate.appliedDate)} · via ${candidate.sourceOfApplication}`} />
-            </div>
-          </div>
 
           {upcomingInterviews.length > 0 && (
-            <div className="rounded-xl border border-[#DAD4C8] bg-[#F7F4EE] p-5 shadow-2xs">
+            <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
               <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-gray-900">
                 <CalendarClock size={14} className="text-accent-600" /> Upcoming interviews
               </h3>
@@ -1313,7 +1380,7 @@ export default function CandidateDetailPage() {
                 {upcomingInterviews.map(iv => {
                   const online = iv.interviewType === 'Online' || iv.meetingMode !== 'In-Person';
                   return (
-                    <div key={iv.id} className="rounded-lg border border-[#E2DDD2] bg-[#F2EEE7] p-3">
+                    <div key={iv.id} className="rounded-lg border border-[#ECEDF0] bg-[#F7F8FA] p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-[12px] font-semibold text-gray-800">
                           {online ? 'Online' : 'Offline'} interview
@@ -1329,9 +1396,7 @@ export default function CandidateDetailPage() {
                         <p className="mt-0.5 text-[11px] text-gray-500">Interviewer: {iv.interviewerName}</p>
                       )}
                       {iv.emailStatus && (
-                        <p className="mt-1 font-mono text-[10px] text-gray-400">
-                          Invite email: {iv.emailStatus}
-                        </p>
+                        <p className="mt-1 font-mono text-[10px] text-gray-400">Invite email: {iv.emailStatus}</p>
                       )}
                     </div>
                   );
@@ -1339,8 +1404,7 @@ export default function CandidateDetailPage() {
               </div>
             </div>
           )}
-
-        </div>
+        </aside>
       </div>
 
       {/* Right-side drawer — fill in the details for the active stage */}
@@ -1357,7 +1421,7 @@ export default function CandidateDetailPage() {
                 : openForm === 'hrcall'
                   ? 'HR introductory call'
                   : openForm === 'grade'
-                    ? 'Grade assessment'
+                    ? 'Grade assignment'
                     : openForm === 'feedback'
                       ? `Interview feedback${fbInterview ? ` — ${fbInterview.interviewRound}` : ''}`
                       : ''}
@@ -1371,7 +1435,7 @@ export default function CandidateDetailPage() {
             {/* Screening review form */}
             {openForm === 'screening' && (
               <div className="space-y-5 text-xs">
-                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F2EEE7] px-3 py-2">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2">
                   <p className="text-[11px] italic text-gray-500">
                     Capture why this candidate is worth a call and what stands out.
                   </p>
@@ -1393,7 +1457,7 @@ export default function CandidateDetailPage() {
                       />
                     </div>
                   ))}
-                  <div className="flex items-center justify-between rounded-lg bg-[#F2EEE7] px-3 py-2">
+                  <div className="flex items-center justify-between rounded-lg bg-[#F7F8FA] px-3 py-2">
                     <span className="font-semibold text-gray-700">Average</span>
                     <span className="font-mono text-sm font-bold text-accent-600">
                       {screeningAvg(sr).toFixed(1)} / 5
@@ -1420,7 +1484,7 @@ export default function CandidateDetailPage() {
             {/* HR call form — grouped sections + rating pills */}
             {openForm === 'hrcall' && (
               <div className="space-y-5 text-xs">
-                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F2EEE7] px-3 py-2">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2">
                   <p className="text-[11px] italic text-gray-500">
                     Document the candidate call securely.
                   </p>
@@ -1594,7 +1658,7 @@ export default function CandidateDetailPage() {
               </div>
             )}
 
-            {/* Assignment grade form */}
+            {/* Grade assignment form */}
             {openForm === 'grade' && (
               <>
                 {asgInvite?.submissionDocId && (
@@ -1723,7 +1787,7 @@ const SELECT_CLS =
 
 // Greige field styling that matches the candidate profile feedback panel.
 const FIELD_CLS =
-  'mt-1.5 w-full rounded-md border border-[#DAD4C8] bg-[#E6E1D8] px-2.5 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'mt-1.5 w-full rounded-md border border-[#E4E6EA] bg-[#EDEEF1] px-2.5 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 function screeningAvg(r: ScreeningReview): number {
   const vals = [r.resumeRelevance, r.experienceMatch, r.skillMatch, r.standoutFactor, r.communication];
@@ -1743,7 +1807,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
       {children}
-      <span className="h-px flex-1 bg-[#DAD4C8]" />
+      <span className="h-px flex-1 bg-[#E4E6EA]" />
     </p>
   );
 }
@@ -1759,7 +1823,7 @@ function RatingRow({ value, onChange }: { value: number; onChange: (n: number) =
           className={`grid size-8 place-items-center rounded-md border text-xs font-bold transition ${
             n <= value
               ? 'border-accent-600 bg-accent-600 text-white shadow-sm'
-              : 'border-[#DAD4C8] bg-[#E6E1D8] text-gray-400 hover:border-accent-400 hover:text-accent-600'
+              : 'border-[#E4E6EA] bg-[#EDEEF1] text-gray-400 hover:border-accent-400 hover:text-accent-600'
           }`}
           aria-label={`Rate ${n}`}
         >
@@ -1772,7 +1836,7 @@ function RatingRow({ value, onChange }: { value: number; onChange: (n: number) =
 
 function KV({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-[#E2DDD2] pb-1.5 last:border-0">
+    <div className="flex items-baseline justify-between gap-3 border-b border-[#ECEDF0] pb-1.5 last:border-0">
       <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">{k}</span>
       <span className="text-right text-[12px] font-medium text-gray-700">{v || '—'}</span>
     </div>
