@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Logo } from '@/components/Logo';
+import { QuizRunner } from '@/components/QuizRunner';
 import { BRAND } from '@/lib/brand';
 import { repositories } from '@/lib/api/repositories';
 import { ASSESSMENT_PASS_PERCENT } from '@/data/test-banks';
@@ -19,6 +20,7 @@ export default function AssessmentPage() {
   const [invite, setInvite] = useState<TestInvite | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     if (!inviteId) return;
@@ -63,6 +65,39 @@ export default function AssessmentPage() {
       setPhase('ready');
     }
   };
+
+  // Active assessment — the professional one-question-at-a-time runner (matches
+  // the IQ test). No score is shown to the candidate.
+  if ((phase === 'ready' || phase === 'submitting') && invite) {
+    const items = questions.map((q, i) => ({ key: String(i), prompt: q.text, options: q.options }));
+    const header = (
+      <div className="sticky top-0 z-50 border-b border-[#E4E6EA] bg-white">
+        <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-2.5 lg:px-6">
+          <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-accent-500 to-accent-700 text-white">
+            <Logo size={15} />
+          </span>
+          <span className="truncate text-[13px] font-bold text-gray-900">
+            {invite.position} Assessment
+          </span>
+        </div>
+      </div>
+    );
+    return (
+      <QuizRunner
+        title={`${invite.position} Assessment`}
+        subtitle={`Hi ${invite.candidateName} — answer each question, then submit.`}
+        items={items}
+        answers={answers as unknown as Record<string, number>}
+        current={page}
+        onPick={(key, idx) => setAnswers(a => ({ ...a, [Number(key)]: idx }))}
+        onNavigate={i => setPage(Math.max(0, Math.min(questions.length - 1, i)))}
+        onSubmit={submit}
+        submitting={phase === 'submitting'}
+        requireAll
+        topBar={header}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F1F3F5]">
@@ -117,81 +152,6 @@ export default function AssessmentPage() {
           </Centered>
         )}
 
-        {(phase === 'ready' || phase === 'submitting') && invite && (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs">
-              <h2 className="flex items-center gap-1.5 text-base font-bold text-gray-900">
-                <ClipboardList size={18} className="text-accent-600" /> {invite.position} Assessment
-              </h2>
-              <p className="mt-1 text-xs text-gray-500">
-                Hi {invite.candidateName} — answer all {questions.length} question
-                {questions.length === 1 ? '' : 's'} below, then submit.
-              </p>
-            </div>
-
-            <ol className="space-y-4">
-              {questions.map((q, i) => (
-                <li
-                  key={i}
-                  className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs"
-                >
-                  <div className="flex gap-2.5">
-                    <span className="font-mono text-[12px] font-bold text-accent-700">{i + 1}.</span>
-                    <p className="text-sm font-semibold text-gray-900">{q.text}</p>
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {q.options.map((opt, oi) => {
-                      const active = answers[i] === oi;
-                      return (
-                        <button
-                          key={oi}
-                          type="button"
-                          onClick={() => setAnswers(a => ({ ...a, [i]: oi }))}
-                          className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-[13px] transition ${
-                            active
-                              ? 'border-accent-500 bg-accent-50 text-accent-800'
-                              : 'border-[#E4E6EA] bg-[#F1F3F5] text-gray-700 hover:border-accent-300'
-                          }`}
-                        >
-                          <span
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold ${
-                              active ? 'bg-accent-600 text-white' : 'bg-accent-50 text-accent-600'
-                            }`}
-                          >
-                            {String.fromCharCode(65 + oi)}
-                          </span>
-                          {opt || <span className="text-gray-400">—</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </li>
-              ))}
-            </ol>
-
-            <div className="flex items-center justify-between gap-3 pb-8">
-              <span className="text-[11px] text-gray-500">
-                {answeredCount} / {questions.length} answered
-              </span>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!allAnswered || phase === 'submitting'}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {phase === 'submitting' ? (
-                  <>
-                    <Loader2 size={15} className="animate-spin" /> Submitting…
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={15} /> Submit assessment
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

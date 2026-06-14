@@ -4,7 +4,7 @@ import { DocumentsPanel } from './DocumentsPanel';
 import { useToast } from './Toaster';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOnboarding, useToggleOnboardingTask } from '@/features/onboarding/hooks';
-import { useAssets, useEmployeeMutations, useUpdateAsset } from '@/features/employees/hooks';
+import { useAssets, useEmployeeMutations, useUpdateAsset, useHrIdentity } from '@/features/employees/hooks';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -55,6 +55,7 @@ export function EmployeeProfileModal({
   const { data: allAssets = [] } = useAssets();
   const { update: updateEmployee, updateCredential } = useEmployeeMutations();
   const updateAsset = useUpdateAsset();
+  const hr = useHrIdentity();
 
   const [grantForm, setGrantForm] = useState({ systemName: '', accessLevel: 'Standard' });
   const [assignAssetId, setAssignAssetId] = useState('');
@@ -90,7 +91,7 @@ export function EmployeeProfileModal({
       assignedEmail: employee.email,
       accessLevel: grantForm.accessLevel as CredentialRecord['accessLevel'],
       dateGranted: new Date().toISOString().split('T')[0],
-      grantedBy: 'HR Team',
+      grantedBy: hr.name,
       status: 'Active',
     };
     updateEmployee.mutate({ ...employee, credentials: [cred, ...credentials] });
@@ -110,7 +111,7 @@ export function EmployeeProfileModal({
       assignedToEmployeeId: employee.id,
       assignedToEmployeeName: employee.fullName,
       assignmentDate: new Date().toISOString().split('T')[0],
-      assignedBy: 'HR Team',
+      assignedBy: hr.name,
     });
     setAssignAssetId('');
     toast.success(`${asset.assetName} assigned to ${employee.fullName}.`);

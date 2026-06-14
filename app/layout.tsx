@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { BRAND } from '@/lib/brand';
@@ -11,6 +11,15 @@ const inter = Inter({
   display: 'swap',
 });
 
+// Plus Jakarta Sans gives headings (font-display) a more modern, geometric
+// personality while Inter stays the workhorse for body/UI text.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: BRAND.product,
   description:
@@ -19,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>

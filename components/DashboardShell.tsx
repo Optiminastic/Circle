@@ -8,6 +8,7 @@ import { Header } from './Header';
 import { Breadcrumbs } from './Breadcrumbs';
 import { ModalHost } from './ModalHost';
 import { CommandPalette } from './CommandPalette';
+import { BrandLoading } from './LogoLoader';
 import { useUiStore } from '@/store/ui-store';
 import { useAuth } from '@/store/auth-store';
 import { useCandidates } from '@/features/candidates/hooks';
@@ -61,8 +62,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // Hold rendering until we know the auth state (avoids a flash of the dashboard).
   if (!ready || !user) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#F1F3F5]">
-        <div className="w-6 h-6 border-2 border-accent-600 border-t-transparent rounded-full animate-spin" />
+      <div className="h-screen bg-[#F1F3F5]">
+        <BrandLoading label="" />
       </div>
     );
   }
@@ -93,12 +94,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-3 text-gray-500">
-                <div className="w-6 h-6 border-2 border-accent-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-mono">Loading…</span>
-              </div>
-            </div>
+            <BrandLoading />
           ) : (
             <>
               <Breadcrumbs />
