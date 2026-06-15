@@ -12,8 +12,8 @@
     var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     sans-serif;
   --font-display:
-    var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    sans-serif;
+    var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Active palette — Primary brand accent: Raspberry pink #D11453.
      Swap the values below to re-theme; component classes use accent-* tokens. */
@@ -61,7 +61,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.875rem; /* softer, more modern SaaS corners (was 0.625rem) */
   --background: #F6F7F9; /* soft off-white page */
   --foreground: #1a1a1a;
   --card: #FFFFFF;
@@ -119,6 +119,32 @@ h4 {
 }
 .toast-enter {
   animation: toast-in 0.18s ease-out;
+}
+
+/* Brand loader — the logo's single line draws itself in, then wipes away and
+   loops. Relies on the path using pathLength="1" so the dash maths are
+   resolution-independent. offset 1 and -1 are one full period apart, so the
+   loop is seamless. */
+@keyframes logo-draw {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  55% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+.logo-loader-path {
+  stroke-dasharray: 1;
+  animation: logo-draw 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-loader-path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Scrollbar customizations */

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppraisalRecord, AssetRecord, Employee } from '@/types';
 import { repositories } from '@/lib/api/repositories';
@@ -7,9 +8,20 @@ import { qk } from '@/lib/query/keys';
 import { listOps } from '@/lib/query/optimistic';
 import { optimisticOptions } from '@/lib/query/mutations';
 import { setCredentialStatus } from '@/services/employee.service';
+import { resolveHr, type HrIdentity } from '@/lib/hr-identity';
 
 export function useEmployees() {
   return useQuery({ queryKey: qk.employees.all, queryFn: () => repositories.employees.list() });
+}
+
+/**
+ * The acting-HR identity resolved from the Employee Directory (the active
+ * HR-department employee). Used wherever the system speaks/acts as HR — the
+ * recruitment pipeline avatar and the candidate-facing email sign-offs.
+ */
+export function useHrIdentity(): HrIdentity {
+  const { data: employees = [] } = useEmployees();
+  return useMemo(() => resolveHr(employees), [employees]);
 }
 
 export function useAssets() {
