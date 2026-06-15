@@ -52,11 +52,23 @@ export function useToggleDeliverable() {
 export function useInitiateOffboarding() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ empId, reason }: { empId: string; reason: string }) => {
+    mutationFn: async ({
+      empId,
+      reason,
+      initiatedDate,
+      noticeDays,
+    }: {
+      empId: string;
+      reason: string;
+      initiatedDate?: string;
+      noticeDays?: number;
+    }) => {
       const employees = qc.getQueryData<Employee[]>(qk.employees.all) ?? [];
       const emp = employees.find(e => e.id === empId);
       if (!emp) return;
-      await repositories.offboarding.create(buildOffboardingWorkflow(emp, reason));
+      await repositories.offboarding.create(
+        buildOffboardingWorkflow(emp, reason, { initiatedDate, noticeDays }),
+      );
       await repositories.employees.patch(empId, { status: 'On Leave' });
     },
     onSettled: () => {

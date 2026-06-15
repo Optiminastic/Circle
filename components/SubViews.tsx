@@ -993,22 +993,22 @@ export function EmployeeDirectoryView({
         {/* Directory filter bars */}
         <div className="flex items-center gap-2">
           <div className="relative">
-            <span className="absolute left-2 top-2 text-gray-500">
-              <Search size={12} />
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500">
+              <Search size={13} />
             </span>
             <input
               type="text"
               placeholder="Filter names..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-7 pr-3 py-1 bg-[#FFFFFF] border border-[#E4E6EA] rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="h-9 w-52 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] pl-8 pr-3 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
           </div>
 
           <Select
             value={selectedDept}
             onChange={e => setSelectedDept(e.target.value)}
-            className="px-2 py-1 bg-[#FFFFFF] border border-[#E4E6EA] rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 font-medium"
+            className="h-9 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           >
             {departments.map(d => (
               <option key={d} value={d}>
@@ -1021,9 +1021,9 @@ export function EmployeeDirectoryView({
             <button
               id="btn-add-employee"
               onClick={() => setShowAddForm(true)}
-              className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition font-semibold shrink-0 shadow-2xs"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
             >
-              <Plus size={13} /> Add Employee
+              <Plus size={14} /> Add Employee
             </button>
           )}
         </div>

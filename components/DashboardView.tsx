@@ -62,13 +62,26 @@ export function DashboardView({
   const { user } = useAuth();
   const name = (user?.name || displayName(user?.email) || 'there').split(' ')[0];
 
-  // Time-of-day greeting + today's date, computed after mount to avoid any
-  // server/client hydration mismatch.
+  // Time-of-day greeting, backdrop + today's date, computed after mount to avoid
+  // any server/client hydration mismatch.
   const [greeting, setGreeting] = useState('Welcome back');
   const [today, setToday] = useState('');
+  const [bgImage, setBgImage] = useState('/greeting-bg.jpg');
   useEffect(() => {
     const h = new Date().getHours();
-    setGreeting(h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
+    if (h < 12) {
+      setGreeting('Good morning');
+      setBgImage('/greeting-bg-morning.jpg');
+    } else if (h < 17) {
+      setGreeting('Good afternoon');
+      setBgImage('/greeting-bg-afternoon.jpg');
+    } else if (h < 21) {
+      setGreeting('Good evening');
+      setBgImage('/greeting-bg-evening.jpg');
+    } else {
+      setGreeting('Good evening');
+      setBgImage('/greeting-bg-night.jpg');
+    }
     setToday(
       new Date().toLocaleDateString('en-US', {
         weekday: 'long',
@@ -155,7 +168,7 @@ export function DashboardView({
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-cover bg-bottom opacity-55"
-          style={{ backgroundImage: "url('/greeting-bg.jpg')" }}
+          style={{ backgroundImage: `url('${bgImage}')` }}
         />
         {/* Light wash on the left so the text stays readable */}
         <div

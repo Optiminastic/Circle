@@ -14,14 +14,28 @@ export function buildExitDeliverables(): NonNullable<OffboardingWorkflow['delive
   ];
 }
 
-export function buildOffboardingWorkflow(employee: Employee, reason: string): OffboardingWorkflow {
+export function buildOffboardingWorkflow(
+  employee: Employee,
+  reason: string,
+  opts?: { initiatedDate?: string; noticeDays?: number },
+): OffboardingWorkflow {
+  const initiatedDate = opts?.initiatedDate || todayISO();
+  const start = new Date(initiatedDate);
+  const lastWorkingDay = (
+    Number.isNaN(start.getTime())
+      ? new Date(Date.now() + THIRTY_DAYS_MS)
+      : new Date(start.getTime() + (opts?.noticeDays ?? 30) * 24 * 60 * 60 * 1000)
+  )
+    .toISOString()
+    .split('T')[0];
+
   return {
     employeeId: employee.id,
     employeeName: employee.fullName,
     triggerReason: reason as OffboardingWorkflow['triggerReason'],
-    status: 'Exit Initiated',
-    initiatedDate: todayISO(),
-    lastWorkingDay: new Date(Date.now() + THIRTY_DAYS_MS).toISOString().split('T')[0],
+    status: 'Notice Period Active',
+    initiatedDate,
+    lastWorkingDay,
     deliverables: buildExitDeliverables(),
     checklist: [
       {
