@@ -49,6 +49,18 @@ interface InterviewScheduleModalProps {
   /** True while the invitation email is being sent — keeps the modal open and
    *  locked so HR can't double-submit or close it mid-send. */
   isSending?: boolean;
+  /** 'reschedule' prefills the existing slot and switches the copy to a
+   *  reschedule notice instead of a fresh invitation. */
+  mode?: 'schedule' | 'reschedule';
+  /** Prefilled values (used when rescheduling an existing interview). */
+  initial?: {
+    date?: string;
+    time?: string;
+    type?: 'Online' | 'Offline';
+    interviewerName?: string;
+    interviewerEmail?: string;
+    notes?: string;
+  };
 }
 
 const DURATION_MIN = 45;
@@ -77,8 +89,11 @@ export function InterviewScheduleModal({
   onClose,
   onConfirm,
   isSending = false,
+  mode = 'schedule',
+  initial,
 }: InterviewScheduleModalProps) {
   const position = candidate.appliedRole || candidate.department || 'the role';
+  const isReschedule = mode === 'reschedule';
 
   const tomorrow = useMemo(() => {
     const d = new Date();
@@ -87,12 +102,12 @@ export function InterviewScheduleModal({
   }, []);
   const todayStr = useMemo(() => localDateStr(new Date()), []);
 
-  const [date, setDate] = useState(tomorrow);
-  const [time, setTime] = useState('10:00');
-  const [type, setType] = useState<'Online' | 'Offline'>('Offline');
-  const [interviewerName, setInterviewerName] = useState('');
-  const [interviewerEmail, setInterviewerEmail] = useState('');
-  const [notes, setNotes] = useState('');
+  const [date, setDate] = useState(initial?.date || tomorrow);
+  const [time, setTime] = useState(initial?.time || '10:00');
+  const [type, setType] = useState<'Online' | 'Offline'>(initial?.type || 'Offline');
+  const [interviewerName, setInterviewerName] = useState(initial?.interviewerName || '');
+  const [interviewerEmail, setInterviewerEmail] = useState(initial?.interviewerEmail || '');
+  const [notes, setNotes] = useState(initial?.notes || '');
 
   // Interviewers are picked from active employees — selecting one fills the email.
   const { data: employees = [] } = useEmployees();
@@ -103,7 +118,11 @@ export function InterviewScheduleModal({
     if (match?.email) setInterviewerEmail(match.email);
   };
 
-  const [subject, setSubject] = useState(`Interview Invitation - ${position} - ${BRAND.company}`);
+  const [subject, setSubject] = useState(
+    isReschedule
+      ? `Interview Rescheduled - ${position} - ${BRAND.company}`
+      : `Interview Invitation - ${position} - ${BRAND.company}`,
+  );
   const [body, setBody] = useState('');
   const [emailEdited, setEmailEdited] = useState(false);
 
@@ -112,12 +131,17 @@ export function InterviewScheduleModal({
     const place =
       type === 'Online' ? 'an online interview' : 'an offline interview at our office';
     const interviewer = interviewerName.trim() || 'The Hiring Team';
+    const intro = isReschedule
+      ? ['We would like to let you know that your interview has been rescheduled. The updated details are below.']
+      : [
+          'Congratulations! We are pleased to inform you that you have been shortlisted for the next stage of our hiring process.',
+          '',
+          `We would like to invite you for ${place}.`,
+        ];
     return [
       `Dear ${candidate.fullName},`,
       '',
-      'Congratulations! We are pleased to inform you that you have been shortlisted for the next stage of our hiring process.',
-      '',
-      `We would like to invite you for ${place}.`,
+      ...intro,
       '',
       `Date: ${fmtDate(date)}`,
       `Time: ${fmtTime(time)}`,
@@ -127,7 +151,9 @@ export function InterviewScheduleModal({
         ? [`Location: ${OFFICE_ADDRESS}`, `[[View map|${OFFICE_LOCATION_URL}]]`]
         : []),
       '',
-      'Please confirm your availability by replying to this email.',
+      isReschedule
+        ? 'Please confirm the new slot works for you by replying to this email. We apologise for any inconvenience.'
+        : 'Please confirm your availability by replying to this email.',
       '',
       'We look forward to meeting you.',
       '',
@@ -135,7 +161,7 @@ export function InterviewScheduleModal({
       interviewer,
       BRAND.company,
     ].join('\n');
-  }, [candidate.fullName, type, interviewerName, date, time]);
+  }, [candidate.fullName, type, interviewerName, date, time, isReschedule]);
 
   useEffect(() => {
     if (!emailEdited) setBody(composedBody);
@@ -151,10 +177,13 @@ export function InterviewScheduleModal({
   const conflict = useMemo(() => {
     if (startMs == null) return null;
     const endMs = startMs + DURATION_MIN * 60_000;
+    // Ignore the candidate's own existing slot (matters when rescheduling).
     return (
-      busyInterviews.find(b => startMs < b.end && endMs > b.start) ?? null
+      busyInterviews.find(
+        b => b.candidateId !== candidate.id && startMs < b.end && endMs > b.start,
+      ) ?? null
     );
-  }, [startMs, busyInterviews]);
+  }, [startMs, busyInterviews, candidate.id]);
 
   const error = useMemo(() => {
     if (!date || !time) return 'Pick an interview date and time.';
@@ -189,7 +218,8 @@ export function InterviewScheduleModal({
       <DialogContent className="flex max-h-[92vh] w-[min(96vw,46rem)] max-w-[46rem] sm:max-w-[46rem] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
           <DialogTitle className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
-            <CalendarClock size={15} className="text-accent-600" /> Schedule Interview
+            <CalendarClock size={15} className="text-accent-600" />{' '}
+            {isReschedule ? 'Reschedule Interview' : 'Schedule Interview'}
           </DialogTitle>
           <DialogDescription>
             {candidate.fullName} · {position}
@@ -366,11 +396,11 @@ export function InterviewScheduleModal({
           <Button type="button" onClick={submit} disabled={!!error || isSending}>
             {isSending ? (
               <>
-                <Loader2 size={14} className="animate-spin" /> Sending invitation…
+                <Loader2 size={14} className="animate-spin" /> Sending{isReschedule ? '…' : ' invitation…'}
               </>
             ) : (
               <>
-                <CalendarPlus size={14} /> Schedule Interview
+                <CalendarPlus size={14} /> {isReschedule ? 'Reschedule Interview' : 'Schedule Interview'}
               </>
             )}
           </Button>

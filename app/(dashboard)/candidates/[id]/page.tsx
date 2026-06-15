@@ -159,7 +159,7 @@ export default function CandidateDetailPage() {
   });
   const { data: candidateDocs = [] } = useDocuments('candidate', id);
   const { openSchedule } = useScheduler();
-  const { openInterviewSchedule } = useInterviewScheduler();
+  const { openInterviewSchedule, rescheduleInterview } = useInterviewScheduler();
   const { move, update } = useCandidateMutations();
   const { grade: gradeInterview } = useInterviewMutations();
   const hr = useHrIdentity();
@@ -1254,6 +1254,13 @@ export default function CandidateDetailPage() {
 
     if (label === 'Interview Schedule') {
       if (!interviewReached) btns.push(scheduleBtn('Interview', 'Schedule Interview'));
+      // Once booked, allow rescheduling (re-opens the modal and re-emails the candidate).
+      else
+        btns.push(
+          iconBtn('reschedule', <CalendarClock size={15} />, 'Reschedule interview', () =>
+            rescheduleInterview(candidate),
+          ),
+        );
     }
 
     if (label === 'Physical Interview') {

@@ -1,44 +1,37 @@
 import React from 'react';
 
 /**
- * Brand mark — a single flowing line that rises into two waves and resolves in a
- * small loop, with a ™ to the upper-right. Monochrome and stroke-based, so it
- * inherits the surrounding text colour (use `text-*` to recolour).
- *
- * `size` sets the rendered height; width follows the mark's natural aspect ratio.
- * To use the exact brand asset instead, drop it in `public/logo.svg` and swap
- * this for an <img src="/logo.svg" />.
+ * Curcle brand mark — a continuous wave line. Stroke-based and monochrome, so it
+ * inherits the surrounding text colour (use `text-*` to recolour). The mark is
+ * square; `size` sets both width and height.
  */
-const ASPECT = 206 / 112; // viewBox width / height
-
 export function Logo({ size = 32, className = '' }: { size?: number; className?: string }) {
   return (
     <svg
-      width={Math.round(size * ASPECT)}
+      width={size}
       height={size}
-      viewBox="0 0 206 112"
+      viewBox="0 0 1080 1080"
       role="img"
       aria-label="Curcle"
       fill="none"
       className={`text-gray-900 ${className}`}
     >
       <path
-        d="M12 74 C24 74 27 82 38 79 C50 76 49 30 66 28 C84 26 82 86 100 84 C116 82 115 44 131 46 C144 48 147 66 157 66 C165 66 168 57 161 55 C155 53 156 66 166 67 C174 68 181 67 188 66"
+        d="m169.5 659.86c0 0 73.5-7.5 90 13.5 16.5 21 48 93 91.5 93 96.29 0 209.64-358.5 288-358.5 97.5-6 112.44 328.5 187.5 328.5 45 1.5 44.19-81 94.5-81 50.31 0 66-1.5 66-1.5"
         stroke="currentColor"
-        strokeWidth={9}
+        strokeWidth={30}
+        strokeMiterlimit={10}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <text
-        x="190"
-        y="50"
-        fontSize="15"
-        fontFamily="ui-sans-serif, system-ui, sans-serif"
-        fontWeight="600"
-        fill="currentColor"
-      >
-        ™
-      </text>
+      <path
+        d="m174.72 659.64c0 0 41.23 8.09 80.11-28.3 97.9-109.94 123.6-308.74 204.83-308.74 81.23 0 83.9 383.76 203.34 383.76 55.72-6.02 60-82.5 121.5-81 39 6 30.58 47.92 66 39 43.45-10.95 136.34-10.75 136.34-10.75"
+        stroke="currentColor"
+        strokeWidth={30}
+        strokeMiterlimit={10}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

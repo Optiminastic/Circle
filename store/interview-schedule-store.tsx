@@ -21,7 +21,19 @@ import {
 interface InterviewSchedulerApi {
   /** Open the rich "Schedule Interview" dialog for a candidate. */
   openInterviewSchedule: (candidate: Candidate) => void;
+  /** Re-open the dialog pre-filled with the existing slot to reschedule it. */
+  rescheduleInterview: (candidate: Candidate) => void;
 }
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const splitLocal = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { date: '', time: '' };
+  return {
+    date: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
+    time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
+  };
+};
 
 const InterviewSchedulerContext = createContext<InterviewSchedulerApi | null>(null);
 
@@ -29,6 +41,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
   const toast = useToast();
   const qc = useQueryClient();
   const [pending, setPending] = useState<Candidate | null>(null);
+  const [mode, setMode] = useState<'schedule' | 'reschedule'>('schedule');
   // True while the candidate invitation is in flight — locks the modal open.
   const [sending, setSending] = useState(false);
   // The interview already created for the open modal. A retry after a failed
@@ -46,9 +59,14 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
 
   const closeModal = () => {
     setPending(null);
+    setMode('schedule');
     setSending(false);
     sessionRef.current = null;
   };
+
+  // The candidate's current (non-cancelled) interview, used to reschedule.
+  const existingFor = (candidateId: string) =>
+    interviews.find(iv => iv.candidateId === candidateId && iv.status !== 'Cancelled');
 
   // Existing interview windows — used to block double-booking the same slot.
   const busyInterviews: BusyInterview[] = useMemo(() => {
@@ -68,18 +86,26 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
   }, [interviews]);
 
   const openInterviewSchedule = (candidate: Candidate) => {
-    // One interview per candidate — block re-scheduling once one is booked.
-    const existing = interviews.find(
-      iv => iv.candidateId === candidate.id && iv.status !== 'Cancelled',
-    );
+    // One interview per candidate — point HR at reschedule once one is booked.
+    const existing = existingFor(candidate.id);
     if (existing) {
       toast.info(
-        `An interview is already scheduled for ${candidate.fullName} (${new Date(
-          existing.dateTime,
-        ).toLocaleString()}).`,
+        `An interview is already scheduled for ${candidate.fullName} — use "Reschedule" to change the slot.`,
       );
       return;
     }
+    setMode('schedule');
+    setPending(candidate);
+  };
+
+  const rescheduleInterview = (candidate: Candidate) => {
+    if (!existingFor(candidate.id)) {
+      // Nothing booked yet — fall back to scheduling a fresh one.
+      setMode('schedule');
+      setPending(candidate);
+      return;
+    }
+    setMode('reschedule');
     setPending(candidate);
   };
 
@@ -89,6 +115,115 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
     setSending(true);
 
     const position = c.appliedRole || c.department || 'the role';
+
+    // --- Reschedule: update the existing interview in place, then re-notify. ---
+    if (mode === 'reschedule') {
+      const existing = existingFor(c.id);
+      if (!existing) {
+        setSending(false);
+        toast.error('No interview found to reschedule.', { position: 'top-center' });
+        return;
+      }
+      try {
+        await repositories.interviews.patch(existing.id, {
+          dateTime: input.dateTimeIso,
+          durationMinutes: input.durationMin,
+          interviewRound: input.type === 'Online' ? 'Online' : 'Onsite',
+          meetingMode: input.type === 'Online' ? 'Google Meet' : 'In-Person',
+          meetingLink: input.type === 'Online' ? input.location : '',
+          location: input.location,
+          interviewType: input.type,
+          interviewerName: input.interviewerName || existing.interviewerName,
+          interviewerEmail: input.interviewerEmail,
+          additionalNotes: input.notes,
+          status: 'Scheduled',
+        });
+        qc.invalidateQueries({ queryKey: qk.interviews.all });
+      } catch {
+        setSending(false);
+        toast.error('Could not update the interview — please try again.', { position: 'top-center' });
+        return;
+      }
+
+      const attendees = [c.email, input.interviewerEmail, HR_EMAIL].filter(
+        (e): e is string => !!e && e.trim().length > 0,
+      );
+      // Update the same calendar event (keyed by the interview id).
+      pushCalendarEvent({
+        appEventId: existing.id,
+        type: 'Interview',
+        title: `Interview - ${c.fullName} - ${position}`,
+        dateTimeIso: input.dateTimeIso,
+        durationMin: input.durationMin,
+        location: input.location,
+        attendees,
+        notes: `Rescheduled interview for ${c.fullName} (${position}).`,
+      }).catch(() => {});
+
+      let emailStatus: Interview['emailStatus'] = 'Not Sent';
+      if (c.email) {
+        try {
+          const r = await sendCustomEmail({
+            to: c.email,
+            subject: input.emailSubject,
+            body: input.emailBody,
+            cc: [HR_EMAIL],
+            eventStartIso: input.dateTimeIso,
+            eventDurationMin: input.durationMin,
+            eventSummary: `Interview - ${c.fullName} - ${position}`,
+            eventLocation: input.location,
+            organizerEmail: HR_EMAIL,
+            organizerName: `${BRAND.company} HR`,
+            attendees,
+            eventUid: existing.id,
+          });
+          emailStatus = r.sent ? 'Sent' : 'Failed';
+        } catch {
+          emailStatus = 'Failed';
+        }
+        if (emailStatus !== 'Sent') {
+          setSending(false);
+          toast.error('Reschedule email not sent — please try again.', { position: 'top-center' });
+          return;
+        }
+        repositories.sentEmails
+          .create({
+            id: randomId('EML'),
+            recipientName: c.fullName,
+            recipientEmail: c.email,
+            templateTitle: 'Interview Rescheduled',
+            subject: input.emailSubject,
+            dateSent: nowISO(),
+            status: 'Sent',
+            relatedEntity: c.fullName,
+          })
+          .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+          .catch(() => {});
+      }
+
+      // Notify the interviewer of the new time too.
+      if (input.interviewerEmail) {
+        sendCustomEmail({
+          to: input.interviewerEmail,
+          subject: `Interview rescheduled: ${c.fullName} for ${position}`,
+          body: `Hi ${input.interviewerName || 'there'},\n\nThe interview with ${c.fullName} (${position}) has been rescheduled.\n\nNew time: ${new Date(input.dateTimeIso).toLocaleString()}\n\n— ${BRAND.company}`,
+        }).catch(() => {});
+      }
+
+      repositories.interviews
+        .patch(existing.id, { emailStatus })
+        .then(() => qc.invalidateQueries({ queryKey: qk.interviews.all }))
+        .catch(() => {});
+
+      closeModal();
+      toast.success(
+        emailStatus === 'Sent'
+          ? 'Interview rescheduled — candidate notified.'
+          : 'Interview rescheduled — no candidate email on file.',
+        { position: 'top-center' },
+      );
+      return;
+    }
 
     // 1) Create the interview record + calendar event ONCE per modal session.
     // A retry after a failed email reuses the stored session, so re-sending the
@@ -303,16 +438,34 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
     }
   };
 
+  const pendingExisting = pending ? existingFor(pending.id) : undefined;
+  const initial =
+    mode === 'reschedule' && pendingExisting
+      ? {
+          ...splitLocal(pendingExisting.dateTime),
+          type: (pendingExisting.interviewType ??
+            (pendingExisting.meetingMode === 'In-Person' ? 'Offline' : 'Online')) as
+            | 'Online'
+            | 'Offline',
+          interviewerName: pendingExisting.interviewerName,
+          interviewerEmail: pendingExisting.interviewerEmail,
+          notes: pendingExisting.additionalNotes,
+        }
+      : undefined;
+
   return (
-    <InterviewSchedulerContext.Provider value={{ openInterviewSchedule }}>
+    <InterviewSchedulerContext.Provider value={{ openInterviewSchedule, rescheduleInterview }}>
       {children}
       {pending && (
         <InterviewScheduleModal
+          key={`${pending.id}-${mode}`}
           candidate={pending}
           busyInterviews={busyInterviews}
           onConfirm={confirm}
           onClose={closeModal}
           isSending={sending}
+          mode={mode}
+          initial={initial}
         />
       )}
     </InterviewSchedulerContext.Provider>
