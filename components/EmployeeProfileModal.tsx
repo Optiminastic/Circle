@@ -1,6 +1,7 @@
 'use client';
 import { Select } from './Select';
 import { DocumentsPanel } from './DocumentsPanel';
+import { CtcBreakdownCard } from './CtcBreakdownCard';
 import { useToast } from './Toaster';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOnboarding, useToggleOnboardingTask } from '@/features/onboarding/hooks';
@@ -227,6 +228,12 @@ export function EmployeeProfileModal({
                   </div>
                 </div>
               </div>
+
+              {/* CTC / salary structure */}
+              <CtcBreakdownCard
+                employee={employee}
+                onSave={breakdown => updateEmployee.mutate({ ...employee, ctcBreakdown: breakdown })}
+              />
 
               {/* Secure personal data */}
               <div className="bg-[#FFFFFF] border border-[#E4E6EA] p-4 rounded-xl space-y-3">
