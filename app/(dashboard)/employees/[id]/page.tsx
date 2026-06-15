@@ -12,7 +12,6 @@ import {
   Wallet,
   Landmark,
   Fingerprint,
-  FileSignature,
   ScrollText,
   Building2,
   PenLine,
@@ -39,6 +38,7 @@ import { DocumentsPanel } from '@/components/DocumentsPanel';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AvatarUploader } from '@/components/AvatarUploader';
 import { EditEmployeeDialog } from '@/components/EditEmployeeDialog';
+import { CtcBreakdownCard } from '@/components/CtcBreakdownCard';
 
 const PROBATION_MONTHS = 6;
 
@@ -104,14 +104,6 @@ export default function EmployeeDetailPage() {
   const credentials = employee.credentials ?? [];
   const assets = employee.assets ?? [];
   const bank = docRequest?.bankDetails;
-  const j = employee.joining;
-
-  const milestones = [
-    { Icon: FileSignature, label: 'Offer letter sent', at: j?.offerLetterSentAt },
-    { Icon: PenLine, label: 'Signed offer received', at: j?.offerSignedReceivedAt },
-    { Icon: Building2, label: 'Office invite sent', at: j?.officeInviteSentAt },
-    { Icon: ScrollText, label: 'Letter of appointment sent', at: j?.appointmentLetterSentAt },
-  ];
 
   const initials = employee.fullName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
@@ -405,25 +397,10 @@ export default function EmployeeDetailPage() {
                 </div>
               </Card>
 
-              <Card icon={<FileSignature size={14} />} title="Offer & signed papers">
-                <div className="space-y-2">
-                  {milestones.map(m => {
-                    const M = m.Icon;
-                    const done = Boolean(m.at);
-                    return (
-                      <div key={m.label} className="flex items-center justify-between gap-2 border-b border-[#ECEDF0] pb-1.5 last:border-0">
-                        <span className="flex items-center gap-2 text-[12px] text-gray-700">
-                          <M size={13} className={done ? 'text-emerald-500' : 'text-gray-300'} />
-                          {m.label}
-                        </span>
-                        <span className={`font-mono text-[11px] ${done ? 'text-gray-600' : 'text-gray-400'}`}>
-                          {done ? fmtDate(m.at) : 'Not recorded'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
+              <CtcBreakdownCard
+                employee={employee}
+                onSave={breakdown => update.mutate({ ...employee, ctcBreakdown: breakdown })}
+              />
 
               <Card icon={<Landmark size={14} />} title="Bank details">
                 {bank?.accountNumber ? (
