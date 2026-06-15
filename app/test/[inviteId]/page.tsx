@@ -134,9 +134,23 @@ export default function PublicTestPage() {
 
 function TestFlow({ invite }: { invite: TestInvite }) {
   const isIq = invite.kind === 'iq';
-  const questions: TestQuestion[] = useMemo(
-    () => (isIq ? IQ_QUESTIONS : assessmentBankFor(invite.department, invite.position)),
-    [isIq, invite.department, invite.position],
+  // Variable-option question shape shared by IQ banks and HR-picked assessment
+  // questions (whose option count isn't fixed at four).
+  type RunnerQuestion = { id: string; q: string; options: string[]; answer: number };
+  const questions: RunnerQuestion[] = useMemo(
+    () =>
+      isIq
+        ? IQ_QUESTIONS
+        : invite.assessmentQuestions && invite.assessmentQuestions.length > 0
+          ? // Manual "Send Assessment": score against the exact questions HR picked.
+            invite.assessmentQuestions.map((aq, i) => ({
+              id: `asm-${i}`,
+              q: aq.text,
+              options: aq.options,
+              answer: aq.answer,
+            }))
+          : assessmentBankFor(invite.department, invite.position),
+    [isIq, invite.assessmentQuestions, invite.department, invite.position],
   );
 
   // The invite is the source of truth for completion + start time, so a
