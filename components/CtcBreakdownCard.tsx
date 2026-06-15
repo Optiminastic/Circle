@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Pencil, Check, X, Wallet, AlertTriangle } from 'lucide-react';
+import { Pencil, Check, X, Wallet, AlertTriangle, Scale } from 'lucide-react';
 import { CtcBreakdown, Employee } from '@/types';
 import {
   parseAnnualCtc,
   defaultCtcBreakdown,
   computeCtc,
-  ctcOverAllocated,
+  ctcAnnualGap,
+  balancedSpecialAllowance,
   fmtINR,
 } from '@/lib/ctc';
 
@@ -19,10 +20,13 @@ interface CtcBreakdownCardProps {
 const cell = 'border border-[#D5D8DD] px-2.5 py-1.5';
 const numCell = `${cell} text-right tabular-nums`;
 
+/** Editable salary-component fields (everything except the computed totals). */
+type EditableField = keyof CtcBreakdown;
+
 /**
- * Salary-structure (CTC) breakdown shown on the employee profile. The CTC total
- * is locked to the employee's `annualCtc` (entered at creation) — editing the
- * components rebalances the Special Allowance so the total always matches.
+ * Salary-structure (CTC) breakdown on the employee profile. Every component is
+ * editable; the totals (Gross, CTC, Total Deduction, Net) are computed live. The
+ * "Balance" action snaps Special Allowance so the CTC matches the annual CTC.
  */
 export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
   const annualCtc = parseAnnualCtc(employee.annualCtc);
@@ -45,13 +49,28 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
     );
   }
 
-  const base = stored ?? defaultCtcBreakdown(annualCtc);
+  // Normalise: older saved breakdowns predate the editable Special Allowance
+  // (it was derived) — fill it in so nothing renders as NaN.
+  const s = stored as Partial<CtcBreakdown> | undefined;
+  const base: CtcBreakdown = s
+    ? {
+        basic: s.basic ?? 0,
+        hra: s.hra ?? 0,
+        employerPf: s.employerPf ?? 0,
+        employeePf: s.employeePf ?? 0,
+        professionalTax: s.professionalTax ?? 0,
+        specialAllowance:
+          s.specialAllowance ??
+          Math.max(0, Math.round(annualCtc / 12) - (s.basic ?? 0) - (s.hra ?? 0) - (s.employerPf ?? 0)),
+      }
+    : defaultCtcBreakdown(annualCtc);
   const active = editing && draft ? draft : base;
-  const c = computeCtc(active, annualCtc);
-  const over = editing && draft ? ctcOverAllocated(draft, annualCtc) : false;
+  const c = computeCtc(active);
+  const gap = editing && draft ? ctcAnnualGap(draft, annualCtc) : 0;
+  const mismatch = gap !== 0;
 
   const startEdit = () => {
-    setDraft(stored ?? defaultCtcBreakdown(annualCtc));
+    setDraft({ ...base });
     setEditing(true);
   };
   const cancel = () => {
@@ -59,17 +78,18 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
     setDraft(null);
   };
   const save = () => {
-    if (!draft || over) return;
+    if (!draft || mismatch) return;
     onSave(draft);
     setEditing(false);
     setDraft(null);
   };
-  const setField = (k: keyof CtcBreakdown, v: number) =>
+  const setField = (k: EditableField, v: number) =>
     setDraft(d => (d ? { ...d, [k]: Math.max(0, Math.round(v) || 0) } : d));
+  const balance = () =>
+    setDraft(d => (d ? { ...d, specialAllowance: balancedSpecialAllowance(d, annualCtc) } : d));
 
-  // Monthly input cell for an editable row; falls back to a formatted figure
-  // when not editing.
-  const editMonthly = (k: keyof CtcBreakdown) =>
+  // Monthly cell: a number input while editing, otherwise the formatted figure.
+  const monthlyCell = (k: EditableField) =>
     editing ? (
       <input
         type="number"
@@ -79,11 +99,8 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
         className="w-24 rounded border border-input bg-white px-1.5 py-0.5 text-right tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
       />
     ) : (
-      fmtINR(base[k])
+      fmtINR(active[k])
     );
-
-  // For editable rows the annual figure tracks the live monthly draft × 12.
-  const editAnnual = (k: keyof CtcBreakdown) => fmtINR((draft?.[k] ?? base[k]) * 12);
 
   return (
     <div className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4">
@@ -100,8 +117,15 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
               <X size={11} /> Cancel
             </button>
             <button
+              onClick={balance}
+              title="Set Special Allowance so the CTC matches the annual CTC"
+              className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-700"
+            >
+              <Scale size={11} /> Balance
+            </button>
+            <button
               onClick={save}
-              disabled={over}
+              disabled={mismatch}
               className="inline-flex items-center gap-1 rounded-md bg-accent-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-50"
             >
               <Check size={11} /> Save
@@ -129,20 +153,17 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
           <tbody>
             <tr>
               <td className={cell}>Basic</td>
-              <td className={numCell}>{editMonthly('basic')}</td>
-              <td className={numCell}>{editing ? editAnnual('basic') : fmtINR(c.basic.annual)}</td>
+              <td className={numCell}>{monthlyCell('basic')}</td>
+              <td className={numCell}>{fmtINR(c.basic.annual)}</td>
             </tr>
             <tr>
               <td className={cell}>HRA</td>
-              <td className={numCell}>{editMonthly('hra')}</td>
-              <td className={numCell}>{editing ? editAnnual('hra') : fmtINR(c.hra.annual)}</td>
+              <td className={numCell}>{monthlyCell('hra')}</td>
+              <td className={numCell}>{fmtINR(c.hra.annual)}</td>
             </tr>
             <tr>
-              <td className={cell}>
-                Special Allowance{' '}
-                <span className="font-normal text-gray-400">(balances to CTC)</span>
-              </td>
-              <td className={numCell}>{fmtINR(c.specialAllowance.monthly)}</td>
+              <td className={cell}>Special Allowance</td>
+              <td className={numCell}>{monthlyCell('specialAllowance')}</td>
               <td className={numCell}>{fmtINR(c.specialAllowance.annual)}</td>
             </tr>
             <tr className="bg-[#DCDFE4] font-bold text-gray-900">
@@ -152,10 +173,8 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
             </tr>
             <tr>
               <td className={cell}>PF</td>
-              <td className={numCell}>{editMonthly('employerPf')}</td>
-              <td className={numCell}>
-                {editing ? editAnnual('employerPf') : fmtINR(c.employerPf.annual)}
-              </td>
+              <td className={numCell}>{monthlyCell('employerPf')}</td>
+              <td className={numCell}>{fmtINR(c.employerPf.annual)}</td>
             </tr>
             <tr>
               <td className={cell} colSpan={3}>
@@ -174,17 +193,13 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
             </tr>
             <tr>
               <td className={cell}>PF</td>
-              <td className={numCell}>{editMonthly('employeePf')}</td>
-              <td className={numCell}>
-                {editing ? editAnnual('employeePf') : fmtINR(c.employeePf.annual)}
-              </td>
+              <td className={numCell}>{monthlyCell('employeePf')}</td>
+              <td className={numCell}>{fmtINR(c.employeePf.annual)}</td>
             </tr>
             <tr>
               <td className={cell}>Professional Tax</td>
-              <td className={numCell}>{editMonthly('professionalTax')}</td>
-              <td className={numCell}>
-                {editing ? editAnnual('professionalTax') : fmtINR(c.professionalTax.annual)}
-              </td>
+              <td className={numCell}>{monthlyCell('professionalTax')}</td>
+              <td className={numCell}>{fmtINR(c.professionalTax.annual)}</td>
             </tr>
             <tr className="font-bold text-gray-900">
               <td className={cell}>Total Deduction</td>
@@ -200,16 +215,18 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
         </table>
       </div>
 
-      {over && (
+      {editing && mismatch && (
         <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-red-600">
-          <AlertTriangle size={12} /> Basic + HRA + PF exceed the annual CTC of{' '}
-          {fmtINR(annualCtc)}. Reduce them so the Special Allowance stays positive.
+          <AlertTriangle size={12} /> CTC ({fmtINR(c.ctc.annual)}) doesn&apos;t match the annual CTC
+          ({fmtINR(annualCtc)}) — {gap > 0 ? 'over' : 'under'} by {fmtINR(Math.abs(gap))}. Adjust a
+          field or click <span className="font-semibold">Balance</span>.
         </p>
       )}
       {!editing && (
         <p className="mt-2 text-[10px] text-gray-400">
-          CTC locked to the employee&apos;s annual CTC ({fmtINR(annualCtc)}). Editing rebalances the
-          Special Allowance.
+          Every field is editable. The CTC should match the employee&apos;s annual CTC (
+          {fmtINR(annualCtc)}) — use <span className="font-semibold">Balance</span> while editing to
+          snap the Special Allowance.
         </p>
       )}
     </div>

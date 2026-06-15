@@ -1,9 +1,9 @@
 import { CtcBreakdown } from '@/types';
 
 /**
- * CTC breakdown maths. The employee's `annualCtc` is the locked total — the
- * Special Allowance is always derived as the balancer, so the CTC line in the
- * table reconciles exactly to the figure entered at employee creation.
+ * CTC breakdown maths. Every component is editable; the CTC line is computed
+ * from the components. The "Balance" action (in the card) snaps Special
+ * Allowance so the CTC reconciles to the employee's `annualCtc`.
  */
 
 /** Parse a free-text CTC ("12 LPA", "1,80,000", "180000") into annual ₹. */
@@ -19,13 +19,24 @@ export function parseAnnualCtc(value?: string): number | null {
 /** Sensible starting split: Basic 30%, HRA 15%, Special = remainder, PT ₹200/mo. */
 export function defaultCtcBreakdown(annualCtc: number): CtcBreakdown {
   const monthly = annualCtc / 12;
+  const basic = Math.round(monthly * 0.3);
+  const hra = Math.round(monthly * 0.15);
   return {
-    basic: Math.round(monthly * 0.3),
-    hra: Math.round(monthly * 0.15),
+    basic,
+    hra,
+    specialAllowance: Math.max(0, Math.round(monthly) - basic - hra),
     employerPf: 0,
     employeePf: 0,
     professionalTax: 200,
   };
+}
+
+/** The monthly Special Allowance that makes the CTC reconcile to `annualCtc`. */
+export function balancedSpecialAllowance(b: CtcBreakdown, annualCtc: number): number {
+  return Math.max(
+    0,
+    Math.round(annualCtc / 12) - Math.round(b.basic) - Math.round(b.hra) - Math.round(b.employerPf),
+  );
 }
 
 export interface CtcRow {
@@ -46,40 +57,39 @@ export interface CtcComputed {
   netTakeHome: CtcRow;
 }
 
-const row = (annual: number): CtcRow => ({ annual, monthly: Math.round(annual / 12) });
+const monthlyRow = (monthly: number): CtcRow => ({ monthly, annual: monthly * 12 });
 
-/**
- * Compute every row from the stored monthly components, locking CTC-annual to
- * `annualCtc` (Special Allowance absorbs the remainder so it always matches).
- */
-export function computeCtc(b: CtcBreakdown, annualCtc: number): CtcComputed {
-  const basicA = Math.round(b.basic) * 12;
-  const hraA = Math.round(b.hra) * 12;
-  const employerPfA = Math.round(b.employerPf) * 12;
-  const specialA = Math.max(0, annualCtc - basicA - hraA - employerPfA);
-  const grossA = basicA + hraA + specialA;
-  const ctcA = grossA + employerPfA; // === annualCtc whenever specialA >= 0
-  const employeePfA = Math.round(b.employeePf) * 12;
-  const professionalTaxA = Math.round(b.professionalTax) * 12;
-  const totalDedA = employeePfA + professionalTaxA;
-  const netA = grossA - totalDedA;
+/** Compute every row from the editable monthly components (CTC = the sum). */
+export function computeCtc(b: CtcBreakdown): CtcComputed {
+  const basic = Math.round(b.basic);
+  const hra = Math.round(b.hra);
+  const special = Math.round(b.specialAllowance);
+  const employerPf = Math.round(b.employerPf);
+  const employeePf = Math.round(b.employeePf);
+  const professionalTax = Math.round(b.professionalTax);
+
+  const gross = basic + hra + special;
+  const ctc = gross + employerPf;
+  const totalDeduction = employeePf + professionalTax;
+  const net = gross - totalDeduction;
+
   return {
-    basic: row(basicA),
-    hra: row(hraA),
-    specialAllowance: row(specialA),
-    gross: row(grossA),
-    employerPf: row(employerPfA),
-    ctc: row(ctcA),
-    employeePf: row(employeePfA),
-    professionalTax: row(professionalTaxA),
-    totalDeduction: row(totalDedA),
-    netTakeHome: row(netA),
+    basic: monthlyRow(basic),
+    hra: monthlyRow(hra),
+    specialAllowance: monthlyRow(special),
+    gross: monthlyRow(gross),
+    employerPf: monthlyRow(employerPf),
+    ctc: monthlyRow(ctc),
+    employeePf: monthlyRow(employeePf),
+    professionalTax: monthlyRow(professionalTax),
+    totalDeduction: monthlyRow(totalDeduction),
+    netTakeHome: monthlyRow(net),
   };
 }
 
-/** True when the components over-allocate the CTC (Special Allowance would go negative). */
-export function ctcOverAllocated(b: CtcBreakdown, annualCtc: number): boolean {
-  return (Math.round(b.basic) + Math.round(b.hra) + Math.round(b.employerPf)) * 12 > annualCtc;
+/** Signed annual gap between the computed CTC and the employee's annual CTC (0 = matches). */
+export function ctcAnnualGap(b: CtcBreakdown, annualCtc: number): number {
+  return computeCtc(b).ctc.annual - annualCtc;
 }
 
 /** Indian-grouped rupee formatting (e.g. 1,80,000). */

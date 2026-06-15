@@ -515,11 +515,12 @@ export type OnboardingStatus =
   | 'Joined'
   | 'Onboarding Completed';
 
-/** Monthly salary-structure components (₹). Special Allowance isn't stored —
- *  it's derived as the balancer so the CTC always reconciles to `annualCtc`. */
+/** Monthly salary-structure components (₹). Every field is editable; the
+ *  "Balance" action sets Special Allowance so the CTC reconciles to `annualCtc`. */
 export interface CtcBreakdown {
   basic: number;
   hra: number;
+  specialAllowance: number;
   /** Employer PF contribution — part of CTC, added on top of gross salary. */
   employerPf: number;
   /** Employee PF deduction (take-home reducer). */
