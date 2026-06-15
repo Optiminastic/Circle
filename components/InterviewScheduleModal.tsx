@@ -102,7 +102,7 @@ export function InterviewScheduleModal({
     if (match?.email) setInterviewerEmail(match.email);
   };
 
-  const [subject, setSubject] = useState(`Interview Invitation - ${position} - ${BRAND.name}`);
+  const [subject, setSubject] = useState(`Interview Invitation - ${position} - ${BRAND.company}`);
   const [body, setBody] = useState('');
   const [emailEdited, setEmailEdited] = useState(false);
 
@@ -175,7 +175,7 @@ export function InterviewScheduleModal({
       interviewerName: interviewerName.trim(),
       interviewerEmail: interviewerEmail.trim() || undefined,
       notes: notes.trim() || undefined,
-      emailSubject: subject.trim() || `Interview Invitation - ${position} - ${BRAND.name}`,
+      emailSubject: subject.trim() || `Interview Invitation - ${position} - ${BRAND.company}`,
       emailBody: body,
     });
   };

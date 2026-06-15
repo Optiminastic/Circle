@@ -760,7 +760,7 @@ export default function CandidateDetailPage() {
     const summary = decisionSummary.trim();
     setDecisionKind(kind);
     if (kind === 'accept') {
-      setDecisionSubject(`Congratulations — ${position} at ${BRAND.name}`);
+      setDecisionSubject(`Congratulations — ${position} at ${BRAND.company}`);
       setDecisionBody(
         [
           `Dear ${candidate.fullName},`,
@@ -779,7 +779,7 @@ export default function CandidateDetailPage() {
         ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
         : '—';
       const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
-      setDecisionSubject(`Update on your application — ${position} at ${BRAND.name}`);
+      setDecisionSubject(`Update on your application — ${position} at ${BRAND.company}`);
       setDecisionBody(
         [
           `Dear ${candidate.fullName},`,

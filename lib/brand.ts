@@ -5,6 +5,8 @@
 export const BRAND = {
   /** Wordmark shown next to the Optiminastic logo. */
   name: 'Circle',
+  /** Company name — used in candidate-facing email subjects. */
+  company: 'Optiminastic',
   /** Short form for tight spaces / second line. */
   short: 'Circle',
   /** Product name (app title, proctor footer). */
