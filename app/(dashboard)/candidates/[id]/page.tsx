@@ -1341,7 +1341,13 @@ export default function CandidateDetailPage() {
     // Actionable on any reached stage at or before the candidate's current position,
     // as long as they haven't been finally selected/rejected.
     const isCurrent = idx <= currentIndex && !decided;
-    const showGate = isCurrent && ['Screening', 'HR Call'].includes(label);
+    // Accept / On Hold / Reject only appears once HR has actually recorded the
+    // review for the stage — the screening notes for Screening, or a completed
+    // call for HR Call. Before that there's nothing to decide on.
+    const showGate =
+      isCurrent &&
+      ((label === 'Screening' && !!candidate.screeningReview) ||
+        (label === 'HR Call' && hrCallDone));
     const showResultDecision =
       isCurrent &&
       ((label === 'IQ Test' && iqDone) ||

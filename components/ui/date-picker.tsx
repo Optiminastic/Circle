@@ -51,6 +51,13 @@ export function DatePicker({
   const selected = parseDate(value);
   const minDate = parseDate(min);
 
+  // Navigable range: 100 years back (covers date-of-birth) to 10 years ahead.
+  // Combined with the month/year dropdowns this lets HR jump across any month
+  // or year instead of stepping one month at a time.
+  const thisYear = new Date().getFullYear();
+  const startMonth = new Date(thisYear - 100, 0);
+  const endMonth = new Date(thisYear + 10, 11);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -64,6 +71,9 @@ export function DatePicker({
       <PopoverContent className="w-auto p-2" align="start">
         <Calendar
           mode="single"
+          captionLayout="dropdown"
+          startMonth={startMonth}
+          endMonth={endMonth}
           selected={selected}
           defaultMonth={selected}
           disabled={minDate ? { before: minDate } : undefined}

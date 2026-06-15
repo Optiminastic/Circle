@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { DayPicker, getDefaultClassNames } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  captionLayout = 'label',
   ...props
 }: React.ComponentProps<typeof DayPicker>) {
   const defaults = getDefaultClassNames();
@@ -21,18 +22,34 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      captionLayout={captionLayout}
       className={cn('p-1', className)}
       classNames={{
         root: cn('w-fit', defaults.root),
         months: 'relative flex flex-col gap-4 sm:flex-row',
         month: 'flex w-full flex-col gap-3',
         month_caption: 'relative flex h-8 items-center justify-center px-8',
-        caption_label: 'text-sm font-semibold text-gray-900',
-        nav: 'absolute inset-x-0 top-0 flex items-center justify-between',
+        // Month/year dropdown navigation (captionLayout="dropdown"): the native
+        // <select> is a transparent overlay over the styled label, so only one
+        // value shows (no duplicate text) and the whole pill opens the dropdown.
+        dropdowns: 'flex h-8 items-center justify-center gap-1.5 text-sm font-medium',
+        dropdown_root:
+          'relative inline-flex items-center rounded-md border border-border bg-white shadow-2xs transition hover:border-accent-400 focus-within:ring-2 focus-within:ring-accent-500',
+        dropdown: 'absolute inset-0 cursor-pointer opacity-0',
+        caption_label: cn(
+          'select-none font-semibold text-gray-900',
+          captionLayout === 'label'
+            ? 'text-sm'
+            : 'flex h-8 items-center gap-1 rounded-md pl-2.5 pr-1.5 text-sm [&>svg]:size-3.5 [&>svg]:text-gray-400',
+        ),
+        // The nav overlays the caption row; make the container click-through so it
+        // never swallows clicks meant for the centered dropdowns, and raise the
+        // two buttons (pointer-events + z-index) so prev/next reliably register.
+        nav: 'pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between',
         button_previous:
-          'inline-flex size-7 items-center justify-center rounded-md border border-border bg-white text-gray-600 transition hover:bg-[#F1F3F5] hover:text-accent-700 disabled:opacity-40',
+          'pointer-events-auto inline-flex size-7 items-center justify-center rounded-md border border-border bg-white text-gray-600 transition hover:bg-[#F1F3F5] hover:text-accent-700 disabled:opacity-40',
         button_next:
-          'inline-flex size-7 items-center justify-center rounded-md border border-border bg-white text-gray-600 transition hover:bg-[#F1F3F5] hover:text-accent-700 disabled:opacity-40',
+          'pointer-events-auto inline-flex size-7 items-center justify-center rounded-md border border-border bg-white text-gray-600 transition hover:bg-[#F1F3F5] hover:text-accent-700 disabled:opacity-40',
         month_grid: 'w-full border-collapse',
         weekdays: 'flex',
         weekday: 'w-9 text-[0.7rem] font-medium uppercase tracking-wide text-gray-400',
@@ -55,7 +72,12 @@ function Calendar({
       }}
       components={{
         Chevron: ({ orientation, className: chevClassName, ...rest }) => {
-          const Icon = orientation === 'left' ? ChevronLeft : ChevronRight;
+          const Icon =
+            orientation === 'left'
+              ? ChevronLeft
+              : orientation === 'right'
+                ? ChevronRight
+                : ChevronDown;
           return <Icon className={cn('size-4', chevClassName)} {...rest} />;
         },
       }}
