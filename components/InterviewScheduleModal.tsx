@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from './Select';
 import { DatePicker, TimeSelect } from '@/components/ui/date-picker';
 import { BRAND } from '@/lib/brand';
-import { OFFICE_LOCATION_URL } from '@/lib/config';
+import { OFFICE_LOCATION_URL, OFFICE_ADDRESS } from '@/lib/config';
 import { Candidate } from '@/types';
 import { useEmployees } from '@/features/employees/hooks';
 
@@ -39,9 +39,6 @@ export interface InterviewScheduleResult {
   notes?: string;
   emailSubject: string;
   emailBody: string;
-  /** Links rendered in the email as labelled anchor buttons (e.g. the office
-   *  location map) — never pasted into the body as a raw URL. */
-  links?: { label: string; url: string }[];
 }
 
 interface InterviewScheduleModalProps {
@@ -106,7 +103,7 @@ export function InterviewScheduleModal({
     if (match?.email) setInterviewerEmail(match.email);
   };
 
-  const [subject, setSubject] = useState(`Interview Invitation - ${position} - ${BRAND.name}`);
+  const [subject, setSubject] = useState(`Interview Invitation - ${position} - ${BRAND.company}`);
   const [body, setBody] = useState('');
   const [emailEdited, setEmailEdited] = useState(false);
 
@@ -124,10 +121,10 @@ export function InterviewScheduleModal({
       '',
       `Date: ${fmtDate(date)}`,
       `Time: ${fmtTime(time)}`,
-      // The office location goes out as a "View office location" button (added in
-      // submit() via `links`), so the body references it instead of pasting the URL.
+      // Office address as plain text + a "View map" anchor (the [[label|url]]
+      // token is rendered as a clickable link by the email backend).
       ...(type === 'Offline'
-        ? ['Location: Our office — tap the “View office location” button below for directions.']
+        ? [`Location: ${OFFICE_ADDRESS}`, `[[View map|${OFFICE_LOCATION_URL}]]`]
         : []),
       '',
       'Please confirm your availability by replying to this email.',
@@ -136,7 +133,7 @@ export function InterviewScheduleModal({
       '',
       'Best Regards,',
       interviewer,
-      BRAND.name,
+      BRAND.company,
     ].join('\n');
   }, [candidate.fullName, type, interviewerName, date, time]);
 
@@ -179,12 +176,8 @@ export function InterviewScheduleModal({
       interviewerName: interviewerName.trim(),
       interviewerEmail: interviewerEmail.trim() || undefined,
       notes: notes.trim() || undefined,
-      emailSubject: subject.trim() || `Interview Invitation - ${position} - ${BRAND.name}`,
+      emailSubject: subject.trim() || `Interview Invitation - ${position} - ${BRAND.company}`,
       emailBody: body,
-      links:
-        type === 'Offline'
-          ? [{ label: 'View office location', url: OFFICE_LOCATION_URL }]
-          : undefined,
     });
   };
 

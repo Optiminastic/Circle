@@ -882,6 +882,8 @@ interface DirectoryViewProps {
   onSelectEmployee: (id: string) => void;
   onUpdateEmployee: (updated: Employee) => void;
   onAddEmployee?: (employee: Employee) => void;
+  /** Permanently delete the given employees (by id) from the directory. */
+  onDeleteEmployees?: (ids: string[]) => void;
 }
 
 const EMPTY_EMPLOYEE_FORM = {
@@ -912,6 +914,7 @@ export function EmployeeDirectoryView({
   onSelectEmployee,
   onUpdateEmployee,
   onAddEmployee,
+  onDeleteEmployees,
 }: DirectoryViewProps) {
   const toast = useToast();
   const org = useOrgSettings();
@@ -978,6 +981,30 @@ export function EmployeeDirectoryView({
   const empStatusTone = (s: Employee['status']): 'green' | 'amber' | 'gray' | 'red' =>
     s === 'Active' ? 'green' : s === 'On Leave' ? 'amber' : s === 'Offboarded' ? 'gray' : 'red';
 
+  const deleteSelected = () => {
+    const ids = sel.selectedIds;
+    if (ids.length === 0) return;
+    const names = employees
+      .filter(e => ids.includes(e.id))
+      .map(e => e.fullName);
+    const label =
+      names.length === 1 ? names[0] : `${names.length} employees`;
+    toast.confirm({
+      title: `Delete ${label}?`,
+      description: 'This permanently removes the employee record from the directory. This cannot be undone.',
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        onDeleteEmployees?.(ids);
+        sel.clear();
+        toast.success(
+          names.length === 1
+            ? `${names[0]} removed from the directory.`
+            : `${names.length} employees removed from the directory.`,
+        );
+      },
+    });
+  };
+
   return (
     <div className="space-y-4 text-xs select-none">
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
@@ -1030,7 +1057,16 @@ export function EmployeeDirectoryView({
       </div>
 
       {/* Employee table */}
-      <SelectionBar count={sel.count} onClear={sel.clear} />
+      <SelectionBar count={sel.count} onClear={sel.clear}>
+        {onDeleteEmployees && (
+          <button
+            onClick={deleteSelected}
+            className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-[#FFFFFF] px-2 py-1 font-medium text-red-600 transition hover:bg-red-50"
+          >
+            <Trash2 size={12} /> Delete
+          </button>
+        )}
+      </SelectionBar>
       <Table minWidth={860}>
         <THead>
           <Th select checked={sel.allSelected} indeterminate={sel.someSelected} onToggle={sel.toggleAll} />
@@ -1815,7 +1851,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
     onTriggerEmail(selectedTemplate?.id || activeTemplateId, recipientName, recipientEmail, {
       '{{CANDIDATE_NAME}}': recipientName,
       '{{ROLE}}': roleField,
-      '{{COMPANY_NAME}}': BRAND.name,
+      '{{COMPANY_NAME}}': BRAND.company,
       '{{DATE_TIME}}': 'June 15, 2026, 14:30 PM EST',
       '{{MEETING_LINK}}': 'https://meet.google.com/xyz',
       '{{EXPIRE_DATE}}': 'June 18, 2026',
@@ -1911,7 +1947,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
                   {selectedTemplate.bodyTemplate
                     .replace('{{CANDIDATE_NAME}}', recipientName)
                     .replace('{{ROLE}}', roleField)
-                    .replace('{{COMPANY_NAME}}', BRAND.name)
+                    .replace('{{COMPANY_NAME}}', BRAND.company)
                     .replace('{{DATE_TIME}}', 'June 15, 2026, 14:30 PM')
                     .replace('{{MEETING_LINK}}', 'https://meet.google.com/xyz')
                     .replace('{{EXPIRE_DATE}}', 'June 18, 2026')

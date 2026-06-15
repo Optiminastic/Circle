@@ -50,7 +50,7 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
 
   // Candidate's email is pre-filled but HR can change it before sending.
   const [to, setTo] = useState(candidate.email || '');
-  const [subject, setSubject] = useState(`Your ${what} for ${position} — ${BRAND.name}`);
+  const [subject, setSubject] = useState(`Your ${what} for ${position} — ${BRAND.company}`);
 
   // Assessment question sets from the Question Library — auto-select by role.
   const [assessmentBanks, setAssessmentBanks] = useState<RoleQuestionBank[]>([]);

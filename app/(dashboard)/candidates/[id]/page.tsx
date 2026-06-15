@@ -791,12 +791,12 @@ export default function CandidateDetailPage() {
     const summary = decisionSummary.trim();
     setDecisionKind(kind);
     if (kind === 'accept') {
-      setDecisionSubject(`Congratulations — ${position} at ${BRAND.name}`);
+      setDecisionSubject(`Congratulations — ${position} at ${BRAND.company}`);
       setDecisionBody(
         [
           `Dear ${candidate.fullName},`,
           '',
-          `Congratulations! We are delighted to move forward with you for the ${position} role at ${BRAND.name}.`,
+          `Congratulations! We are delighted to move forward with you for the ${position} role at ${BRAND.company}.`,
           ...(summary ? ['', summary] : []),
           '',
           'Our team will be in touch shortly with the next steps.',
@@ -810,12 +810,12 @@ export default function CandidateDetailPage() {
         ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
         : '—';
       const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
-      setDecisionSubject(`Update on your application — ${position} at ${BRAND.name}`);
+      setDecisionSubject(`Update on your application — ${position} at ${BRAND.company}`);
       setDecisionBody(
         [
           `Dear ${candidate.fullName},`,
           '',
-          `Thank you for your time interviewing for the ${position} role at ${BRAND.name}.`,
+          `Thank you for your time interviewing for the ${position} role at ${BRAND.company}.`,
           '',
           'After careful review, we have decided not to move forward at this stage. A summary of your evaluation:',
           '',

@@ -7,7 +7,7 @@ import { useEmployees, useEmployeeMutations } from '@/features/employees/hooks';
 export default function DirectoryPage() {
   const router = useRouter();
   const { data: employees = [] } = useEmployees();
-  const { create, update } = useEmployeeMutations();
+  const { create, update, remove } = useEmployeeMutations();
 
   return (
     <EmployeeDirectoryView
@@ -15,6 +15,7 @@ export default function DirectoryPage() {
       onSelectEmployee={id => router.push(`/employees/${id}`)}
       onUpdateEmployee={updated => update.mutate(updated)}
       onAddEmployee={employee => create.mutate(employee)}
+      onDeleteEmployees={ids => ids.forEach(id => remove.mutate(id))}
     />
   );
 }

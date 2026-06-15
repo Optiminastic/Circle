@@ -10,7 +10,7 @@ import { qk } from '@/lib/query/keys';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { pushCalendarEvent } from '@/lib/api/calendar';
 import { BRAND } from '@/lib/brand';
-import { HR_EMAIL } from '@/lib/config';
+import { HR_EMAIL, OFFICE_ADDRESS, OFFICE_LOCATION_URL } from '@/lib/config';
 import { randomId, nowISO } from '@/lib/utils';
 import {
   InterviewScheduleModal,
@@ -184,7 +184,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             eventLocation: input.location,
             eventDescription,
             organizerEmail: HR_EMAIL,
-            organizerName: `${BRAND.name} HR`,
+            organizerName: `${BRAND.company} HR`,
             attendees,
             eventUid: id,
           };
@@ -205,7 +205,6 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           subject: input.emailSubject,
           body: input.emailBody,
           cc: [HR_EMAIL],
-          ...(input.links?.length ? { links: input.links } : {}),
           ...eventFields,
         });
         emailStatus = r.sent ? 'Sent' : 'Failed';
@@ -265,26 +264,22 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         '',
         `When: ${whenStr}`,
         `Mode: ${input.type}`,
-        // Offline location is sent as a "View office location" button (below),
-        // so the body avoids pasting the raw map URL.
-        ...(input.type === 'Offline' && input.location
-          ? ['Location: Our office — see the button below for directions.']
+        // Offline: office address as text + a "View map" anchor ([[label|url]]
+        // is rendered as a clickable link by the email backend). Online has no
+        // physical location.
+        ...(input.type === 'Offline'
+          ? [`Location: ${OFFICE_ADDRESS}`, `[[View map|${OFFICE_LOCATION_URL}]]`]
           : input.location
             ? [`Location: ${input.location}`]
             : []),
         input.notes ? `\nNotes: ${input.notes}` : '',
         '',
-        `— ${BRAND.name}`,
+        `— ${BRAND.company}`,
       ].join('\n');
-      const ivLinks =
-        input.type === 'Offline' && input.location
-          ? [{ label: 'View office location', url: input.location }]
-          : [];
       sendCustomEmail({
         to: input.interviewerEmail,
         subject: `Interview scheduled: ${c.fullName} for ${position}`,
         body: ivBody,
-        ...(ivLinks.length ? { links: ivLinks } : {}),
         ...eventFields,
       }).catch(() => {});
     }

@@ -42,7 +42,7 @@ export function resolveHr(employees: Employee[]): HrIdentity {
       name: `${BRAND.name} HR Team`,
       role: 'HR Team',
       initials: 'HR',
-      signoff: `${BRAND.name} HR Team`,
+      signoff: `${BRAND.company} HR Team`,
     };
   }
 
@@ -53,6 +53,6 @@ export function resolveHr(employees: Employee[]): HrIdentity {
     role,
     initials: initialsOf(emp.fullName),
     avatarUrl: emp.avatarUrl,
-    signoff: `${emp.fullName}\n${role}, ${BRAND.name}`,
+    signoff: `${emp.fullName}\n${role}, ${BRAND.company}`,
   };
 }
