@@ -23,6 +23,13 @@ export const REQUIRED_DOCS: RequiredDocDef[] = [
 
 export const REQUIRED_DOC_TYPES: string[] = REQUIRED_DOCS.map(d => d.type);
 
+/**
+ * A verified document is locked: HR has approved it, so the candidate can no
+ * longer replace it and HR can no longer re-review it. Approval = lock.
+ */
+export const isSubmissionLocked = (sub?: { status?: string } | null): boolean =>
+  sub?.status === 'Verified';
+
 /** Link a candidate uses to reach their upload portal. */
 export const docPortalPath = (token: string) => `/onboarding-docs/${token}`;
 

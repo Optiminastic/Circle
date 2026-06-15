@@ -13,12 +13,13 @@ import {
   AlertTriangle,
   Landmark,
   FileText,
+  Lock,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
 import { BankDetails, DocSubmission } from '@/types';
 import { getDocRequest, uploadRequestDocument, saveDocRequestBankDetails } from '@/lib/api/doc-requests';
-import { REQUIRED_DOCS } from '@/lib/onboarding-docs';
+import { REQUIRED_DOCS, isSubmissionLocked } from '@/lib/onboarding-docs';
 
 const portalKey = (token: string) => ['doc-request-portal', token] as const;
 
@@ -176,11 +177,12 @@ export default function OnboardingDocsPortal() {
           const sub = submittedFor.get(doc.type);
           const isUploading = uploading === doc.type;
           const rejected = sub?.status === 'Rejected';
+          const locked = isSubmissionLocked(sub);
           return (
             <div
               key={doc.type}
               className={`flex items-center justify-between gap-3 rounded-lg border bg-white p-3 ${
-                rejected ? 'border-red-300' : sub ? 'border-emerald-200' : 'border-[#E4E6EA]'
+                rejected ? 'border-red-300' : locked ? 'border-emerald-300' : sub ? 'border-emerald-200' : 'border-[#E4E6EA]'
               }`}
             >
               <div className="min-w-0">
@@ -188,42 +190,57 @@ export default function OnboardingDocsPortal() {
                   {sub && !rejected && <CheckCircle2 size={14} className="text-emerald-500" />}
                   {rejected && <XCircle size={14} className="text-red-500" />}
                   {doc.label}
+                  {locked && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wide text-emerald-700">
+                      <Lock size={8} /> Verified
+                    </span>
+                  )}
                 </p>
                 <p className="truncate text-[11px] text-gray-500">
-                  {rejected
-                    ? `Rejected${sub?.reviewReason ? ` — ${sub.reviewReason}` : ''}. Please re-upload.`
-                    : sub
-                      ? sub.fileName
-                      : doc.hint}
+                  {locked
+                    ? `${sub?.fileName ?? ''} — verified by our team. This document is locked.`
+                    : rejected
+                      ? `Rejected${sub?.reviewReason ? ` — ${sub.reviewReason}` : ''}. Please re-upload.`
+                      : sub
+                        ? sub.fileName
+                        : doc.hint}
                 </p>
               </div>
               <div className="shrink-0">
-                <input
-                  ref={el => {
-                    fileInputs.current[doc.type] = el;
-                  }}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) upload.mutate({ docType: doc.type, file });
-                    e.target.value = '';
-                  }}
-                />
-                <button
-                  type="button"
-                  disabled={isUploading}
-                  onClick={() => fileInputs.current[doc.type]?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:opacity-50"
-                >
-                  {isUploading ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <UploadCloud size={13} />
-                  )}
-                  {sub ? 'Replace' : 'Upload'}
-                </button>
+                {locked ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
+                    <Lock size={13} /> Locked
+                  </span>
+                ) : (
+                  <>
+                    <input
+                      ref={el => {
+                        fileInputs.current[doc.type] = el;
+                      }}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) upload.mutate({ docType: doc.type, file });
+                        e.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={isUploading}
+                      onClick={() => fileInputs.current[doc.type]?.click()}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:opacity-50"
+                    >
+                      {isUploading ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <UploadCloud size={13} />
+                      )}
+                      {sub ? 'Replace' : 'Upload'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           );

@@ -13,6 +13,7 @@ import {
   Loader2,
   ShieldCheck,
   RefreshCw,
+  Lock,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DocRequest } from '@/types';
@@ -20,7 +21,7 @@ import { qk } from '@/lib/query/keys';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useDocRequests, useDocRequestMutations, isDocRequestLive } from '@/features/doc-requests/hooks';
 import { openDocument } from '@/features/documents/hooks';
-import { REQUIRED_DOCS } from '@/lib/onboarding-docs';
+import { REQUIRED_DOCS, isSubmissionLocked } from '@/lib/onboarding-docs';
 import { useToast } from '@/components/Toaster';
 
 interface DocRequestPanelProps {
@@ -81,6 +82,8 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
         candidateName,
         email: toEmail,
         role: candidate?.appliedRole,
+        // Carry verified/locked docs forward so a resend never wipes them.
+        prior: request,
       },
       {
         onSuccess: ({ emailed, emailReason }) => {
@@ -195,14 +198,25 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
           <div className="space-y-2">
             {REQUIRED_DOCS.map(doc => {
               const sub = submittedFor.get(doc.type);
+              const locked = isSubmissionLocked(sub);
               return (
-                <div key={doc.type} className="rounded-lg border border-[#E4E6EA] bg-white p-2.5">
+                <div
+                  key={doc.type}
+                  className={`rounded-lg border p-2.5 ${
+                    locked ? 'border-emerald-200 bg-emerald-50/40' : 'border-[#E4E6EA] bg-white'
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-800">
                         {sub?.status === 'Verified' && <CheckCircle2 size={13} className="text-emerald-500" />}
                         {sub?.status === 'Rejected' && <XCircle size={13} className="text-red-500" />}
                         {doc.label}
+                        {locked && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wide text-emerald-700">
+                            <Lock size={8} /> Locked
+                          </span>
+                        )}
                       </p>
                       <p className="truncate text-[10px] text-gray-500">
                         {sub ? sub.fileName : 'Not uploaded yet'}
@@ -214,27 +228,39 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                         <IconBtn title="View" onClick={() => openDocument(sub.documentId)}>
                           <Eye size={13} />
                         </IconBtn>
-                        <IconBtn
-                          title="Verify"
-                          tone="green"
-                          active={sub.status === 'Verified'}
-                          onClick={() => runVerify(doc.type, 'Verified')}
-                        >
-                          <CheckCircle2 size={13} />
-                        </IconBtn>
-                        <IconBtn
-                          title="Reject"
-                          tone="red"
-                          active={sub.status === 'Rejected'}
-                          onClick={() => setRejecting(rejecting === doc.type ? null : doc.type)}
-                        >
-                          <XCircle size={13} />
-                        </IconBtn>
+                        {locked ? (
+                          // Verified = approved & locked: no further review actions.
+                          <span
+                            title="Verified — locked"
+                            className="grid size-7 place-items-center rounded-md border border-emerald-500 bg-emerald-500 text-white"
+                          >
+                            <Lock size={12} />
+                          </span>
+                        ) : (
+                          <>
+                            <IconBtn
+                              title="Verify"
+                              tone="green"
+                              active={false}
+                              onClick={() => runVerify(doc.type, 'Verified')}
+                            >
+                              <CheckCircle2 size={13} />
+                            </IconBtn>
+                            <IconBtn
+                              title="Reject"
+                              tone="red"
+                              active={sub.status === 'Rejected'}
+                              onClick={() => setRejecting(rejecting === doc.type ? null : doc.type)}
+                            >
+                              <XCircle size={13} />
+                            </IconBtn>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {rejecting === doc.type && (
+                  {!locked && rejecting === doc.type && (
                     <div className="mt-2 flex items-center gap-2">
                       <input
                         autoFocus

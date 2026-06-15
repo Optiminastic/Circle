@@ -10,7 +10,7 @@ import { qk } from '@/lib/query/keys';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { pushCalendarEvent } from '@/lib/api/calendar';
 import { BRAND } from '@/lib/brand';
-import { HR_EMAIL, OFFICE_ADDRESS, OFFICE_LOCATION_URL } from '@/lib/config';
+import { HR_EMAIL } from '@/lib/config';
 import { randomId, nowISO } from '@/lib/utils';
 import {
   InterviewScheduleModal,
@@ -251,8 +251,10 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             minute: '2-digit',
           });
 
-      // Basic assignment notice only — the resume + interview questions are sent
-      // separately from the Physical Interview step once the candidate gets there.
+      // Interviewer brief — candidate details + the time only. Mode and office
+      // location are intentionally omitted (those are for the candidate); the
+      // resume + interview questions are sent separately from the Physical
+      // Interview step once the candidate gets there.
       const ivBody = [
         `Hi ${input.interviewerName || 'there'},`,
         '',
@@ -261,17 +263,11 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         `Candidate: ${c.fullName}`,
         `Role applied: ${position} (${c.department})`,
         `Experience: ${c.totalExperienceYears} yrs total · ${c.relevantExperienceYears} yrs relevant`,
+        `Current: ${c.currentCompany || '—'} — ${c.currentDesignation || '—'}`,
+        `Email: ${c.email || '—'}`,
+        `Phone: ${c.phone || '—'}`,
         '',
         `When: ${whenStr}`,
-        `Mode: ${input.type}`,
-        // Offline: office address as text + a "View map" anchor ([[label|url]]
-        // is rendered as a clickable link by the email backend). Online has no
-        // physical location.
-        ...(input.type === 'Offline'
-          ? [`Location: ${OFFICE_ADDRESS}`, `[[View map|${OFFICE_LOCATION_URL}]]`]
-          : input.location
-            ? [`Location: ${input.location}`]
-            : []),
         input.notes ? `\nNotes: ${input.notes}` : '',
         '',
         `— ${BRAND.company}`,
