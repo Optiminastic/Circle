@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Logo } from '@/components/Logo';
+import { QuizRunner } from '@/components/QuizRunner';
 import { BRAND } from '@/lib/brand';
 import { TestInvite, IQTest } from '@/types';
 import { repositories } from '@/lib/api/repositories';
@@ -382,7 +383,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
                   attempt cannot be accepted.
                 </p>
               </div>
-              <div className="w-full max-w-sm rounded-2xl border border-[#E2DCCF] bg-[#F7F8FA] px-5 py-3.5 text-sm text-gray-600">
+              <div className="w-full max-w-sm rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-3.5 text-sm text-gray-600">
                 Our HR team has been notified — you&apos;ll receive an email about the outcome.
               </div>
             </div>
@@ -391,57 +392,25 @@ function TestFlow({ invite }: { invite: TestInvite }) {
       );
     }
 
-    const passed = result.passed;
-    const tone = passed
-      ? { ring: 'ring-emerald-100', circle: 'border-emerald-200', text: 'text-emerald-600', soft: 'bg-emerald-50' }
-      : { ring: 'ring-red-100', circle: 'border-red-200', text: 'text-red-500', soft: 'bg-red-50' };
-
+    // Candidate-facing completion — deliberately shows NO score / pass-fail.
+    // The result is evaluated server-side and communicated to them by email.
     return (
       <Shell>
         <Card>
-          <div className="flex flex-col items-center gap-5 px-6 py-11 text-center">
-            <span
-              className={`grid h-16 w-16 place-items-center rounded-full ${tone.soft} ${tone.text} ring-8 ${tone.ring}`}
-            >
-              {passed ? <Sparkles size={30} /> : <XCircle size={30} />}
+          <div className="flex flex-col items-center gap-5 px-6 py-12 text-center">
+            <span className="grid h-16 w-16 place-items-center rounded-full bg-accent-50 text-accent-600 ring-8 ring-accent-50/60">
+              <CheckCircle2 size={30} />
             </span>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {passed ? 'Congratulations — you passed!' : 'Test submitted'}
-              </h1>
-              <p className="mx-auto mt-1.5 max-w-md text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-gray-900">Test submitted</h1>
+              <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-gray-500">
                 {result.autoSubmitted &&
                   'Your test was submitted automatically (time limit reached). '}
-                Your responses have been recorded.
+                Thank you, {invite.candidateName.split(' ')[0]} — your responses have been recorded.
               </p>
             </div>
-
-            {/* Score gauge */}
-            <div
-              className={`grid h-40 w-40 place-items-center rounded-full border-8 ${tone.circle} bg-white shadow-inner`}
-            >
-              <div className="leading-none">
-                <p className={`text-5xl font-extrabold tabular-nums ${tone.text}`}>
-                  {result.score}
-                  {invite.kind === 'assessment' && <span className="text-2xl">%</span>}
-                </p>
-                <p className="mt-2 text-[11px] font-mono uppercase tracking-wider text-gray-400">
-                  {invite.kind === 'iq' ? `out of ${IQ_TOTAL_MARKS}` : 'score'}
-                </p>
-              </div>
-            </div>
-            <p className="-mt-1 text-[12px] font-medium text-gray-500">
-              {invite.kind === 'iq'
-                ? `Qualifying score: ${IQ_PASS_SCORE} / ${IQ_TOTAL_MARKS}`
-                : `Qualifying score: ${ASSESSMENT_PASS_PERCENT}% +`}
-            </p>
-
-            <div className="w-full max-w-sm rounded-2xl border border-[#E2DCCF] bg-[#F7F8FA] px-5 py-3.5 text-sm text-gray-600">
-              {passed
-                ? invite.kind === 'iq'
-                  ? '📧 Check your email — your role assessment link is on its way.'
-                  : '📧 Check your email — details about your in-person interview are on the way.'
-                : 'Our HR team has been notified — you’ll receive an email about the outcome.'}
+            <div className="w-full max-w-sm rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-3.5 text-sm text-gray-600">
+              📧 Our HR team will review your submission and email you about the next steps.
             </div>
           </div>
         </Card>
@@ -495,7 +464,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
               ].map(({ icon: Icon, value, label }) => (
                 <div
                   key={label}
-                  className="rounded-2xl border border-[#E2DCCF] bg-white/70 py-4 transition hover:border-accent-300"
+                  className="rounded-2xl border border-[#E4E6EA] bg-white/70 py-4 transition hover:border-accent-300"
                 >
                   <Icon size={17} className="mx-auto text-accent-600" />
                   <p className="mt-1.5 text-xl font-bold tabular-nums text-gray-900">{value}</p>
@@ -504,7 +473,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
               ))}
             </div>
 
-            <div className="rounded-2xl border border-[#E2DCCF] bg-[#F7F8FA] p-5">
+            <div className="rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] p-5">
               <p className="flex items-center gap-2 text-sm font-bold text-gray-900">
                 <ShieldAlert size={16} className="text-accent-600" /> Test rules — read carefully
               </p>
@@ -545,40 +514,32 @@ function TestFlow({ invite }: { invite: TestInvite }) {
   }
 
   /* --------------------------- running ----------------------------- */
-  const progress = Math.round((answered / questions.length) * 100);
-  const totalPages = Math.ceil(questions.length / PAGE_SIZE);
-  const pageStart = page * PAGE_SIZE;
-  const pageQuestions = questions.slice(pageStart, pageStart + PAGE_SIZE);
-  const isLastPage = page >= totalPages - 1;
-  const goToPage = (next: number) => {
-    setPage(Math.max(0, Math.min(totalPages - 1, next)));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  return (
-    <div className="flex min-h-screen flex-col select-none bg-gradient-to-b from-[#F6F7F9] to-[#E4E6EA]">
-      {/* Sticky proctor bar */}
-      <div className="sticky top-0 z-50 bg-gradient-to-r from-accent-700 to-accent-800 text-white shadow-md">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-2.5">
+  const goToQuestion = (next: number) => setPage(Math.max(0, Math.min(questions.length - 1, next)));
+  const items = questions.map(q => ({ key: q.id, prompt: q.q, options: q.options }));
+
+  const proctorBar = (
+    <>
+      <div className="sticky top-0 z-50 border-b border-[#E4E6EA] bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-white/15">
-              <Logo size={16} />
+            <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-accent-500 to-accent-700 text-white">
+              <Logo size={15} />
             </span>
-            <span className="truncate text-xs font-bold">
+            <span className="truncate text-[13px] font-bold text-gray-900">
               {isIq ? 'IQ Test' : `${invite.position} Assessment`}
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            <span className="hidden text-[10px] font-mono text-white/70 sm:inline">
-              {answered}/{questions.length}
-            </span>
+          <div className="flex shrink-0 items-center gap-2">
             {violations > 0 && (
-              <span className="flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-mono font-bold text-amber-200">
+              <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
                 <AlertTriangle size={11} /> {violations}/{MAX_VIOLATIONS}
               </span>
             )}
             <span
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-mono font-bold tabular-nums ${
-                lowTime ? 'animate-pulse bg-white text-red-600' : 'bg-white/15 text-white'
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-mono text-sm font-bold tabular-nums ${
+                lowTime
+                  ? 'animate-pulse bg-red-50 text-red-600 ring-1 ring-red-200'
+                  : 'bg-[#F1F3F5] text-gray-700'
               }`}
             >
               <Timer size={13} />
@@ -586,137 +547,38 @@ function TestFlow({ invite }: { invite: TestInvite }) {
             </span>
           </div>
         </div>
-        {/* Progress bar */}
-        <div className="h-1 w-full bg-black/15">
-          <div
-            className="h-full bg-white/80 transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
       </div>
 
-      {/* Violation warning */}
       {warning && (
-        <div className="sticky top-[53px] z-40 flex items-center gap-2 border-b border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700">
-          <div className="mx-auto flex w-full max-w-3xl items-center gap-2">
+        <div className="sticky top-[45px] z-40 border-b border-red-200 bg-red-50">
+          <div className="mx-auto flex w-full max-w-5xl items-center gap-2 px-4 py-2.5 text-xs text-red-700 lg:px-6">
             <AlertTriangle size={14} className="shrink-0" />
             <span className="font-semibold">{warning}</span>
             <button
               onClick={() => setWarning(null)}
-              className="ml-auto font-bold text-red-400 hover:text-red-600 cursor-pointer"
+              className="ml-auto cursor-pointer font-bold text-red-400 hover:text-red-600"
             >
               ✕
             </button>
           </div>
         </div>
       )}
+    </>
+  );
 
-      {/* Content area — fills the space between the bar and the pager and
-          vertically centres the single question. */}
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pb-28">
-        {/* Page heading */}
-        <div className="pt-6">
-          <div className="flex items-center justify-between">
-            <p className="font-mono text-xs font-bold uppercase tracking-wider text-gray-500">
-              Question {page + 1} <span className="text-gray-400">of {totalPages}</span>
-            </p>
-            <p className="text-[11px] font-medium text-gray-500">{answered} answered</p>
-          </div>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#E4E6EA]">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-accent-500 to-accent-700 transition-all duration-300"
-              style={{ width: `${((page + 1) / totalPages) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-1 items-center justify-center py-6">
-          {pageQuestions.map((q, idx) => {
-            const i = pageStart + idx;
-            const done = answers[q.id] !== undefined;
-            return (
-              <div
-                key={q.id}
-                className="w-full rounded-3xl border border-[#E2DCCF] bg-[#FBFAF7] p-6 shadow-[0_20px_50px_-24px_rgba(95,15,22,0.25)] sm:p-9"
-              >
-                <div className="flex items-start gap-4">
-                  <span
-                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold transition ${
-                      done ? 'bg-accent-600 text-white' : 'bg-[#F1F3F5] text-gray-500'
-                    }`}
-                  >
-                    {done ? <Check size={18} /> : i + 1}
-                  </span>
-                  <p className="pt-1 text-lg font-semibold leading-relaxed text-gray-900 sm:text-xl">
-                    {q.q}
-                  </p>
-                </div>
-                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {q.options.map((opt, idx) => {
-                    const selected = answers[q.id] === idx;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => pick(q.id, idx)}
-                        className={`flex items-center gap-3 rounded-2xl border px-4 py-4 text-left text-sm transition cursor-pointer ${
-                          selected
-                            ? 'border-accent-500 bg-accent-50 font-semibold text-accent-800 ring-2 ring-accent-500/25'
-                            : 'border-[#E2DCCF] text-gray-700 hover:border-accent-300 hover:bg-[#F7F8FA]'
-                        }`}
-                      >
-                        <span
-                          className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold transition ${
-                            selected ? 'bg-accent-600 text-white' : 'bg-[#F1F3F5] text-gray-500'
-                          }`}
-                        >
-                          {selected ? <Check size={15} /> : String.fromCharCode(65 + idx)}
-                        </span>
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </main>
-
-      {/* Pager / submit bar */}
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E2DCCF] bg-[#FBFAF7]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <button
-            onClick={() => goToPage(page - 1)}
-            disabled={page === 0}
-            className="flex items-center gap-1.5 rounded-xl border border-[#E2DCCF] bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-[#F7F8FA] disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-          >
-            <ArrowLeft size={15} /> Previous
-          </button>
-
-          <p className="hidden text-[11px] font-medium text-gray-500 sm:block">
-            {answered}/{questions.length} answered
-          </p>
-
-          {isLastPage ? (
-            <button
-              onClick={() => submit('manual')}
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-accent-600 to-accent-700 px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-px cursor-pointer"
-            >
-              <Check size={16} /> Submit test
-            </button>
-          ) : (
-            <button
-              onClick={() => goToPage(page + 1)}
-              className="group flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-accent-600 to-accent-700 px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-px cursor-pointer"
-            >
-              Next
-              <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+  return (
+    <QuizRunner
+      title={isIq ? 'IQ Test' : `${invite.position} Assessment`}
+      subtitle={`Hi ${invite.candidateName} — answer each question, then submit.`}
+      items={items}
+      answers={answers}
+      current={page}
+      onPick={pick}
+      onNavigate={goToQuestion}
+      onSubmit={() => submit('manual')}
+      requireAll={false}
+      topBar={proctorBar}
+    />
   );
 }
 
@@ -768,7 +630,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 /** Elevated surface used by every non-running screen. */
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-[#E2DCCF] bg-[#FBFAF7] shadow-[0_20px_50px_-20px_rgba(95,15,22,0.25)]">
+    <div className="relative overflow-hidden rounded-3xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-sm">
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-accent-400 via-accent-600 to-accent-800"

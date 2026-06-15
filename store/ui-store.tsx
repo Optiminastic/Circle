@@ -23,6 +23,9 @@ interface UiState {
   openCandidate: (id: string, tab?: CandidateTab) => void;
   selectedEmployeeId: string | null;
   setSelectedEmployeeId: (id: string | null) => void;
+  /** Whether the global ⌘K command/search palette is open. */
+  commandOpen: boolean;
+  setCommandOpen: (open: boolean) => void;
 }
 
 const UiStateContext = createContext<UiState | null>(null);
@@ -33,6 +36,7 @@ export function UiStateProvider({ children }: { children: React.ReactNode }) {
   const [selectedCandidateId, _setSelectedCandidateId] = useState<string | null>(null);
   const [selectedCandidateTab, setSelectedCandidateTab] = useState<CandidateTab>('profile');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [commandOpen, setCommandOpen] = useState(false);
 
   const setSelectedCandidateId = (id: string | null) => {
     setSelectedCandidateTab('profile');
@@ -56,9 +60,11 @@ export function UiStateProvider({ children }: { children: React.ReactNode }) {
       openCandidate,
       selectedEmployeeId,
       setSelectedEmployeeId,
+      commandOpen,
+      setCommandOpen,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [userRole, searchQuery, selectedCandidateId, selectedCandidateTab, selectedEmployeeId],
+    [userRole, searchQuery, selectedCandidateId, selectedCandidateTab, selectedEmployeeId, commandOpen],
   );
 
   return <UiStateContext.Provider value={value}>{children}</UiStateContext.Provider>;

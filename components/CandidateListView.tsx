@@ -11,6 +11,8 @@ import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Candidate, CandidateStatus } from '../types';
 import { useUiStore } from '@/store/ui-store';
+import { useOrgSettings } from '@/store/org-settings';
+import { EditableSelect } from '@/components/ui/editable-select';
 import {
   Search,
   Filter,
@@ -99,6 +101,8 @@ interface CandidateListViewProps {
   onSetFit?: (id: string, rating: FitRating) => void;
   /** Show the "Candidate Evaluation & ATS Panel" header with the Add Candidate button. */
   showHeader?: boolean;
+  /** Show the Evaluation Filters bar (search / department / status / source). */
+  showFilters?: boolean;
 }
 
 export function CandidateListView({
@@ -108,9 +112,12 @@ export function CandidateListView({
   onDeleteCandidate,
   onSetFit,
   showHeader = true,
+  showFilters = true,
 }: CandidateListViewProps) {
   const toast = useToast();
   const qc = useQueryClient();
+  const { openCandidate } = useUiStore();
+  const org = useOrgSettings();
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -139,8 +146,9 @@ export function CandidateListView({
     hrRemarks: 'Great dynamic design mindset and solid code patterns.',
   });
 
-  // Unique lists for dropdowns
-  const departments = ['All', 'Engineering', 'Product', 'Design', 'Sales', 'Human Resources'];
+  // Dropdown lists — roles/departments/sources come from the customisable
+  // org-settings store; statuses are pipeline-driven so they stay fixed.
+  const departments = ['All', ...org.departments];
   const statuses = [
     'All',
     'New Application',
@@ -150,7 +158,7 @@ export function CandidateListView({
     'Rejected',
     'On Hold',
   ];
-  const sources = ['All', 'LinkedIn', 'Referral', 'Direct Application', 'Headhunted'];
+  const sources = ['All', ...org.sources];
 
   // Apply sequential pipeline filters
   const filtered = candidates.filter(cand => {
@@ -290,6 +298,7 @@ export function CandidateListView({
       )}
 
       {/* Advanced Filter Bars */}
+      {showFilters && (
       <div className="bg-[#FFFFFF] border border-[#E4E6EA] p-4 rounded-xl shadow-2xs space-y-3">
         <div className="flex items-center gap-2 text-gray-700 font-semibold mb-1">
           <SlidersHorizontal size={13} className="text-accent-600" />
@@ -374,6 +383,7 @@ export function CandidateListView({
           </div>
         </div>
       </div>
+      )}
 
       {/* Main Tabular candidate container */}
       <SelectionBar count={sel.count} onClear={sel.clear}>
@@ -598,43 +608,36 @@ export function CandidateListView({
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <Label className="text-sm font-medium">Applied role</Label>
-                      <Select
+                      <EditableSelect
                         value={newCand.appliedRole}
-                        onChange={e => setNewCand({ ...newCand, appliedRole: e.target.value })}
-                        className="mt-2 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm shadow-xs"
-                      >
-                        <option value="Senior React Engineer">Senior React Engineer</option>
-                        <option value="Senior Product Manager">Senior Product Manager</option>
-                        <option value="Principal UX Architect">Principal UX Architect</option>
-                        <option value="VP of Platform Engineering">VP of Platform Engineering</option>
-                        <option value="HR Director">HR Director</option>
-                      </Select>
+                        onChange={v => setNewCand({ ...newCand, appliedRole: v })}
+                        options={org.roles}
+                        onAdd={v => org.add('roles', v)}
+                        placeholder="Select role"
+                        className="mt-2"
+                      />
                     </div>
                     <div>
                       <Label className="text-sm font-medium">Department</Label>
-                      <Select
+                      <EditableSelect
                         value={newCand.department}
-                        onChange={e => setNewCand({ ...newCand, department: e.target.value })}
-                        className="mt-2 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm shadow-xs"
-                      >
-                        <option value="Engineering">Engineering</option>
-                        <option value="Product">Product</option>
-                        <option value="Design">Design</option>
-                        <option value="Human Resources">HR</option>
-                      </Select>
+                        onChange={v => setNewCand({ ...newCand, department: v })}
+                        options={org.departments}
+                        onAdd={v => org.add('departments', v)}
+                        placeholder="Select department"
+                        className="mt-2"
+                      />
                     </div>
                     <div>
                       <Label className="text-sm font-medium">Source</Label>
-                      <Select
+                      <EditableSelect
                         value={newCand.sourceOfApplication}
-                        onChange={e => setNewCand({ ...newCand, sourceOfApplication: e.target.value })}
-                        className="mt-2 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm shadow-xs"
-                      >
-                        <option value="LinkedIn">LinkedIn</option>
-                        <option value="Referral">Referral</option>
-                        <option value="Direct Application">Direct App</option>
-                        <option value="Headhunted">Headhunted</option>
-                      </Select>
+                        onChange={v => setNewCand({ ...newCand, sourceOfApplication: v })}
+                        options={org.sources}
+                        onAdd={v => org.add('sources', v)}
+                        placeholder="Select source"
+                        className="mt-2"
+                      />
                     </div>
                     <div>
                       <Label htmlFor="cand-exp" className="text-sm font-medium">

@@ -18,6 +18,21 @@ import { workspace } from '@/lib/config';
 import { BRAND } from '@/lib/brand';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { DatePicker, DateTimePicker } from '@/components/ui/date-picker';
+import { EditableSelect } from '@/components/ui/editable-select';
+import { TaxonomyManager } from '@/components/TaxonomyManager';
+import { useOrgSettings } from '@/store/org-settings';
+import { useRouter } from 'next/navigation';
+import { QUESTION_CATEGORIES } from '@/lib/question-library';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -36,6 +51,7 @@ import {
   Mail,
   Settings,
   Plus,
+  ChevronRight,
   Search,
   Filter,
   CheckCircle,
@@ -330,16 +346,13 @@ export function InterviewsView({
         </button>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-xs flex items-center justify-center z-50">
-          <form
-            onSubmit={handleSubmit}
-            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#E4E6EA] shadow-lg w-96 space-y-3.5"
-          >
-            <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider font-mono">
-              Schedule Candidate Panel
-            </h3>
-
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule candidate panel</DialogTitle>
+            <DialogDescription>Set up an interview slot for a candidate.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
             <div className="space-y-1">
               <label className="font-semibold text-gray-700">Select Available Candidate</label>
               <Select
@@ -379,12 +392,10 @@ export function InterviewsView({
 
             <div className="space-y-1">
               <label className="font-semibold text-gray-700">Date & Slot Time</label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
                 value={form.dateTime}
-                onChange={e => setForm({ ...form, dateTime: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
-                required
+                onChange={v => setForm({ ...form, dateTime: v })}
+                step={15}
               />
             </div>
 
@@ -401,24 +412,15 @@ export function InterviewsView({
               </Select>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="px-3 py-1.5 border border-[#E4E6EA] hover:bg-[#EDEEF1] rounded text-gray-600 font-semibold cursor-pointer"
-              >
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-accent-600 hover:bg-accent-700 text-white rounded font-semibold cursor-pointer"
-              >
-                Confirm Schedule
-              </button>
-            </div>
+              </Button>
+              <Button type="submit">Confirm Schedule</Button>
+            </DialogFooter>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Scheduled interviews table */}
       <SelectionBar count={sel.count} onClear={sel.clear} />
@@ -811,145 +813,62 @@ export function IQTestAssignmentsView({
 // ==========================================
 interface OnboardingViewProps {
   onboarding: OnboardingChecklist[];
-  onToggleTask: (candidateName: string, taskId: string) => void;
-  onAddEmployeeTrigger: (checklist: OnboardingChecklist) => void;
 }
 
-export function OnboardingChecklistView({
-  onboarding,
-  onToggleTask,
-  onAddEmployeeTrigger,
-}: OnboardingViewProps) {
-  const toast = useToast();
-  const [selectedCandidate, setSelectedCandidate] = useState('');
-
-  const activeChecklist = onboarding.find(o => o.candidateName === selectedCandidate) ?? onboarding[0];
+export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
+  const router = useRouter();
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex justify-between items-baseline">
-        <div>
-          <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
-            Onboarding Progress Tracker
-          </h2>
-          <p className="text-gray-500 text-[11px]">
-            Checklist-driven joiner actions. Completing criteria enables corporate asset/login allocations.
-          </p>
-        </div>
-
-        {/* Selected Joiners Selector */}
-        <Select
-          value={selectedCandidate}
-          onChange={e => setSelectedCandidate(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-[#E4E6EA] bg-[#FFFFFF] rounded font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-        >
-          {onboarding.map(o => (
-            <option key={o.candidateId} value={o.candidateName}>
-              {o.candidateName}
-            </option>
-          ))}
-        </Select>
+      <div>
+        <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
+          Onboarding Progress Tracker
+        </h2>
+        <p className="text-gray-500 text-[11px]">
+          Checklist-driven joiner actions. Open a joiner to manage their checklist and journey.
+        </p>
       </div>
 
-      {activeChecklist ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Progress Circular indicators */}
-          <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 flex flex-col justify-between space-y-4">
-            <div className="space-y-1.5">
-              <span className="text-[11px] text-gray-500 font-mono font-semibold uppercase tracking-wider">
-                Candidate Progress
-              </span>
-              <h3 className="font-bold text-gray-900 font-display text-base truncate">
-                {activeChecklist.candidateName}
-              </h3>
-              <p className="text-[11px] text-accent-600 font-semibold font-mono">
-                {activeChecklist.onboardingStatus}
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center justify-center py-4 bg-[#EDEEF1]/50 rounded-lg">
-              <div className="text-3xl font-extrabold text-accent-600 font-display">
-                {activeChecklist.progressPercentage}%
-              </div>
-              <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider block mt-1">
-                Actions Complete
-              </span>
-            </div>
-
-            {/* Check off fully triggers On Board option if 100% */}
-            {activeChecklist.progressPercentage === 100 ? (
-              <button
-                onClick={() => {
-                  onAddEmployeeTrigger(activeChecklist);
-                  toast.success(
-                    `${activeChecklist.candidateName} onboarded into the employee directory.`,
-                  );
-                }}
-                className="w-full bg-accent-600 hover:bg-accent-700 text-white font-medium rounded py-2 transition cursor-pointer text-center font-semibold"
-              >
-                Conclude Onboarding (EMP-ID)
-              </button>
-            ) : (
-              <button
-                disabled
-                className="w-full bg-[#EDEEF1] text-gray-500 font-medium rounded py-2 text-center text-[10px] font-mono cursor-not-allowed"
-              >
-                Clear all tasks to active EMP conversion
-              </button>
-            )}
-          </div>
-
-          {/* Checklist Tasks List (Linear style) (Col-span-2) */}
-          <div className="md:col-span-2 bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4">
-            <div className="border-b border-[#EDEEF1] pb-2">
-              <h4 className="font-bold text-gray-900">Pre-joining & Induction Checklist Items</h4>
-              <p className="text-[10px] text-gray-500">Click checkboxes to log finalized state:</p>
-            </div>
-
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-              {activeChecklist.tasks.map(t => (
-                <div
-                  key={t.id}
-                  onClick={() => onToggleTask(activeChecklist.candidateName, t.id)}
-                  className="flex items-center gap-3 p-2.5 border border-[#E4E6EA] hover:bg-[#EDEEF1] rounded-lg cursor-pointer transition"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition ${
-                      t.isChecked
-                        ? 'bg-accent-600 border-accent-600 text-white'
-                        : 'border-gray-300 bg-[#FFFFFF]'
-                    }`}
-                  >
-                    {t.isChecked && <Check size={10} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`font-medium ${t.isChecked ? 'line-through text-gray-500' : 'text-gray-800'}`}
-                    >
-                      {t.title}
-                    </p>
-                    <span className="text-[9px] text-gray-500 font-mono italic block mt-0.5">
-                      Category: {t.category}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Where the candidate is in the onboarding journey */}
-          <OnboardingStepper checklist={activeChecklist} />
-
-          {/* Joining document collection + verification */}
-          <DocRequestPanel
-            candidateId={activeChecklist.candidateId}
-            candidateName={activeChecklist.candidateName}
-          />
-        </div>
-      ) : (
+      {/* Joiners table — click a row to open their full onboarding page */}
+      {onboarding.length === 0 ? (
         <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-6 text-center text-gray-500">
           No candidates in the onboarding pipeline presently.
         </div>
+      ) : (
+        <Table minWidth={560}>
+          <THead>
+            <Th icon={<UserCheck size={11} />}>Candidate</Th>
+            <Th icon={<Boxes size={11} />}>Status</Th>
+            <Th icon={<CheckCircle size={11} />}>Progress</Th>
+            <Th align="right">Open</Th>
+          </THead>
+          <TBody>
+            {onboarding.map(o => (
+              <Tr key={o.candidateId} onClick={() => router.push(`/onboarding/${o.candidateId}`)}>
+                <Td className="font-semibold text-gray-900">{o.candidateName}</Td>
+                <Td>
+                  <TagPill color={o.progressPercentage === 100 ? 'green' : 'blue'}>
+                    {o.onboardingStatus}
+                  </TagPill>
+                </Td>
+                <Td>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EDEEF1]">
+                      <div
+                        className="h-full rounded-full bg-accent-600"
+                        style={{ width: `${o.progressPercentage}%` }}
+                      />
+                    </div>
+                    <span className="font-mono text-[11px] text-gray-600">{o.progressPercentage}%</span>
+                  </div>
+                </Td>
+                <Td align="right">
+                  <ChevronRight size={14} className="inline text-gray-400" />
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
       )}
     </div>
   );
@@ -998,12 +917,13 @@ export function EmployeeDirectoryView({
   onDeleteEmployees,
 }: DirectoryViewProps) {
   const toast = useToast();
+  const org = useOrgSettings();
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
   const [showAddForm, setShowAddForm] = useState(false);
   const [empForm, setEmpForm] = useState(EMPTY_EMPLOYEE_FORM);
 
-  const departments = ['All', 'Engineering', 'Product', 'Design', 'Sales', 'Human Resources'];
+  const departments = ['All', ...org.departments];
 
   const handleAddEmployee = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1100,22 +1020,22 @@ export function EmployeeDirectoryView({
         {/* Directory filter bars */}
         <div className="flex items-center gap-2">
           <div className="relative">
-            <span className="absolute left-2 top-2 text-gray-500">
-              <Search size={12} />
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500">
+              <Search size={13} />
             </span>
             <input
               type="text"
               placeholder="Filter names..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-7 pr-3 py-1 bg-[#FFFFFF] border border-[#E4E6EA] rounded text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="h-9 w-52 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] pl-8 pr-3 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
           </div>
 
           <Select
             value={selectedDept}
             onChange={e => setSelectedDept(e.target.value)}
-            className="px-2 py-1 bg-[#FFFFFF] border border-[#E4E6EA] rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 font-medium"
+            className="h-9 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           >
             {departments.map(d => (
               <option key={d} value={d}>
@@ -1128,9 +1048,9 @@ export function EmployeeDirectoryView({
             <button
               id="btn-add-employee"
               onClick={() => setShowAddForm(true)}
-              className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition font-semibold shrink-0 shadow-2xs"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
             >
-              <Plus size={13} /> Add Employee
+              <Plus size={14} /> Add Employee
             </button>
           )}
         </div>
@@ -1180,14 +1100,23 @@ export function EmployeeDirectoryView({
                 <Td select checked={sel.isSelected(emp.id)} onToggle={() => sel.toggle(emp.id)} />
                 <Td>
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-purple-50 text-[10px] font-bold text-purple-600">
-                      {emp.fullName
-                        .split(' ')
-                        .map(n => n[0])
-                        .slice(0, 2)
-                        .join('')
-                        .toUpperCase()}
-                    </div>
+                    {emp.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={emp.avatarUrl}
+                        alt=""
+                        className="size-7 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-purple-50 text-[10px] font-bold text-purple-600">
+                        {emp.fullName
+                          .split(' ')
+                          .map(n => n[0])
+                          .slice(0, 2)
+                          .join('')
+                          .toUpperCase()}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="truncate text-[12px] font-bold text-gray-900">{emp.fullName}</p>
                       {emp.email && <p className="truncate font-mono text-[10px] text-gray-500">{emp.email}</p>}
@@ -1211,25 +1140,13 @@ export function EmployeeDirectoryView({
       </Table>
 
       {/* Add Employee modal — register existing staff with full details */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-gray-900/45 backdrop-blur-xs flex items-center justify-center z-[110] p-4">
-          <form
-            onSubmit={handleAddEmployee}
-            className="bg-[#FFFFFF] p-5 rounded-xl border border-[#E4E6EA] shadow-2xl w-full max-w-2xl space-y-3.5 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex justify-between items-center border-b border-[#ECEDF0] pb-2">
-              <h3 className="font-bold text-gray-900 text-xs font-mono uppercase tracking-wider">
-                Add Employee to Directory
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="text-gray-500 hover:text-gray-600 cursor-pointer p-1"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
+      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add employee to directory</DialogTitle>
+            <DialogDescription>Register existing staff with their full details.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddEmployee} className="space-y-3.5 text-xs">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div className="space-y-1">
                 <label className="font-semibold text-gray-700">Full Name *</label>
@@ -1244,13 +1161,12 @@ export function EmployeeDirectoryView({
               </div>
               <div className="space-y-1">
                 <label className="font-semibold text-gray-700">Role / Designation *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Senior React Engineer"
+                <EditableSelect
                   value={empForm.role}
-                  onChange={e => setEmpForm({ ...empForm, role: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-                  required
+                  onChange={v => setEmpForm({ ...empForm, role: v })}
+                  options={org.roles}
+                  onAdd={v => org.add('roles', v)}
+                  placeholder="Select role"
                 />
               </div>
             </div>
@@ -1281,17 +1197,13 @@ export function EmployeeDirectoryView({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
               <div className="space-y-1">
                 <label className="font-semibold text-gray-700">Department</label>
-                <Select
+                <EditableSelect
                   value={empForm.department}
-                  onChange={e => setEmpForm({ ...empForm, department: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1]"
-                >
-                  <option value="Engineering">Engineering</option>
-                  <option value="Product">Product</option>
-                  <option value="Design">Design</option>
-                  <option value="Sales">Sales</option>
-                  <option value="Human Resources">Human Resources</option>
-                </Select>
+                  onChange={v => setEmpForm({ ...empForm, department: v })}
+                  options={org.departments}
+                  onAdd={v => org.add('departments', v)}
+                  placeholder="Select department"
+                />
               </div>
               <div className="space-y-1">
                 <label className="font-semibold text-gray-700">Status</label>
@@ -1309,11 +1221,9 @@ export function EmployeeDirectoryView({
               </div>
               <div className="space-y-1">
                 <label className="font-semibold text-gray-700">Joining Date</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={empForm.joiningDate}
-                  onChange={e => setEmpForm({ ...empForm, joiningDate: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] font-mono"
+                  onChange={v => setEmpForm({ ...empForm, joiningDate: v })}
                 />
               </div>
               <div className="space-y-1">
@@ -1377,11 +1287,9 @@ export function EmployeeDirectoryView({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
                 <div className="space-y-1">
                   <label className="font-semibold text-gray-700">Date of Birth</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={empForm.dateOfBirth}
-                    onChange={e => setEmpForm({ ...empForm, dateOfBirth: e.target.value })}
-                    className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] font-mono focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    onChange={v => setEmpForm({ ...empForm, dateOfBirth: v })}
                   />
                 </div>
                 <div className="space-y-1">
@@ -1482,24 +1390,15 @@ export function EmployeeDirectoryView({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="px-4 py-1.5 border border-[#E4E6EA] hover:bg-[#EDEEF1] rounded text-gray-650 cursor-pointer font-semibold"
-              >
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-accent-600 hover:bg-accent-700 text-white rounded cursor-pointer font-semibold"
-              >
-                Add to Directory
-              </button>
-            </div>
+              </Button>
+              <Button type="submit">Add to Directory</Button>
+            </DialogFooter>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1876,180 +1775,54 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
 // ==========================================
 interface OffboardingViewProps {
   offboarding: OffboardingWorkflow[];
-  onToggleExitTask: (empId: string, taskId: string) => void;
-  onToggleDeliverable: (empId: string, deliverableId: string) => void;
-  onConfirmClearance: (empId: string) => void;
 }
 
-export function OffboardingChecklistView({
-  offboarding,
-  onToggleExitTask,
-  onToggleDeliverable,
-  onConfirmClearance,
-}: OffboardingViewProps) {
-  const toast = useToast();
-  const [selectedCase, setSelectedCase] = useState('');
-
-  // Data loads asynchronously, so fall back to the first case until one is picked.
-  const activeCase = offboarding.find(o => o.employeeName === selectedCase) ?? offboarding[0];
+export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) {
+  const router = useRouter();
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
-            Offboarding & exit Workflows
-          </h2>
-          <p className="text-gray-500 text-[11px]">
-            Notice period clearances, asset collection, and formal Knowledge Transfer document approvals.
-          </p>
-        </div>
-
-        <Select
-          value={selectedCase}
-          onChange={e => setSelectedCase(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-[#E4E6EA] bg-[#FFFFFF] rounded font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-        >
-          {offboarding.map(o => (
-            <option key={o.employeeId} value={o.employeeName}>
-              {o.employeeName}
-            </option>
-          ))}
-        </Select>
+      <div>
+        <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
+          Offboarding & exit Workflows
+        </h2>
+        <p className="text-gray-500 text-[11px]">
+          Open an exit case to manage notice clearances, deliverables, and handover documents.
+        </p>
       </div>
 
-      {activeCase ? (
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* KT & Notice Summary Card */}
-          <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 flex flex-col justify-between space-y-4">
-            <div className="space-y-2">
-              <span className="text-[10px] text-red-650 bg-red-50 font-bold px-2 py-0.5 rounded">
-                Resignation Triggered
-              </span>
-              <h3 className="font-bold text-gray-900 font-display text-base mt-2">
-                {activeCase.employeeName}
-              </h3>
-              <p className="text-gray-500">
-                Notice end:{' '}
-                <span className="font-mono font-bold text-gray-800">{activeCase.lastWorkingDay}</span>
-              </p>
-              <div className="bg-[#EDEEF1] p-2.5 rounded-lg text-[10px] border border-[#E4E6EA] space-y-1.5 font-mono">
-                <p className="text-gray-500 uppercase font-bold text-[9px]">Knowledge Transfer Summary:</p>
-                <p className="text-gray-700 font-sans">{activeCase.ktRecord?.currentProjects}</p>
-                <div className="flex justify-between mt-2 font-bold py-1 border-t border-gray-150">
-                  <span>KT Status:</span>
-                  <span className="text-accent-600">{activeCase.ktRecord?.ktCompletionStatus}</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                onConfirmClearance(activeCase.employeeId);
-                toast.success(`Final settlement signed for ${activeCase.employeeName}.`);
-              }}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-medium rounded py-2 transition font-semibold"
-            >
-              Sign Final Settlement
-            </button>
-          </div>
-
-          {/* Checkout clearances list */}
-          <div className="md:col-span-2 bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-3">
-            <h4 className="font-bold text-gray-900 border-b border-[#EDEEF1] pb-1.5">
-              Compliance Clearance Checkpoints
-            </h4>
-            <div className="space-y-2 max-h-[320px] overflow-y-auto">
-              {activeCase.checklist.map(t => (
-                <div
-                  key={t.id}
-                  onClick={() => onToggleExitTask(activeCase.employeeId, t.id)}
-                  className="flex items-center gap-3 p-2.5 border border-[#E4E6EA] hover:bg-gray-55 rounded-lg cursor-pointer transition"
-                >
-                  <div
-                    className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition ${
-                      t.isChecked ? 'bg-red-600 border-red-600 text-white' : 'border-gray-300 bg-[#FFFFFF]'
-                    }`}
-                  >
-                    {t.isChecked && <Check size={10} />}
-                  </div>
-                  <div className="flex-1">
-                    <p
-                      className={`font-medium ${t.isChecked ? 'line-through text-gray-500' : 'text-gray-800'}`}
-                    >
-                      {t.title}
-                    </p>
-                    <span className="text-[9px] text-gray-500 font-mono block mt-0.5">
-                      Control: {t.category}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          </div>
-
-          {/* Exit Deliverables & Handover */}
-          <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-3">
-            <div className="flex items-center justify-between border-b border-[#EDEEF1] pb-1.5">
-              <h4 className="font-bold text-gray-900">Exit Deliverables &amp; Handover</h4>
-              <span className="text-[10px] font-mono text-gray-500">
-                {(activeCase.deliverables || []).filter(d => d.isSubmitted).length}/
-                {(activeCase.deliverables || []).length} submitted
-              </span>
-            </div>
-            {(activeCase.deliverables || []).length === 0 ? (
-              <p className="text-gray-500 text-[11px] py-3 text-center">
-                No deliverables defined for this exit.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {(activeCase.deliverables || []).map(d => (
-                  <div
-                    key={d.id}
-                    onClick={() => onToggleDeliverable(activeCase.employeeId, d.id)}
-                    className="flex items-center gap-3 p-2.5 border border-[#E4E6EA] hover:bg-gray-55 rounded-lg cursor-pointer transition"
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition ${
-                        d.isSubmitted
-                          ? 'bg-accent-600 border-accent-600 text-white'
-                          : 'border-gray-300 bg-[#FFFFFF]'
-                      }`}
-                    >
-                      {d.isSubmitted && <Check size={10} />}
-                    </div>
-                    <div className="flex-1">
-                      <p
-                        className={`font-medium ${d.isSubmitted ? 'line-through text-gray-500' : 'text-gray-800'}`}
-                      >
-                        {d.title}
-                      </p>
-                      {d.owner && (
-                        <span className="text-[9px] text-gray-500 font-mono block mt-0.5">
-                          Hand over to: {d.owner}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Deliverable handover files (stored in Backblaze) */}
-          <DocumentsPanel
-            entityType="offboarding"
-            entityId={activeCase.employeeId}
-            category="deliverable"
-            title="Deliverable Files (Handover Documents)"
-          />
-        </div>
-      ) : (
+      {/* Exit cases table — click a row to open the full workflow page */}
+      {offboarding.length === 0 ? (
         <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-6 text-center text-gray-500">
           No live employee offboarding case in notice cycle currently.
         </div>
+      ) : (
+        <Table minWidth={640}>
+          <THead>
+            <Th icon={<Users size={11} />}>Employee</Th>
+            <Th icon={<LogOut size={11} />}>Reason</Th>
+            <Th icon={<CalendarDays size={11} />}>Last working day</Th>
+            <Th icon={<ShieldCheck size={11} />}>Status</Th>
+            <Th align="right">Open</Th>
+          </THead>
+          <TBody>
+            {offboarding.map(o => (
+              <Tr key={o.employeeId} onClick={() => router.push(`/offboarding/${o.employeeId}`)}>
+                <Td className="font-semibold text-gray-900">{o.employeeName}</Td>
+                <Td>
+                  <TagPill color="amber">{o.triggerReason}</TagPill>
+                </Td>
+                <Td className="font-mono text-[11px] text-gray-600">{o.lastWorkingDay}</Td>
+                <Td>
+                  <StatusPill tone={o.status === 'Completed' ? 'green' : 'red'} label={o.status} />
+                </Td>
+                <Td align="right">
+                  <ChevronRight size={14} className="inline text-gray-400" />
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
       )}
     </div>
   );
@@ -2315,7 +2088,10 @@ function GoogleCalendarCard() {
 }
 
 export function SettingsView() {
-  const [activeTab, setActiveTab] = useState<'general' | 'roles' | 'rules'>('general');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<
+    'general' | 'lists' | 'questions' | 'roles' | 'rules'
+  >('general');
 
   return (
     <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-6 text-xs select-none space-y-5">
@@ -2328,9 +2104,16 @@ export function SettingsView() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={v => setActiveTab(v as 'general' | 'roles' | 'rules')}>
+      <Tabs
+        value={activeTab}
+        onValueChange={v =>
+          setActiveTab(v as 'general' | 'lists' | 'questions' | 'roles' | 'rules')
+        }
+      >
         <TabsList>
           <TabsTrigger value="general">General Workspace</TabsTrigger>
+          <TabsTrigger value="lists">Custom Lists</TabsTrigger>
+          <TabsTrigger value="questions">Question Bank</TabsTrigger>
           <TabsTrigger value="roles">Roles &amp; Cryptography</TabsTrigger>
           <TabsTrigger value="rules">Automated Rules Rules</TabsTrigger>
         </TabsList>
@@ -2369,6 +2152,55 @@ export function SettingsView() {
 
           <GoogleCalendarCard />
         </div>
+        </TabsContent>
+
+        <TabsContent value="lists">
+          <TaxonomyManager />
+        </TabsContent>
+
+        <TabsContent value="questions">
+          <div className="space-y-3">
+            <div>
+              <h4 className="font-bold text-gray-850">Question bank</h4>
+              <p className="text-[11px] text-gray-500">
+                Manage the screening, IQ, assessment, and interview question banks used across hiring.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {QUESTION_CATEGORIES.map(cat => {
+                const Icon = cat.Icon;
+                return (
+                  <button
+                    key={cat.slug}
+                    type="button"
+                    onClick={() => router.push(`/question-library/${cat.slug}`)}
+                    className="group flex items-start gap-3 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 text-left transition hover:-translate-y-0.5 hover:border-accent-300 hover:shadow-md"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
+                      <Icon size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[13px] font-bold text-gray-900 group-hover:text-accent-700">
+                          {cat.title}
+                        </p>
+                        <ChevronRight
+                          size={15}
+                          className="shrink-0 text-gray-400 group-hover:text-accent-600"
+                        />
+                      </div>
+                      <p className="font-mono text-[10px] uppercase tracking-wider text-gray-500">
+                        {cat.subtitle}
+                      </p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-gray-600">
+                        {cat.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="roles">

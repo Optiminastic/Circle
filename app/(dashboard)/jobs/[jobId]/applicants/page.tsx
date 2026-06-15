@@ -7,7 +7,7 @@ import { PageLoading } from '@/components/PageLoading';
 import { useScheduler } from '@/store/schedule-store';
 import { useJob } from '@/features/jobs/hooks';
 import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
-import { ArrowLeft, ChevronRight, MapPin } from 'lucide-react';
+import { ArrowLeft, MapPin } from 'lucide-react';
 
 /** Dedicated page listing everyone who applied to one job posting — the same
  *  full candidates experience (search, filters, profile, shortlist) scoped to
@@ -43,18 +43,8 @@ export default function JobApplicantsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Breadcrumb + compact job context */}
+      {/* Compact job context (global breadcrumb is rendered by the shell) */}
       <div className="space-y-2 select-none">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[11px] font-medium text-gray-500">
-          <Link href="/jobs" className="flex items-center gap-1 hover:text-accent-700 transition">
-            <ArrowLeft size={12} /> Job Postings
-          </Link>
-          <ChevronRight size={12} className="text-gray-400" />
-          <span className="font-mono text-gray-400">{job.id}</span>
-          <ChevronRight size={12} className="text-gray-400" />
-          <span className="font-semibold text-gray-900 truncate">{job.title}</span>
-        </nav>
-
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="font-bold text-gray-900 text-base">{job.title}</h1>
           <span className="text-[10px] font-mono font-bold text-accent-600 bg-accent-50 px-2 py-0.5 rounded-full">

@@ -10,18 +10,14 @@ import { useQuery } from '@tanstack/react-query';
 import {
   FileText,
   ShieldCheck,
-  Phone,
-  BrainCircuit,
-  ClipboardList,
   CalendarDays,
-  Flag,
-  PauseCircle,
+  CalendarClock,
   Briefcase,
   Bookmark,
   ChevronRight,
 } from 'lucide-react';
 import { Candidate, TestInvite } from '../types';
-import { KanbanColumnKey, pipelineColumn, pipelineSummary, PipelineContext } from '@/lib/pipeline';
+import { pipelineFlags, pipelineSummary, PipelineContext } from '@/lib/pipeline';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
@@ -42,8 +38,11 @@ interface KanbanPipelineProps {
 
 type LucideIcon = typeof FileText;
 
+/** Simplified board lanes — fewer than the full 7-stage pipeline stepper. */
+type BoardColumnKey = 'New' | 'Screening' | 'Interviews' | 'Upcoming';
+
 const COLUMNS: {
-  key: KanbanColumnKey;
+  key: BoardColumnKey;
   label: string;
   Icon: LucideIcon;
   countColor: string;
@@ -51,13 +50,34 @@ const COLUMNS: {
 }[] = [
   { key: 'New', label: 'New', Icon: FileText, countColor: 'text-accent-600 bg-accent-50', bg: 'bg-[#EDEEF1]/50' },
   { key: 'Screening', label: 'Screening', Icon: ShieldCheck, countColor: 'text-purple-600 bg-purple-50', bg: 'bg-[#EDEEF1]/50' },
-  { key: 'HR Call', label: 'HR Call', Icon: Phone, countColor: 'text-teal-600 bg-teal-50', bg: 'bg-teal-50/10' },
-  { key: 'IQ Test', label: 'IQ Test', Icon: BrainCircuit, countColor: 'text-indigo-600 bg-indigo-50', bg: 'bg-[#EDEEF1]/50' },
-  { key: 'Assignment', label: 'Assessment', Icon: ClipboardList, countColor: 'text-amber-600 bg-amber-50', bg: 'bg-[#EDEEF1]/50' },
-  { key: 'Interview', label: 'Interview', Icon: CalendarDays, countColor: 'text-blue-600 bg-blue-50', bg: 'bg-blue-50/10' },
-  { key: 'Decision', label: 'Decision', Icon: Flag, countColor: 'text-emerald-600 bg-emerald-50', bg: 'bg-emerald-50/10' },
-  { key: 'On Hold', label: 'On Hold', Icon: PauseCircle, countColor: 'text-yellow-600 bg-yellow-50', bg: 'bg-yellow-50/10' },
+  { key: 'Interviews', label: 'Interviews', Icon: CalendarDays, countColor: 'text-blue-600 bg-blue-50', bg: 'bg-blue-50/10' },
+  { key: 'Upcoming', label: 'Upcoming Interview', Icon: CalendarClock, countColor: 'text-teal-600 bg-teal-50', bg: 'bg-teal-50/10' },
 ];
+
+/**
+ * Map a candidate to one of the four board lanes:
+ *  - Upcoming   — an interview is scheduled but not yet completed
+ *  - Interviews — anywhere on the HR Call → Interview track (in-progress or done),
+ *                 plus decided / on-hold candidates so no one disappears
+ *  - Screening  — screening started, not past it
+ *  - New        — nothing started yet
+ */
+function boardColumn(candidate: Candidate, ctx: PipelineContext): BoardColumnKey {
+  const f = pipelineFlags(candidate, ctx);
+  if (f.interviewReached && !f.interviewDone && !f.decided && !f.onHold) return 'Upcoming';
+  if (
+    f.hrCallReached ||
+    f.iqReached ||
+    f.asgReached ||
+    f.interviewReached ||
+    f.decided ||
+    f.offerShortlisted ||
+    f.onHold
+  )
+    return 'Interviews';
+  if (f.screeningStarted) return 'Screening';
+  return 'New';
+}
 
 /** Newest applications first — proxy for "most recently added to the pipeline". */
 function sortByRecency(list: Candidate[]) {
@@ -77,18 +97,18 @@ export function KanbanPipeline({ candidates }: KanbanPipelineProps) {
   });
 
   // Which column's full candidate list is open in the drawer (null = closed).
-  const [openColumn, setOpenColumn] = useState<KanbanColumnKey | null>(null);
+  const [openColumn, setOpenColumn] = useState<BoardColumnKey | null>(null);
 
   const ctx: PipelineContext = useMemo(
     () => ({ schedules, interviews, iqTests, invites: invites as TestInvite[] }),
     [schedules, interviews, iqTests, invites],
   );
 
-  // Bucket every candidate into exactly one column by current pipeline stage.
+  // Bucket every candidate into exactly one board lane.
   const byColumn = useMemo(() => {
-    const map = new Map<KanbanColumnKey, Candidate[]>();
+    const map = new Map<BoardColumnKey, Candidate[]>();
     COLUMNS.forEach(c => map.set(c.key, []));
-    candidates.forEach(c => map.get(pipelineColumn(c, ctx))!.push(c));
+    candidates.forEach(c => map.get(boardColumn(c, ctx))!.push(c));
     map.forEach((list, key) => map.set(key, sortByRecency(list)));
     return map;
   }, [candidates, ctx]);
@@ -116,7 +136,7 @@ export function KanbanPipeline({ candidates }: KanbanPipelineProps) {
       </div>
 
       {/* Stage tiles — click to open the per-stage drawer */}
-      <div className="grid grid-cols-1 gap-3 overflow-x-auto pb-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-1 gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-4">
         {COLUMNS.map(col => {
           const list = byColumn.get(col.key) ?? [];
           const ColIcon = col.Icon;

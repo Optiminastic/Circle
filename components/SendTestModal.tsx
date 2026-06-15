@@ -18,6 +18,7 @@ import { Select } from './Select';
 import { BRAND } from '@/lib/brand';
 import { Candidate, AssessmentQuestion } from '@/types';
 import { loadBanks, type RoleQuestionBank } from '@/lib/question-banks';
+import { useHrIdentity } from '@/features/employees/hooks';
 
 export interface SendTestResult {
   to: string;
@@ -45,6 +46,7 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
   const isIq = kind === 'iq';
   const what = isIq ? 'IQ Test' : 'Assessment';
   const position = candidate.appliedRole || candidate.department || 'the role';
+  const hr = useHrIdentity();
 
   // Candidate's email is pre-filled but HR can change it before sending.
   const [to, setTo] = useState(candidate.email || '');
@@ -83,9 +85,9 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
           : `Use the "${linkLabel}" button below to read the brief and submit your work before the deadline.`,
         '',
         'Best Regards,',
-        `${BRAND.company} HR Team`,
+        hr.signoff,
       ].join('\n'),
-    [candidate.fullName, position, what, isIq, linkLabel],
+    [candidate.fullName, position, what, isIq, linkLabel, hr.signoff],
   );
 
   const [body, setBody] = useState(composed);

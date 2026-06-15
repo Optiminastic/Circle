@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select } from './Select';
+import { DatePicker, TimeSelect } from '@/components/ui/date-picker';
 import { BRAND } from '@/lib/brand';
 import { OFFICE_LOCATION_URL, OFFICE_ADDRESS } from '@/lib/config';
 import { Candidate } from '@/types';
@@ -239,12 +240,12 @@ export function InterviewScheduleModal({
                 <Label htmlFor="iv-date" className="text-[11px] font-medium text-gray-600">
                   Interview Date <span className="text-accent-600">*</span>
                 </Label>
-                <Input
+                <DatePicker
                   id="iv-date"
-                  type="date"
                   min={todayStr}
                   value={date}
-                  onChange={e => setDate(e.target.value)}
+                  onChange={setDate}
+                  placeholder="Select date"
                   className="mt-1"
                 />
               </div>
@@ -252,13 +253,7 @@ export function InterviewScheduleModal({
                 <Label htmlFor="iv-time" className="text-[11px] font-medium text-gray-600">
                   Interview Time <span className="text-accent-600">*</span>
                 </Label>
-                <Input
-                  id="iv-time"
-                  type="time"
-                  value={time}
-                  onChange={e => setTime(e.target.value)}
-                  className="mt-1"
-                />
+                <TimeSelect id="iv-time" value={time} onChange={setTime} step={15} className="mt-1" />
               </div>
               <div>
                 <Label className="text-[11px] font-medium text-gray-600">Interview Type</Label>

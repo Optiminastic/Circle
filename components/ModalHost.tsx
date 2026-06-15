@@ -1,66 +1,27 @@
 'use client';
 
-import React from 'react';
-import { CandidateProfileModal } from './CandidateProfileModal';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUiStore } from '@/store/ui-store';
-import {
-  useCandidates,
-  useBgvs,
-  useCandidateMutations,
-  useUpdateBgv,
-  useStartBgv,
-} from '@/features/candidates/hooks';
-import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
-import { useIqTests, useAssignments } from '@/features/assessments/hooks';
 
+/**
+ * Candidate drawer was retired — opening a candidate from anywhere now routes to
+ * their full page at `/candidates/[id]`. This host watches the shared
+ * `selectedCandidateId` (still set by existing call sites / `openCandidate`),
+ * navigates to the page, then clears the id so the redirect fires once.
+ */
 export function ModalHost() {
-  const {
-    userRole,
-    selectedCandidateId,
-    selectedCandidateTab,
-    setSelectedCandidateId,
-  } = useUiStore();
+  const router = useRouter();
+  const { selectedCandidateId, setSelectedCandidateId } = useUiStore();
 
-  const { data: candidates = [] } = useCandidates();
-  const { data: interviews = [] } = useInterviews();
-  const { data: iqTests = [] } = useIqTests();
-  const { data: assignments = [] } = useAssignments();
-  const { data: bgvs = [] } = useBgvs();
+  useEffect(() => {
+    if (!selectedCandidateId) return;
+    const id = selectedCandidateId;
+    setSelectedCandidateId(null);
+    router.push(`/candidates/${id}`);
+  }, [selectedCandidateId, setSelectedCandidateId, router]);
 
-  const { update: updateCandidate } = useCandidateMutations();
-  const updateBgv = useUpdateBgv();
-  const startBgv = useStartBgv();
-  const { grade, schedule } = useInterviewMutations();
-
-  const candidate = selectedCandidateId ? candidates.find(c => c.id === selectedCandidateId) : null;
-  const candidateBgv = selectedCandidateId ? bgvs.find(b => b.candidateId === selectedCandidateId) : null;
-
-  return (
-    <>
-      {selectedCandidateId && candidate && (
-        <CandidateProfileModal
-          key={`${selectedCandidateId}-${selectedCandidateTab}`}
-          candidate={candidate}
-          initialTab={selectedCandidateTab}
-          onClose={() => setSelectedCandidateId(null)}
-          interviews={interviews}
-          iqTests={iqTests}
-          assignments={assignments}
-          bgv={candidateBgv}
-          onUpdateCandidate={updated => updateCandidate.mutate(updated)}
-          onUpdateBGV={updated => updateBgv.mutate(updated)}
-          onStartBGV={() => startBgv.mutate(candidate)}
-          onGradingSubmitted={(interviewId, recommendation, comments) =>
-            grade.mutate({ interviewId, recommendation, comments })
-          }
-          onScheduleInterview={(round, interviewer, dateTime, mode) =>
-            schedule.mutate({ candidate, input: { round, interviewer, dateTime, mode } })
-          }
-          userRole={userRole}
-        />
-      )}
-    </>
-  );
+  return null;
 }
 
 export default ModalHost;

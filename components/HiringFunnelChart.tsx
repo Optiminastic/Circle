@@ -6,7 +6,16 @@
 
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { CalendarDays, AlertCircle, FileText, CheckCircle2, Award, ArrowUpRight } from 'lucide-react';
+import {
+  AlertCircle,
+  FileText,
+  CheckCircle2,
+  ArrowUpRight,
+  ClipboardCheck,
+  Phone,
+  CalendarClock,
+  TrendingDown,
+} from 'lucide-react';
 import { Candidate, Interview } from '../types';
 
 interface HiringFunnelChartProps {
@@ -28,27 +37,58 @@ export function HiringFunnelChart({ candidates, interviews, onSelectCandidate }:
     ).length,
   };
 
-  const funnelStages = [
-    { label: 'Applications Recieved', count: candidates.length, pct: 100, color: 'bg-accent-600' },
+  // A funnel tracks distinct candidates through stages, so every stage is a
+  // subset of the one above it. We count unique candidates who reached the
+  // interview stage (not interview events, which can exceed the candidate count
+  // and produce nonsense like ">100%").
+  const total = candidates.length;
+  const interviewedCandidates = new Set(
+    interviews
+      .filter(i => i.status === 'Scheduled' || i.status === 'Completed')
+      .map(i => i.candidateId),
+  ).size;
+
+  const rawStages = [
     {
-      label: 'Shortlisted for Assessment',
+      label: 'Applications received',
+      count: total,
+      Icon: FileText,
+      bar: 'from-accent-500 to-accent-700',
+      track: 'bg-accent-50',
+    },
+    {
+      label: 'Shortlisted for assessment',
       count: stageCounts.shortlisted + stageCounts.hrCall,
-      pct: Math.round(((stageCounts.shortlisted + stageCounts.hrCall) / (candidates.length || 1)) * 100),
-      color: 'bg-purple-600',
+      Icon: ClipboardCheck,
+      bar: 'from-purple-500 to-purple-700',
+      track: 'bg-purple-50',
     },
     {
-      label: 'HR Screening Calls',
+      label: 'HR screening calls',
       count: stageCounts.hrCall,
-      pct: Math.round((stageCounts.hrCall / (candidates.length || 1)) * 100),
-      color: 'bg-teal-600',
+      Icon: Phone,
+      bar: 'from-teal-500 to-teal-700',
+      track: 'bg-teal-50',
     },
     {
-      label: 'Active Interviews Scheduled',
-      count: stageCounts.interviews,
-      pct: Math.round((stageCounts.interviews / (candidates.length || 1)) * 100),
-      color: 'bg-amber-600',
+      label: 'Active interviews',
+      count: Math.min(interviewedCandidates, total || interviewedCandidates),
+      Icon: CalendarClock,
+      bar: 'from-amber-500 to-amber-600',
+      track: 'bg-amber-50',
     },
   ];
+
+  // Clamp each stage so it never exceeds the one above it (a true funnel) and
+  // derive both the overall yield and the step-to-step conversion.
+  let prev = total;
+  const funnelStages = rawStages.map((s, i) => {
+    const count = i === 0 ? s.count : Math.min(s.count, prev);
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    const stepPct = i === 0 ? 100 : prev ? Math.round((count / prev) * 100) : 0;
+    prev = count;
+    return { ...s, count, pct, stepPct };
+  });
 
   // Real monthly yield — candidates by applied month, interviews by scheduled month.
   const monthKey = (iso: string) => {
@@ -98,33 +138,58 @@ export function HiringFunnelChart({ candidates, interviews, onSelectCandidate }:
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Visual Funnel Stack (Left 2 cols) */}
       <div className="lg:col-span-2 bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4">
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 tracking-tight font-display">
-            Hiring Yield & conversion Funnel
-          </h4>
-          <p className="text-xs text-gray-500">
-            Yield conversion statistics from pipeline inception to finalized placement.
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 tracking-tight font-display">
+              Hiring yield &amp; conversion funnel
+            </h4>
+            <p className="text-xs text-gray-500">
+              How candidates convert from application through to interview.
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="font-mono text-lg font-bold leading-none text-gray-900">
+              {funnelStages[funnelStages.length - 1].pct}%
+            </p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-500">
+              Overall yield
+            </p>
+          </div>
         </div>
 
-        {/* Dynamic Funnel Progress bars */}
-        <div className="space-y-3 pt-2">
-          {funnelStages.map((stage, i) => (
-            <div key={i} className="space-y-1">
-              <div className="flex justify-between items-center text-xs text-gray-700">
-                <span className="font-semibold">{stage.label}</span>
-                <span className="text-gray-500 font-mono">
-                  {stage.count} {stage.count === 1 ? 'candidate' : 'candidates'} ({stage.pct}%)
-                </span>
+        {/* Funnel — each stage is a subset of the one above it */}
+        <div className="space-y-3.5 pt-1">
+          {funnelStages.map((stage, i) => {
+            const StageIcon = stage.Icon;
+            return (
+              <div key={i} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="flex items-center gap-2 font-semibold text-gray-800">
+                    <span className={`grid size-6 shrink-0 place-items-center rounded-md ${stage.track}`}>
+                      <StageIcon size={13} className="text-gray-600" />
+                    </span>
+                    {stage.label}
+                  </span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono font-semibold text-gray-900">{stage.count}</span>
+                    <span className="font-mono text-gray-500">{stage.pct}%</span>
+                    {i > 0 && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-[#F1F3F5] px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-500">
+                        <TrendingDown size={9} />
+                        {stage.stepPct}%
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#EDEEF1]">
+                  <div
+                    className={`h-full rounded-full bg-gradient-to-r ${stage.bar} transition-all duration-500`}
+                    style={{ width: `${Math.max(stage.count > 0 ? 4 : 0, stage.pct)}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-[#EDEEF1] h-2.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${stage.color} rounded-full transition-all duration-500`}
-                  style={{ width: `${Math.max(5, stage.pct)}%` }}
-                ></div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Dynamic Area Trend Chart */}

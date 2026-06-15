@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -12,10 +12,6 @@ import {
   Search,
   Bell,
   CalendarRange,
-  Library,
-  Check,
-  MapPin,
-  Briefcase,
   Mail,
   LogOut,
   ShieldCheck,
@@ -23,7 +19,8 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import { DropdownMenu, Popover } from 'radix-ui';
-import { Candidate, SentEmailLog } from '../types';
+import { SentEmailLog } from '../types';
+import { useUiStore } from '@/store/ui-store';
 import { useAuth, displayName, initials } from '@/store/auth-store';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
@@ -46,31 +43,27 @@ function relativeTime(iso: string): string {
 }
 
 interface HeaderProps {
-  onSearch: (query: string) => void;
-  candidatesList: Candidate[];
-  onQuickSelectCandidate: (candidateId: string) => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
 }
 
-export function Header({
-  onSearch,
-  candidatesList,
-  onQuickSelectCandidate,
-  sidebarCollapsed,
-  onToggleSidebar,
-}: HeaderProps) {
+export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
   const router = useRouter();
   const { user, isAdmin, logout } = useAuth();
+  const { setCommandOpen } = useUiStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const onLogout = () => {
     logout();
     router.replace('/login');
   };
+
+  // Mac vs. others — show the right modifier hint in the search button.
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent));
+  }, []);
 
   // Real activity feed: the most recent emails the system has sent. Empty until
   // there's activity (no seeded/placeholder notifications).
@@ -88,27 +81,10 @@ export function Header({
       unread: e.status === 'Sent' || e.status === 'Delivered',
     }));
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    onSearch(val);
-    setShowSearchResults(val.length > 1);
-  };
-
-  const filteredCandidates =
-    searchQuery.length > 1
-      ? candidatesList.filter(
-          c =>
-            c.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.appliedRole.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            c.department.toLowerCase().includes(searchQuery.toLowerCase()),
-        )
-      : [];
-
   return (
     <header
       id="app-header"
-      className="bg-[#FFFFFF] border-b border-[#E4E6EA] h-14 px-6 flex items-center justify-between sticky top-0 z-50 select-none"
+      className="bg-[#FFFFFF] h-14 px-6 flex items-center justify-between sticky top-0 z-50 select-none"
     >
       <div className="flex items-center gap-2">
         {/* Sidebar collapse toggle */}
@@ -121,62 +97,19 @@ export function Header({
           {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
 
-        {/* Global Search Bar */}
-        <div className="relative w-80">
-        <span className="absolute left-3 top-2.5 text-gray-500">
-          <Search size={14} />
-        </span>
-        <input
-          id="global-search-input"
-          type="text"
-          placeholder="Search candidates, roles, departments..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-          onFocus={() => {
-            if (searchQuery.length > 1) setShowSearchResults(true);
-          }}
-          className="w-full pl-9 pr-4 py-1.5 text-xs bg-[#EDEEF1] border border-[#E4E6EA] rounded-md focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus:ring-1 focus:ring-accent-600 focus:border-accent-600 transition"
-        />
-
-        {/* Global Quick Search Results overlay */}
-        {showSearchResults && filteredCandidates.length > 0 && (
-          <div className={cn(ui.surface, 'absolute top-11 left-0 z-50 w-96 py-2 text-xs')}>
-            <div className="mb-1 border-b border-border px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              Matching Candidates ({filteredCandidates.length})
-            </div>
-            {filteredCandidates.map(c => (
-              <button
-                key={c.id}
-                onMouseDown={() => {
-                  onQuickSelectCandidate(c.id);
-                  setSearchQuery('');
-                  setShowSearchResults(false);
-                }}
-                className="group flex w-full items-center justify-between px-3 py-2 text-left hover:bg-accent"
-              >
-                <div>
-                  <div className="font-semibold text-gray-900 group-hover:text-accent-600 transition truncate">
-                    {c.fullName}
-                  </div>
-                  <div className="text-[11px] text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
-                    <span className="flex items-center gap-0.5">
-                      <Briefcase size={10} /> {c.appliedRole}
-                    </span>
-                    <span>•</span>
-                    <span className="flex items-center gap-0.5">
-                      <MapPin size={10} /> {c.location}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[10px] bg-[#EDEEF1] text-gray-600 px-1.5 py-0.5 rounded font-mono font-medium shrink-0">
-                  {c.status}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        </div>
+        {/* Global Search — opens the ⌘K command palette */}
+        <button
+          id="global-search-trigger"
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="group flex w-80 items-center gap-2 rounded-md border border-[#E4E6EA] bg-[#EDEEF1] py-1.5 pl-3 pr-2 text-left text-xs text-gray-500 transition hover:bg-[#FFFFFF] hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        >
+          <Search size={14} className="shrink-0 text-gray-500" />
+          <span className="flex-1 truncate">Search candidates, roles, employees…</span>
+          <kbd className="shrink-0 rounded border border-[#D7DAE0] bg-[#FFFFFF] px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-500">
+            {isMac ? '⌘' : 'Ctrl'} K
+          </kbd>
+        </button>
       </div>
 
       {/* Right Actions & Profile */}
@@ -249,19 +182,6 @@ export function Header({
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
-
-        {/* Question library */}
-        <Link
-          href="/question-library"
-          aria-label="Question Library"
-          title="Question Library"
-          className={cn(
-            'rounded-md border border-[#E4E6EA] p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700',
-            ui.focusRing,
-          )}
-        >
-          <Library size={14} />
-        </Link>
 
         {/* Active Profile */}
         <div className="border-l border-[#E4E6EA] pl-4">

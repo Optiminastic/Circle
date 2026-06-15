@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
-  ArrowLeft,
   Mail,
   Phone,
   MapPin,
@@ -30,12 +29,16 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useEmployees, useEmployeeMutations } from '@/features/employees/hooks';
+import { useOffboarding, useInitiateOffboarding } from '@/features/offboarding/hooks';
 import { useToast } from '@/components/Toaster';
 import type { OffboardingWorkflow } from '@/types';
 import { useBgvs } from '@/features/candidates/hooks';
 import { useDocRequests } from '@/features/doc-requests/hooks';
 import { PageLoading } from '@/components/PageLoading';
 import { DocumentsPanel } from '@/components/DocumentsPanel';
+import { DatePicker } from '@/components/ui/date-picker';
+import { AvatarUploader } from '@/components/AvatarUploader';
+import { EditEmployeeDialog } from '@/components/EditEmployeeDialog';
 
 const PROBATION_MONTHS = 6;
 
@@ -59,12 +62,16 @@ export default function EmployeeDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
 
+  const router = useRouter();
   const { data: employees = [], isLoading } = useEmployees();
   const { data: bgvs = [] } = useBgvs();
   const { data: docRequests = [] } = useDocRequests();
+  const { data: offboarding = [] } = useOffboarding();
   const { update } = useEmployeeMutations();
+  const initiateOffboarding = useInitiateOffboarding();
   const toast = useToast();
   const [tab, setTab] = useState<TabKey>('overview');
+  const [editOpen, setEditOpen] = useState(false);
 
   // HR-triggered resignation / notice period
   const [resignOpen, setResignOpen] = useState(false);
@@ -127,10 +134,10 @@ export default function EmployeeDetailPage() {
     isIntern ? 'intern' : inProbation ? 'probation' : 'confirmed'
   })`;
 
-  // --- Currently serving notice: derived from an active offboarding workflow ---
-  const off = employee.offboarding;
-  const onNotice = !!off && off.status !== 'Completed' && !!off.lastWorkingDay;
-  const lastWorkingDay = onNotice ? new Date(off!.lastWorkingDay) : null;
+  // --- Currently serving notice: derived from a live exit case in the offboarding repo ---
+  const exitCase = offboarding.find(o => o.employeeId === employee.id && o.status !== 'Completed');
+  const onNotice = !!exitCase && !!exitCase.lastWorkingDay;
+  const lastWorkingDay = onNotice ? new Date(exitCase!.lastWorkingDay) : null;
   const noticeDaysLeft =
     lastWorkingDay && !Number.isNaN(lastWorkingDay.getTime())
       ? Math.max(0, Math.ceil((lastWorkingDay.getTime() - now.getTime()) / DAY))
@@ -150,39 +157,24 @@ export default function EmployeeDetailPage() {
     return d.toISOString().split('T')[0];
   })();
   const confirmResign = () => {
-    const wf: OffboardingWorkflow = {
-      employeeId: employee.id,
-      employeeName: employee.fullName,
-      triggerReason: resignReason,
-      status: 'Notice Period Active',
-      initiatedDate: resignDate || todayStr,
-      lastWorkingDay: resignLastWorkingDay,
-      checklist: [
-        { id: 'np', title: `Serve ${resignNoticeDays}-day notice period`, isChecked: false, category: 'Notice Period' },
-        { id: 'kt', title: 'Complete knowledge transfer', isChecked: false, category: 'Knowledge Transfer' },
-        { id: 'asset', title: 'Return company assets', isChecked: false, category: 'Asset Return' },
-        { id: 'access', title: 'Revoke system access', isChecked: false, category: 'Access Revocation' },
-        { id: 'fnf', title: 'Process full & final settlement', isChecked: false, category: 'Settlement' },
-      ],
-    };
-    update.mutate(
-      { ...employee, offboarding: wf },
+    initiateOffboarding.mutate(
+      {
+        empId: employee.id,
+        reason: resignReason,
+        initiatedDate: resignDate || todayStr,
+        noticeDays: Number(resignNoticeDays) || 0,
+      },
       {
         onSuccess: () => {
-          toast.success(`Notice period started — last working day ${fmtDate(resignLastWorkingDay)}.`);
+          toast.success(`Exit case opened — last working day ${fmtDate(resignLastWorkingDay)}.`);
           setResignOpen(false);
+          router.push(`/offboarding/${employee.id}`);
         },
-        onError: () => toast.error('Could not start the notice period — please try again.'),
+        onError: () => toast.error('Could not open the exit case — please try again.'),
       },
     );
   };
-  const cancelNotice = () => {
-    const { offboarding: _drop, ...rest } = employee;
-    update.mutate(rest as typeof employee, {
-      onSuccess: () => toast.info('Notice period cancelled.'),
-      onError: () => toast.error('Could not cancel — please try again.'),
-    });
-  };
+  const openExitCase = () => router.push(`/offboarding/${employee.id}`);
 
   const statusTone =
     employee.status === 'Active'
@@ -193,26 +185,41 @@ export default function EmployeeDetailPage() {
 
   return (
     <div className="space-y-5 text-xs">
-      <Link
-        href="/directory"
-        className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-accent-600"
-      >
-        <ArrowLeft size={13} /> Back to directory
-      </Link>
-
+      <EditEmployeeDialog
+        open={editOpen}
+        employee={employee}
+        onClose={() => setEditOpen(false)}
+        onSave={updated => update.mutate(updated)}
+      />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* MAIN */}
         <div className="space-y-5">
           {/* Profile card */}
           <div className="overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
-            <div className="h-24 bg-gradient-to-r from-accent-500 to-accent-700" />
+            <div
+              className="h-28 bg-[#EDE9E3] bg-cover bg-center"
+              style={{ backgroundImage: "url('/optiminastic-banner.png')" }}
+              role="img"
+              aria-label="Optiminastic"
+            />
             <div className="px-5">
               {/* Avatar overlaps the banner; quick actions on the right */}
               <div className="-mt-12 flex items-end justify-between gap-3">
-                <span className="grid size-24 shrink-0 place-items-center rounded-full bg-gradient-to-br from-purple-500 to-purple-700 text-2xl font-bold text-white ring-4 ring-[#FFFFFF]">
-                  {initials}
-                </span>
+                <AvatarUploader
+                  employeeId={employee.id}
+                  avatarUrl={employee.avatarUrl}
+                  initials={initials}
+                  size={96}
+                  onChange={url => update.mutate({ ...employee, avatarUrl: url })}
+                />
                 <div className="flex items-center gap-2 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(true)}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-[12px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600"
+                  >
+                    <PenLine size={14} /> Edit
+                  </button>
                   <a
                     href={employee.email ? `mailto:${employee.email}` : undefined}
                     aria-label="Email"
@@ -230,17 +237,17 @@ export default function EmployeeDetailPage() {
                   {employee.status !== 'Offboarded' &&
                     (onNotice ? (
                       <button
-                        onClick={cancelNotice}
+                        onClick={openExitCase}
                         className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-100"
                       >
-                        <LogOut size={14} /> On notice · cancel
+                        <LogOut size={14} /> View exit case
                       </button>
                     ) : (
                       <button
                         onClick={startResign}
                         className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F7F8FA] hover:text-accent-600"
                       >
-                        <LogOut size={14} /> Start notice period
+                        <LogOut size={14} /> Start offboarding
                       </button>
                     ))}
                 </div>
@@ -292,7 +299,7 @@ export default function EmployeeDetailPage() {
                   )}
                   {onNotice && (
                     <span
-                      title={`Last working day ${fmtDate(off!.lastWorkingDay)}`}
+                      title={`Last working day ${fmtDate(exitCase!.lastWorkingDay)}`}
                       className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 font-mono text-[10px] font-bold text-red-600"
                     >
                       <LogOut size={11} /> Notice · {noticeDaysLeft}d
@@ -345,7 +352,7 @@ export default function EmployeeDetailPage() {
                     k="Notice period"
                     v={
                       onNotice
-                        ? `Serving notice · LWD ${fmtDate(off!.lastWorkingDay)}`
+                        ? `Serving notice · LWD ${fmtDate(exitCase!.lastWorkingDay)}`
                         : noticePolicyLabel
                     }
                   />
@@ -632,12 +639,7 @@ export default function EmployeeDetailPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-gray-700">Resignation date</label>
-                  <input
-                    type="date"
-                    value={resignDate}
-                    onChange={e => setResignDate(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] px-2.5 py-1.5 font-mono text-xs"
-                  />
+                  <DatePicker value={resignDate} onChange={setResignDate} className="mt-1" />
                 </div>
                 <div>
                   <label className="font-semibold text-gray-700">Notice (days)</label>

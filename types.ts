@@ -525,6 +525,8 @@ export interface Employee {
   joiningDate: string;
   workLocation: string;
   status: 'Active' | 'On Leave' | 'Suspended' | 'Offboarded';
+  /** Profile photo — a documents-API preview URL for the uploaded/cropped image. */
+  avatarUrl?: string;
   /** Drives probation/notice rules (interns & contractors serve a shorter notice). */
   employmentType?: 'Full-time' | 'Part-time' | 'Intern' | 'Contract';
   personalDetails: {

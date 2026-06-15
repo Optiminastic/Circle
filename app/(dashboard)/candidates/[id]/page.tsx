@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft,
   Check,
   ChevronRight,
-  ChevronDown,
+  Info,
   Mail,
   Phone,
   MapPin,
@@ -32,13 +31,18 @@ import {
   Send,
   Eye,
   Star,
+  User,
   UserCheck,
+  Lock,
   Download,
+  Pencil,
 } from 'lucide-react';
 import { CandidateStatus, HRCallRecord, Interview, ScheduleType, ScreeningReview, StageDecision, TestInvite } from '@/types';
 import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
+import { EditCandidateDialog } from '@/components/EditCandidateDialog';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
+import { useHrIdentity } from '@/features/employees/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
 import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { useScheduler } from '@/store/schedule-store';
@@ -94,6 +98,19 @@ const fmtDateTime = (iso?: string) => {
 
 type StepState = 'done' | 'current' | 'todo' | 'rejected';
 
+// One-line description of what each step is — shown under the stage name so the
+// feed reads like a narrative of the candidate's journey.
+const STAGE_NOTES: Record<string, string> = {
+  Applied: 'Candidate submitted their application',
+  Screening: 'HR reviews the résumé and overall fit',
+  'HR Call': 'Introductory call with the candidate',
+  'Interview Schedule': 'Interview date being arranged',
+  'IQ Test': 'Logical-reasoning aptitude test',
+  Assessment: 'Role-specific skills assessment',
+  'Physical Interview': 'In-person interview round',
+  Decision: 'Final hiring decision',
+};
+
 const blankScreening = (): ScreeningReview => ({
   resumeRelevance: 3,
   experienceMatch: 3,
@@ -145,7 +162,9 @@ export default function CandidateDetailPage() {
   const { openInterviewSchedule } = useInterviewScheduler();
   const { move, update } = useCandidateMutations();
   const { grade: gradeInterview } = useInterviewMutations();
+  const hr = useHrIdentity();
   const ensureOnboarding = useEnsureOnboarding();
+  const [editOpen, setEditOpen] = useState(false);
   const toast = useToast();
   const qc = useQueryClient();
 
@@ -166,9 +185,9 @@ export default function CandidateDetailPage() {
   const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
   const [gradeScore, setGradeScore] = useState('');
   const [gradeComments, setGradeComments] = useState('');
-  // Per-step collapse overrides for the pipeline accordion (default: future steps
-  // start collapsed). Keyed by stage index; value = explicitly collapsed?
-  const [collapsedSteps, setCollapsedSteps] = useState<Record<number, boolean>>({});
+  // Which stages have their detail "i" panel open. Keyed by stage index; detail is
+  // hidden by default and revealed on demand to keep each entry compact.
+  const [openInfo, setOpenInfo] = useState<Record<number, boolean>>({});
   const [fbInterview, setFbInterview] = useState<Interview | null>(null);
   const [fbRec, setFbRec] = useState('Hire');
   const [fbComments, setFbComments] = useState('');
@@ -303,13 +322,21 @@ export default function CandidateDetailPage() {
   const physicalAccepted = candidate.stageDecisions?.['Physical Interview'] === 'Accepted';
 
   const stages = [
-    { label: 'Applied', Icon: FileText, reached: true, done: true, desc: fmtDate(candidate.appliedDate) },
+    {
+      label: 'Applied',
+      Icon: FileText,
+      reached: true,
+      done: true,
+      desc: fmtDate(candidate.appliedDate),
+      when: candidate.appliedDate,
+    },
     {
       label: 'Screening',
       Icon: ShieldCheck,
       reached: true,
       done: Boolean(candidate.screeningReview) || Boolean(candidate.fitRating),
       desc: candidate.screeningReview ? 'Screened' : fit ? `Rated ${fit}` : 'Pending',
+      when: candidate.screeningReview?.reviewedDate,
     },
     {
       label: 'HR Call',
@@ -317,6 +344,7 @@ export default function CandidateDetailPage() {
       reached: hrCallReached,
       done: hrCallDone,
       desc: hrCallDone ? candidate.hrCall!.nextStep : hrCallReached ? 'Scheduled' : 'Pending',
+      when: candidate.hrCall?.completedDate,
     },
     {
       label: 'Interview Schedule',
@@ -324,6 +352,7 @@ export default function CandidateDetailPage() {
       reached: interviewReached || candidate.stageDecisions?.['HR Call'] === 'Accepted',
       done: interviewReached,
       desc: interviewReached ? 'Scheduled' : 'Pending',
+      when: mySchedules.find(s => s.type === 'Interview')?.dateTime,
     },
     {
       label: 'IQ Test',
@@ -335,6 +364,7 @@ export default function CandidateDetailPage() {
         : iqReached
           ? 'Scheduled'
           : 'Pending',
+      when: myIq[0]?.testDate,
     },
     {
       label: 'Assessment',
@@ -348,6 +378,7 @@ export default function CandidateDetailPage() {
         : asgReached
           ? 'Scheduled'
           : 'Pending',
+      when: asgInvite?.completedAt,
     },
     {
       label: 'Physical Interview',
@@ -355,6 +386,7 @@ export default function CandidateDetailPage() {
       reached: interviewConducted || candidate.stageDecisions?.['Assessment'] === 'Accepted',
       done: interviewDone,
       desc: interviewDone ? 'Completed' : interviewReached ? 'Awaiting' : 'Pending',
+      when: myInterviews[0]?.dateTime,
     },
     {
       label: 'Decision',
@@ -368,6 +400,7 @@ export default function CandidateDetailPage() {
           : offerShortlisted
             ? 'Shortlisted'
             : 'Pending',
+      when: undefined as string | undefined,
     },
   ];
   let currentIndex = 0;
@@ -771,7 +804,7 @@ export default function CandidateDetailPage() {
           'Our team will be in touch shortly with the next steps.',
           '',
           'Warm regards,',
-          `${BRAND.company} HR Team`,
+          hr.signoff,
         ].join('\n'),
       );
     } else {
@@ -795,7 +828,7 @@ export default function CandidateDetailPage() {
           'We genuinely appreciate your interest and wish you the very best.',
           '',
           'Regards,',
-          `${BRAND.company} HR Team`,
+          hr.signoff,
         ].join('\n'),
       );
     }
@@ -1040,7 +1073,7 @@ export default function CandidateDetailPage() {
         'The candidate resume and the interview questions are linked below. Please rate each question 1–5 (or NA) and add your recommendation.',
         '',
         'Best regards,',
-        `${BRAND.company} HR Team`,
+        hr.signoff,
       ].join('\n'),
     );
     setOpenForm('ivpack');
@@ -1126,11 +1159,30 @@ export default function CandidateDetailPage() {
     })
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
-  const scheduleBtn = (type: ScheduleType, text: string, primary = true) => (
-    <Button key={text} size="sm" variant={primary ? 'default' : 'outline'} onClick={() => schedule(type)}>
-      <CalendarPlus size={13} /> {text}
-    </Button>
+  // Top-of-entry actions are icon-only buttons tinted with the primary/accent
+  // colour; the label lives in the tooltip (title) so the feed stays clean.
+  const iconBtn = (
+    key: string,
+    icon: React.ReactNode,
+    title: string,
+    onClick: () => void,
+    disabled = false,
+  ) => (
+    <button
+      key={key}
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={title}
+      title={title}
+      className="grid size-8 shrink-0 place-items-center rounded-lg border border-[#E4E6EA] bg-white text-accent-600 transition hover:border-accent-300 hover:bg-accent-50 disabled:pointer-events-none disabled:opacity-40"
+    >
+      {icon}
+    </button>
   );
+
+  const scheduleBtn = (type: ScheduleType, text: string) =>
+    iconBtn(text, <CalendarPlus size={15} />, text, () => schedule(type));
 
   const stageActions = (idx: number): React.ReactNode => {
     const label = stages[idx].label;
@@ -1138,33 +1190,31 @@ export default function CandidateDetailPage() {
 
     if (label === 'Screening')
       btns.push(
-        <Button key="screen" size="sm" variant="outline" onClick={openScreening}>
-          <ClipboardList size={13} /> {candidate.screeningReview ? 'Edit screening notes' : 'Record screening'}
-        </Button>,
+        iconBtn(
+          'screen',
+          <ClipboardList size={15} />,
+          candidate.screeningReview ? 'Edit screening notes' : 'Record screening',
+          openScreening,
+        ),
       );
 
     if (label === 'HR Call' && hrCallReached && !decided)
       btns.push(
-        <Button key="hrform" size="sm" onClick={openHrCall}>
-          <Phone size={13} /> {candidate.hrCall?.completed ? 'Edit call notes' : 'Record HR call'}
-        </Button>,
+        iconBtn(
+          'hrform',
+          <Phone size={15} />,
+          candidate.hrCall?.completed ? 'Edit call notes' : 'Record HR call',
+          openHrCall,
+        ),
       );
 
     if (label === 'IQ Test') {
       const iqPassed = myIq[0]?.qualificationStatus === 'Passed';
       if (!iqReached)
-        btns.push(
-          <Button key="sendiq" size="sm" onClick={() => openSendTest('iq')}>
-            <Send size={13} /> Send IQ test
-          </Button>,
-        );
+        btns.push(iconBtn('sendiq', <Send size={15} />, 'Send IQ test', () => openSendTest('iq')));
       // Failed, disqualified, or any other issue — re-assign a fresh link.
       else if (!iqPassed)
-        btns.push(
-          <Button key="resendiq" size="sm" variant="outline" onClick={() => openSendTest('iq')}>
-            <Send size={13} /> Re-assign IQ test
-          </Button>,
-        );
+        btns.push(iconBtn('resendiq', <Send size={15} />, 'Re-assign IQ test', () => openSendTest('iq')));
     }
 
     if (label === 'Assessment') {
@@ -1173,32 +1223,23 @@ export default function CandidateDetailPage() {
       if (!asgReached) {
         if (iqAccepted)
           btns.push(
-            <Button key="sendasm" size="sm" onClick={() => openSendTest('assignment')}>
-              <Send size={13} /> Send Assessment
-            </Button>,
+            iconBtn('sendasm', <Send size={15} />, 'Send Assessment', () => openSendTest('assignment')),
           );
         else
           btns.push(
-            <span
-              key="asmlock"
-              className="inline-flex items-center rounded-md bg-[#EDEEF1] px-2.5 py-1.5 text-[11px] font-medium text-gray-500"
-            >
-              Accept the IQ test result first to assign the assessment.
-            </span>,
+            iconBtn(
+              'asmlock',
+              <Lock size={14} />,
+              'Accept the IQ test result first to assign the assessment',
+              () => {},
+              true,
+            ),
           );
       }
       if (asgInvite?.status === 'Submitted')
-        btns.push(
-          <Button key="grade" size="sm" onClick={openGrade}>
-            <Star size={13} /> Grade submission
-          </Button>,
-        );
+        btns.push(iconBtn('grade', <Star size={15} />, 'Grade submission', openGrade));
       if (asgInvite?.status === 'Graded')
-        btns.push(
-          <Button key="review" size="sm" variant="outline" onClick={openGrade}>
-            <CheckCircle2 size={13} /> Review grade
-          </Button>,
-        );
+        btns.push(iconBtn('review', <CheckCircle2 size={15} />, 'Review grade', openGrade));
       // Failed or hasn't completed it (any issue) — re-assign a fresh link.
       if (
         asgReached &&
@@ -1207,14 +1248,7 @@ export default function CandidateDetailPage() {
         !(asgInvite.status === 'Graded' && asgInvite.passed)
       )
         btns.push(
-          <Button
-            key="resendasm"
-            size="sm"
-            variant="outline"
-            onClick={() => openSendTest('assignment')}
-          >
-            <Send size={13} /> Re-assign Assessment
-          </Button>,
+          iconBtn('resendasm', <Send size={15} />, 'Re-assign Assessment', () => openSendTest('assignment')),
         );
     }
 
@@ -1231,23 +1265,19 @@ export default function CandidateDetailPage() {
       // Locked once their responses are in — no re-sending after that.
       if (latestInterview?.interviewerEmail)
         btns.push(
-          <Button key="ivpack" size="sm" onClick={openIvPack} disabled={ivResponded}>
-            <Send size={13} /> Send to interviewer
-          </Button>,
+          iconBtn('ivpack', <Send size={15} />, 'Send to interviewer', openIvPack, ivResponded),
         );
       // Reviewing feedback stays disabled until the interviewer has submitted
       // their responses; then it opens the feedback modal (which shows them).
       if (latestInterview)
         btns.push(
-          <Button
-            key="fb"
-            size="sm"
-            variant="outline"
-            onClick={() => openFeedback(latestInterview)}
-            disabled={!ivResponded}
-          >
-            <MessageSquarePlus size={13} /> Review feedback
-          </Button>,
+          iconBtn(
+            'fb',
+            <MessageSquarePlus size={15} />,
+            'Review feedback',
+            () => openFeedback(latestInterview),
+            !ivResponded,
+          ),
         );
       // The pass/hold/reject decision is taken via the header gate (below), then
       // the final outcome + email happens on the Decision step.
@@ -1258,7 +1288,7 @@ export default function CandidateDetailPage() {
     // scores and this summary.
     if (label === 'Decision' && physicalAccepted && !decided) {
       return (
-        <div className="mt-4 space-y-2.5 border-t border-[#ECEDF0] pt-3">
+        <div className="mt-2.5 space-y-2.5">
           <div>
             <Label className="text-[11px] font-medium text-gray-600">
               Final decision about the candidate
@@ -1272,11 +1302,11 @@ export default function CandidateDetailPage() {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => openDecision('accept')}>
+            <Button size="xs" onClick={() => openDecision('accept')}>
               <Check size={13} /> Accept
             </Button>
             <Button
-              size="sm"
+              size="xs"
               variant="outline"
               onClick={() => {
                 move.mutate({ id: candidate.id, status: 'On Hold' });
@@ -1286,7 +1316,7 @@ export default function CandidateDetailPage() {
               <Pause size={13} /> On Hold
             </Button>
             <Button
-              size="sm"
+              size="xs"
               variant="outline"
               className="text-red-600 hover:bg-red-50 hover:text-red-600"
               onClick={() => openDecision('reject')}
@@ -1299,16 +1329,19 @@ export default function CandidateDetailPage() {
     }
 
     if (!btns.length) return null;
-    return <div className="mt-4 flex flex-wrap gap-2 border-t border-[#ECEDF0] pt-3">{btns}</div>;
+    return <div className="flex flex-wrap items-center gap-2">{btns}</div>;
   };
 
   // The Accept / On Hold / Reject (or Next) gate shown in each step's header.
   const stageGate = (idx: number): React.ReactNode => {
     const label = stages[idx].label;
+    // Once a stage has been accepted it reads as a finished narrative line — no
+    // buttons. This keeps only the single active step "live", like the inspiration.
+    if (decisionOf(label) === 'Accepted') return null;
     // Actionable on any reached stage at or before the candidate's current position,
     // as long as they haven't been finally selected/rejected.
     const isCurrent = idx <= currentIndex && !decided;
-    const showGate = isCurrent && ['Applied', 'Screening', 'HR Call'].includes(label);
+    const showGate = isCurrent && ['Screening', 'HR Call'].includes(label);
     const showResultDecision =
       isCurrent &&
       ((label === 'IQ Test' && iqDone) ||
@@ -1323,19 +1356,19 @@ export default function CandidateDetailPage() {
             onClick={() => acceptStage(label)}
             className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
           >
-            <Check size={12} /> Accept
+            <Check size={11} /> Accept
           </button>
           <button
             onClick={() => holdStage(label)}
-            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1 text-[11px] font-semibold text-gray-700 transition hover:bg-[#EDEEF1]"
+            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
           >
-            <Pause size={12} /> On Hold
+            <Pause size={11} /> On Hold
           </button>
           <button
             onClick={() => rejectStage(label)}
-            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
+            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
           >
-            <ThumbsDown size={12} /> Reject
+            <ThumbsDown size={11} /> Reject
           </button>
         </>
       );
@@ -1346,27 +1379,23 @@ export default function CandidateDetailPage() {
           onClick={() => nextStage(label)}
           className="inline-flex items-center gap-1 rounded-md bg-accent-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700"
         >
-          Next <ChevronRight size={12} />
+          Next <ChevronRight size={11} />
         </button>
       );
 
-    return (
-      <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
-        {stages[idx].desc}
-      </span>
-    );
+    // No HR action available on this stage — the status is shown as a chip in the
+    // entry header instead, so the action row renders nothing here.
+    return null;
   };
 
   return (
     <div className="space-y-5 text-xs">
-      {/* Back + header */}
-      <Link
-        href="/candidates"
-        className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 hover:text-accent-600"
-      >
-        <ArrowLeft size={13} /> Back to candidates
-      </Link>
-
+      <EditCandidateDialog
+        open={editOpen}
+        candidate={candidate}
+        onClose={() => setEditOpen(false)}
+        onSave={updated => update.mutate(updated)}
+      />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
         {/* LEFT — profile, contact, documents */}
         <aside className="space-y-4">
@@ -1410,6 +1439,13 @@ export default function CandidateDetailPage() {
                 <Mail size={16} />
               </a>
             </div>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 py-2 text-[12px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600"
+            >
+              <Pencil size={13} /> Edit candidate
+            </button>
           </div>
 
           {/* Contact details */}
@@ -1500,108 +1536,179 @@ export default function CandidateDetailPage() {
           </div>
 
           <div
-            className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs transition-all duration-500 ease-out"
+            className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs transition-all duration-500 ease-out"
             style={{ opacity: stepIn ? 1 : 0, transform: stepIn ? 'translateY(0)' : 'translateY(10px)' }}
           >
-            <ol className="relative">
+            {/* Activity-log header */}
+            <div className="flex items-center justify-between gap-2 border-b border-[#ECEDF0] px-5 py-3.5">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900">Recruitment activity</h3>
+                <span className="rounded-full bg-[#F1F3F5] px-2 py-0.5 font-mono text-[10px] font-semibold text-gray-500">
+                  {stages.filter(s => s.done).length}/{stages.length} steps
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F7F8FA] px-2.5 py-1 text-[11px] font-semibold text-gray-500">
+                <CalendarDays size={12} className="text-gray-400" />
+                {fmtDate(candidate.appliedDate)}
+              </span>
+            </div>
+
+            <ol className="relative px-6 py-6">
           {stages.map((stage, i) => {
             const state = stepState(i);
             const StageIcon = stage.Icon;
             const last = i === stages.length - 1;
             const pathDone = i < currentIndex; // the rail below this node is already travelled
             const muted = state === 'todo';
-            const badgeCls =
+            // Who performed this step: the candidate applied (human icon), every other
+            // step is an HR action (HR profile avatar) — like the inspiration's feed.
+            const isApplied = stage.label === 'Applied';
+            // Status dot colour (entry header chip) — tracks stage state. The chip
+            // itself stays neutral; only this small dot carries the state colour.
+            const dotCls =
               state === 'done'
-                ? 'bg-emerald-600 text-white'
+                ? 'bg-emerald-500'
                 : state === 'rejected'
-                  ? 'bg-red-600 text-white'
+                  ? 'bg-red-500'
                   : state === 'current'
-                    ? 'bg-accent-600 text-white ring-4 ring-accent-100'
-                    : 'bg-[#EDEEF1] text-gray-500';
-            // Accordion: future (todo) steps start collapsed; any step can be toggled.
-            const isCollapsed = collapsedSteps[i] ?? state === 'todo';
-            const toggleStep = () => setCollapsedSteps(prev => ({ ...prev, [i]: !isCollapsed }));
+                    ? 'bg-accent-500'
+                    : 'bg-gray-300';
+            // Detail ("i") panel — hidden until the info button is clicked.
+            const infoShown = !!openInfo[i];
+            const toggleInfo = () => setOpenInfo(prev => ({ ...prev, [i]: !infoShown }));
+            // Stage action(s) (e.g. "Edit call notes") sit at the TOP of the entry;
+            // the HR decision row (Accept / On Hold / Reject / Next) sits at the BOTTOM.
+            const actions = stageActions(i);
+            const gate = stageGate(i);
             return (
               <li
                 key={stage.label}
-                className="relative flex gap-3 transition-all duration-500 sm:gap-4"
+                className="relative flex gap-4 transition-all duration-500"
                 style={{
                   transitionDelay: `${i * 80}ms`,
                   opacity: stepIn ? 1 : 0,
                   transform: stepIn ? 'translateY(0)' : 'translateY(8px)',
                 }}
               >
-                {/* Rail: "Step N" badge + connector */}
-                <div className="flex flex-col items-center">
-                  <span
-                    className={`grid h-7 place-items-center whitespace-nowrap rounded-md px-2.5 text-[11px] font-bold shadow-sm transition-all duration-300 ${badgeCls}`}
-                  >
-                    {state === 'done' ? (
-                      <span className="flex items-center gap-1">
-                        <Check size={12} strokeWidth={2.5} /> Step {i + 1}
+                {/* Rail: continuous thread + actor avatar (candidate vs HR) */}
+                <div className="relative flex w-9 shrink-0 flex-col items-center">
+                  <div className={`relative z-10 ${muted ? 'opacity-60' : ''}`}>
+                    {isApplied ? (
+                      <span
+                        className="grid size-9 place-items-center rounded-full bg-[#F1F3F5] text-gray-500 ring-2 ring-white"
+                        title={candidate.fullName}
+                      >
+                        <User size={16} />
                       </span>
+                    ) : hr.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={hr.avatarUrl}
+                        alt={hr.name}
+                        title={`${hr.name} · ${hr.role}`}
+                        className="size-9 rounded-full object-cover ring-2 ring-white"
+                      />
                     ) : (
-                      <>Step {i + 1}</>
+                      <span
+                        className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-[10px] font-bold text-white ring-2 ring-white"
+                        title={`${hr.name} · ${hr.role}`}
+                      >
+                        {hr.initials}
+                      </span>
                     )}
-                  </span>
+                    {/* Corner status badge — done / current / rejected */}
+                    {state === 'done' && (
+                      <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                        <Check size={9} strokeWidth={3} />
+                      </span>
+                    )}
+                    {state === 'current' && (
+                      <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-accent-500 ring-2 ring-white" />
+                    )}
+                    {state === 'rejected' && (
+                      <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-red-500 text-white ring-2 ring-white">
+                        <XCircle size={9} strokeWidth={3} />
+                      </span>
+                    )}
+                  </div>
                   {!last && (
-                    <span
-                      className={`my-1.5 w-0 flex-1 border-l-2 ${
-                        pathDone ? 'border-emerald-400' : 'border-dashed border-[#D7DAE0]'
-                      }`}
-                    />
+                    <span className={`mt-1.5 w-px flex-1 ${pathDone ? 'bg-emerald-300' : 'bg-[#E4E6EA]'}`} />
                   )}
                 </div>
 
-                {/* Content card */}
-                <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-5'}`}>
-                  <div
-                    className={`rounded-xl border p-4 transition-all ${
-                      state === 'current'
-                        ? 'border-accent-200 bg-[#F7F8FA] shadow-2xs'
-                        : 'border-[#ECEDF0] bg-[#F7F8FA]'
-                    } ${muted ? 'opacity-80' : ''}`}
-                  >
-                    <div className={`flex items-center gap-2 ${isCollapsed ? '' : 'mb-3 border-b border-[#ECEDF0] pb-2.5'}`}>
-                      <button
-                        type="button"
-                        onClick={toggleStep}
-                        className="flex min-w-0 items-center gap-2 text-left"
-                        aria-expanded={!isCollapsed}
-                      >
+                {/* Content — feed entry */}
+                <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-8'}`}>
+                  {/* Header: name + chip + description (left) · timestamp/actions/info (right) */}
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span
-                          className={`grid size-7 shrink-0 place-items-center rounded-lg ${
+                          className={`grid size-5 shrink-0 place-items-center rounded-md ${
                             muted ? 'bg-[#F1F3F5] text-gray-400' : 'bg-accent-50 text-accent-600'
                           }`}
                         >
-                          <StageIcon size={14} />
+                          <StageIcon size={12} />
                         </span>
-                        <h4 className={`truncate text-sm font-bold ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
+                        <span className={`text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
                           {stage.label}
-                        </h4>
-                        {isCollapsed && (
-                          <span className="truncate font-mono text-[10px] text-gray-400">· {stage.desc}</span>
-                        )}
-                      </button>
-                      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                        {!isCollapsed && stageGate(i)}
-                        <button
-                          type="button"
-                          onClick={toggleStep}
-                          aria-label={isCollapsed ? 'Expand step' : 'Collapse step'}
-                          className="grid size-6 shrink-0 place-items-center rounded-md text-gray-400 transition hover:bg-[#EDEEF1] hover:text-gray-700"
-                        >
-                          {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                        </button>
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                          <span className={`size-1.5 rounded-full ${dotCls}`} />
+                          {stage.desc}
+                        </span>
                       </div>
+                      {STAGE_NOTES[stage.label] && (
+                        <p className="mt-1.5 text-[12px] leading-relaxed text-gray-500">
+                          {STAGE_NOTES[stage.label]}
+                        </p>
+                      )}
                     </div>
-                    {!isCollapsed && (
-                      <>
-                        {stageDetail(i)}
-                        {stageActions(i)}
-                      </>
-                    )}
+
+                    {/* Right group — timestamp + action icon(s) + info "i" button */}
+                    <div className="flex shrink-0 items-center gap-2.5">
+                      {stage.when && (
+                        <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
+                          {fmtDate(stage.when)}
+                        </span>
+                      )}
+                      {/* Stage action icons sit next to the info button (Decision's
+                          composer is the exception — it renders below). */}
+                      {stage.label !== 'Decision' && actions}
+                      <button
+                        type="button"
+                        onClick={toggleInfo}
+                        aria-label={infoShown ? 'Hide details' : 'View details'}
+                        aria-expanded={infoShown}
+                        title="View details"
+                        className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
+                          infoShown
+                            ? 'border-accent-200 bg-accent-50 text-accent-600'
+                            : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
+                        }`}
+                      >
+                        <Info size={15} />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Decision composer (textarea + outcome buttons) renders below */}
+                  {stage.label === 'Decision' && actions && <div className="mt-3">{actions}</div>}
+
+                  {/* Detail panel — revealed by the info "i" button */}
+                  {infoShown && (
+                    <div
+                      className={`mt-3 rounded-xl bg-[#F7F8FA] p-3.5 ${
+                        state === 'current'
+                          ? 'border border-y-[#ECEDF0] border-r-[#ECEDF0] border-l-2 border-l-accent-400'
+                          : 'border border-[#ECEDF0]'
+                      }`}
+                    >
+                      {stageDetail(i)}
+                    </div>
+                  )}
+
+                  {/* HR decision row — Accept / On Hold / Reject, at the bottom */}
+                  {gate && <div className="mt-3 flex flex-wrap items-center gap-2">{gate}</div>}
                 </div>
               </li>
             );

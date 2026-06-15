@@ -14,6 +14,7 @@ import {
   Settings,
   Briefcase,
   UserSearch,
+  ChevronDown,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -40,15 +41,15 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
     return (
       <Link
         href={href}
-        className={`w-full flex items-center gap-3 px-3 py-1.5 text-xs rounded-lg transition-all duration-150 group font-medium ${
+        className={`group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 ${
           isActive
-            ? 'bg-[#FFFFFF] text-gray-900 font-semibold shadow-sm'
-            : 'text-gray-600 hover:bg-[#D2D2D6] hover:text-gray-900'
-        }`}
+            ? 'bg-[#FFFFFF] text-gray-900 font-semibold shadow-2xs ring-1 ring-[#ECEDF0]'
+            : 'text-gray-600 hover:bg-[#F1F3F5] hover:text-gray-900'
+        } ${isCollapsed ? 'justify-center' : ''}`}
         title={label}
       >
         <span
-          className={`w-4 h-4 shrink-0 ${isActive ? 'text-accent-700' : 'text-gray-500 group-hover:text-gray-700'}`}
+          className={`h-4 w-4 shrink-0 ${isActive ? 'text-accent-600' : 'text-gray-500 group-hover:text-gray-700'}`}
         >
           {icon}
         </span>
@@ -60,24 +61,31 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
   return (
     <aside
       id="app-sidebar"
-      className={`bg-[#ECEDF0] border-r border-[#D7DAE0] h-screen select-none flex flex-col shrink-0 transition-all duration-200 sticky top-0 ${
+      className={`bg-[#FBFBFC] h-screen select-none flex flex-col shrink-0 transition-all duration-200 sticky top-0 ${
         isCollapsed ? 'w-16' : 'w-64'
       }`}
     >
-      {/* Brand Header */}
-      <div className="p-4 border-b border-[#D7DAE0] flex items-center justify-between">
+      {/* Workspace switcher — height aligned to the main header */}
+      <div className="flex h-14 shrink-0 items-center bg-[#FFFFFF] px-3">
         {!isCollapsed ? (
-          <div className="flex items-center gap-2.5">
-            <Logo size={40} className="shrink-0" />
-            <div className="leading-tight">
-              <h1 className="text-base font-bold text-gray-900 tracking-tight font-display">{BRAND.name}</h1>
-              <p className="text-[10px] text-gray-500 uppercase font-mono font-semibold tracking-wider">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition hover:bg-[#F1F3F5]"
+            title={BRAND.name}
+          >
+            <Logo size={30} className="shrink-0" />
+            <div className="min-w-0 flex-1 leading-tight">
+              <h1 className="truncate font-display text-sm font-bold tracking-tight text-gray-900">
+                {BRAND.name}
+              </h1>
+              <p className="truncate font-mono text-[9px] font-semibold uppercase tracking-wider text-gray-500">
                 HR Operating System
               </p>
             </div>
-          </div>
+            <ChevronDown size={14} className="shrink-0 text-gray-400" />
+          </button>
         ) : (
-          <Logo size={34} className="mx-auto shrink-0" />
+          <Logo size={28} className="mx-auto shrink-0" />
         )}
       </div>
 
@@ -93,13 +101,17 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
         {/* EMPLOYEES DIVISION */}
         <div className="space-y-1">
           {!isCollapsed && (
-            <div
+            <button
+              type="button"
               onClick={() => toggleSection('employees')}
-              className="px-3 py-1 flex items-center justify-between text-[10px] font-semibold text-gray-500 uppercase font-mono tracking-wider cursor-pointer hover:text-gray-600"
+              className="flex w-full items-center justify-between px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-400 transition hover:text-gray-600"
             >
               <span>Employees</span>
-              <span className="text-[8px]">{expandedSections.employees ? '▼' : '▶'}</span>
-            </div>
+              <ChevronDown
+                size={12}
+                className={`transition-transform ${expandedSections.employees ? '' : '-rotate-90'}`}
+              />
+            </button>
           )}
           {(isCollapsed || expandedSections.employees) && (
             <div className="space-y-0.5">
@@ -112,13 +124,17 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
         {/* OFFBOARDING DIVISION */}
         <div className="space-y-1">
           {!isCollapsed && (
-            <div
+            <button
+              type="button"
               onClick={() => toggleSection('offboarding')}
-              className="px-3 py-1 flex items-center justify-between text-[10px] font-semibold text-gray-500 uppercase font-mono tracking-wider cursor-pointer hover:text-gray-600"
+              className="flex w-full items-center justify-between px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-400 transition hover:text-gray-600"
             >
               <span>Offboarding</span>
-              <span className="text-[8px]">{expandedSections.offboarding ? '▼' : '▶'}</span>
-            </div>
+              <ChevronDown
+                size={12}
+                className={`transition-transform ${expandedSections.offboarding ? '' : '-rotate-90'}`}
+              />
+            </button>
           )}
           {(isCollapsed || expandedSections.offboarding) && (
             <div className="space-y-0.5">{navItem('/offboarding', 'Exit Cases', <LogOut size={14} />)}</div>
@@ -126,7 +142,7 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
         </div>
 
         {/* ANALYTICS & SETTINGS */}
-        <div className="pt-2 border-t border-[#D7DAE0] space-y-0.5">
+        <div className="space-y-0.5 border-t border-[#E4E6EA] pt-3">
           {navItem('/reports', 'Enterprise Reports', <BarChart3 size={14} />)}
           {navItem('/settings', 'Global Settings', <Settings size={14} />)}
         </div>

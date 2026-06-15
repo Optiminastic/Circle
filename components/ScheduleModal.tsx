@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { DateTimePicker } from '@/components/ui/date-picker';
 
 export interface BusySlot {
   start: number; // ms
@@ -142,13 +143,7 @@ export function ScheduleModal({
               <Label htmlFor="schedule-dt" className="text-[11px] font-semibold text-gray-600">
                 Date &amp; time ({durationMin} min)
               </Label>
-              <Input
-                id="schedule-dt"
-                type="datetime-local"
-                value={dt}
-                onChange={e => setDt(e.target.value)}
-                required
-              />
+              <DateTimePicker value={dt} onChange={setDt} step={15} />
             </div>
 
             {/* Conflict guard */}

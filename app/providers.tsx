@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createQueryClient } from '@/lib/query/query-client';
 import { UiStateProvider } from '@/store/ui-store';
+import { OrgSettingsProvider } from '@/store/org-settings';
 import { AuthProvider } from '@/store/auth-store';
 import { ToastProvider } from '@/components/Toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -23,9 +24,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <UiStateProvider>
-          <ToastProvider>
-            <TooltipProvider>{mounted ? children : null}</TooltipProvider>
-          </ToastProvider>
+          <OrgSettingsProvider>
+            <ToastProvider>
+              <TooltipProvider>{mounted ? children : null}</TooltipProvider>
+            </ToastProvider>
+          </OrgSettingsProvider>
         </UiStateProvider>
       </AuthProvider>
     </QueryClientProvider>

@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { Breadcrumbs } from './Breadcrumbs';
 import { ModalHost } from './ModalHost';
 import { CommandPalette } from './CommandPalette';
+import { BrandLoading } from './LogoLoader';
 import { useUiStore } from '@/store/ui-store';
 import { useAuth } from '@/store/auth-store';
 import { useCandidates } from '@/features/candidates/hooks';
@@ -17,7 +19,7 @@ import { qk } from '@/lib/query/keys';
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, ready } = useAuth();
-  const { userRole, setUserRole, setSearchQuery, setSelectedCandidateId } = useUiStore();
+  const { userRole, setUserRole } = useUiStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const toggleSidebar = () => setSidebarCollapsed(v => !v);
 
@@ -60,16 +62,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // Hold rendering until we know the auth state (avoids a flash of the dashboard).
   if (!ready || !user) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#F1F3F5]">
-        <div className="w-6 h-6 border-2 border-accent-600 border-t-transparent rounded-full animate-spin" />
+      <div className="h-screen bg-[#F1F3F5]">
+        <BrandLoading label="" />
       </div>
     );
   }
-
-  const onQuickSelectCandidate = (id: string) => {
-    setSelectedCandidateId(id);
-    router.push('/candidates');
-  };
 
   return (
     <div
@@ -83,16 +80,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         onToggleCollapse={toggleSidebar}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <Header
-          onSearch={setSearchQuery}
-          candidatesList={candidates.data ?? []}
-          onQuickSelectCandidate={onQuickSelectCandidate}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={toggleSidebar}
-        />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#FFFFFF]">
+        <Header sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
 
-        <main className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-[#F1F3F5]">
+        <main className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-[#F1F3F5] rounded-tl-2xl border-t border-l border-[#E4E6EA]">
           {error ? (
             <div className="max-w-md mx-auto mt-20 text-center">
               <div className="bg-[#FFFFFF] border border-red-200 rounded-xl p-6">
@@ -103,14 +94,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-3 text-gray-500">
-                <div className="w-6 h-6 border-2 border-accent-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs font-mono">Loading…</span>
-              </div>
-            </div>
+            <BrandLoading />
           ) : (
-            children
+            <>
+              <Breadcrumbs />
+              {children}
+            </>
           )}
         </main>
       </div>
