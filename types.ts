@@ -515,6 +515,18 @@ export type OnboardingStatus =
   | 'Joined'
   | 'Onboarding Completed';
 
+/** Monthly salary-structure components (₹). Special Allowance isn't stored —
+ *  it's derived as the balancer so the CTC always reconciles to `annualCtc`. */
+export interface CtcBreakdown {
+  basic: number;
+  hra: number;
+  /** Employer PF contribution — part of CTC, added on top of gross salary. */
+  employerPf: number;
+  /** Employee PF deduction (take-home reducer). */
+  employeePf: number;
+  professionalTax: number;
+}
+
 export interface Employee {
   id: string; // Employee ID e.g., 'EMP-1024'
   fullName: string;
@@ -548,6 +560,9 @@ export interface Employee {
   candidateId?: string;
   /** Agreed annual compensation, carried over from the accepted offer (e.g. "12 LPA"). */
   annualCtc?: string;
+  /** Editable salary structure shown on the profile. Monthly figures in ₹;
+   *  Special Allowance is derived so the CTC total always matches `annualCtc`. */
+  ctcBreakdown?: CtcBreakdown;
   /** Snapshot of the onboarding email milestones (the onboarding record is removed on conversion). */
   joining?: {
     offerLetterSentAt?: string;

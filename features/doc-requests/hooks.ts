@@ -30,12 +30,16 @@ export function useDocRequestMutations() {
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.docRequests.all });
 
   // Create a 24h request and email the candidate their secure upload link.
+  // On a resend, `prior` carries the existing request so already-verified
+  // (locked) documents survive — they are NOT wiped, and the candidate sees
+  // them locked on the fresh link instead of being asked to re-upload.
   const create = useMutation({
     mutationFn: async (input: {
       candidateId: string;
       candidateName: string;
       email: string;
       role?: string;
+      prior?: DocRequest;
     }) => {
       const expiresAt = new Date(Date.now() + DOC_REQUEST_TTL_HOURS * 3600 * 1000).toISOString();
 
@@ -56,6 +60,15 @@ export function useDocRequestMutations() {
           expiresAt,
         });
       } else {
+        // New link: carry over already-verified (locked) documents + bank details
+        // from the previous request so the candidate isn't asked to re-upload what
+        // has already been cleared.
+        const prior = input.prior ?? existing[0];
+        const carried = (prior?.submissions ?? []).filter(s => s.status === 'Verified');
+        const bank = prior?.bankDetails;
+        const allVerified =
+          carried.length > 0 && REQUIRED_DOC_TYPES.every(rt => carried.some(s => s.docType === rt));
+        const bankOk = Boolean(bank?.accountNumber && bank?.ifscCode);
         request = {
           id: randomToken('DOC'),
           candidateId: input.candidateId,
@@ -63,8 +76,9 @@ export function useDocRequestMutations() {
           email: input.email,
           role: input.role,
           requiredDocs: REQUIRED_DOC_TYPES,
-          submissions: [],
-          status: 'Pending',
+          submissions: carried,
+          bankDetails: bank,
+          status: allVerified && bankOk ? 'Verified' : 'Pending',
           createdAt: nowISO(),
           expiresAt,
         };

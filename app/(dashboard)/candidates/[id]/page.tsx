@@ -56,6 +56,7 @@ import {
   ASSIGNMENT_MAX_MARKS,
   ASSIGNMENT_PASS_MARKS,
   IQ_DURATION_MIN,
+  ASSESSMENT_DURATION_MIN,
 } from '@/data/test-banks';
 import { randomId, randomToken, nowISO } from '@/lib/utils';
 import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
@@ -925,8 +926,9 @@ export default function CandidateDetailPage() {
   // ---- Send IQ test / Send Assessment (manual, editable email) ----
   const openSendTest = (kind: 'iq' | 'assignment') => {
     const id = randomToken('TIV');
-    const path = kind === 'iq' ? 'test' : 'assessment';
-    const url = `${window.location.origin}/${path}/${id}`;
+    // Both IQ and Assessment run in the same proctored window (/test) — full
+    // screen, tab-switch limited, auto-submit on disqualification.
+    const url = `${window.location.origin}/test/${id}`;
     setSendTest({ kind, id, url });
   };
 
@@ -943,7 +945,7 @@ export default function CandidateDetailPage() {
       position,
       department: candidate.department,
       jobId: candidate.jobId,
-      durationMin: kind === 'iq' ? IQ_DURATION_MIN : 0,
+      durationMin: kind === 'iq' ? IQ_DURATION_MIN : ASSESSMENT_DURATION_MIN,
       status: 'Pending',
       // Assessment carries Question-Library questions the candidate answers on the
       // public assessment link (auto-scored), not a take-home upload.
@@ -1339,7 +1341,13 @@ export default function CandidateDetailPage() {
     // Actionable on any reached stage at or before the candidate's current position,
     // as long as they haven't been finally selected/rejected.
     const isCurrent = idx <= currentIndex && !decided;
-    const showGate = isCurrent && ['Screening', 'HR Call'].includes(label);
+    // Accept / On Hold / Reject only appears once HR has actually recorded the
+    // review for the stage — the screening notes for Screening, or a completed
+    // call for HR Call. Before that there's nothing to decide on.
+    const showGate =
+      isCurrent &&
+      ((label === 'Screening' && !!candidate.screeningReview) ||
+        (label === 'HR Call' && hrCallDone));
     const showResultDecision =
       isCurrent &&
       ((label === 'IQ Test' && iqDone) ||

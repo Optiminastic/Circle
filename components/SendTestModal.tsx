@@ -72,7 +72,7 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
 
   // The link itself is sent as a labelled button (see `linkLabel` below), so the
   // body only references it — no raw URL is ever pasted into the message.
-  const linkLabel = isIq ? 'Start IQ Test' : 'Open Assessment';
+  const linkLabel = isIq ? 'Start IQ Test' : 'Start Assessment';
   const composed = useMemo(
     () =>
       [
@@ -80,9 +80,7 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
         '',
         `As the next step in your application for ${position}, please complete our ${what.toLowerCase()}.`,
         '',
-        isIq
-          ? `Use the "${linkLabel}" button below to begin. The test is timed and runs in full screen — please ensure a stable internet connection before you start.`
-          : `Use the "${linkLabel}" button below to read the brief and submit your work before the deadline.`,
+        `Use the "${linkLabel}" button below to begin. The ${what.toLowerCase()} is timed and runs in full screen — please ensure a stable internet connection before you start.`,
         '',
         'Best Regards,',
         hr.signoff,
