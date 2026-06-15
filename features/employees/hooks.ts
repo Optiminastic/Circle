@@ -32,6 +32,14 @@ export function useEmployeeMutations() {
     ),
   });
 
+  // Permanently remove an employee record from the directory.
+  const remove = useMutation({
+    mutationFn: (id: string) => repositories.employees.remove(id),
+    ...optimisticOptions<string, Employee>(qc, qk.employees.all, id =>
+      listOps.removeBy(x => x.id === id),
+    ),
+  });
+
   const updateCredential = useMutation({
     mutationFn: async ({ empId, credId, status }: { empId: string; credId: string; status: string }) => {
       const list = qc.getQueryData<Employee[]>(qk.employees.all) ?? [];
@@ -70,7 +78,7 @@ export function useEmployeeMutations() {
     ),
   });
 
-  return { create, update, updateCredential, saveAppraisal };
+  return { create, update, remove, updateCredential, saveAppraisal };
 }
 
 export function useUpdateAsset() {

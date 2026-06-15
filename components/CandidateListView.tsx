@@ -19,12 +19,9 @@ import {
   ChevronRight,
   SlidersHorizontal,
   Trash2,
-  UserCheck,
   UserSearch,
-  ShieldCheck,
   X,
   Check,
-  Minus,
   User,
   Briefcase,
   Building2,
@@ -109,13 +106,11 @@ export function CandidateListView({
   onSelectCandidate,
   onAddCandidate,
   onDeleteCandidate,
-  onShortlistCandidate,
   onSetFit,
   showHeader = true,
 }: CandidateListViewProps) {
   const toast = useToast();
   const qc = useQueryClient();
-  const { openCandidate } = useUiStore();
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -467,20 +462,6 @@ export function CandidateListView({
                   <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
                       <ActionMenu
                         items={[
-                          {
-                            key: 'shortlist',
-                            label:
-                              cand.status === 'Shortlisted' ? 'Shortlisted' : 'Shortlist & Schedule',
-                            icon: <UserCheck size={13} />,
-                            disabled: cand.status === 'Shortlisted' || !onShortlistCandidate,
-                            onClick: () => onShortlistCandidate?.(cand.id, cand.fullName),
-                          },
-                          {
-                            key: 'bgv',
-                            label: 'BGV Verification',
-                            icon: <ShieldCheck size={13} />,
-                            onClick: () => openCandidate(cand.id, 'bgv'),
-                          },
                           ...(onSetFit
                             ? ([
                                 {
@@ -488,12 +469,6 @@ export function CandidateListView({
                                   label: 'Mark Fit',
                                   icon: <Check size={13} />,
                                   onClick: () => onSetFit(cand.id, 'Fit'),
-                                },
-                                {
-                                  key: 'fit-border',
-                                  label: 'Mark Borderline',
-                                  icon: <Minus size={13} />,
-                                  onClick: () => onSetFit(cand.id, 'Borderline'),
                                 },
                                 {
                                   key: 'fit-unfit',
