@@ -92,7 +92,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
           id="btn-sidebar-collapse"
           onClick={onToggleSidebar}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="shrink-0 rounded-md p-1.5 text-gray-500 hover:bg-[#EDEEF1] hover:text-gray-700 cursor-pointer transition"
+          className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-[#EDEEF1] hover:text-gray-700 cursor-pointer transition"
         >
           {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
@@ -102,7 +102,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
           id="global-search-trigger"
           type="button"
           onClick={() => setCommandOpen(true)}
-          className="group flex w-80 items-center gap-2 rounded-md border border-[#E4E6EA] bg-[#EDEEF1] py-1.5 pl-3 pr-2 text-left text-xs text-gray-500 transition hover:bg-[#FFFFFF] hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          className="group flex w-80 items-center gap-2 rounded-xl border border-[#E4E6EA] bg-[#EDEEF1] py-2 pl-3 pr-2 text-left text-xs text-gray-500 transition hover:bg-[#FFFFFF] hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
         >
           <Search size={14} className="shrink-0 text-gray-500" />
           <span className="flex-1 truncate">Search candidates, roles, employees…</span>
@@ -120,7 +120,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
           aria-label="Recruitment Calendar"
           title="Recruitment Calendar"
           className={cn(
-            'rounded-md border border-[#E4E6EA] p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+            'rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
             ui.focusRing,
           )}
         >
@@ -132,7 +132,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
           <Popover.Trigger
             id="btn-notifications"
             className={cn(
-              'relative rounded-md border border-[#E4E6EA] p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+              'relative rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
               ui.focusRing,
             )}
             aria-label="Notifications"

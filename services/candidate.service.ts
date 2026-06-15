@@ -31,6 +31,7 @@ export function buildOnboardingForCandidate(candidate: Candidate): OnboardingChe
   return {
     candidateId: candidate.id,
     candidateName: candidate.fullName,
+    candidateEmail: candidate.email,
     onboardingStatus: 'Offer Accepted',
     progressPercentage: 40,
     tasks: [

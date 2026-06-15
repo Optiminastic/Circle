@@ -128,7 +128,6 @@ const EMPTY_FORM = {
   department: 'Engineering',
   location: 'Mumbai',
   employmentType: 'Full-time' as Job['employmentType'],
-  workMode: 'Hybrid' as Job['workMode'],
   minExperienceYears: 3,
   salaryMin: '',
   salaryMax: '',
@@ -219,7 +218,6 @@ export function JobListView({
     if (!form.department) missing.push('Department');
     if (!form.location.trim()) missing.push('Location');
     if (!form.employmentType) missing.push('Employment type');
-    if (!form.workMode) missing.push('Work mode');
     if (form.minExperienceYears === null || Number.isNaN(Number(form.minExperienceYears)))
       missing.push('Min experience');
     if (!form.description.trim()) missing.push('Job description');
@@ -236,7 +234,6 @@ export function JobListView({
       department: form.department,
       location: form.location,
       employmentType: form.employmentType,
-      workMode: form.workMode,
       minExperienceYears: Number(form.minExperienceYears),
       salaryMin: form.salaryMin,
       salaryMax: form.salaryMax,
@@ -582,7 +579,6 @@ export function JobListView({
                     </Td>
                     <Td className="whitespace-nowrap text-[11px] text-gray-600">
                       {job.employmentType}
-                      <span className="text-gray-400"> · {job.workMode}</span>
                     </Td>
                     <Td align="center" className="whitespace-nowrap font-mono text-[11px] text-gray-600">
                       {job.minExperienceYears}+ yrs
@@ -753,18 +749,6 @@ export function JobListView({
                         <option value="Contract">Contract</option>
                         <option value="Internship">Internship</option>
                         <option value="Temporary">Temporary</option>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Work mode</Label>
-                      <Select
-                        value={form.workMode}
-                        onChange={e => setForm({ ...form, workMode: e.target.value as Job['workMode'] })}
-                        className="mt-2 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm shadow-xs"
-                      >
-                        <option value="Onsite">Onsite</option>
-                        <option value="Remote">Remote</option>
-                        <option value="Hybrid">Hybrid</option>
                       </Select>
                     </div>
                     <div>

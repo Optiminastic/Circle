@@ -279,7 +279,7 @@ export function CandidateListView({
     <div className="space-y-4 text-xs select-none">
       {/* View Header with CTA triggers */}
       {showHeader && (
-        <div className="flex justify-between items-center bg-[#F7F8FA] border-b border-[#E4E6EA] pb-3">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-4">
           <div>
             <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
               Candidate Evaluation & ATS Panel
@@ -294,7 +294,7 @@ export function CandidateListView({
               setResume(null);
               setShowAddForm(true);
             }}
-            className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition font-medium"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
           >
             <Plus size={14} /> Add Candidate
           </button>

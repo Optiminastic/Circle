@@ -9,7 +9,15 @@ import { nowISO, randomToken } from '@/lib/utils';
 import { REQUIRED_DOC_TYPES, docPortalPath, DOC_REQUEST_TTL_HOURS } from '@/lib/onboarding-docs';
 
 export function useDocRequests() {
-  return useQuery({ queryKey: qk.docRequests.all, queryFn: () => repositories.docRequests.list() });
+  // Candidates upload from their own session, so HR must poll to see new
+  // submissions land — refetch on focus/mount and every 20s while open.
+  return useQuery({
+    queryKey: qk.docRequests.all,
+    queryFn: () => repositories.docRequests.list(),
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
+    refetchInterval: 20_000,
+  });
 }
 
 /** Is this request still within its 24h window? */

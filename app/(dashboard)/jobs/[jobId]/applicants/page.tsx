@@ -56,7 +56,6 @@ export default function JobApplicantsPage() {
               <MapPin size={10} /> {job.location}
             </span>
             <span>{job.employmentType}</span>
-            <span>{job.workMode}</span>
           </span>
         </div>
       </div>

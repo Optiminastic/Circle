@@ -4,18 +4,13 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { OnboardingDetail } from '@/components/OnboardingDetail';
 import { PageLoading } from '@/components/PageLoading';
-import {
-  useOnboarding,
-  useToggleOnboardingTask,
-  usePromoteFromOnboarding,
-} from '@/features/onboarding/hooks';
+import { useOnboarding, usePromoteFromOnboarding } from '@/features/onboarding/hooks';
 
 export default function OnboardingDetailPage() {
   const params = useParams<{ candidateId: string }>();
   const candidateId = params?.candidateId ?? '';
 
   const { data: onboarding = [], isLoading } = useOnboarding();
-  const toggle = useToggleOnboardingTask();
   const promote = usePromoteFromOnboarding();
 
   if (isLoading) return <PageLoading />;
@@ -45,11 +40,7 @@ export default function OnboardingDetailPage() {
         </h2>
         <p className="text-[11px] text-gray-500">Onboarding workspace · {checklist.onboardingStatus}</p>
       </div>
-      <OnboardingDetail
-        checklist={checklist}
-        onToggleTask={(candidateName, taskId) => toggle.mutate({ candidateName, taskId })}
-        onAddEmployeeTrigger={c => promote.mutate(c)}
-      />
+      <OnboardingDetail checklist={checklist} onAddEmployeeTrigger={c => promote.mutate(c)} />
     </div>
   );
 }

@@ -191,7 +191,6 @@ export interface Job {
   department: string;
   location: string;
   employmentType: EmploymentType;
-  workMode: WorkMode;
   minExperienceYears: number;
   salaryMin: string; // e.g. "12 LPA"
   salaryMax: string;
@@ -205,8 +204,6 @@ export interface Job {
 }
 
 export type EmploymentType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship' | 'Temporary';
-
-export type WorkMode = 'Onsite' | 'Remote' | 'Hybrid';
 
 export type JobStatus = 'Open' | 'Closed' | 'Draft' | 'On Hold';
 
@@ -230,7 +227,6 @@ export interface HRCallRecord {
   currentCtc: string;
   expectedCtc: string;
   noticePeriodDays: number;
-  workModePreference: 'Onsite' | 'Remote' | 'Hybrid';
   roleUnderstanding: string;
   interestLevel: number; // 1-5
   culturalFitRemarks: string;
@@ -484,6 +480,9 @@ export type BGVOverallStatus = BGVDocumentStatus;
 export interface OnboardingChecklist {
   candidateId: string;
   candidateName: string;
+  /** Candidate's email captured at onboarding-creation so the workspace can always
+   *  email them (offer/doc links) even if the candidate record is unavailable later. */
+  candidateEmail?: string;
   onboardingStatus: OnboardingStatus;
   progressPercentage: number;
   tasks: {
