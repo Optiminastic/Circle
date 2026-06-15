@@ -6,7 +6,6 @@ import {
   FileSignature,
   PenLine,
   Building2,
-  ScrollText,
   Fingerprint,
   BadgeCheck,
   Check,
@@ -14,6 +13,7 @@ import {
   Loader2,
   Lock,
   Info,
+  Mail,
 } from 'lucide-react';
 import { BGVRequirement, OnboardingChecklist } from '@/types';
 import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
@@ -25,6 +25,8 @@ import {
 } from '@/features/onboarding/hooks';
 import { nowISO } from '@/lib/utils';
 import { useToast } from '@/components/Toaster';
+import { OnboardingEmailComposer, type ComposerSeed } from '@/components/OnboardingEmailComposer';
+import { buildOnboardingEmailDraft } from '@/lib/onboarding-email-templates';
 
 interface OnboardingStepperProps {
   checklist: OnboardingChecklist;
@@ -50,22 +52,38 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const { data: candidates = [] } = useCandidates();
   const { data: requests = [] } = useDocRequests();
   const { data: bgvs = [] } = useBgvs();
-  const { send, markOfferSigned } = useOnboardingEmails();
+  const { sendComposed, markOfferSigned } = useOnboardingEmails();
   const updateBgv = useUpdateBgv();
   const startBgv = useStartBgv();
   const promote = usePromoteFromOnboarding();
 
   const [openInfo, setOpenInfo] = useState<Record<number, boolean>>({});
+  // Editable email composer (offer letter / job offer / office invite).
+  const [composer, setComposer] = useState<(ComposerSeed & { kind: OnboardingEmailKind }) | null>(
+    null,
+  );
 
   const candidate = candidates.find(c => c.id === checklist.candidateId);
+  // Resending mints a fresh link, so pick the request that actually holds the
+  // candidate's uploads (most submissions / bank), not just the newest.
   const docRequest = requests
     .filter(r => r.candidateId === checklist.candidateId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    .sort(
+      (a, b) =>
+        (b.submissions?.length ?? 0) +
+        (b.bankDetails?.accountNumber ? 1 : 0) -
+        ((a.submissions?.length ?? 0) + (a.bankDetails?.accountNumber ? 1 : 0)) ||
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0];
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
 
   const verifiedCount = docRequest?.submissions?.filter(s => s.status === 'Verified').length ?? 0;
   const requiredCount = docRequest?.requiredDocs?.length ?? 0;
   const docsVerified = docRequest?.status === 'Verified';
+  // The candidate has shared at least one document (or finished) — enough to send
+  // the offer letter without waiting for HR to verify every doc.
+  const docsShared =
+    docsVerified || (docRequest?.submissions?.length ?? 0) > 0 || docRequest?.status === 'Submitted';
   const bgvVerified = bgv?.overallStatus === 'Verified';
   const joined =
     checklist.progressPercentage === 100 ||
@@ -94,13 +112,23 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       action: { kind: 'none' },
     },
     {
+      Icon: Mail,
+      label: 'Job offer',
+      done: Boolean(checklist.jobOfferSentAt),
+      desc: checklist.jobOfferSentAt ? 'Sent' : 'Pending',
+      at: checklist.jobOfferSentAt,
+      detail:
+        'Email the candidate their job offer — the role, salary, working days/hours and mode. The formal offer letter follows next.',
+      action: { kind: 'email', emailKind: 'job_offer', cta: 'job offer' },
+    },
+    {
       Icon: FileSignature,
       label: 'Offer letter',
       done: Boolean(checklist.offerLetterSentAt),
       desc: checklist.offerLetterSentAt ? 'Sent' : 'Pending',
       at: checklist.offerLetterSentAt,
       detail:
-        'Email the candidate their offer letter to review. They are asked to sign it and send the signed copy back.',
+        'Email the candidate their formal offer letter to review. They are asked to sign it and send the signed copy back.',
       action: { kind: 'email', emailKind: 'offer_letter', cta: 'offer letter' },
     },
     {
@@ -121,15 +149,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       at: checklist.officeInviteSentAt,
       detail: 'Send a welcome-to-office email with the office address so they can visit and complete formalities.',
       action: { kind: 'email', emailKind: 'office_invite', cta: 'office invite' },
-    },
-    {
-      Icon: ScrollText,
-      label: 'Letter of appointment',
-      done: Boolean(checklist.appointmentLetterSentAt),
-      desc: checklist.appointmentLetterSentAt ? 'Sent' : 'Pending',
-      at: checklist.appointmentLetterSentAt,
-      detail: 'A few days after the office visit, send the formal letter of appointment confirming their role.',
-      action: { kind: 'email', emailKind: 'appointment_letter', cta: 'appointment letter' },
     },
     {
       Icon: Fingerprint,
@@ -164,22 +183,33 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const stepState = (i: number): StepState =>
     i < currentIndex ? 'done' : i === currentIndex ? (stages[i].done ? 'done' : 'current') : 'todo';
 
-  const runEmail = (emailKind: OnboardingEmailKind, cta: string) => {
-    send.mutate(
-      {
-        candidateId: checklist.candidateId,
-        candidateName: checklist.candidateName,
-        email: candidate?.email || checklist.candidateEmail || '',
-        role: candidate?.appliedRole,
-        kind: emailKind,
-      },
+  const toEmail = candidate?.email || checklist.candidateEmail || '';
+
+  // Open the editable composer pre-filled from the template for this email kind.
+  const openComposer = (emailKind: OnboardingEmailKind, cta: string) => {
+    const draft = buildOnboardingEmailDraft(emailKind, candidate);
+    setComposer({
+      kind: emailKind,
+      title: `Send ${cta}`,
+      to: toEmail,
+      subject: draft.subject,
+      body: draft.body,
+    });
+  };
+
+  const sendFromComposer = (subject: string, body: string) => {
+    if (!composer) return;
+    const cta = composer.title.replace(/^Send\s+/i, '');
+    sendComposed.mutate(
+      { candidateId: checklist.candidateId, kind: composer.kind, to: composer.to, subject, body },
       {
         onSuccess: ({ emailed, emailReason }) => {
-          if (emailed) toast.success(`Sent the ${cta} to the candidate.`);
+          if (emailed) toast.success(`Sent the ${cta} to ${composer.to}.`);
           else if (emailReason === 'not_configured')
             toast.info(`${cta} recorded. Email not sent — SMTP is not configured.`);
-          else if (!candidate?.email) toast.info(`${cta} recorded, but no email on file.`);
+          else if (!composer.to) toast.info(`${cta} recorded, but no email on file.`);
           else toast.info(`${cta} recorded, but the email could not be sent.`);
+          setComposer(null);
         },
         onError: () => toast.error(`Could not send the ${cta} — try again.`),
       },
@@ -225,7 +255,14 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   };
 
   // --- per-stage action helpers (each entry drives its own button) ---
-  const gateMetFor = (i: number) => i === 0 || stages[i - 1].done;
+  const gateMetFor = (i: number) => {
+    if (i === 0) return true;
+    const action = stages[i].action;
+    // The job offer goes out as soon as the candidate has SHARED their documents,
+    // without waiting for HR to verify each one. The offer letter then follows it.
+    if (action.kind === 'email' && action.emailKind === 'job_offer') return docsShared;
+    return stages[i - 1].done;
+  };
   const showActionFor = (i: number) => {
     const a = stages[i].action;
     const done = stages[i].done;
@@ -240,7 +277,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const pendingFor = (i: number) => {
     const a = stages[i].action;
     return (
-      (send.isPending && a.kind === 'email' && send.variables?.kind === a.emailKind) ||
+      (sendComposed.isPending && a.kind === 'email' && sendComposed.variables?.kind === a.emailKind) ||
       (markOfferSigned.isPending && a.kind === 'mark-signed') ||
       (startBgv.isPending && a.kind === 'start-bgv') ||
       (updateBgv.isPending && a.kind === 'verify-bgv') ||
@@ -251,7 +288,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     const a = stages[i].action;
     switch (a.kind) {
       case 'email':
-        return runEmail(a.emailKind, a.cta);
+        return openComposer(a.emailKind, a.cta);
       case 'mark-signed':
         return markSigned();
       case 'start-bgv':
@@ -279,6 +316,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
   return (
     <div className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5">
+      <OnboardingEmailComposer
+        open={!!composer}
+        seed={composer}
+        sending={sendComposed.isPending}
+        onClose={() => setComposer(null)}
+        onSend={sendFromComposer}
+      />
       <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
         Onboarding progress <span className="text-gray-400">· tap ⓘ on a stage for details</span>
       </p>
@@ -399,14 +443,14 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       onClick={() => onActionClickFor(i)}
                       disabled={!gateMet || pending}
                       title={!gateMet ? 'Complete the previous step first' : undefined}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-md bg-accent-600 px-2.5 text-[11px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex h-6 items-center gap-1 rounded-md bg-accent-600 px-2 text-[10px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {pending ? (
-                        <Loader2 size={12} className="animate-spin" />
+                        <Loader2 size={11} className="animate-spin" />
                       ) : !gateMet ? (
-                        <Lock size={12} />
+                        <Lock size={11} />
                       ) : (
-                        <ActionIcon size={12} />
+                        <ActionIcon size={11} />
                       )}
                       {actionLabel}
                     </button>

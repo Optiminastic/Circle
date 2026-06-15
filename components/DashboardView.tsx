@@ -213,7 +213,7 @@ export function DashboardView({
       </div>
 
       {/* KPI stat cards — real values, clickable */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s, i) => {
           const Icon = s.Icon;
           return (

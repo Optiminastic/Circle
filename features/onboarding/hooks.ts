@@ -8,7 +8,7 @@ import { optimisticOptions } from '@/lib/query/mutations';
 import { toggleOnboardingTask } from '@/services/onboarding.service';
 import { buildEmployeeFromCandidate } from '@/services/employee.service';
 import { buildOnboardingForCandidate } from '@/services/candidate.service';
-import { sendTestEmail } from '@/lib/api/notifications';
+import { sendTestEmail, sendCustomEmail } from '@/lib/api/notifications';
 import { nowISO } from '@/lib/utils';
 
 export function useOnboarding() {
@@ -51,10 +51,15 @@ export function useToggleOnboardingTask() {
   });
 }
 
-export type OnboardingEmailKind = 'offer_letter' | 'office_invite' | 'appointment_letter';
+export type OnboardingEmailKind =
+  | 'job_offer'
+  | 'offer_letter'
+  | 'office_invite'
+  | 'appointment_letter';
 
 // The checklist field each email stamps when sent.
 const stampByKind: Record<OnboardingEmailKind, () => Partial<OnboardingChecklist>> = {
+  job_offer: () => ({ jobOfferSentAt: nowISO() }),
   offer_letter: () => ({ offerLetterSentAt: nowISO() }),
   office_invite: () => ({ officeInviteSentAt: nowISO() }),
   appointment_letter: () => ({ appointmentLetterSentAt: nowISO() }),
@@ -76,6 +81,7 @@ export function useOnboardingEmails() {
       candidateName: string;
       email: string;
       role?: string;
+      salary?: string;
       kind: OnboardingEmailKind;
     }) => {
       let emailed = false;
@@ -86,6 +92,33 @@ export function useOnboardingEmails() {
           candidateName: input.candidateName,
           template: input.kind,
           position: input.role,
+          salary: input.salary,
+        }).catch(() => ({ sent: false, reason: undefined } as { sent: boolean; reason?: string }));
+        emailed = res.sent;
+        emailReason = res.reason;
+      }
+      await repositories.onboarding.patch(input.candidateId, stampByKind[input.kind]());
+      return { emailed, emailReason };
+    },
+    onSuccess: invalidate,
+  });
+
+  // Send an HR-edited onboarding email (custom subject/body) and stamp the stage.
+  const sendComposed = useMutation({
+    mutationFn: async (input: {
+      candidateId: string;
+      kind: OnboardingEmailKind;
+      to: string;
+      subject: string;
+      body: string;
+    }) => {
+      let emailed = false;
+      let emailReason: string | undefined;
+      if (input.to) {
+        const res = await sendCustomEmail({
+          to: input.to,
+          subject: input.subject,
+          body: input.body,
         }).catch(() => ({ sent: false, reason: undefined } as { sent: boolean; reason?: string }));
         emailed = res.sent;
         emailReason = res.reason;
@@ -102,7 +135,7 @@ export function useOnboardingEmails() {
     onSuccess: invalidate,
   });
 
-  return { send, markOfferSigned };
+  return { send, sendComposed, markOfferSigned };
 }
 
 /** Promote a finished onboarding into a full employee (touches 3 resources). */

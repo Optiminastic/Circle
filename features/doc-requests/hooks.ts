@@ -37,22 +37,41 @@ export function useDocRequestMutations() {
       email: string;
       role?: string;
     }) => {
-      const token = randomToken('DOC');
-      const request: DocRequest = {
-        id: token,
-        candidateId: input.candidateId,
-        candidateName: input.candidateName,
-        email: input.email,
-        role: input.role,
-        requiredDocs: REQUIRED_DOC_TYPES,
-        submissions: [],
-        status: 'Pending',
-        createdAt: nowISO(),
-        expiresAt: new Date(Date.now() + DOC_REQUEST_TTL_HOURS * 3600 * 1000).toISOString(),
-      };
-      await repositories.docRequests.create(request);
+      const expiresAt = new Date(Date.now() + DOC_REQUEST_TTL_HOURS * 3600 * 1000).toISOString();
 
-      const link = `${window.location.origin}${docPortalPath(token)}`;
+      // Reuse an existing live request for this candidate so "Resend" re-emails the
+      // SAME link (and extends its window) instead of spawning empty duplicates the
+      // candidate's uploads won't show up on. Only mint a new token if none is live.
+      const existing = (qc.getQueryData<DocRequest[]>(qk.docRequests.all) ?? [])
+        .filter(r => r.candidateId === input.candidateId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const live = existing.find(r => new Date(r.expiresAt).getTime() > Date.now());
+
+      let request: DocRequest;
+      if (live) {
+        request = { ...live, email: input.email || live.email, role: input.role ?? live.role, expiresAt };
+        await repositories.docRequests.patch(live.id, {
+          email: request.email,
+          role: request.role,
+          expiresAt,
+        });
+      } else {
+        request = {
+          id: randomToken('DOC'),
+          candidateId: input.candidateId,
+          candidateName: input.candidateName,
+          email: input.email,
+          role: input.role,
+          requiredDocs: REQUIRED_DOC_TYPES,
+          submissions: [],
+          status: 'Pending',
+          createdAt: nowISO(),
+          expiresAt,
+        };
+        await repositories.docRequests.create(request);
+      }
+
+      const link = `${window.location.origin}${docPortalPath(request.id)}`;
       let emailed = false;
       let emailReason: string | undefined;
       if (input.email) {

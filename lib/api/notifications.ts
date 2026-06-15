@@ -33,6 +33,7 @@ export type TestEmailTemplate =
   | 'doc_request'
   | 'offer_shortlisted'
   | 'offer_selected'
+  | 'job_offer'
   | 'offer_letter'
   | 'office_invite'
   | 'appointment_letter';
@@ -71,6 +72,7 @@ export function sendTestEmail(input: {
   score?: string;
   durationMin?: number;
   dateTimeIso?: string;
+  salary?: string;
 }): Promise<ScheduleEmailResult> {
   return http.post<ScheduleEmailResult>('/notifications/test-email', input);
 }

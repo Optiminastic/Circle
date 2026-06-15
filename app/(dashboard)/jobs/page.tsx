@@ -8,7 +8,7 @@ import { useCandidates } from '@/features/candidates/hooks';
 export default function JobsPage() {
   const { data: jobs = [], isLoading } = useJobs();
   const { data: candidates = [] } = useCandidates();
-  const { create, setStatus, remove } = useJobMutations();
+  const { create, update, setStatus, remove } = useJobMutations();
 
   if (isLoading) return <PageLoading />;
 
@@ -23,6 +23,7 @@ export default function JobsPage() {
       jobs={jobs}
       applicantCounts={applicantCounts}
       onCreateJob={job => create.mutate(job)}
+      onUpdateJob={job => update.mutate(job)}
       onSetStatus={(id, status) => setStatus.mutate({ id, status })}
       onDeleteJob={id => remove.mutate(id)}
     />

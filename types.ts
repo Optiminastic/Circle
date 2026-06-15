@@ -493,6 +493,8 @@ export interface OnboardingChecklist {
   }[];
 
   // Post-verification email sequence (ISO timestamps; undefined = not yet done).
+  /** Job-offer email (offer details) sent to the candidate. */
+  jobOfferSentAt?: string;
   /** Offer letter emailed to the candidate. */
   offerLetterSentAt?: string;
   /** HR marked the signed offer as received back. */

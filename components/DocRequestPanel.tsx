@@ -54,14 +54,20 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
   // Resolve the recipient: live candidate record first, then the passed fallback.
   const toEmail = candidate?.email || email || '';
 
-  // The most recent request for this candidate (re-requests supersede older ones).
-  const request = useMemo(
-    () =>
-      requests
-        .filter(r => r.candidateId === candidateId)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0],
-    [requests, candidateId],
-  );
+  // Pick the request that actually holds the candidate's data. Resending creates
+  // a fresh link, so prefer the one with the most uploads / bank details (the one
+  // the candidate actually used); fall back to the most recent.
+  const request = useMemo(() => {
+    const score = (r: DocRequest) =>
+      (r.submissions?.length ?? 0) + (r.bankDetails?.accountNumber ? 1 : 0);
+    return requests
+      .filter(r => r.candidateId === candidateId)
+      .sort(
+        (a, b) =>
+          score(b) - score(a) ||
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )[0];
+  }, [requests, candidateId]);
 
   const [rejecting, setRejecting] = useState<string | null>(null);
   const [reason, setReason] = useState('');

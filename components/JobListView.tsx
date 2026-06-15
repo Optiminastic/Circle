@@ -51,6 +51,7 @@ import {
   Play,
   Pause,
   PauseCircle,
+  Pencil,
 } from 'lucide-react';
 import { ActionMenu } from '@/components/ActionMenu';
 import { EditableSelect } from '@/components/ui/editable-select';
@@ -119,6 +120,7 @@ interface JobListViewProps {
   jobs: Job[];
   applicantCounts: Record<string, number>;
   onCreateJob: (job: Job) => void;
+  onUpdateJob: (job: Job) => void;
   onSetStatus: (id: string, status: JobStatus) => void;
   onDeleteJob: (id: string) => void;
 }
@@ -153,6 +155,7 @@ export function JobListView({
   jobs,
   applicantCounts,
   onCreateJob,
+  onUpdateJob,
   onSetStatus,
   onDeleteJob,
 }: JobListViewProps) {
@@ -160,8 +163,34 @@ export function JobListView({
   const router = useRouter();
   const org = useOrgSettings();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Open the form to create a fresh posting.
+  const openCreate = () => {
+    setEditingJob(null);
+    setForm(EMPTY_FORM);
+    setShowAddForm(true);
+  };
+
+  // Open the form pre-filled to edit an existing posting.
+  const openEdit = (job: Job) => {
+    setEditingJob(job);
+    setForm({
+      title: job.title,
+      department: job.department,
+      location: job.location,
+      employmentType: job.employmentType,
+      minExperienceYears: job.minExperienceYears,
+      salaryMin: job.salaryMin,
+      salaryMax: job.salaryMax,
+      description: job.description,
+      requirements: job.requirements,
+      screeningQuestions: job.screeningQuestions ?? [],
+    });
+    setShowAddForm(true);
+  };
   const [search, setSearch] = useState('');
   // Reusable Must-have/Good-to-have sets from the Question Library.
   const [screeningBanks, setScreeningBanks] = useState<ScreeningBank[]>([]);
@@ -224,12 +253,11 @@ export function JobListView({
     if (!form.requirements.trim()) missing.push('Requirements');
 
     if (missing.length > 0) {
-      toast.error(`Please fill all fields before publishing: ${missing.join(', ')}.`);
+      toast.error(`Please fill all fields before saving: ${missing.join(', ')}.`);
       return;
     }
 
-    const created: Job = {
-      id: `JOB-${Math.floor(1000 + Math.random() * 9000)}`,
+    const fields = {
       title: capitalizeFirst(form.title.trim()),
       department: form.department,
       location: form.location,
@@ -242,14 +270,25 @@ export function JobListView({
       screeningQuestions: form.screeningQuestions
         .map(q => ({ ...q, text: q.text.trim() }))
         .filter(q => q.text),
-      status: 'Open',
-      postedBy: 'HR Specialist',
-      postedDate: new Date().toISOString().split('T')[0],
     };
-    onCreateJob(created);
+
+    if (editingJob) {
+      // Preserve id, status, and posting history; update the editable fields.
+      onUpdateJob({ ...editingJob, ...fields });
+      toast.success(`"${fields.title}" updated.`);
+    } else {
+      onCreateJob({
+        id: `JOB-${Math.floor(1000 + Math.random() * 9000)}`,
+        ...fields,
+        status: 'Open',
+        postedBy: 'HR Specialist',
+        postedDate: new Date().toISOString().split('T')[0],
+      });
+      toast.success(`"${fields.title}" published — copy its public link from the card.`);
+    }
     setShowAddForm(false);
+    setEditingJob(null);
     setForm(EMPTY_FORM);
-    toast.success(`"${created.title}" published — copy its public link from the card.`);
   };
 
   const addQuestion = (importance: QuestionImportance) =>
@@ -500,7 +539,7 @@ export function JobListView({
           </div>
           <button
             id="btn-post-job"
-            onClick={() => setShowAddForm(true)}
+            onClick={openCreate}
             className="bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition font-medium shrink-0 shadow-2xs"
           >
             <Plus size={15} /> Post New Job
@@ -535,7 +574,7 @@ export function JobListView({
             Post your first opening to generate a shareable public apply link.
           </p>
           <button
-            onClick={() => setShowAddForm(true)}
+            onClick={openCreate}
             className="mt-1 bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer transition font-medium"
           >
             <Plus size={14} /> Post New Job
@@ -607,6 +646,12 @@ export function JobListView({
                         <ActionMenu
                           items={[
                             {
+                              key: 'edit',
+                              label: 'Edit posting',
+                              icon: <Pencil size={14} />,
+                              onClick: () => openEdit(job),
+                            },
+                            {
                               key: 'copy',
                               label: copiedId === job.id ? 'Link copied' : 'Copy public link',
                               icon: <Link2 size={14} />,
@@ -659,12 +704,18 @@ export function JobListView({
         </>
       )}
 
-      {/* Create job modal */}
-      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+      {/* Create / edit job modal */}
+      <Dialog
+        open={showAddForm}
+        onOpenChange={open => {
+          setShowAddForm(open);
+          if (!open) setEditingJob(null);
+        }}
+      >
         <DialogContent className="flex max-h-[90vh] w-[min(96vw,72rem)] max-w-[72rem] sm:max-w-[72rem] flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
             <DialogTitle className="font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
-              Publish a New Job Opening
+              {editingJob ? `Edit Job Posting — ${editingJob.id}` : 'Publish a New Job Opening'}
             </DialogTitle>
           </DialogHeader>
 
@@ -927,7 +978,7 @@ export function JobListView({
               <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Publish Job &amp; Get Link</Button>
+              <Button type="submit">{editingJob ? 'Save changes' : 'Publish Job & Get Link'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

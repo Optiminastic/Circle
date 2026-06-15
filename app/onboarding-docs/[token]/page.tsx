@@ -98,7 +98,9 @@ export default function OnboardingDocsPortal() {
     return map;
   }, [request?.submissions]);
 
-  const bankValid = bank.accountNumber.trim().length >= 6 && /^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(bank.ifscCode.trim());
+  // IFSC is 11 alphanumeric characters; account number at least 6 digits.
+  const bankValid =
+    bank.accountNumber.trim().length >= 6 && /^[A-Za-z0-9]{11}$/.test(bank.ifscCode.trim());
   const allDocsIn = (request?.requiredDocs ?? []).every(rt => submittedFor.has(rt));
   const allDone = allDocsIn && Boolean(request?.bankDetails?.accountNumber);
 
