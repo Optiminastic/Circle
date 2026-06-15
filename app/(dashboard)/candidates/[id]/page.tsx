@@ -765,13 +765,13 @@ export default function CandidateDetailPage() {
         [
           `Dear ${candidate.fullName},`,
           '',
-          `Congratulations! We are delighted to move forward with you for the ${position} role at ${BRAND.name}.`,
+          `Congratulations! We are delighted to move forward with you for the ${position} role at ${BRAND.company}.`,
           ...(summary ? ['', summary] : []),
           '',
           'Our team will be in touch shortly with the next steps.',
           '',
           'Warm regards,',
-          `${BRAND.name} HR Team`,
+          `${BRAND.company} HR Team`,
         ].join('\n'),
       );
     } else {
@@ -784,7 +784,7 @@ export default function CandidateDetailPage() {
         [
           `Dear ${candidate.fullName},`,
           '',
-          `Thank you for your time interviewing for the ${position} role at ${BRAND.name}.`,
+          `Thank you for your time interviewing for the ${position} role at ${BRAND.company}.`,
           '',
           'After careful review, we have decided not to move forward at this stage. A summary of your evaluation:',
           '',
@@ -795,7 +795,7 @@ export default function CandidateDetailPage() {
           'We genuinely appreciate your interest and wish you the very best.',
           '',
           'Regards,',
-          `${BRAND.name} HR Team`,
+          `${BRAND.company} HR Team`,
         ].join('\n'),
       );
     }
@@ -1040,7 +1040,7 @@ export default function CandidateDetailPage() {
         'The candidate resume and the interview questions are linked below. Please rate each question 1–5 (or NA) and add your recommendation.',
         '',
         'Best regards,',
-        `${BRAND.name} HR Team`,
+        `${BRAND.company} HR Team`,
       ].join('\n'),
     );
     setOpenForm('ivpack');

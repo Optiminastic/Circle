@@ -12,7 +12,7 @@ export const BRAND = {
   /** Product name (app title, proctor footer). */
   product: 'Circle',
   /** Sign-off used by HR-facing copy. */
-  hrTeam: 'Circle HR Team',
+  hrTeam: 'Optiminastic HR Team',
   /** Company site the logo links to. */
   url: 'https://optiminastic.com',
 } as const;

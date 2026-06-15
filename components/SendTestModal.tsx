@@ -83,7 +83,7 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
           : `Use the "${linkLabel}" button below to read the brief and submit your work before the deadline.`,
         '',
         'Best Regards,',
-        `${BRAND.name} HR Team`,
+        `${BRAND.company} HR Team`,
       ].join('\n'),
     [candidate.fullName, position, what, isIq, linkLabel],
   );

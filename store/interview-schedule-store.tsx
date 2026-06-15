@@ -184,7 +184,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             eventLocation: input.location,
             eventDescription,
             organizerEmail: HR_EMAIL,
-            organizerName: `${BRAND.name} HR`,
+            organizerName: `${BRAND.company} HR`,
             attendees,
             eventUid: id,
           };
@@ -274,7 +274,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             : []),
         input.notes ? `\nNotes: ${input.notes}` : '',
         '',
-        `— ${BRAND.name}`,
+        `— ${BRAND.company}`,
       ].join('\n');
       sendCustomEmail({
         to: input.interviewerEmail,

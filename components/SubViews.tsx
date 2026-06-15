@@ -2078,7 +2078,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
     onTriggerEmail(selectedTemplate?.id || activeTemplateId, recipientName, recipientEmail, {
       '{{CANDIDATE_NAME}}': recipientName,
       '{{ROLE}}': roleField,
-      '{{COMPANY_NAME}}': BRAND.name,
+      '{{COMPANY_NAME}}': BRAND.company,
       '{{DATE_TIME}}': 'June 15, 2026, 14:30 PM EST',
       '{{MEETING_LINK}}': 'https://meet.google.com/xyz',
       '{{EXPIRE_DATE}}': 'June 18, 2026',
@@ -2174,7 +2174,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
                   {selectedTemplate.bodyTemplate
                     .replace('{{CANDIDATE_NAME}}', recipientName)
                     .replace('{{ROLE}}', roleField)
-                    .replace('{{COMPANY_NAME}}', BRAND.name)
+                    .replace('{{COMPANY_NAME}}', BRAND.company)
                     .replace('{{DATE_TIME}}', 'June 15, 2026, 14:30 PM')
                     .replace('{{MEETING_LINK}}', 'https://meet.google.com/xyz')
                     .replace('{{EXPIRE_DATE}}', 'June 18, 2026')

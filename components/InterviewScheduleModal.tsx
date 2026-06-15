@@ -132,7 +132,7 @@ export function InterviewScheduleModal({
       '',
       'Best Regards,',
       interviewer,
-      BRAND.name,
+      BRAND.company,
     ].join('\n');
   }, [candidate.fullName, type, interviewerName, date, time]);
 
