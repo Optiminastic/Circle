@@ -137,7 +137,6 @@ const blankHrCall = (): HRCallRecord => ({
   currentCtc: '',
   expectedCtc: '',
   noticePeriodDays: 0,
-  workModePreference: 'Onsite',
   roleUnderstanding: '',
   interestLevel: 3,
   culturalFitRemarks: '',
@@ -555,7 +554,6 @@ export default function CandidateDetailPage() {
             <KV k="Communication" v={`${h.communicationRating}/5`} />
             <KV k="Interest" v={`${h.interestLevel}/5`} />
             <KV k="Availability" v={h.candidateAvailability || '—'} />
-            <KV k="Work mode" v={h.workModePreference} />
             {h.professionalBackgroundSummary && (
               <p className="rounded-lg bg-[#F1F3F5] p-2.5 text-[11px] italic text-gray-600">
                 “{h.professionalBackgroundSummary}”
@@ -1934,18 +1932,6 @@ export default function CandidateDetailPage() {
                         className={FIELD_CLS}
                       />
                     </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-semibold text-gray-700">Work Mode Preference</label>
-                    <select
-                      value={hc.workModePreference}
-                      onChange={e => updateHc('workModePreference', e.target.value as HRCallRecord['workModePreference'])}
-                      className={FIELD_CLS}
-                    >
-                      <option value="Onsite">Onsite</option>
-                      <option value="Remote">Remote</option>
-                      <option value="Hybrid">Hybrid</option>
-                    </select>
                   </div>
                 </div>
 

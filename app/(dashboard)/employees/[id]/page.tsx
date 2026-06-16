@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Mail,
   Phone,
@@ -29,6 +29,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useEmployees, useEmployeeMutations } from '@/features/employees/hooks';
+import { useOffboarding, useInitiateOffboarding } from '@/features/offboarding/hooks';
 import { useToast } from '@/components/Toaster';
 import type { OffboardingWorkflow } from '@/types';
 import { useBgvs } from '@/features/candidates/hooks';
@@ -61,10 +62,13 @@ export default function EmployeeDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
 
+  const router = useRouter();
   const { data: employees = [], isLoading } = useEmployees();
   const { data: bgvs = [] } = useBgvs();
   const { data: docRequests = [] } = useDocRequests();
+  const { data: offboarding = [] } = useOffboarding();
   const { update } = useEmployeeMutations();
+  const initiateOffboarding = useInitiateOffboarding();
   const toast = useToast();
   const [tab, setTab] = useState<TabKey>('overview');
   const [editOpen, setEditOpen] = useState(false);
@@ -130,10 +134,10 @@ export default function EmployeeDetailPage() {
     isIntern ? 'intern' : inProbation ? 'probation' : 'confirmed'
   })`;
 
-  // --- Currently serving notice: derived from an active offboarding workflow ---
-  const off = employee.offboarding;
-  const onNotice = !!off && off.status !== 'Completed' && !!off.lastWorkingDay;
-  const lastWorkingDay = onNotice ? new Date(off!.lastWorkingDay) : null;
+  // --- Currently serving notice: derived from a live exit case in the offboarding repo ---
+  const exitCase = offboarding.find(o => o.employeeId === employee.id && o.status !== 'Completed');
+  const onNotice = !!exitCase && !!exitCase.lastWorkingDay;
+  const lastWorkingDay = onNotice ? new Date(exitCase!.lastWorkingDay) : null;
   const noticeDaysLeft =
     lastWorkingDay && !Number.isNaN(lastWorkingDay.getTime())
       ? Math.max(0, Math.ceil((lastWorkingDay.getTime() - now.getTime()) / DAY))
@@ -153,39 +157,24 @@ export default function EmployeeDetailPage() {
     return d.toISOString().split('T')[0];
   })();
   const confirmResign = () => {
-    const wf: OffboardingWorkflow = {
-      employeeId: employee.id,
-      employeeName: employee.fullName,
-      triggerReason: resignReason,
-      status: 'Notice Period Active',
-      initiatedDate: resignDate || todayStr,
-      lastWorkingDay: resignLastWorkingDay,
-      checklist: [
-        { id: 'np', title: `Serve ${resignNoticeDays}-day notice period`, isChecked: false, category: 'Notice Period' },
-        { id: 'kt', title: 'Complete knowledge transfer', isChecked: false, category: 'Knowledge Transfer' },
-        { id: 'asset', title: 'Return company assets', isChecked: false, category: 'Asset Return' },
-        { id: 'access', title: 'Revoke system access', isChecked: false, category: 'Access Revocation' },
-        { id: 'fnf', title: 'Process full & final settlement', isChecked: false, category: 'Settlement' },
-      ],
-    };
-    update.mutate(
-      { ...employee, offboarding: wf },
+    initiateOffboarding.mutate(
+      {
+        empId: employee.id,
+        reason: resignReason,
+        initiatedDate: resignDate || todayStr,
+        noticeDays: Number(resignNoticeDays) || 0,
+      },
       {
         onSuccess: () => {
-          toast.success(`Notice period started — last working day ${fmtDate(resignLastWorkingDay)}.`);
+          toast.success(`Exit case opened — last working day ${fmtDate(resignLastWorkingDay)}.`);
           setResignOpen(false);
+          router.push(`/offboarding/${employee.id}`);
         },
-        onError: () => toast.error('Could not start the notice period — please try again.'),
+        onError: () => toast.error('Could not open the exit case — please try again.'),
       },
     );
   };
-  const cancelNotice = () => {
-    const { offboarding: _drop, ...rest } = employee;
-    update.mutate(rest as typeof employee, {
-      onSuccess: () => toast.info('Notice period cancelled.'),
-      onError: () => toast.error('Could not cancel — please try again.'),
-    });
-  };
+  const openExitCase = () => router.push(`/offboarding/${employee.id}`);
 
   const statusTone =
     employee.status === 'Active'
@@ -248,17 +237,17 @@ export default function EmployeeDetailPage() {
                   {employee.status !== 'Offboarded' &&
                     (onNotice ? (
                       <button
-                        onClick={cancelNotice}
+                        onClick={openExitCase}
                         className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-100"
                       >
-                        <LogOut size={14} /> On notice · cancel
+                        <LogOut size={14} /> View exit case
                       </button>
                     ) : (
                       <button
                         onClick={startResign}
                         className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F7F8FA] hover:text-accent-600"
                       >
-                        <LogOut size={14} /> Start notice period
+                        <LogOut size={14} /> Start offboarding
                       </button>
                     ))}
                 </div>
@@ -310,7 +299,7 @@ export default function EmployeeDetailPage() {
                   )}
                   {onNotice && (
                     <span
-                      title={`Last working day ${fmtDate(off!.lastWorkingDay)}`}
+                      title={`Last working day ${fmtDate(exitCase!.lastWorkingDay)}`}
                       className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 font-mono text-[10px] font-bold text-red-600"
                     >
                       <LogOut size={11} /> Notice · {noticeDaysLeft}d
@@ -363,7 +352,7 @@ export default function EmployeeDetailPage() {
                     k="Notice period"
                     v={
                       onNotice
-                        ? `Serving notice · LWD ${fmtDate(off!.lastWorkingDay)}`
+                        ? `Serving notice · LWD ${fmtDate(exitCase!.lastWorkingDay)}`
                         : noticePolicyLabel
                     }
                   />

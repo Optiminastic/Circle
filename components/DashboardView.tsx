@@ -27,14 +27,10 @@ import {
   ArrowUpRight,
   Plus,
   Clock,
-  Timer,
-  TrendingDown,
-  TrendingUp,
   ChevronRight,
   MoreHorizontal,
 } from 'lucide-react';
 import { TagPill, StatusPill } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
 
 interface DashboardViewProps {
   candidates: Candidate[];
@@ -67,13 +63,26 @@ export function DashboardView({
   const { user } = useAuth();
   const name = (user?.name || displayName(user?.email) || 'there').split(' ')[0];
 
-  // Time-of-day greeting + today's date, computed after mount to avoid any
-  // server/client hydration mismatch.
+  // Time-of-day greeting, backdrop + today's date, computed after mount to avoid
+  // any server/client hydration mismatch.
   const [greeting, setGreeting] = useState('Welcome back');
   const [today, setToday] = useState('');
+  const [bgImage, setBgImage] = useState('/greeting-bg.jpg');
   useEffect(() => {
     const h = new Date().getHours();
-    setGreeting(h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
+    if (h < 12) {
+      setGreeting('Good morning');
+      setBgImage('/greeting-bg-morning.jpg');
+    } else if (h < 17) {
+      setGreeting('Good afternoon');
+      setBgImage('/greeting-bg-afternoon.jpg');
+    } else if (h < 21) {
+      setGreeting('Good evening');
+      setBgImage('/greeting-bg-evening.jpg');
+    } else {
+      setGreeting('Good evening');
+      setBgImage('/greeting-bg-night.jpg');
+    }
     setToday(
       new Date().toLocaleDateString('en-US', {
         weekday: 'long',
@@ -104,43 +113,6 @@ export function DashboardView({
 
   const activeExits = offboarding.filter(o => o.status !== 'Completed').length;
   const onNotice = offboarding.filter(o => o.status === 'Notice Period Active').length;
-
-  // ---- Avg time-to-hire (apply → hire) ----------------------------------
-  // There's no explicit "hired" timestamp, so we take the candidate's latest
-  // recorded pipeline touchpoint (interview / IQ test / HR call / screening)
-  // as the moment the decision landed, for everyone who was Selected.
-  const DAY_MS = 86_400_000;
-  const hireDayKey = (ms: number) => {
-    const d = new Date(ms);
-    return d.getFullYear() * 12 + d.getMonth();
-  };
-  const hireDurations = candidates
-    .filter(c => c.status === 'Selected')
-    .map(c => {
-      const start = new Date(c.appliedDate).getTime();
-      if (Number.isNaN(start)) return null;
-      const stamps = [
-        ...interviews.filter(iv => iv.candidateId === c.id).map(iv => new Date(iv.dateTime).getTime()),
-        ...iqTests.filter(t => t.candidateId === c.id).map(t => new Date(t.testDate).getTime()),
-        c.hrCall?.completedDate ? new Date(c.hrCall.completedDate).getTime() : NaN,
-        c.screeningReview?.reviewedDate ? new Date(c.screeningReview.reviewedDate).getTime() : NaN,
-      ].filter(t => !Number.isNaN(t));
-      if (!stamps.length) return null;
-      const end = Math.max(...stamps);
-      const days = (end - start) / DAY_MS;
-      return days >= 0 ? { days, end } : null;
-    })
-    .filter((x): x is { days: number; end: number } => x !== null);
-
-  const mean = (xs: number[]) => xs.reduce((s, n) => s + n, 0) / xs.length;
-  const avgTimeToHire = hireDurations.length ? mean(hireDurations.map(h => h.days)) : null;
-
-  // Trend vs last month (only when both months have at least one hire).
-  const nowKey = hireDayKey(Date.now());
-  const thisMonth = hireDurations.filter(h => hireDayKey(h.end) === nowKey).map(h => h.days);
-  const lastMonth = hireDurations.filter(h => hireDayKey(h.end) === nowKey - 1).map(h => h.days);
-  const hireTrend =
-    thisMonth.length && lastMonth.length ? mean(thisMonth) - mean(lastMonth) : null;
 
   const stats = [
     {
@@ -208,7 +180,7 @@ export function DashboardView({
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-cover bg-bottom opacity-55"
-          style={{ backgroundImage: "url('/greeting-bg.jpg')" }}
+          style={{ backgroundImage: `url('${bgImage}')` }}
         />
         {/* Light wash on the left so the text stays readable */}
         <div
@@ -284,50 +256,6 @@ export function DashboardView({
             </Link>
           );
         })}
-
-        {/* Avg time-to-hire — built with shadcn <Card>, styled to match the glass
-            KPI row. Lower is better, so a downward trend is shown in green. */}
-        <Card
-          style={{ animationDelay: `${stats.length * 70}ms` }}
-          className="group animate-in justify-between gap-0 rounded-2xl border-white/60 bg-white/70 p-0 py-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-xl fade-in-0 slide-in-from-bottom-2 transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-accent-200/70 hover:shadow-xl hover:shadow-accent-500/10"
-        >
-          <CardHeader className="px-4">
-            <CardTitle className="font-display text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Avg Time-to-Hire
-            </CardTitle>
-            <CardAction>
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-100 bg-violet-50 text-violet-600 transition-transform duration-200 group-hover:scale-110">
-                <Timer size={16} />
-              </div>
-            </CardAction>
-          </CardHeader>
-          <CardContent className="px-4">
-            <span className="flex items-baseline gap-0.5">
-              <span className="font-display text-2xl font-bold tracking-tight text-gray-900 tabular-nums">
-                {avgTimeToHire == null ? '—' : avgTimeToHire.toFixed(1)}
-              </span>
-              {avgTimeToHire != null && (
-                <span className="font-display text-sm font-semibold text-gray-400">days</span>
-              )}
-            </span>
-            {avgTimeToHire == null ? (
-              <p className="mt-0.5 font-mono text-[10px] text-gray-500">No hires recorded yet</p>
-            ) : hireTrend != null ? (
-              <p
-                className={`mt-0.5 flex items-center gap-1 font-mono text-[10px] font-medium ${
-                  hireTrend <= 0 ? 'text-emerald-600' : 'text-red-600'
-                }`}
-              >
-                {hireTrend <= 0 ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
-                {Math.abs(hireTrend).toFixed(1)}d vs last month
-              </p>
-            ) : (
-              <p className="mt-0.5 font-mono text-[10px] text-gray-500">
-                Across {hireDurations.length} hire{hireDurations.length === 1 ? '' : 's'}
-              </p>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {/* Expected arrivals / onboarding */}

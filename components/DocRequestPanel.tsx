@@ -12,8 +12,11 @@ import {
   Eye,
   Loader2,
   ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DocRequest } from '@/types';
+import { qk } from '@/lib/query/keys';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useDocRequests, useDocRequestMutations, isDocRequestLive } from '@/features/doc-requests/hooks';
 import { openDocument } from '@/features/documents/hooks';
@@ -23,6 +26,8 @@ import { useToast } from '@/components/Toaster';
 interface DocRequestPanelProps {
   candidateId: string;
   candidateName: string;
+  /** Fallback email when the candidate record isn't resolvable (e.g. post-onboarding). */
+  email?: string;
 }
 
 function fmtExpiry(req: DocRequest): string {
@@ -33,13 +38,21 @@ function fmtExpiry(req: DocRequest): string {
   return h > 0 ? `Expires in ${h}h ${m}m` : `Expires in ${m}m`;
 }
 
-export function DocRequestPanel({ candidateId, candidateName }: DocRequestPanelProps) {
+export function DocRequestPanel({ candidateId, candidateName, email }: DocRequestPanelProps) {
   const toast = useToast();
+  const qc = useQueryClient();
   const { data: candidates = [] } = useCandidates();
-  const { data: requests = [] } = useDocRequests();
+  const { data: requests = [], isFetching } = useDocRequests();
   const { create, verify } = useDocRequestMutations();
 
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: qk.docRequests.all });
+    toast.info('Checking for new uploads…');
+  };
+
   const candidate = candidates.find(c => c.id === candidateId);
+  // Resolve the recipient: live candidate record first, then the passed fallback.
+  const toEmail = candidate?.email || email || '';
 
   // The most recent request for this candidate (re-requests supersede older ones).
   const request = useMemo(
@@ -66,15 +79,15 @@ export function DocRequestPanel({ candidateId, candidateName }: DocRequestPanelP
       {
         candidateId,
         candidateName,
-        email: candidate?.email ?? '',
+        email: toEmail,
         role: candidate?.appliedRole,
       },
       {
         onSuccess: ({ emailed, emailReason }) => {
-          if (emailed) toast.success('Document link sent to the candidate.');
+          if (emailed) toast.success(`Document link sent to ${toEmail}.`);
           else if (emailReason === 'not_configured')
             toast.info('Link created. Email not sent — SMTP is not configured (copy the link to share).');
-          else if (!candidate?.email)
+          else if (!toEmail)
             toast.info('Link created, but no email on file — copy the link to share it.');
           else toast.info('Link created, but the email could not be sent — copy the link to share.');
         },
@@ -133,6 +146,16 @@ export function DocRequestPanel({ candidateId, candidateName }: DocRequestPanelP
               {request.status}
             </span>
           )}
+          {request && (
+            <button
+              onClick={refresh}
+              title="Check for new uploads"
+              aria-label="Refresh"
+              className="grid size-7 place-items-center rounded-lg border border-[#E4E6EA] text-gray-500 transition hover:border-accent-400 hover:text-accent-600"
+            >
+              <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
+            </button>
+          )}
           <button
             onClick={handleRequest}
             disabled={create.isPending}
@@ -147,7 +170,7 @@ export function DocRequestPanel({ candidateId, candidateName }: DocRequestPanelP
       {!request ? (
         <p className="py-6 text-center text-[12px] text-gray-500">
           No document request yet. Click <span className="font-semibold">Request documents</span> to email{' '}
-          {candidate?.email ? candidate.email : 'the candidate'} a secure upload link.
+          {toEmail || 'the candidate'} a secure upload link.
         </p>
       ) : (
         <>

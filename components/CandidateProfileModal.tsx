@@ -95,7 +95,6 @@ export function CandidateProfileModal({
     currentCtc: candidate.hrCall?.currentCtc || candidate.currentCtc || '',
     expectedCtc: candidate.hrCall?.expectedCtc || candidate.expectedCtc || '',
     noticePeriodDays: candidate.hrCall?.noticePeriodDays || candidate.noticePeriodDays || 30,
-    workModePreference: candidate.hrCall?.workModePreference || 'Remote',
     roleUnderstanding: candidate.hrCall?.roleUnderstanding || '',
     interestLevel: candidate.hrCall?.interestLevel || 3,
     culturalFitRemarks: candidate.hrCall?.culturalFitRemarks || '',
@@ -140,7 +139,6 @@ export function CandidateProfileModal({
         currentCtc: hrCallForm.currentCtc,
         expectedCtc: hrCallForm.expectedCtc,
         noticePeriodDays: Number(hrCallForm.noticePeriodDays),
-        workModePreference: hrCallForm.workModePreference as any,
         roleUnderstanding: hrCallForm.roleUnderstanding,
         interestLevel: Number(hrCallForm.interestLevel),
         culturalFitRemarks: hrCallForm.culturalFitRemarks,
@@ -467,20 +465,6 @@ export function CandidateProfileModal({
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                         <div className="space-y-1">
-                          <label className="font-semibold text-gray-700">Work Mode Preference</label>
-                          <Select
-                            value={hrCallForm.workModePreference}
-                            onChange={e =>
-                              setHrCallForm({ ...hrCallForm, workModePreference: e.target.value as any })
-                            }
-                            className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded-md bg-[#EDEEF1]"
-                          >
-                            <option value="Onsite">Onsite</option>
-                            <option value="Remote">Remote</option>
-                            <option value="Hybrid">Hybrid</option>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
                           <label className="font-semibold text-gray-700">Recommended Next Step</label>
                           <Select
                             value={hrCallForm.nextStep}
@@ -529,10 +513,6 @@ export function CandidateProfileModal({
                           <p className="font-semibold text-gray-850">
                             ⭐ {candidate.hrCall.communicationRating} / 5
                           </p>
-                        </div>
-                        <div>
-                          <p className="text-gray-500 font-mono text-[9px] uppercase">Mode Preference</p>
-                          <p className="font-semibold text-gray-850">{candidate.hrCall.workModePreference}</p>
                         </div>
                         <div>
                           <p className="text-gray-500 font-mono text-[9px] uppercase">Form Recommendation</p>

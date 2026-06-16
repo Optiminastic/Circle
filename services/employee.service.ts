@@ -13,7 +13,7 @@ export function buildEmployeeFromCandidate(candidate: Candidate): Employee {
     role: candidate.appliedRole,
     reportingManager: 'Richard Feynman (CEO)',
     joiningDate: todayISO(),
-    workLocation: 'Remote',
+    workLocation: candidate.location || 'Mumbai, India',
     status: 'Active',
     // Keep the link + agreed pay so the employee file can show BGV/docs/offer history.
     candidateId: candidate.id,

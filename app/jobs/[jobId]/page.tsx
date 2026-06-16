@@ -311,7 +311,7 @@ export default function PublicJobPage() {
             </span>
             <span className="text-gray-400">·</span>
             <span className="inline-flex items-center gap-1">
-              <Briefcase size={13} /> {job.employmentType} · {job.workMode}
+              <Briefcase size={13} /> {job.employmentType}
             </span>
             <span className="text-gray-400">·</span>
             <span className="inline-flex items-center gap-1">

@@ -13,6 +13,7 @@ import {
   Send,
   Loader2,
   Lock,
+  Info,
 } from 'lucide-react';
 import { BGVRequirement, OnboardingChecklist } from '@/types';
 import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
@@ -24,14 +25,6 @@ import {
 } from '@/features/onboarding/hooks';
 import { nowISO } from '@/lib/utils';
 import { useToast } from '@/components/Toaster';
-import {
-  Stepper,
-  StepperNav,
-  StepperItem,
-  StepperIndicator,
-  StepperTitle,
-  StepperDescription,
-} from '@/components/ui/stepper';
 
 interface OnboardingStepperProps {
   checklist: OnboardingChecklist;
@@ -62,7 +55,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const startBgv = useStartBgv();
   const promote = usePromoteFromOnboarding();
 
-  const [picked, setPicked] = useState<number | null>(null);
+  const [openInfo, setOpenInfo] = useState<Record<number, boolean>>({});
 
   const candidate = candidates.find(c => c.id === checklist.candidateId);
   const docRequest = requests
@@ -167,7 +160,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // First not-yet-done stage is "current"; everything before it is done.
   const firstOpen = stages.findIndex(s => !s.done);
   const currentIndex = firstOpen === -1 ? stages.length - 1 : firstOpen;
-  const activeStage = picked ?? currentIndex;
 
   const stepState = (i: number): StepState =>
     i < currentIndex ? 'done' : i === currentIndex ? (stages[i].done ? 'done' : 'current') : 'todo';
@@ -177,7 +169,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       {
         candidateId: checklist.candidateId,
         candidateName: checklist.candidateName,
-        email: candidate?.email ?? '',
+        email: candidate?.email || checklist.candidateEmail || '',
         role: candidate?.appliedRole,
         kind: emailKind,
       },
@@ -232,30 +224,34 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     });
   };
 
-  const active = stages[activeStage];
-  const ActiveIcon = active.Icon;
-  const gateMet = activeStage === 0 || stages[activeStage - 1].done;
-  const action = active.action;
-
-  const pending =
-    (send.isPending && action.kind === 'email' && send.variables?.kind === action.emailKind) ||
-    (markOfferSigned.isPending && action.kind === 'mark-signed') ||
-    (startBgv.isPending && action.kind === 'start-bgv') ||
-    (updateBgv.isPending && action.kind === 'verify-bgv') ||
-    (promote.isPending && action.kind === 'convert-employee');
-
-  // Whether the active stage still has something actionable to show.
-  const showAction =
-    (action.kind === 'email') ||
-    (action.kind === 'mark-signed' && !active.done) ||
-    (action.kind === 'start-bgv') ||
-    (action.kind === 'verify-bgv' && !active.done) ||
-    (action.kind === 'convert-employee' && !active.done);
-
-  const onActionClick = () => {
-    switch (action.kind) {
+  // --- per-stage action helpers (each entry drives its own button) ---
+  const gateMetFor = (i: number) => i === 0 || stages[i - 1].done;
+  const showActionFor = (i: number) => {
+    const a = stages[i].action;
+    const done = stages[i].done;
+    return (
+      a.kind === 'email' ||
+      (a.kind === 'mark-signed' && !done) ||
+      a.kind === 'start-bgv' ||
+      (a.kind === 'verify-bgv' && !done) ||
+      (a.kind === 'convert-employee' && !done)
+    );
+  };
+  const pendingFor = (i: number) => {
+    const a = stages[i].action;
+    return (
+      (send.isPending && a.kind === 'email' && send.variables?.kind === a.emailKind) ||
+      (markOfferSigned.isPending && a.kind === 'mark-signed') ||
+      (startBgv.isPending && a.kind === 'start-bgv') ||
+      (updateBgv.isPending && a.kind === 'verify-bgv') ||
+      (promote.isPending && a.kind === 'convert-employee')
+    );
+  };
+  const onActionClickFor = (i: number) => {
+    const a = stages[i].action;
+    switch (a.kind) {
       case 'email':
-        return runEmail(action.emailKind, action.cta);
+        return runEmail(a.emailKind, a.cta);
       case 'mark-signed':
         return markSigned();
       case 'start-bgv':
@@ -266,116 +262,166 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         return convertToEmployee();
     }
   };
-
-  const actionLabel =
-    action.kind === 'email' ? `${active.done ? 'Resend' : 'Send'} ${action.cta}` : action.kind !== 'none' ? action.cta : '';
-  const ActionIcon =
-    action.kind === 'email' ? Send : action.kind === 'convert-employee' ? BadgeCheck : action.kind === 'verify-bgv' || action.kind === 'start-bgv' ? Fingerprint : PenLine;
+  const actionMetaFor = (i: number) => {
+    const a = stages[i].action;
+    const label =
+      a.kind === 'email' ? `${stages[i].done ? 'Resend' : 'Send'} ${a.cta}` : a.kind !== 'none' ? a.cta : '';
+    const Icon =
+      a.kind === 'email'
+        ? Send
+        : a.kind === 'convert-employee'
+          ? BadgeCheck
+          : a.kind === 'verify-bgv' || a.kind === 'start-bgv'
+            ? Fingerprint
+            : PenLine;
+    return { label, Icon };
+  };
 
   return (
-    <div className="md:col-span-3 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5">
-      <p className="mb-4 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        Onboarding progress <span className="text-gray-400">· click a stage for details</span>
+    <div className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5">
+      <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
+        Onboarding progress <span className="text-gray-400">· tap ⓘ on a stage for details</span>
       </p>
 
-      <div className="flex flex-col gap-5 lg:flex-row">
-        {/* Stepper */}
-        <div className="lg:w-60 lg:shrink-0">
-          <Stepper orientation="vertical" value={currentIndex + 1}>
-            <StepperNav className="gap-0">
-              {stages.map((stage, i) => {
-                const state = stepState(i);
-                const StageIcon = stage.Icon;
-                const last = i === stages.length - 1;
-                return (
-                  <StepperItem
-                    key={stage.label}
-                    step={i + 1}
-                    completed={state === 'done'}
-                    onClick={() => setPicked(i)}
-                    className={`-mx-2 !flex-row !items-stretch !justify-start gap-3 rounded-lg px-2 transition-all cursor-pointer ${
-                      i === activeStage ? 'bg-[#F1F3F5]' : 'hover:bg-[#F7F8FA]'
+      <ol className="relative px-1 py-3">
+        {stages.map((stage, i) => {
+          const state = stepState(i);
+          const StageIcon = stage.Icon;
+          const last = i === stages.length - 1;
+          const pathDone = i < currentIndex;
+          const muted = state === 'todo';
+          const dotCls =
+            state === 'done' ? 'bg-emerald-500' : state === 'current' ? 'bg-accent-500' : 'bg-gray-300';
+          const infoShown = !!openInfo[i];
+          const showAction = showActionFor(i);
+          const gateMet = gateMetFor(i);
+          const pending = pendingFor(i);
+          const { label: actionLabel, Icon: ActionIcon } = actionMetaFor(i);
+
+          return (
+            <li key={stage.label} className="relative flex gap-4">
+              {/* Rail: stage avatar + status badge + connecting thread */}
+              <div className="relative flex w-9 shrink-0 flex-col items-center">
+                <div className={`relative z-10 ${muted ? 'opacity-60' : ''}`}>
+                  <span
+                    className={`grid size-9 place-items-center rounded-full ring-2 ring-white ${
+                      state === 'done'
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : state === 'current'
+                          ? 'bg-accent-50 text-accent-600'
+                          : 'bg-[#F1F3F5] text-gray-400'
                     }`}
                   >
-                    <div className="flex flex-col items-center pt-0.5">
-                      <StepperIndicator className="size-8 border-2 border-background">
-                        {state === 'done' ? <Check size={15} /> : <StageIcon size={14} />}
-                      </StepperIndicator>
-                      {!last && (
-                        <div
-                          className={`my-1 w-0.5 flex-1 rounded ${
-                            i < currentIndex ? 'bg-emerald-400' : 'bg-[#E4E6EA]'
-                          }`}
-                        />
-                      )}
-                    </div>
-                    <div className={last ? 'pt-1 pb-1' : 'pt-1 pb-5'}>
-                      <StepperTitle className={state === 'todo' ? '!text-gray-400' : '!text-gray-800'}>
-                        {stage.label}
-                      </StepperTitle>
-                      <StepperDescription
-                        className={`!text-[11px] ${
-                          state === 'done'
-                            ? '!text-emerald-600'
-                            : state === 'current'
-                              ? '!text-accent-600'
-                              : '!text-gray-400'
+                    {state === 'done' ? <Check size={16} /> : <StageIcon size={15} />}
+                  </span>
+                  {state === 'done' && (
+                    <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                      <Check size={9} strokeWidth={3} />
+                    </span>
+                  )}
+                  {state === 'current' && (
+                    <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-accent-500 ring-2 ring-white" />
+                  )}
+                </div>
+                {!last && (
+                  <span className={`mt-1.5 w-px flex-1 ${pathDone ? 'bg-emerald-300' : 'bg-[#E4E6EA]'}`} />
+                )}
+              </div>
+
+              {/* Content — feed entry */}
+              <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-7'}`}>
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`grid size-5 shrink-0 place-items-center rounded-md ${
+                          muted ? 'bg-[#F1F3F5] text-gray-400' : 'bg-accent-50 text-accent-600'
                         }`}
                       >
+                        <StageIcon size={12} />
+                      </span>
+                      <span className={`text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
+                        {stage.label}
+                      </span>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                        <span className={`size-1.5 rounded-full ${dotCls}`} />
                         {stage.desc}
-                      </StepperDescription>
+                      </span>
                     </div>
-                  </StepperItem>
-                );
-              })}
-            </StepperNav>
-          </Stepper>
-        </div>
+                  </div>
 
-        {/* Detail panel */}
-        <div className="min-h-[200px] flex-1 rounded-xl border border-[#ECEDF0] bg-[#F7F8FA] p-4">
-          <div className="mb-3 flex items-center gap-2 border-b border-[#ECEDF0] pb-2.5">
-            <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
-              <ActiveIcon size={14} />
-            </span>
-            <h4 className="text-sm font-bold text-gray-900">{active.label}</h4>
-            <span className="ml-auto rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
-              {active.desc}
-            </span>
-          </div>
+                  <div className="flex shrink-0 items-center gap-2.5">
+                    {stage.at && (
+                      <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
+                        {fmtDateTime(stage.at)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setOpenInfo(prev => ({ ...prev, [i]: !infoShown }))}
+                      aria-label={infoShown ? 'Hide details' : 'View details'}
+                      aria-expanded={infoShown}
+                      title="View details"
+                      className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
+                        infoShown
+                          ? 'border-accent-200 bg-accent-50 text-accent-600'
+                          : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
+                      }`}
+                    >
+                      <Info size={15} />
+                    </button>
+                  </div>
+                </div>
 
-          <p className="text-[12.5px] leading-relaxed text-gray-600">{active.detail}</p>
-
-          {active.at && (
-            <p className="mt-2 text-[11px] text-gray-400">
-              {active.label === 'Signed offer received' ? 'Recorded' : 'Sent'} on {fmtDateTime(active.at)}
-            </p>
-          )}
-
-          {showAction && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#ECEDF0] pt-3">
-              <button
-                onClick={onActionClick}
-                disabled={!gateMet || pending}
-                title={!gateMet ? 'Complete the previous step first' : undefined}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {pending ? (
-                  <Loader2 size={13} className="animate-spin" />
-                ) : !gateMet ? (
-                  <Lock size={13} />
-                ) : (
-                  <ActionIcon size={13} />
+                {/* Detail — revealed by the info "i" button */}
+                {infoShown && (
+                  <div
+                    className={`mt-3 rounded-xl bg-[#F7F8FA] p-3.5 ${
+                      state === 'current'
+                        ? 'border border-[#ECEDF0] border-l-2 border-l-accent-400'
+                        : 'border border-[#ECEDF0]'
+                    }`}
+                  >
+                    <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
+                    {stage.at && (
+                      <p className="mt-2 text-[11px] text-gray-400">
+                        {stage.label === 'Signed offer received' ? 'Recorded' : 'Sent'} on{' '}
+                        {fmtDateTime(stage.at)}
+                      </p>
+                    )}
+                  </div>
                 )}
-                {actionLabel}
-              </button>
-              {!gateMet && (
-                <span className="text-[11px] text-gray-400">Complete the earlier step to unlock this.</span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+
+                {/* Action row */}
+                {showAction && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => onActionClickFor(i)}
+                      disabled={!gateMet || pending}
+                      title={!gateMet ? 'Complete the previous step first' : undefined}
+                      className="inline-flex h-7 items-center gap-1.5 rounded-md bg-accent-600 px-2.5 text-[11px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {pending ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : !gateMet ? (
+                        <Lock size={12} />
+                      ) : (
+                        <ActionIcon size={12} />
+                      )}
+                      {actionLabel}
+                    </button>
+                    {!gateMet && (
+                      <span className="text-[11px] text-gray-400">
+                        Complete the earlier step to unlock this.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
