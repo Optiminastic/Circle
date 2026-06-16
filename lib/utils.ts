@@ -12,6 +12,10 @@ export const todayISO = (): string => new Date().toISOString().split('T')[0];
 
 export const nowISO = (): string => new Date().toISOString();
 
+/** Capitalise the first letter of a string (e.g. job titles), leaving the rest. */
+export const capitalizeFirst = (s: string): string =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
 export const randomId = (prefix: string, span = 900, base = 100): string =>
   `${prefix}-${Math.floor(base + Math.random() * span)}`;
 

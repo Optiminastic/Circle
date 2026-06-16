@@ -11,6 +11,10 @@ export const BRAND = {
   product: 'Circle',
   /** Sign-off used by HR-facing copy. */
   hrTeam: 'Circle HR Team',
+  /** Legal/company name shown on the public careers site. */
+  company: 'Optiminastic',
   /** Company site the logo links to. */
   url: 'https://optiminastic.com',
+  /** Public careers site host. */
+  careersHost: 'careers.optiminastic.com',
 } as const;

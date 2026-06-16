@@ -7,6 +7,7 @@ import { Candidate } from '@/types';
 import { useJob, useApplyToJob } from '@/features/jobs/hooks';
 import { uploadDocument } from '@/lib/api/documents';
 import { buildAnswers, computeFit } from '@/lib/screening';
+import { capitalizeFirst } from '@/lib/utils';
 import { BRAND } from '@/lib/brand';
 import { useToast } from '@/components/Toaster';
 import { Tip } from '@/components/ui/tooltip';
@@ -273,52 +274,60 @@ export default function PublicJobPage() {
 
   return (
     <div className="min-h-screen bg-[#FFFFFF]">
-      {/* Minimal top bar */}
-      <header className="sticky top-0 z-20 border-b border-[#EDEEF1] bg-[#FFFFFF]/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-2xl items-center gap-2.5 px-5">
-          <Logo size={24} />
-          <span className="font-display text-sm font-bold tracking-tight text-gray-900">{BRAND.name}</span>
-          <span className="ml-auto font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-            Careers
-          </span>
-        </div>
-      </header>
+      {/* Textured hero band — public, candidate-facing only (not the HRMS). */}
+      <div className="bg-sandslate relative">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/20 to-white"
+        />
 
-      <main className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
-        {/* Role header */}
-        <div className="space-y-3">
+        {/* Minimal top bar */}
+        <header className="relative border-b border-black/[0.06]">
+          <div className="mx-auto flex h-14 max-w-2xl items-center gap-2.5 px-5">
+            <Logo size={24} />
+            <span className="font-display text-sm font-bold tracking-tight text-gray-900">{BRAND.name}</span>
+            <span className="ml-auto font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+              Careers
+            </span>
+          </div>
+        </header>
+
+        {/* Role header (on the texture) */}
+        <div className="relative mx-auto max-w-2xl space-y-3 px-5 pb-10 pt-10 sm:pt-12">
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-              closed ? 'border-red-200 bg-red-50 text-red-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm ${
+              closed ? 'border-red-200 bg-red-50/90 text-red-600' : 'border-emerald-200 bg-emerald-50/90 text-emerald-700'
             }`}
           >
             <span className={`size-1.5 rounded-full ${closed ? 'bg-red-500' : 'bg-emerald-500'}`} />
             {closed ? 'Applications closed' : 'Actively hiring'}
           </span>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{job.title}</h1>
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-gray-500">
-            <span className="font-semibold text-gray-700">{BRAND.name}</span>
-            <span className="text-gray-300">·</span>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{capitalizeFirst(job.title)}</h1>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-gray-600">
+            <span className="font-semibold text-gray-800">{BRAND.name}</span>
+            <span className="text-gray-400">·</span>
             <span className="inline-flex items-center gap-1">
               <MapPin size={13} /> {job.location}
             </span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-400">·</span>
             <span className="inline-flex items-center gap-1">
               <Briefcase size={13} /> {job.employmentType} · {job.workMode}
             </span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-400">·</span>
             <span className="inline-flex items-center gap-1">
               <Clock4 size={13} /> {job.minExperienceYears}+ yrs
             </span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-400">·</span>
             <span className="inline-flex items-center gap-1">
               <Wallet size={13} /> {job.salaryMin} – {job.salaryMax}
             </span>
           </div>
         </div>
+      </div>
 
+      <main className="mx-auto max-w-2xl px-5 pb-12">
         {/* About the role */}
-        <section className="mt-8 space-y-6 border-t border-[#EDEEF1] pt-8">
+        <section className="mt-2 space-y-6 pt-6">
           <div>
             <h2 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
               About the role

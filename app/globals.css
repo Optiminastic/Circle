@@ -147,6 +147,34 @@ h4 {
   }
 }
 
+/* Careers headline — charcoal text with a chunky diagonal 3D extrusion + soft
+   cast shadow (the "WE ARE HIRING" poster look). Sits over the sand texture. */
+.headline-3d {
+  color: #38362f;
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.35),
+    1px 1px 0 #c6c2b8,
+    2px 2px 0 #bebab0,
+    3px 3px 0 #b7b3a9,
+    4px 4px 0 #b0aca2,
+    5px 5px 0 #a9a59b,
+    6px 6px 0 #a29e94,
+    7px 7px 0 #9b978d,
+    8px 11px 9px rgba(40, 37, 30, 0.35);
+}
+/* Lighter extrusion under the smaller mobile headline. */
+@media (max-width: 640px) {
+  .headline-3d {
+    text-shadow:
+      -1px -1px 0 rgba(255, 255, 255, 0.35),
+      1px 1px 0 #c6c2b8,
+      2px 2px 0 #bebab0,
+      3px 3px 0 #b7b3a9,
+      4px 4px 0 #b0aca2,
+      5px 7px 6px rgba(40, 37, 30, 0.32);
+  }
+}
+
 /* Scrollbar customizations */
 ::-webkit-scrollbar {
   width: 6px;
@@ -186,4 +214,22 @@ h4 {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sand / slate texture — used only on the public, candidate-facing pages      */
+/* (careers + job posting). A warm sand→cool slate wash with a fine grain,     */
+/* generated entirely in CSS (no image asset). Dark text stays readable.       */
+/* -------------------------------------------------------------------------- */
+.bg-sandslate {
+  background-color: #e7e3d9;
+  background-image:
+    /* fine grain (grayscale fractal noise, kept subtle) */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E"),
+    /* coarse mottling for a slate-like variation */
+    radial-gradient(120% 80% at 80% 0%, rgba(170, 175, 170, 0.28) 0%, rgba(170, 175, 170, 0) 55%),
+    /* warm sand → soft slate diagonal wash */
+    linear-gradient(135deg, #ede8dc 0%, #e6e3d9 45%, #d7dbd6 100%);
+  background-size: 180px 180px, 100% 100%, 100% 100%;
+  background-blend-mode: soft-light, normal, normal;
 }
