@@ -8,7 +8,6 @@ import { capitalizeFirst } from '@/lib/utils';
 import { useJobs } from '@/features/jobs/hooks';
 import {
   MapPin,
-  Globe,
   Building,
   Clock4,
   ArrowUpRight,
@@ -161,7 +160,6 @@ export default function CareersPage() {
             {filtered.map(job => {
               // A short one-liner under the title (first line of the description).
               const blurb = (job.description || '').split('\n').map(s => s.trim()).find(Boolean) ?? '';
-              const remote = job.workMode === 'Remote';
               return (
                 <li key={job.id}>
                   <Link
@@ -190,12 +188,12 @@ export default function CareersPage() {
 
                       {/* meta chips */}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Chip icon={remote ? <Globe size={12} /> : <MapPin size={12} />}>
-                          {remote ? '100% remote' : job.workMode}
-                        </Chip>
+                        {job.location && (
+                          <Chip icon={<MapPin size={12} />}>{job.location}</Chip>
+                        )}
                         <Chip icon={<Clock4 size={12} />}>{job.employmentType}</Chip>
-                        {!remote && job.location && (
-                          <Chip icon={<Building size={12} />}>{job.location}</Chip>
+                        {job.minExperienceYears > 0 && (
+                          <Chip icon={<Building size={12} />}>{job.minExperienceYears}+ yrs</Chip>
                         )}
                       </div>
                     </div>
