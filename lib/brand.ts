@@ -15,4 +15,6 @@ export const BRAND = {
   hrTeam: 'Optiminastic HR Team',
   /** Company site the logo links to. */
   url: 'https://optiminastic.com',
+  /** Public careers site host. */
+  careersHost: 'careers.optiminastic.com',
 } as const;
