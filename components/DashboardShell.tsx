@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from './Sidebar';
@@ -58,6 +58,23 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const employees = useEmployees();
   const loading = candidates.isLoading || employees.isLoading;
   const error = candidates.isError || employees.isError;
+  const retrying = candidates.isFetching || employees.isFetching;
+
+  // Re-fetch the bootstrap queries. Used by the "Try again" button and the
+  // self-heal poll below.
+  const retry = useCallback(() => {
+    qc.refetchQueries({ queryKey: qk.candidates.all });
+    qc.refetchQueries({ queryKey: qk.employees.all });
+  }, [qc]);
+
+  // Self-heal: the backend may come up after the frontend (e.g. started a few
+  // seconds/minutes later). While errored, poll so the dashboard recovers on
+  // its own once the API is reachable — no manual reload needed.
+  useEffect(() => {
+    if (!error) return;
+    const id = setInterval(retry, 5000);
+    return () => clearInterval(id);
+  }, [error, retry]);
 
   // Hold rendering until we know the auth state (avoids a flash of the dashboard).
   if (!ready || !user) {
@@ -89,8 +106,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <div className="bg-[#FFFFFF] border border-red-200 rounded-xl p-6">
                 <p className="text-sm font-semibold text-red-600">Service is down!</p>
                 <p className="text-xs text-gray-500 mt-2">
-                  Please contact the developer team.
+                  Couldn&apos;t reach the server. It will reconnect automatically — or
+                  retry now.
                 </p>
+                <button
+                  type="button"
+                  onClick={retry}
+                  disabled={retrying}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-card px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-secondary/50 disabled:opacity-60"
+                >
+                  {retrying ? 'Retrying…' : 'Try again'}
+                </button>
               </div>
             </div>
           ) : loading ? (

@@ -183,7 +183,10 @@ export function CandidateProfileModal({
   const interviewCleared = candidateInterviews.some(
     i => i.grading && ['Strong Hire', 'Hire'].includes(i.grading.recommendation),
   );
-  const candidateIq = iqTests.find(iq => iq.candidateId === candidate.id);
+  // Latest IQ attempt (newest first) so a re-scheduled retake's score wins.
+  const candidateIq = iqTests
+    .filter(iq => iq.candidateId === candidate.id)
+    .sort((a, b) => (b.testDate ?? '').localeCompare(a.testDate ?? ''))[0];
   const candidateTests = allTestInvites
     .filter(t => t.candidateId === candidate.id)
     .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));

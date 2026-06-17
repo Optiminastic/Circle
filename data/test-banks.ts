@@ -2,7 +2,8 @@
  * Question banks for the online recruitment tests.
  *
  * IQ test: 50 logical-reasoning MCQs, 4 marks each (max 200). Score = correct
- * × 4; qualify at >= 100 (i.e. at least 25/50 correct).
+ * × 4; qualify at >= 100 (i.e. at least 25/50 correct). Difficulty is tiered —
+ * IQ01–IQ10 easy, IQ11–IQ40 medium–hard, IQ41–IQ50 difficult.
  *
  * Assessments: one bank per department, 60-minute limit, pass >= 60%.
  * The bank is selected by the candidate's department (General as fallback).
@@ -51,11 +52,12 @@ export const iqScoreFromCorrect = (correct: number, _total: number): number =>
   correct * IQ_MARKS_PER_QUESTION;
 
 export const IQ_QUESTIONS: TestQuestion[] = [
+  // ── Easy (IQ01–IQ10): warm-up — simple series & direct analogies ──────────
   {
     id: 'IQ01',
-    q: 'What comes next in the series: 2, 6, 12, 20, 30, ... ?',
-    options: ['36', '40', '42', '44'],
-    answer: 2, // n(n+1): 42
+    q: 'What comes next in the series: 2, 4, 6, 8, 10, ... ?',
+    options: ['11', '12', '14', '16'],
+    answer: 1, // +2
   },
   {
     id: 'IQ02',
@@ -71,15 +73,15 @@ export const IQ_QUESTIONS: TestQuestion[] = [
   },
   {
     id: 'IQ04',
-    q: 'Which number is the odd one out: 3, 5, 11, 14, 17, 21?',
-    options: ['21', '17', '14', '11'],
-    answer: 2, // only even
+    q: 'Which number is the odd one out: 3, 5, 11, 14, 17?',
+    options: ['3', '5', '14', '17'],
+    answer: 2, // only even number
   },
   {
     id: 'IQ05',
-    q: 'A clock shows 3:15. What is the angle between the hour and minute hands?',
-    options: ['0°', '7.5°', '15°', '30°'],
-    answer: 1,
+    q: 'What comes next in the series: 5, 10, 15, 20, ... ?',
+    options: ['22', '24', '25', '30'],
+    answer: 2, // +5
   },
   {
     id: 'IQ06',
@@ -89,39 +91,41 @@ export const IQ_QUESTIONS: TestQuestion[] = [
   },
   {
     id: 'IQ07',
-    q: 'What comes next: J, F, M, A, M, J, J, A, ... ?',
-    options: ['S', 'O', 'N', 'A'],
-    answer: 0, // months: September
+    q: 'What comes next: A, C, E, G, ... ?',
+    options: ['H', 'I', 'J', 'K'],
+    answer: 1, // every second letter
   },
   {
     id: 'IQ08',
-    q: 'If you rearrange the letters of "CIFAIPC", you get the name of a(n):',
-    options: ['City', 'Animal', 'Ocean', 'Country'],
-    answer: 2, // PACIFIC
+    q: 'Which day comes immediately after Sunday?',
+    options: ['Saturday', 'Monday', 'Friday', 'Tuesday'],
+    answer: 1,
   },
   {
     id: 'IQ09',
-    q: 'A is taller than B. C is shorter than B. D is taller than A. Who is the shortest?',
-    options: ['A', 'B', 'C', 'D'],
-    answer: 2,
-  },
-  {
-    id: 'IQ10',
-    q: 'What comes next in the series: 1, 1, 2, 3, 5, 8, 13, ... ?',
-    options: ['18', '20', '21', '26'],
+    q: 'What comes next in the series: 1, 1, 2, 3, 5, 8, ... ?',
+    options: ['11', '12', '13', '14'],
     answer: 2, // Fibonacci
   },
   {
+    id: 'IQ10',
+    q: 'A is taller than B. C is shorter than B. Who is the shortest?',
+    options: ['A', 'B', 'C', 'Cannot be determined'],
+    answer: 2,
+  },
+
+  // ── Medium–Hard (IQ11–IQ40): multi-step reasoning & trickier patterns ─────
+  {
     id: 'IQ11',
-    q: 'A farmer has 17 sheep. All but 9 die. How many are left?',
-    options: ['8', '9', '17', '0'],
+    q: 'A clock shows 3:15. What is the angle between the hour and minute hands?',
+    options: ['0°', '7.5°', '15°', '30°'],
     answer: 1,
   },
   {
     id: 'IQ12',
-    q: 'Which word does NOT belong: Apple, Mango, Carrot, Banana?',
-    options: ['Apple', 'Mango', 'Carrot', 'Banana'],
-    answer: 2,
+    q: 'What comes next in the series: 1, 4, 9, 16, 25, ... ?',
+    options: ['30', '35', '36', '49'],
+    answer: 2, // perfect squares
   },
   {
     id: 'IQ13',
@@ -131,9 +135,9 @@ export const IQ_QUESTIONS: TestQuestion[] = [
   },
   {
     id: 'IQ14',
-    q: 'Mirror image: which is the mirror of the letter sequence "bpd"?',
-    options: ['bpd', 'dqb', 'pdb', 'qdb'],
-    answer: 1,
+    q: 'If CAT = 24 and DOG = 26, what does PIG equal? (A=1 … Z=26, sum of letters)',
+    options: ['30', '32', '34', '36'],
+    answer: 1, // 16+9+7=32
   },
   {
     id: 'IQ15',
@@ -143,50 +147,45 @@ export const IQ_QUESTIONS: TestQuestion[] = [
   },
   {
     id: 'IQ16',
-    q: 'Tuesday is two days after the day before yesterday. What day is it today?',
-    options: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
-    answer: 2,
+    q: 'If today is Friday, what day will it be 100 days from now?',
+    options: ['Saturday', 'Sunday', 'Monday', 'Tuesday'],
+    answer: 1, // 100 mod 7 = 2 → Sunday
   },
   {
     id: 'IQ17',
-    q: 'A cube has how many edges?',
-    options: ['6', '8', '10', '12'],
-    answer: 3,
+    q: 'What comes next: 5, 11, 23, 47, ... ?',
+    options: ['71', '83', '95', '99'],
+    answer: 2, // ×2 + 1
   },
   {
     id: 'IQ18',
-    q: 'If CAT = 24, DOG = 26, what does PIG equal? (A=1 … Z=26, sum of letters)',
-    options: ['30', '32', '34', '36'],
-    answer: 1, // 16+9+7=32
+    q: 'A person walks 5 km north, then 12 km east. How far are they from the start?',
+    options: ['7 km', '13 km', '17 km', '60 km'],
+    answer: 1, // 5-12-13 right triangle
   },
   {
     id: 'IQ19',
-    q: 'Two people are born at the same moment but have different birthdays. How is this possible?',
-    options: [
-      'Impossible',
-      'They were born in different time zones',
-      'One is adopted',
-      'They are twins',
-    ],
-    answer: 1,
+    q: 'What comes next in the series: 2, 6, 12, 20, 30, ... ?',
+    options: ['36', '40', '42', '44'],
+    answer: 2, // n(n+1): 42
   },
   {
     id: 'IQ20',
-    q: 'Which figure count: how many triangles are in a triangle divided by its three medians?',
-    options: ['4', '6', '12', '16'],
-    answer: 3,
+    q: 'Evaluate: 144 ÷ 12 + 3 × 2',
+    options: ['18', '24', '30', '36'],
+    answer: 0, // 12 + 6
   },
   {
     id: 'IQ21',
-    q: 'What comes next in the series: 3, 9, 27, 81, ... ?',
-    options: ['162', '216', '243', '324'],
-    answer: 2, // ×3
+    q: 'Which number should replace the question mark: 7, 14, 28, 56, ... ?',
+    options: ['84', '98', '112', '120'],
+    answer: 2, // ×2
   },
   {
     id: 'IQ22',
-    q: 'Pen is to Writer as Brush is to:',
-    options: ['Sculptor', 'Painter', 'Carpenter', 'Singer'],
-    answer: 1,
+    q: 'What comes next: 100, 96, 88, 76, 60, ... ?',
+    options: ['40', '44', '48', '52'],
+    answer: 0, // differences -4,-8,-12,-16,-20
   },
   {
     id: 'IQ23',
@@ -196,165 +195,172 @@ export const IQ_QUESTIONS: TestQuestion[] = [
   },
   {
     id: 'IQ24',
-    q: "If A=1, B=2, C=3 … what is the total value of the word 'CAB'?",
-    options: ['5', '6', '7', '8'],
-    answer: 1, // 3+1+2
-  },
-  {
-    id: 'IQ25',
-    q: 'What comes next: 100, 96, 88, 76, 60, ... ?',
-    options: ['40', '44', '48', '52'],
-    answer: 0, // differences -4,-8,-12,-16,-20
-  },
-  {
-    id: 'IQ26',
-    q: 'Which number should replace the question mark: 7, 14, 28, 56, ... ?',
-    options: ['84', '98', '112', '120'],
-    answer: 2, // ×2
-  },
-  {
-    id: 'IQ27',
-    q: 'A person walks 5 km north, 3 km east, then 5 km south. How far are they from the start?',
-    options: ['3 km', '5 km', '8 km', '13 km'],
-    answer: 0,
-  },
-  {
-    id: 'IQ28',
-    q: 'Doctor is to Hospital as Teacher is to:',
-    options: ['Library', 'School', 'Office', 'Clinic'],
-    answer: 1,
-  },
-  {
-    id: 'IQ29',
-    q: 'What comes next in the series: 1, 4, 9, 16, 25, ... ?',
-    options: ['30', '35', '36', '49'],
-    answer: 2, // perfect squares
-  },
-  {
-    id: 'IQ30',
-    q: 'If today is Friday, what day will it be 100 days from now?',
-    options: ['Saturday', 'Sunday', 'Monday', 'Friday'],
-    answer: 1, // 100 mod 7 = 2 → Sunday
-  },
-  {
-    id: 'IQ31',
-    q: 'Which word does NOT belong: Rose, Lily, Tulip, Oak?',
-    options: ['Rose', 'Lily', 'Tulip', 'Oak'],
-    answer: 3, // a tree, not a flower
-  },
-  {
-    id: 'IQ32',
-    q: 'What comes next: 5, 11, 23, 47, ... ?',
-    options: ['71', '83', '95', '99'],
-    answer: 2, // ×2 + 1
-  },
-  {
-    id: 'IQ33',
-    q: 'A is the father of B, but B is not the son of A. How is this possible?',
-    options: ['Impossible', 'B is a daughter', 'B is adopted', 'A is a grandfather'],
-    answer: 1,
-  },
-  {
-    id: 'IQ34',
-    q: 'Which is heavier: 1 kg of iron or 1 kg of cotton?',
-    options: ['Iron', 'Cotton', 'They weigh the same', 'Depends on size'],
-    answer: 2,
-  },
-  {
-    id: 'IQ35',
-    q: 'What comes next in the series: Z, X, V, T, ... ?',
-    options: ['S', 'R', 'Q', 'U'],
-    answer: 1, // every second letter backwards
-  },
-  {
-    id: 'IQ36',
-    q: 'Evaluate: 144 ÷ 12 + 3 × 2',
-    options: ['18', '24', '30', '36'],
-    answer: 0, // 12 + 6
-  },
-  {
-    id: 'IQ37',
-    q: 'Triangle is to 3 as Hexagon is to:',
-    options: ['5', '6', '7', '8'],
-    answer: 1,
-  },
-  {
-    id: 'IQ38',
-    q: 'If 2 cats catch 2 mice in 2 minutes, how many cats are needed to catch 50 mice in 50 minutes?',
-    options: ['2', '25', '50', '100'],
-    answer: 0,
-  },
-  {
-    id: 'IQ39',
-    q: 'What comes next: 2, 3, 5, 7, 11, 13, ... ?',
-    options: ['15', '16', '17', '19'],
-    answer: 2, // primes
-  },
-  {
-    id: 'IQ40',
-    q: 'If you rearrange the letters "DIANI", you get the name of a(n):',
-    options: ['City', 'River', 'Country', 'Mountain'],
-    answer: 2, // INDIA
-  },
-  {
-    id: 'IQ41',
-    q: 'Which shape has the most sides: Pentagon, Square, Octagon, or Triangle?',
-    options: ['Pentagon', 'Square', 'Octagon', 'Triangle'],
-    answer: 2,
-  },
-  {
-    id: 'IQ42',
-    q: 'What comes next in the series: 81, 64, 49, 36, ... ?',
-    options: ['16', '25', '30', '32'],
-    answer: 1, // 9²,8²,7²,6²,5²
-  },
-  {
-    id: 'IQ43',
-    q: 'Ocean is to Water as Desert is to:',
-    options: ['Heat', 'Sand', 'Camel', 'Dry'],
-    answer: 1,
-  },
-  {
-    id: 'IQ44',
     q: 'If 3x = 12, then 5x = ?',
     options: ['15', '18', '20', '24'],
     answer: 2, // x=4
   },
   {
-    id: 'IQ45',
-    q: 'Which number is the odd one out: 121, 144, 169, 200?',
-    options: ['121', '144', '169', '200'],
-    answer: 3, // not a perfect square
-  },
-  {
-    id: 'IQ46',
-    q: 'What comes next: Monday, Wednesday, Friday, ... ?',
-    options: ['Saturday', 'Sunday', 'Tuesday', 'Thursday'],
-    answer: 1, // +2 days
-  },
-  {
-    id: 'IQ47',
-    q: 'How many months of the year have at least 28 days?',
-    options: ['1', '2', '11', '12'],
-    answer: 3,
-  },
-  {
-    id: 'IQ48',
+    id: 'IQ25',
     q: 'What comes next in the series: 1, 2, 6, 24, 120, ... ?',
     options: ['240', '360', '600', '720'],
     answer: 3, // ×2, ×3, ×4, ×5, ×6
   },
   {
-    id: 'IQ49',
-    q: 'Bird is to Sky as Fish is to:',
-    options: ['Net', 'Water', 'Scale', 'Boat'],
-    answer: 1,
+    id: 'IQ26',
+    q: 'What comes next in the series: Z, X, V, T, ... ?',
+    options: ['S', 'R', 'Q', 'U'],
+    answer: 1, // every second letter backwards
   },
   {
-    id: 'IQ50',
+    id: 'IQ27',
     q: 'A bat and a ball cost ₹110 in total. The bat costs ₹100 more than the ball. How much is the ball?',
     options: ['₹5', '₹10', '₹15', '₹100'],
     answer: 0,
+  },
+  {
+    id: 'IQ28',
+    q: 'How many triangles are in a triangle divided by its three medians?',
+    options: ['4', '6', '12', '16'],
+    answer: 3,
+  },
+  {
+    id: 'IQ29',
+    q: 'Tuesday is two days after the day before yesterday. What day is it today?',
+    options: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+    answer: 1, // (today−2)+2 = today = Tuesday
+  },
+  {
+    id: 'IQ30',
+    q: 'What comes next in the series: 3, 9, 27, 81, ... ?',
+    options: ['162', '216', '243', '324'],
+    answer: 2, // ×3
+  },
+  {
+    id: 'IQ31',
+    q: 'Pen is to Writer as Brush is to:',
+    options: ['Sculptor', 'Painter', 'Carpenter', 'Singer'],
+    answer: 1,
+  },
+  {
+    id: 'IQ32',
+    q: 'What comes next: 2, 3, 5, 7, 11, 13, ... ?',
+    options: ['15', '16', '17', '19'],
+    answer: 2, // primes
+  },
+  {
+    id: 'IQ33',
+    q: 'If you rearrange the letters "DIANI", you get the name of a(n):',
+    options: ['City', 'River', 'Country', 'Mountain'],
+    answer: 2, // INDIA
+  },
+  {
+    id: 'IQ34',
+    q: 'Which number is the odd one out: 121, 144, 169, 200?',
+    options: ['121', '144', '169', '200'],
+    answer: 3, // not a perfect square
+  },
+  {
+    id: 'IQ35',
+    q: 'What comes next in the series: 81, 64, 49, 36, ... ?',
+    options: ['16', '25', '30', '32'],
+    answer: 1, // 9²,8²,7²,6²,5²
+  },
+  {
+    id: 'IQ36',
+    q: 'A cube has how many edges?',
+    options: ['6', '8', '10', '12'],
+    answer: 3,
+  },
+  {
+    id: 'IQ37',
+    q: "If A=1, B=2, C=3 … what is the total value of the word 'CAB'?",
+    options: ['5', '6', '7', '8'],
+    answer: 1, // 3+1+2
+  },
+  {
+    id: 'IQ38',
+    q: "Pointing to a photo, a man says: 'She is the daughter of my grandfather's only son.' Who is she to him?",
+    options: ['His mother', 'His sister', 'His daughter', 'His cousin'],
+    answer: 1, // grandfather's only son = his father → father's daughter = sister
+  },
+  {
+    id: 'IQ39',
+    q: 'What comes next in the series: 1, 2, 4, 7, 11, 16, ... ?',
+    options: ['20', '21', '22', '23'],
+    answer: 2, // differences +1,+2,+3,+4,+5
+  },
+  {
+    id: 'IQ40',
+    q: 'Ocean is to Water as Desert is to:',
+    options: ['Heat', 'Sand', 'Camel', 'Dry'],
+    answer: 1,
+  },
+
+  // ── Difficult (IQ41–IQ50): coding, probability & advanced patterns ────────
+  {
+    id: 'IQ41',
+    q: 'What comes next in the series: 2, 12, 36, 80, 150, ... ?',
+    options: ['200', '220', '252', '300'],
+    answer: 2, // n²(n+1): 1·2, 4·3, 9·4, 16·5, 25·6, 36·7 = 252
+  },
+  {
+    id: 'IQ42',
+    q: 'In a code, "MOUSE" is written as "PRXVH". How is "SHIFT" written?',
+    options: ['VKLIW', 'VLKIW', 'UKLIW', 'VKMIW'],
+    answer: 0, // each letter shifted +3
+  },
+  {
+    id: 'IQ43',
+    q: 'If some Argons are Bytes, and all Bytes are Crons, which statement is necessarily true?',
+    options: [
+      'All Argons are Crons',
+      'Some Argons are Crons',
+      'No Argons are Crons',
+      'All Crons are Argons',
+    ],
+    answer: 1,
+  },
+  {
+    id: 'IQ44',
+    q: 'What comes next in the series: 4, 9, 25, 49, 121, 169, ... ?',
+    options: ['225', '256', '289', '361'],
+    answer: 2, // squares of primes: 2²,3²,5²,7²,11²,13²,17²=289
+  },
+  {
+    id: 'IQ45',
+    q: 'What comes next in the "look-and-say" series: 1, 11, 21, 1211, 111221, ... ?',
+    options: ['112213', '312211', '311221', '13112221'],
+    answer: 1, // 111221 → "three 1s, two 2s, one 1" → 312211
+  },
+  {
+    id: 'IQ46',
+    q: 'A bag has 3 red and 2 blue balls. Two are drawn without replacement. What is the probability both are red?',
+    options: ['3/10', '2/5', '9/25', '1/2'],
+    answer: 0, // 3/5 × 2/4 = 6/20 = 3/10
+  },
+  {
+    id: 'IQ47',
+    q: 'What comes next in the series: 5, 7, 12, 19, 31, 50, ... ?',
+    options: ['68', '75', '81', '100'],
+    answer: 2, // each term = sum of previous two
+  },
+  {
+    id: 'IQ48',
+    q: 'Which 3-digit number equals the sum of the cubes of its own digits?',
+    options: ['125', '153', '248', '512'],
+    answer: 1, // 1³+5³+3³ = 1+125+27 = 153
+  },
+  {
+    id: 'IQ49',
+    q: 'A can finish a job in 12 days and B in 18 days. Working together, how long do they take?',
+    options: ['7.2 days', '6 days', '15 days', '30 days'],
+    answer: 0, // 1/12 + 1/18 = 5/36 → 36/5 = 7.2
+  },
+  {
+    id: 'IQ50',
+    q: 'A snail climbs a 10 m well, going up 3 m each day and slipping 2 m each night. How many days to get out?',
+    options: ['8 days', '9 days', '10 days', '11 days'],
+    answer: 0, // reaches 7 m at start of day 8, then climbs 3 m → out
   },
 ];
 

@@ -40,6 +40,7 @@ import {
 import { CandidateStatus, HRCallRecord, Interview, ScheduleType, ScreeningReview, StageDecision, TestInvite } from '@/types';
 import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
 import { EditCandidateDialog } from '@/components/EditCandidateDialog';
+import { RefreshButton } from '@/components/RefreshButton';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
 import { useHrIdentity } from '@/features/employees/hooks';
@@ -303,10 +304,15 @@ export default function CandidateDetailPage() {
   const hrCallReached =
     hrCallDone || mySchedules.some(s => s.type === 'HR Call') || candidate.status === 'Moved to HR Call';
   const offerShortlisted = candidate.status === 'Offer Shortlisted';
-  const iqInvite = myInvites.find(i => i.kind === 'iq');
+  // After a re-scheduled retake, show the LATEST attempt (newest first), not the
+  // first one created.
+  const byCreatedDesc = (a: TestInvite, b: TestInvite) =>
+    (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+  const latestIq = [...myIq].sort((a, b) => (b.testDate ?? '').localeCompare(a.testDate ?? ''))[0];
+  const iqInvite = myInvites.filter(i => i.kind === 'iq').sort(byCreatedDesc)[0];
   const iqDone = myIq.length > 0 || Boolean(iqInvite && ['Completed', 'Auto-Submitted'].includes(iqInvite.status));
   const iqReached = iqDone || Boolean(iqInvite) || mySchedules.some(s => s.type === 'IQ Test');
-  const asgInvite = myInvites.find(i => i.kind === 'assignment');
+  const asgInvite = myInvites.filter(i => i.kind === 'assignment').sort(byCreatedDesc)[0];
   const asgDone = asgInvite?.status === 'Graded';
   const asgReached = Boolean(asgInvite) || mySchedules.some(s => s.type === 'Assessment');
   const interviewDone = myInterviews.some(iv => iv.status === 'Completed');
@@ -359,12 +365,12 @@ export default function CandidateDetailPage() {
       Icon: BrainCircuit,
       reached: iqReached || candidate.stageDecisions?.['Interview Schedule'] === 'Accepted',
       done: iqDone,
-      desc: myIq[0]
-        ? `${myIq[0].qualificationStatus} · ${myIq[0].scorePercentage}%`
+      desc: latestIq
+        ? `${latestIq.qualificationStatus} · ${latestIq.scorePercentage}%`
         : iqReached
           ? 'Scheduled'
           : 'Pending',
-      when: myIq[0]?.testDate,
+      when: latestIq?.testDate,
     },
     {
       label: 'Assessment',
@@ -1515,37 +1521,53 @@ export default function CandidateDetailPage() {
                 {candidate.appliedRole} · {candidate.department}
               </p>
             </div>
-            {nextRound && decisionOf(stages[currentIndex].label) === 'Accepted' ? (
-              <button
-                onClick={() => schedule(nextRound)}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
-              >
-                <CalendarPlus size={14} /> {roundLabel[nextRound]}
-              </button>
-            ) : (
-              <span
-                className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
-                  selected
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : rejected
-                      ? 'bg-red-50 text-red-600'
-                      : onHold
-                        ? 'bg-yellow-50 text-yellow-700'
-                        : 'bg-[#F1F3F5] text-gray-500'
-                }`}
-              >
-                {selected ? (
-                  <Award size={14} />
-                ) : rejected ? (
-                  <Flag size={14} />
-                ) : onHold ? (
-                  <Pause size={14} />
-                ) : (
-                  <Clock4 size={14} />
-                )}
-                {selected ? 'Selected for role' : rejected ? 'Rejected' : onHold ? 'On hold' : 'Round in progress'}
-              </span>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              <RefreshButton
+                queryKeys={[
+                  qk.candidates.all,
+                  qk.iqTests.all,
+                  qk.interviews.all,
+                  qk.testInvites.all,
+                  qk.schedules.all,
+                  qk.bgvs.all,
+                  qk.assignments.all,
+                  qk.onboarding.all,
+                  qk.docRequests.all,
+                ]}
+                title="Refresh candidate flow"
+              />
+              {nextRound && decisionOf(stages[currentIndex].label) === 'Accepted' ? (
+                <button
+                  onClick={() => schedule(nextRound)}
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
+                >
+                  <CalendarPlus size={14} /> {roundLabel[nextRound]}
+                </button>
+              ) : (
+                <span
+                  className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
+                    selected
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : rejected
+                        ? 'bg-red-50 text-red-600'
+                        : onHold
+                          ? 'bg-yellow-50 text-yellow-700'
+                          : 'bg-[#F1F3F5] text-gray-500'
+                  }`}
+                >
+                  {selected ? (
+                    <Award size={14} />
+                  ) : rejected ? (
+                    <Flag size={14} />
+                  ) : onHold ? (
+                    <Pause size={14} />
+                  ) : (
+                    <Clock4 size={14} />
+                  )}
+                  {selected ? 'Selected for role' : rejected ? 'Rejected' : onHold ? 'On hold' : 'Round in progress'}
+                </span>
+              )}
+            </div>
           </div>
 
           <div
