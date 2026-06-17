@@ -1,0 +1,12 @@
+# Signalor
+
+> Signalor — https://signalor.ai
+
+## About
+Signalor is the official site at https://signalor.ai. This file helps AI assistants (ChatGPT, Perplexity, Claude, Gemini) understand, summarize, and cite this site.
+
+## Key pages
+- Home: https://signalor.ai/
+
+## Contact
+- Website: https://signalor.ai/
