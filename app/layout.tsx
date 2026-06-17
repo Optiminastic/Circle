@@ -30,6 +30,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: '{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://signalor.ai/#organization","name":"Signalor","url":"https://signalor.ai/"},{"@type":"WebSite","@id":"https://signalor.ai/#website","name":"Signalor","url":"https://signalor.ai/","publisher":{"@id":"https://signalor.ai/#organization"}}]}' }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>
