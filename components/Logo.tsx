@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Curcle brand mark — a continuous wave line. Stroke-based and monochrome, so it
+ * Circle brand mark — a continuous wave line. Stroke-based and monochrome, so it
  * inherits the surrounding text colour (use `text-*` to recolour). The mark is
  * square; `size` sets both width and height.
  */
@@ -12,7 +12,7 @@ export function Logo({ size = 32, className = '' }: { size?: number; className?:
       height={size}
       viewBox="0 0 1080 1080"
       role="img"
-      aria-label="Curcle"
+      aria-label="Circle"
       fill="none"
       className={`text-gray-900 ${className}`}
     >

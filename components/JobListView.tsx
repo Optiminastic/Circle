@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RefreshButton } from '@/components/RefreshButton';
+import { qk } from '@/lib/query/keys';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from './Toaster';
@@ -525,6 +527,7 @@ export function JobListView({
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <RefreshButton queryKeys={[qk.jobs.all, qk.candidates.all]} title="Refresh job postings" />
           <div className="relative">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500">
               <Search size={14} />
