@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Candidate, CandidateStatus } from '../types';
 import { useUiStore } from '@/store/ui-store';
 import { useOrgSettings } from '@/store/org-settings';
+import { useJobs } from '@/features/jobs/hooks';
 import { EditableSelect } from '@/components/ui/editable-select';
 import {
   Search,
@@ -118,6 +119,14 @@ export function CandidateListView({
   const qc = useQueryClient();
   const { openCandidate } = useUiStore();
   const org = useOrgSettings();
+  const { data: jobs = [] } = useJobs();
+
+  // Applied-role options are sourced ONLY from live job postings (status
+  // "Open") so a candidate can never be admitted against a role we aren't
+  // actually hiring for. De-duplicated by title.
+  const postedRoles = Array.from(
+    new Set(jobs.filter(j => j.status === 'Open').map(j => j.title)),
+  );
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -140,7 +149,7 @@ export function CandidateListView({
     currentCtc: '',
     expectedCtc: '',
     noticePeriodDays: 30,
-    appliedRole: 'Senior React Engineer',
+    appliedRole: '',
     department: 'Engineering',
     sourceOfApplication: 'LinkedIn',
     hrRemarks: 'Great dynamic design mindset and solid code patterns.',
@@ -194,6 +203,18 @@ export function CandidateListView({
     e.preventDefault();
     if (!newCand.fullName || !newCand.email) {
       toast.error('Full name and contact email are required.');
+      return;
+    }
+    if (!newCand.appliedRole) {
+      toast.error('Select an applied role from the open job postings.');
+      return;
+    }
+    if (!postedRoles.includes(newCand.appliedRole)) {
+      toast.error('The applied role must match a currently open job posting.');
+      return;
+    }
+    if (!resume) {
+      toast.error('A resume is required to add a candidate.');
       return;
     }
 
@@ -263,7 +284,7 @@ export function CandidateListView({
       currentCtc: '',
       expectedCtc: '',
       noticePeriodDays: 30,
-      appliedRole: 'Senior React Engineer',
+      appliedRole: '',
       department: 'Engineering',
       sourceOfApplication: 'LinkedIn',
       hrRemarks: '',
@@ -610,10 +631,20 @@ export function CandidateListView({
                       <Label className="text-sm font-medium">Applied role</Label>
                       <EditableSelect
                         value={newCand.appliedRole}
-                        onChange={v => setNewCand({ ...newCand, appliedRole: v })}
-                        options={org.roles}
-                        onAdd={v => org.add('roles', v)}
-                        placeholder="Select role"
+                        onChange={v => {
+                          // Roles come from open postings only — when one is
+                          // picked, align the department with that posting.
+                          const job = jobs.find(j => j.title === v && j.status === 'Open');
+                          setNewCand({
+                            ...newCand,
+                            appliedRole: v,
+                            department: job?.department ?? newCand.department,
+                          });
+                        }}
+                        options={postedRoles}
+                        placeholder={
+                          postedRoles.length ? 'Select an open role' : 'No open job postings'
+                        }
                         className="mt-2"
                       />
                     </div>
@@ -688,9 +719,11 @@ export function CandidateListView({
               {/* Resume */}
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div>
-                  <h2 className="font-semibold text-foreground">Resume</h2>
+                  <h2 className="font-semibold text-foreground">
+                    Resume <span className="text-red-500">*</span>
+                  </h2>
                   <p className="mt-1 text-xs leading-6 text-muted-foreground">
-                    Drag &amp; drop, browse, or import a copy from Google Drive.
+                    Required. Drag &amp; drop, browse, or import a copy from Google Drive.
                   </p>
                 </div>
                 <div className="md:col-span-2">
