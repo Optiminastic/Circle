@@ -35,6 +35,18 @@ const splitLocal = (iso: string) => {
   };
 };
 
+/**
+ * The interviewer is notified for a slot one hour AFTER the candidate's time
+ * (e.g. candidate 10:00 → interviewer 11:00). The candidate-facing time/invite is
+ * never shifted — only the interviewer's email + calendar invite.
+ */
+const INTERVIEWER_OFFSET_MIN = 60;
+const addMinutesIso = (iso: string, mins: number) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Date(d.getTime() + mins * 60_000).toISOString();
+};
+
 const InterviewSchedulerContext = createContext<InterviewSchedulerApi | null>(null);
 
 export function InterviewScheduleProvider({ children }: { children: React.ReactNode }) {
@@ -52,6 +64,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
     id: string;
     position: string;
     eventFields: Record<string, unknown>;
+    /** Calendar/.ics fields for the interviewer's copy (shifted +1h). */
+    interviewerEventFields: Record<string, unknown>;
     meetLink?: string | null;
     googleEventId?: string | null;
   } | null>(null);
@@ -145,7 +159,13 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         return;
       }
 
-      const attendees = [c.email, input.interviewerEmail, HR_EMAIL].filter(
+      // Candidate's event holds candidate + HR; the interviewer gets a separate
+      // event shifted +1h (below), so the two never collide on a calendar.
+      const interviewerIso = addMinutesIso(input.dateTimeIso, INTERVIEWER_OFFSET_MIN);
+      const attendees = [c.email, HR_EMAIL].filter(
+        (e): e is string => !!e && e.trim().length > 0,
+      );
+      const interviewerAttendees = [input.interviewerEmail, HR_EMAIL].filter(
         (e): e is string => !!e && e.trim().length > 0,
       );
       // Update the same calendar event (keyed by the interview id).
@@ -160,6 +180,20 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         notes: `Rescheduled interview for ${c.fullName} (${position}).`,
       }).catch(() => {});
 
+      // Move the interviewer's own event (+1h) too.
+      if (input.interviewerEmail) {
+        pushCalendarEvent({
+          appEventId: `${existing.id}-interviewer`,
+          type: 'Interview',
+          title: `Interview - ${c.fullName} - ${position}`,
+          dateTimeIso: interviewerIso,
+          durationMin: input.durationMin,
+          location: input.location,
+          attendees: interviewerAttendees,
+          notes: `Rescheduled interview for ${c.fullName} (${position}).`,
+        }).catch(() => {});
+      }
+
       let emailStatus: Interview['emailStatus'] = 'Not Sent';
       if (c.email) {
         try {
@@ -167,7 +201,6 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             to: c.email,
             subject: input.emailSubject,
             body: input.emailBody,
-            cc: [HR_EMAIL],
             eventStartIso: input.dateTimeIso,
             eventDurationMin: input.durationMin,
             eventSummary: `Interview - ${c.fullName} - ${position}`,
@@ -201,12 +234,21 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           .catch(() => {});
       }
 
-      // Notify the interviewer of the new time too.
+      // Notify the interviewer of the new time too (their slot is +1h), with the
+      // updated calendar invite attached at the shifted time.
       if (input.interviewerEmail) {
         sendCustomEmail({
           to: input.interviewerEmail,
           subject: `Interview rescheduled: ${c.fullName} for ${position}`,
-          body: `Hi ${input.interviewerName || 'there'},\n\nThe interview with ${c.fullName} (${position}) has been rescheduled.\n\nNew time: ${new Date(input.dateTimeIso).toLocaleString()}\n\n— ${BRAND.company}`,
+          body: `Hi ${input.interviewerName || 'there'},\n\nThe interview with ${c.fullName} (${position}) has been rescheduled.\n\nNew time: ${new Date(interviewerIso).toLocaleString()}\n\n— ${BRAND.company}`,
+          eventStartIso: interviewerIso,
+          eventDurationMin: input.durationMin,
+          eventSummary: `Interview - ${c.fullName} - ${position}`,
+          eventLocation: input.location,
+          organizerEmail: HR_EMAIL,
+          organizerName: `${BRAND.company} HR`,
+          attendees: interviewerAttendees,
+          eventUid: `${existing.id}-interviewer`,
         }).catch(() => {});
       }
 
@@ -265,10 +307,14 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       }
       qc.invalidateQueries({ queryKey: qk.interviews.all });
 
-      // Calendar invite (.ics) details shared by every recipient. The HR account is
-      // the organizer, so the event also lands on the HR calendar; candidate +
-      // interviewer + HR are attendees and get it on theirs via the invitation.
-      const attendees = [c.email, input.interviewerEmail, HR_EMAIL].filter(
+      // Calendar invite (.ics) details. The candidate's event holds the candidate
+      // + HR only; the interviewer gets a SEPARATE event shifted +1h (below), so
+      // their calendar never shows the candidate's time. HR is the organizer.
+      const interviewerIso = addMinutesIso(input.dateTimeIso, INTERVIEWER_OFFSET_MIN);
+      const attendees = [c.email, HR_EMAIL].filter(
+        (e): e is string => !!e && e.trim().length > 0,
+      );
+      const interviewerAttendees = [input.interviewerEmail, HR_EMAIL].filter(
         (e): e is string => !!e && e.trim().length > 0,
       );
       const eventDescription = [
@@ -324,14 +370,58 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             eventUid: id,
           };
 
-      session = { candidateId: c.id, id, position, eventFields, meetLink, googleEventId };
+      // Interviewer's own calendar event, shifted +1h. Pushed once per session so
+      // a retry never duplicates it. If Google isn't connected, the interviewer's
+      // email carries the .ics (interviewerEventFields) at the shifted time.
+      let interviewerEventFields: Record<string, unknown> = {};
+      if (input.interviewerEmail) {
+        let pushedInterviewer = false;
+        try {
+          const ivRes = await pushCalendarEvent({
+            appEventId: `${id}-interviewer`,
+            type: 'Interview',
+            title: `Interview - ${c.fullName} - ${position}`,
+            dateTimeIso: interviewerIso,
+            durationMin: input.durationMin,
+            location: input.location,
+            attendees: interviewerAttendees,
+            notes: eventDescription,
+          });
+          pushedInterviewer = ivRes.pushed;
+        } catch {
+          /* calendar sync is best-effort */
+        }
+        interviewerEventFields = pushedInterviewer
+          ? {}
+          : {
+              eventStartIso: interviewerIso,
+              eventDurationMin: input.durationMin,
+              eventSummary: `Interview - ${c.fullName} - ${position}`,
+              eventLocation: input.location,
+              eventDescription,
+              organizerEmail: HR_EMAIL,
+              organizerName: `${BRAND.company} HR`,
+              attendees: interviewerAttendees,
+              eventUid: `${id}-interviewer`,
+            };
+      }
+
+      session = {
+        candidateId: c.id,
+        id,
+        position,
+        eventFields,
+        interviewerEventFields,
+        meetLink,
+        googleEventId,
+      };
       sessionRef.current = session;
     }
 
-    const { id, eventFields, meetLink, googleEventId } = session;
+    const { id, eventFields, interviewerEventFields, meetLink, googleEventId } = session;
 
     // 2) Email the candidate the (possibly edited) invitation, with the calendar
-    // invite attached and HR cc'd. This is the step the modal is gated on.
+    // invite attached. This is the step the modal is gated on.
     let emailStatus: Interview['emailStatus'] = 'Not Sent';
     if (c.email) {
       try {
@@ -339,7 +429,6 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           to: c.email,
           subject: input.emailSubject,
           body: input.emailBody,
-          cc: [HR_EMAIL],
           ...eventFields,
         });
         emailStatus = r.sent ? 'Sent' : 'Failed';
@@ -374,9 +463,11 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
     // 3) Notify the interviewer (if provided) with the full candidate brief, the
     // candidate's resume link, a public question sheet, and the calendar invite.
     if (input.interviewerEmail) {
-      const when = new Date(input.dateTimeIso);
+      // Interviewer's slot is +1h vs the candidate's.
+      const interviewerIso = addMinutesIso(input.dateTimeIso, INTERVIEWER_OFFSET_MIN);
+      const when = new Date(interviewerIso);
       const whenStr = Number.isNaN(when.getTime())
-        ? input.dateTimeIso
+        ? interviewerIso
         : when.toLocaleString(undefined, {
             weekday: 'short',
             day: 'numeric',
@@ -411,7 +502,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         to: input.interviewerEmail,
         subject: `Interview scheduled: ${c.fullName} for ${position}`,
         body: ivBody,
-        ...eventFields,
+        ...interviewerEventFields,
       }).catch(() => {});
     }
 
