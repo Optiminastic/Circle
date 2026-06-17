@@ -47,7 +47,6 @@ export function sendCustomEmail(input: {
   to: string;
   subject: string;
   body: string;
-  cc?: string[];
   eventStartIso?: string;
   eventDurationMin?: number;
   eventSummary?: string;
