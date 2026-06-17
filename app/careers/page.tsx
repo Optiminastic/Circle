@@ -41,14 +41,17 @@ export default function CareersPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] text-gray-900">
-      {/* ---- Textured hero band (header + hero share the sand/slate texture) ---- */}
-      <div className="bg-sandslate relative overflow-hidden">
-        {/* Soft veil: keeps the texture vivid up top, fades into the white list below. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent to-white"
-        />
+    <div
+      className="min-h-screen bg-[#FFFFFF] text-gray-900"
+      style={{
+        backgroundImage:
+          'linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)), url(/careers-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'top center',
+      }}
+    >
+      {/* ---- Hero band (shares the page paper texture) ---- */}
+      <div className="relative overflow-hidden">
 
         {/* ---- Top bar ---- */}
         <header className="relative border-b border-black/[0.06]">
