@@ -218,6 +218,10 @@ export function CandidateListView({
       return;
     }
 
+    // Tie the candidate to the open posting they're applied against, so they
+    // surface under that role's applicants and its counter updates too.
+    const postedJob = jobs.find(j => j.title === newCand.appliedRole && j.status === 'Open');
+
     const created: Candidate = {
       id: `CAN-${Math.floor(100 + Math.random() * 900)}`,
       fullName: newCand.fullName,
@@ -234,6 +238,7 @@ export function CandidateListView({
       appliedRole: newCand.appliedRole,
       department: newCand.department,
       sourceOfApplication: newCand.sourceOfApplication,
+      jobId: postedJob?.id,
       hrRemarks: newCand.hrRemarks,
       status: 'New Application',
       appliedDate: new Date().toISOString().split('T')[0],
