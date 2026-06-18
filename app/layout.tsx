@@ -21,6 +21,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://circle.optiminastic.com"),
+  alternates: { canonical: "/" },
   title: BRAND.product,
   description:
     'Enterprise-grade HR Operating System and Applicant Tracking System for the complete employee lifecycle.',
@@ -30,6 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: '{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://circle.optiminastic.com/#organization","name":"Optiminastic","url":"https://circle.optiminastic.com/"},{"@type":"WebSite","@id":"https://circle.optiminastic.com/#website","name":"Optiminastic","url":"https://circle.optiminastic.com/","publisher":{"@id":"https://circle.optiminastic.com/#organization"}}]}' }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

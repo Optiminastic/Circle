@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileUp, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { TestQuestion } from '@/data/test-banks';
 import { useToast } from '@/components/Toaster';
 import { QuestionCards } from '@/components/QuestionCards';
 import { Button } from '@/components/ui/button';
 import { findCategory } from '@/lib/question-library';
+import { parseAssessmentPdf } from '@/lib/import-questions-pdf';
 import {
   loadBanks,
   saveBanks,
@@ -36,6 +37,8 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
 
   const [banks, setBanks] = useState<RoleQuestionBank[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setBanks(loadBanks(category));
@@ -80,6 +83,64 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
       return;
     }
     patchQuestions(qs => [...qs, blankQuestion(`Q-${Date.now()}`)]);
+  };
+
+  // Import questions from an assessment PDF (parsed entirely in the browser).
+  // If the bank already holds questions, the latest PDF replaces them all (after
+  // confirmation). Imported questions stay editable like any other.
+  const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // let the same file be re-selected later
+    if (!file || !bank) return;
+    if (!/\.pdf$/i.test(file.name)) {
+      toast.error('Please choose a PDF file.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const parsed = await parseAssessmentPdf(file);
+      if (parsed.questions.length === 0) {
+        toast.error('No questions could be read from this PDF. Check the format and try again.');
+        return;
+      }
+      const stamp = Date.now();
+      const incoming = parsed.questions.map((q, i) => ({ ...q, id: `Q-${stamp}-${i}` }));
+      const skippedNote = parsed.skipped.length
+        ? ` ${parsed.skipped.length} incomplete question(s) were skipped.`
+        : '';
+      const existing = bank.questions.length;
+      toast.confirm({
+        title: existing
+          ? `Replace all ${existing} question${existing === 1 ? '' : 's'} with ${incoming.length} from this PDF?`
+          : `Import ${incoming.length} question${incoming.length === 1 ? '' : 's'}${
+              parsed.title ? ` from “${parsed.title}”` : ''
+            }?`,
+        description: existing
+          ? `Your current questions will be removed and replaced by this PDF's questions. You can edit them afterwards.${skippedNote}`
+          : `They will be added to this bank and you can edit them afterwards.${skippedNote}`,
+        confirmLabel: existing ? 'Replace' : 'Import',
+        onConfirm: () => {
+          setBanks(prev =>
+            prev.map(b => {
+              if (b.id !== bankId) return b;
+              // Latest PDF wins — replace the whole set.
+              const maxQuestions = Math.min(100, Math.max(b.maxQuestions, incoming.length));
+              return { ...b, questions: incoming, maxQuestions };
+            }),
+          );
+          toast.success(
+            existing
+              ? `Replaced with ${incoming.length} question${incoming.length === 1 ? '' : 's'}.`
+              : `Imported ${incoming.length} question${incoming.length === 1 ? '' : 's'}.`,
+          );
+        },
+      });
+    } catch (err) {
+      console.error('PDF import failed', err);
+      toast.error('Could not read the PDF. Please try a different file.');
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Update the bank's question limit (clamped to current count..100).
@@ -134,8 +195,6 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
     return <div className="space-y-4">{back}</div>;
   }
 
-  const atMax = bank.questions.length >= bank.maxQuestions;
-
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -147,9 +206,7 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
               <Icon size={18} />
             </span>
           )}
-          <h2 className="font-display text-base font-bold tracking-tight text-gray-900">
-            {bank.jobTitle}
-          </h2>
+          <h2 className="font-display text-base font-bold tracking-tight text-gray-900">{bank.jobTitle}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <label className="flex items-center gap-1.5 rounded-full bg-[#F1F3F5] px-3 py-1 font-mono text-[11px] font-semibold text-gray-600">
@@ -164,13 +221,21 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
               className="w-12 rounded border border-[#E4E6EA] bg-white px-1.5 py-0.5 text-center font-mono text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
           </label>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={handlePdf}
+            className="hidden"
+          />
           <Button
             size="sm"
-            onClick={addQuestion}
-            disabled={atMax}
-            title={atMax ? `Maximum ${bank.maxQuestions} questions reached` : 'Add a new question'}
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            title="Import questions from an assessment PDF"
           >
-            <Plus /> Add question
+            {importing ? <Loader2 className="animate-spin" /> : <FileUp />}
+            {importing ? 'Reading PDF…' : 'Upload PDF'}
           </Button>
           <Button
             variant="outline"

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, X, ChevronDown, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, X, ChevronDown, ShieldCheck, FileUp, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/Toaster';
 import { Button } from '@/components/ui/button';
+import { parseScreeningPdf } from '@/lib/import-questions-pdf';
 import {
   loadScreeningBanks,
   saveScreeningBanks,
@@ -29,6 +30,8 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
   const toast = useToast();
   const [banks, setBanks] = useState<ScreeningBank[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   // Both sections start open (FAQ-style; click the header to collapse).
   const [openMust, setOpenMust] = useState(true);
   const [openGood, setOpenGood] = useState(true);
@@ -55,8 +58,7 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
   const mapItem = (bucket: Bucket, id: string, fn: (it: ScreeningItem) => ScreeningItem) =>
     patch(bucket, items => items.map(it => (it.id === id ? fn(it) : it)));
 
-  const setText = (bucket: Bucket, id: string, text: string) =>
-    mapItem(bucket, id, it => ({ ...it, text }));
+  const setText = (bucket: Bucket, id: string, text: string) => mapItem(bucket, id, it => ({ ...it, text }));
 
   const removeQuestion = (bucket: Bucket, id: string) =>
     patch(bucket, items => items.filter(it => it.id !== id));
@@ -94,6 +96,73 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
     mapItem(bucket, id, it => ({ ...it, options: it.options.filter((_, i) => i !== idx) }));
   };
 
+  // Import questions from a screening PDF, routing each into the Must-have /
+  // Good-to-have section it appears under. If the set already holds questions,
+  // the latest PDF replaces them all (after confirmation). Each bucket keeps its
+  // 5-question cap.
+  const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !bank) return;
+    if (!/\.pdf$/i.test(file.name)) {
+      toast.error('Please choose a PDF file.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const parsed = await parseScreeningPdf(file);
+      if (parsed.total === 0) {
+        toast.error(
+          'No questions found. Make sure the PDF groups them under "Must-have" and "Good-to-have" headings.',
+        );
+        return;
+      }
+      // Each section keeps at most SCREENING_MAX questions.
+      const mustTake = parsed.mustHave.slice(0, SCREENING_MAX);
+      const goodTake = parsed.goodToHave.slice(0, SCREENING_MAX);
+      const total = mustTake.length + goodTake.length;
+      const dropped = parsed.total - total;
+      const parts = [
+        mustTake.length ? `Must-have ${mustTake.length}` : '',
+        goodTake.length ? `Good-to-have ${goodTake.length}` : '',
+      ].filter(Boolean);
+      const existing = bank.mustHave.length + bank.goodToHave.length;
+      toast.confirm({
+        title: existing
+          ? `Replace all ${existing} question${existing === 1 ? '' : 's'} with ${total} from this PDF?`
+          : `Import ${total} question${total === 1 ? '' : 's'}${
+              parsed.title ? ` from “${parsed.title}”` : ''
+            }?`,
+        description: `${existing ? 'Your current questions will be removed and replaced. ' : ''}Sorted into ${parts.join(
+          ' · ',
+        )}. Each section keeps at most ${SCREENING_MAX} questions; you can edit them afterwards.`,
+        confirmLabel: existing ? 'Replace' : 'Import',
+        onConfirm: () => {
+          const stamp = Date.now();
+          let n = 0;
+          const toItems = (qs: typeof mustTake): ScreeningItem[] =>
+            qs.map(q => ({ id: `SQ-${stamp}-${n++}`, text: q.text, options: q.options }));
+          // Latest PDF wins — replace both sections.
+          setBanks(prev =>
+            prev.map(b =>
+              b.id === bankId ? { ...b, mustHave: toItems(mustTake), goodToHave: toItems(goodTake) } : b,
+            ),
+          );
+          toast.success(
+            `${existing ? 'Replaced with' : 'Imported'} ${total} question${total === 1 ? '' : 's'}${
+              dropped ? ` · ${dropped} skipped (section limit)` : ''
+            }.`,
+          );
+        },
+      });
+    } catch (err) {
+      console.error('Screening PDF import failed', err);
+      toast.error('Could not read the PDF. Please try a different file.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const back = (
     <Link
       href={`/question-library/${SLUG}`}
@@ -118,14 +187,32 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        {back}
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
-          <ShieldCheck size={18} />
-        </span>
-        <h2 className="font-display text-base font-bold tracking-tight text-gray-900">
-          {bank.roleName}
-        </h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          {back}
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+            <ShieldCheck size={18} />
+          </span>
+          <h2 className="font-display text-base font-bold tracking-tight text-gray-900">{bank.roleName}</h2>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={handlePdf}
+            className="hidden"
+          />
+          <Button
+            size="sm"
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            title="Import questions from a screening PDF (Must-have / Good-to-have)"
+          >
+            {importing ? <Loader2 className="animate-spin" /> : <FileUp />}
+            {importing ? 'Reading PDF…' : 'Upload PDF'}
+          </Button>
+        </div>
       </div>
 
       {/* Two collapsible sections */}

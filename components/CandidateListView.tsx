@@ -13,6 +13,8 @@ import { Candidate, CandidateStatus } from '../types';
 import { useUiStore } from '@/store/ui-store';
 import { useOrgSettings } from '@/store/org-settings';
 import { useJobs } from '@/features/jobs/hooks';
+import { qk } from '@/lib/query/keys';
+import { RefreshButton } from '@/components/RefreshButton';
 import { EditableSelect } from '@/components/ui/editable-select';
 import {
   Search,
@@ -218,6 +220,10 @@ export function CandidateListView({
       return;
     }
 
+    // Tie the candidate to the open posting they're applied against, so they
+    // surface under that role's applicants and its counter updates too.
+    const postedJob = jobs.find(j => j.title === newCand.appliedRole && j.status === 'Open');
+
     const created: Candidate = {
       id: `CAN-${Math.floor(100 + Math.random() * 900)}`,
       fullName: newCand.fullName,
@@ -234,6 +240,7 @@ export function CandidateListView({
       appliedRole: newCand.appliedRole,
       department: newCand.department,
       sourceOfApplication: newCand.sourceOfApplication,
+      jobId: postedJob?.id,
       hrRemarks: newCand.hrRemarks,
       status: 'New Application',
       appliedDate: new Date().toISOString().split('T')[0],
@@ -305,16 +312,19 @@ export function CandidateListView({
               Secure enterprise dashboard to review profiles, salaries limits, resumes, and actions.
             </p>
           </div>
-          <button
-            id="btn-add-candidate-directory"
-            onClick={() => {
-              setResume(null);
-              setShowAddForm(true);
-            }}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
-          >
-            <Plus size={14} /> Add Candidate
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <RefreshButton queryKeys={[qk.candidates.all]} title="Refresh candidates" />
+            <button
+              id="btn-add-candidate-directory"
+              onClick={() => {
+                setResume(null);
+                setShowAddForm(true);
+              }}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
+            >
+              <Plus size={14} /> Add Candidate
+            </button>
+          </div>
         </div>
       )}
 
