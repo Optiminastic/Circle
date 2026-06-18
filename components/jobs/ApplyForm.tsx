@@ -1,17 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Job } from '@/types';
 import { submitApplication } from '@/lib/api/public';
+import { screeningQuestionsForRole } from '@/lib/screening-bridge';
 import { useToast } from '@/components/Toaster';
 import { Tip } from '@/components/ui/tooltip';
-import {
-  CheckCircle2,
-  Loader2,
-  UploadCloud,
-  FileText,
-  X,
-} from 'lucide-react';
+import { CheckCircle2, Loader2, UploadCloud, FileText, X } from 'lucide-react';
 
 const EMPTY = {
   fullName: '',
@@ -57,6 +52,16 @@ const formatSize = (bytes: number): string =>
  */
 export function ApplyForm({ job }: { job: Job }) {
   const toast = useToast();
+
+  // The role's live screening set from the Question Library is the source of
+  // truth, so HR's later edits/additions there reflect on this apply form.
+  // Resolved client-side after mount (the library lives in localStorage) to
+  // avoid a hydration mismatch; it starts from — and falls back to — the job's
+  // own server-rendered snapshot when no library set exists for the role.
+  const [screeningQuestions, setScreeningQuestions] = useState(job.screeningQuestions ?? []);
+  useEffect(() => {
+    setScreeningQuestions(screeningQuestionsForRole(job.title, job.screeningQuestions ?? []));
+  }, [job]);
 
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -120,7 +125,7 @@ export function ApplyForm({ job }: { job: Job }) {
       setStep(0);
       return;
     }
-    const questions = job.screeningQuestions ?? [];
+    const questions = screeningQuestions;
     // On the details step (e.g. Enter key) advance to the questions, don't submit.
     if (step === 0 && questions.length > 0) {
       setStep(1);
@@ -180,7 +185,7 @@ export function ApplyForm({ job }: { job: Job }) {
   };
 
   const busy = submitting;
-  const hasQuestions = (job.screeningQuestions ?? []).length > 0;
+  const hasQuestions = screeningQuestions.length > 0;
 
   // Step 1 (details) → next: validate the basics, then move to the questions.
   const goNext = () => {
@@ -194,8 +199,7 @@ export function ApplyForm({ job }: { job: Job }) {
   };
 
   const driveInvalid = form.resumeUrl.trim() !== '' && !DRIVE_RE.test(form.resumeUrl.trim());
-  const linkedinInvalid =
-    form.linkedInUrl.trim() !== '' && !LINKEDIN_RE.test(form.linkedInUrl.trim());
+  const linkedinInvalid = form.linkedInUrl.trim() !== '' && !LINKEDIN_RE.test(form.linkedInUrl.trim());
   const closed = job.status === 'Closed' || job.status === 'On Hold';
 
   if (submitted) {
@@ -204,8 +208,8 @@ export function ApplyForm({ job }: { job: Job }) {
         <CheckCircle2 className="text-emerald-500" size={34} />
         <p className="text-lg font-bold text-gray-900">Application submitted!</p>
         <p className="max-w-sm text-sm text-gray-500">
-          Thanks for applying to <span className="font-semibold">{job.title}</span>. Our HR team has
-          received your details and will be in touch.
+          Thanks for applying to <span className="font-semibold">{job.title}</span>. Our HR team has received
+          your details and will be in touch.
         </p>
       </div>
     );
@@ -345,12 +349,8 @@ export function ApplyForm({ job }: { job: Job }) {
                       <FileText size={15} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-gray-800 truncate">
-                        {resumeFile.name}
-                      </p>
-                      <p className="text-[10px] text-gray-500 font-mono">
-                        {formatSize(resumeFile.size)}
-                      </p>
+                      <p className="text-xs font-semibold text-gray-800 truncate">{resumeFile.name}</p>
+                      <p className="text-[10px] text-gray-500 font-mono">{formatSize(resumeFile.size)}</p>
                     </div>
                     <Tip label="Remove file">
                       <button
@@ -366,12 +366,8 @@ export function ApplyForm({ job }: { job: Job }) {
                 ) : (
                   <label className="flex flex-col items-center justify-center gap-1 cursor-pointer border border-dashed border-[#D7DAE0] rounded-lg px-3 py-5 bg-[#F1F3F5] hover:border-accent-400 hover:bg-accent-50/40 transition text-center">
                     <UploadCloud size={20} className="text-accent-500" />
-                    <span className="text-xs font-semibold text-gray-600">
-                      Click to upload your resume
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      PDF only · up to {MAX_RESUME_MB} MB
-                    </span>
+                    <span className="text-xs font-semibold text-gray-600">Click to upload your resume</span>
+                    <span className="text-[10px] text-gray-500">PDF only · up to {MAX_RESUME_MB} MB</span>
                     <input
                       type="file"
                       accept="application/pdf,.pdf"
@@ -432,9 +428,7 @@ export function ApplyForm({ job }: { job: Job }) {
                   { key: 'Good to Have', label: 'Good to have' },
                 ] as const
               ).map(group => {
-                const items = (job.screeningQuestions ?? []).filter(
-                  q => q.importance === group.key,
-                );
+                const items = screeningQuestions.filter(q => q.importance === group.key);
                 if (!items.length) return null;
                 return (
                   <div key={group.key} className="space-y-2.5">
@@ -450,33 +444,30 @@ export function ApplyForm({ job }: { job: Job }) {
                             <input
                               className={inputCls}
                               value={responses[q.id] ?? ''}
-                              onChange={e =>
-                                setResponses(r => ({ ...r, [q.id]: e.target.value }))
-                              }
+                              onChange={e => setResponses(r => ({ ...r, [q.id]: e.target.value }))}
                               placeholder="Your answer…"
                             />
                           ) : (
                             <div className="flex flex-wrap gap-2">
-                              {(qType === 'choice'
-                                ? (q.options ?? []).filter(Boolean)
-                                : ['Yes', 'No']
-                              ).map(opt => {
-                                const active = responses[q.id] === opt;
-                                return (
-                                  <button
-                                    key={opt}
-                                    type="button"
-                                    onClick={() => setResponses(r => ({ ...r, [q.id]: opt }))}
-                                    className={`min-w-[6rem] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                                      active
-                                        ? 'border-accent-500 bg-accent-50 text-accent-700'
-                                        : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 hover:border-accent-300'
-                                    }`}
-                                  >
-                                    {opt}
-                                  </button>
-                                );
-                              })}
+                              {(qType === 'choice' ? (q.options ?? []).filter(Boolean) : ['Yes', 'No']).map(
+                                opt => {
+                                  const active = responses[q.id] === opt;
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      onClick={() => setResponses(r => ({ ...r, [q.id]: opt }))}
+                                      className={`min-w-[6rem] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                                        active
+                                          ? 'border-accent-500 bg-accent-50 text-accent-700'
+                                          : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 hover:border-accent-300'
+                                      }`}
+                                    >
+                                      {opt}
+                                    </button>
+                                  );
+                                },
+                              )}
                             </div>
                           )}
                         </div>

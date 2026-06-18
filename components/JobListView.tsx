@@ -3,19 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Select } from './Select';
-import {
-  loadScreeningBanks,
-  type ScreeningBank,
-  type ScreeningItem,
-} from '@/lib/question-banks';
+import { loadScreeningBanks, type ScreeningBank } from '@/lib/question-banks';
+import { bankToQuestions, syncScreeningLibrary } from '@/lib/screening-bridge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RefreshButton } from '@/components/RefreshButton';
@@ -94,28 +85,6 @@ const newQuestion = (importance: QuestionImportance): ScreeningQuestion => ({
   expectedAnswer: true,
 });
 
-// A reusable screening-set question (with 2+ options) becomes a choice question;
-// otherwise it falls back to a short-text question. No expected option is set —
-// these are informational on the public form (see buildAnswers).
-const itemToQuestion = (it: ScreeningItem, importance: QuestionImportance): ScreeningQuestion => {
-  const options = it.options.map(o => o.trim()).filter(Boolean);
-  const hasChoices = options.length >= 2;
-  return {
-    id: `Q${Date.now().toString(36)}${qSeq++}`,
-    text: it.text.trim(),
-    category: 'Field',
-    importance,
-    type: hasChoices ? 'choice' : 'text',
-    ...(hasChoices ? { options } : {}),
-  };
-};
-
-/** Flatten a saved screening set into the job's screeningQuestions shape. */
-const bankToQuestions = (bank: ScreeningBank): ScreeningQuestion[] => [
-  ...bank.mustHave.filter(it => it.text.trim()).map(it => itemToQuestion(it, 'Must Have')),
-  ...bank.goodToHave.filter(it => it.text.trim()).map(it => itemToQuestion(it, 'Good to Have')),
-];
-
 type SortKey = 'title' | 'exp' | 'salary' | 'status' | 'applicants';
 
 interface JobListViewProps {
@@ -136,6 +105,7 @@ const EMPTY_FORM = {
   salaryMin: '',
   salaryMax: '',
   description: '',
+  keyResponsibilities: '',
   requirements: '',
   screeningQuestions: [] as ScreeningQuestion[],
 };
@@ -188,6 +158,7 @@ export function JobListView({
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
       description: job.description,
+      keyResponsibilities: job.keyResponsibilities ?? '',
       requirements: job.requirements,
       screeningQuestions: job.screeningQuestions ?? [],
     });
@@ -268,6 +239,7 @@ export function JobListView({
       salaryMin: form.salaryMin,
       salaryMax: form.salaryMax,
       description: form.description,
+      keyResponsibilities: form.keyResponsibilities,
       requirements: form.requirements,
       screeningQuestions: form.screeningQuestions
         .map(q => ({ ...q, text: q.text.trim() }))
@@ -286,6 +258,9 @@ export function JobListView({
         postedBy: 'HR Specialist',
         postedDate: new Date().toISOString().split('T')[0],
       });
+      // Only on create: mirror the manually-added screening questions into this
+      // role's Must-have / Good-to-have library set so they can be reused/edited.
+      syncScreeningLibrary(fields.title, fields.screeningQuestions);
       toast.success(`"${fields.title}" published — copy its public link from the card.`);
     }
     setShowAddForm(false);
@@ -336,7 +311,9 @@ export function JobListView({
           </Select>
         </label>
         <label className="block">
-          <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">Answer type</span>
+          <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+            Answer type
+          </span>
           <Select
             value={q.type ?? 'yesno'}
             onChange={e => {
@@ -358,7 +335,9 @@ export function JobListView({
       <div className="pl-5">
         {(q.type ?? 'yesno') === 'yesno' && (
           <label className="block max-w-[10rem]">
-            <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">Passing answer</span>
+            <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+              Passing answer
+            </span>
             <Select
               value={q.expectedAnswer ? 'yes' : 'no'}
               onChange={e => updateQuestion(q.id, { expectedAnswer: e.target.value === 'yes' })}
@@ -372,7 +351,9 @@ export function JobListView({
 
         {q.type === 'choice' && (
           <div className="space-y-1.5">
-            <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">Options</span>
+            <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+              Options
+            </span>
             {(q.options ?? []).map((opt, oi) => (
               <div key={oi} className="flex items-center gap-2">
                 <Input
@@ -406,7 +387,9 @@ export function JobListView({
               <Plus size={12} /> Add option
             </button>
             <label className="block pt-1">
-              <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">Passing option</span>
+              <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                Passing option
+              </span>
               <Select
                 value={q.expectedOption ?? ''}
                 onChange={e => updateQuestion(q.id, { expectedOption: e.target.value })}
@@ -479,7 +462,10 @@ export function JobListView({
   }) => (
     <th
       scope="col"
-      className={cn('px-4 py-2.5 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-500', className)}
+      className={cn(
+        'px-4 py-2.5 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-500',
+        className,
+      )}
     >
       <button
         type="button"
@@ -517,12 +503,10 @@ export function JobListView({
             <Briefcase size={18} />
           </span>
           <div>
-            <h2 className="text-base font-bold text-gray-900 tracking-tight font-display">
-              Job Postings
-            </h2>
+            <h2 className="text-base font-bold text-gray-900 tracking-tight font-display">Job Postings</h2>
             <p className="text-gray-500 text-[11px] max-w-md">
-              Publish a role, share its public link, and collect applications straight into your
-              candidate pipeline.
+              Publish a role, share its public link, and collect applications straight into your candidate
+              pipeline.
             </p>
           </div>
         </div>
@@ -553,10 +537,7 @@ export function JobListView({
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map(s => (
-          <div
-            key={s.label}
-            className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl px-4 py-3 shadow-2xs"
-          >
+          <div key={s.label} className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl px-4 py-3 shadow-2xs">
             <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-gray-500">
               <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
               {s.label}
@@ -588,7 +569,12 @@ export function JobListView({
           <SelectionBar count={sel.count} onClear={sel.clear} />
           <Table minWidth={860}>
             <THead>
-              <Th select checked={sel.allSelected} indeterminate={sel.someSelected} onToggle={sel.toggleAll} />
+              <Th
+                select
+                checked={sel.allSelected}
+                indeterminate={sel.someSelected}
+                onToggle={sel.toggleAll}
+              />
               <SortTh k="title" label="Role" icon={<BriefcaseIcon size={11} />} />
               <Th icon={<MapPin size={11} />}>Location</Th>
               <Th icon={<ListChecks size={11} />}>Type</Th>
@@ -602,11 +588,7 @@ export function JobListView({
               {sortedJobs.map(job => {
                 const count = applicantCounts[job.id] ?? 0;
                 return (
-                  <Tr
-                    key={job.id}
-                    selected={sel.isSelected(job.id)}
-                    onClick={() => openApplicants(job.id)}
-                  >
+                  <Tr key={job.id} selected={sel.isSelected(job.id)} onClick={() => openApplicants(job.id)}>
                     <Td select checked={sel.isSelected(job.id)} onToggle={() => sel.toggle(job.id)} />
                     <Td>
                       <div className="text-[13px] font-bold text-gray-900">{job.title}</div>
@@ -619,9 +601,7 @@ export function JobListView({
                         <MapPin size={11} className="shrink-0 text-gray-500" /> {job.location}
                       </span>
                     </Td>
-                    <Td className="whitespace-nowrap text-[11px] text-gray-600">
-                      {job.employmentType}
-                    </Td>
+                    <Td className="whitespace-nowrap text-[11px] text-gray-600">{job.employmentType}</Td>
                     <Td align="center" className="whitespace-nowrap font-mono text-[11px] text-gray-600">
                       {job.minExperienceYears}+ yrs
                     </Td>
@@ -664,16 +644,13 @@ export function JobListView({
                               key: 'view',
                               label: 'View posting',
                               icon: <ExternalLink size={14} />,
-                              onClick: () =>
-                                window.open(publicUrl(job.id), '_blank', 'noopener,noreferrer'),
+                              onClick: () => window.open(publicUrl(job.id), '_blank', 'noopener,noreferrer'),
                             },
                             {
                               key: 'toggle',
                               label: job.status === 'Open' ? 'Close posting' : 'Activate posting',
-                              icon:
-                                job.status === 'Open' ? <Pause size={14} /> : <Play size={14} />,
-                              onClick: () =>
-                                onSetStatus(job.id, job.status === 'Open' ? 'Closed' : 'Open'),
+                              icon: job.status === 'Open' ? <Pause size={14} /> : <Play size={14} />,
+                              onClick: () => onSetStatus(job.id, job.status === 'Open' ? 'Closed' : 'Open'),
                             },
                             {
                               key: 'hold',
@@ -700,8 +677,8 @@ export function JobListView({
                       </div>
                     </Td>
                   </Tr>
-                  );
-                })}
+                );
+              })}
             </TBody>
           </Table>
         </>
@@ -728,9 +705,7 @@ export function JobListView({
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div>
                   <h2 className="font-semibold text-foreground">Role</h2>
-                  <p className="mt-1 text-xs leading-6 text-muted-foreground">
-                    Title, team and location.
-                  </p>
+                  <p className="mt-1 text-xs leading-6 text-muted-foreground">Title, team and location.</p>
                 </div>
                 <div className="md:col-span-2">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -762,13 +737,7 @@ export function JobListView({
                       <Label htmlFor="job-location" className="text-sm font-medium">
                         Location
                       </Label>
-                      <Input
-                        id="job-location"
-                        value="Mumbai"
-                        readOnly
-                        disabled
-                        className="mt-2"
-                      />
+                      <Input id="job-location" value="Mumbai" readOnly disabled className="mt-2" />
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         All roles are based at the Mumbai office.
                       </p>
@@ -814,9 +783,7 @@ export function JobListView({
                         type="number"
                         min={0}
                         value={form.minExperienceYears}
-                        onChange={e =>
-                          setForm({ ...form, minExperienceYears: Number(e.target.value) })
-                        }
+                        onChange={e => setForm({ ...form, minExperienceYears: Number(e.target.value) })}
                         className="mt-2"
                         required
                       />
@@ -879,6 +846,19 @@ export function JobListView({
                     </p>
                   </div>
                   <div>
+                    <Label htmlFor="job-resp" className="text-sm font-medium">
+                      Key Responsibilities (one per line)
+                    </Label>
+                    <Textarea
+                      id="job-resp"
+                      placeholder={'Own the monthly close and reporting\nManage AP/AR and reconciliations\n…'}
+                      value={form.keyResponsibilities}
+                      onChange={e => setForm({ ...form, keyResponsibilities: e.target.value })}
+                      rows={3}
+                      className="mt-2"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="job-req" className="text-sm font-medium">
                       Requirements (one per line) <span className="text-accent-600">*</span>
                     </Label>
@@ -903,9 +883,9 @@ export function JobListView({
                   <h2 className="font-semibold text-foreground">Screening questions</h2>
                   <p className="mt-1 text-xs leading-6 text-muted-foreground">
                     Add as many <span className="font-medium">must-have</span> and{' '}
-                    <span className="font-medium">good-to-have</span> questions as you like. Each
-                    candidate is auto-rated <span className="font-medium">Fit / Borderline / Unfit</span>{' '}
-                    — a failed must-have means Unfit.
+                    <span className="font-medium">good-to-have</span> questions as you like. Each candidate is
+                    auto-rated <span className="font-medium">Fit / Borderline / Unfit</span> — a failed
+                    must-have means Unfit.
                   </p>
                 </div>
                 <div className="space-y-5 md:col-span-2">
@@ -915,13 +895,12 @@ export function JobListView({
                       Reuse a saved screening set
                     </label>
                     <p className="mb-2 mt-0.5 text-[11px] text-muted-foreground">
-                      Pick a role&apos;s set from the Question Library to attach its questions — you
-                      can still edit them below.
+                      Pick a role&apos;s set from the Question Library to attach its questions — you can still
+                      edit them below.
                     </p>
                     {screeningBanks.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground">
-                        No screening sets yet — create one in Question Library → Must-have &amp;
-                        Good-to-have.
+                        No screening sets yet — create one in Question Library → Must-have &amp; Good-to-have.
                       </p>
                     ) : (
                       <Select
@@ -933,8 +912,7 @@ export function JobListView({
                         <option value="">— None (add manually) —</option>
                         {screeningBanks.map(b => (
                           <option key={b.id} value={b.id}>
-                            {b.roleName} ({b.mustHave.length} must-have · {b.goodToHave.length}{' '}
-                            good-to-have)
+                            {b.roleName} ({b.mustHave.length} must-have · {b.goodToHave.length} good-to-have)
                           </option>
                         ))}
                       </Select>

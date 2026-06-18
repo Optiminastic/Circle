@@ -195,6 +195,7 @@ export interface Job {
   salaryMin: string; // e.g. "12 LPA"
   salaryMax: string;
   description: string; // detailed role description
+  keyResponsibilities?: string; // day-to-day responsibilities, one per line
   requirements: string; // skills / must-haves, one per line
   status: JobStatus;
   postedBy: string;

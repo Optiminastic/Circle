@@ -12,11 +12,7 @@ import { MapPin, Briefcase, Clock4, Wallet, CheckCircle2, AlertTriangle } from '
  * API call appears in the browser. Only the application form below is a client
  * component (it needs upload + submit interactivity).
  */
-export default async function PublicJobPage({
-  params,
-}: {
-  params: Promise<{ jobId: string }>;
-}) {
+export default async function PublicJobPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = await params;
 
   let job = null;
@@ -32,15 +28,17 @@ export default async function PublicJobPage({
       <Centered>
         <AlertTriangle className="text-amber-500" size={28} />
         <p className="text-gray-800 font-semibold">This opening could not be found</p>
-        <p className="text-gray-500 text-sm">
-          The link may be incorrect or the posting was removed.
-        </p>
+        <p className="text-gray-500 text-sm">The link may be incorrect or the posting was removed.</p>
       </Centered>
     );
   }
 
   const closed = job.status === 'Closed' || job.status === 'On Hold';
   const requirements = job.requirements
+    .split('\n')
+    .map(r => r.trim())
+    .filter(Boolean);
+  const responsibilities = (job.keyResponsibilities ?? '')
     .split('\n')
     .map(r => r.trim())
     .filter(Boolean);
@@ -58,9 +56,7 @@ export default async function PublicJobPage({
         <header className="relative border-b border-black/[0.06]">
           <div className="mx-auto flex h-14 max-w-2xl items-center gap-2.5 px-5">
             <Logo size={24} />
-            <span className="font-display text-sm font-bold tracking-tight text-gray-900">
-              {BRAND.name}
-            </span>
+            <span className="font-display text-sm font-bold tracking-tight text-gray-900">{BRAND.name}</span>
             <span className="ml-auto font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-500">
               Careers
             </span>
@@ -79,9 +75,7 @@ export default async function PublicJobPage({
             <span className={`size-1.5 rounded-full ${closed ? 'bg-red-500' : 'bg-emerald-500'}`} />
             {closed ? 'Applications closed' : 'Actively hiring'}
           </span>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            {capitalizeFirst(job.title)}
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{capitalizeFirst(job.title)}</h1>
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-gray-600">
             <span className="font-semibold text-gray-800">{BRAND.name}</span>
             <span className="text-gray-400">·</span>
@@ -111,10 +105,25 @@ export default async function PublicJobPage({
             <h2 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
               About the role
             </h2>
-            <p className="whitespace-pre-line text-[14px] leading-relaxed text-gray-700">
+            <p className="whitespace-pre-line text-justify text-[14px] leading-relaxed text-gray-700">
               {job.description}
             </p>
           </div>
+          {responsibilities.length > 0 && (
+            <div>
+              <h2 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                Key responsibilities
+              </h2>
+              <ul className="space-y-2">
+                {responsibilities.map((r, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[14px] text-gray-700">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-accent-500" />
+                    <span>{r}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {requirements.length > 0 && (
             <div>
               <h2 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
