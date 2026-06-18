@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, ChevronDown, CalendarDays, Star, Ban } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronDown, CalendarDays, Star, Ban, FileUp, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/Toaster';
+import { Button } from '@/components/ui/button';
+import { parseInterviewPdf } from '@/lib/import-questions-pdf';
 import {
   loadInterviewBanks,
   saveInterviewBanks,
   blankInterviewItem,
+  emptyInterviewModules,
   INTERVIEW_MODULES,
   type InterviewBank,
   type InterviewModule,
@@ -37,6 +40,8 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
   const toast = useToast();
   const [banks, setBanks] = useState<InterviewBank[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   // Which modules are expanded (all open by default, FAQ-style).
   const [openModules, setOpenModules] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(INTERVIEW_MODULES.map(m => [m, true])),
@@ -69,6 +74,69 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
   const addItem = (module: InterviewModule) =>
     patch(module, items => [...items, blankInterviewItem(`IVQ-${Date.now()}`)]);
 
+  // Import questions from an interview PDF, routing each one into its competency
+  // module so it shows under the matching section. If the set already holds
+  // questions, the latest PDF replaces them all (after confirmation). Imported
+  // questions stay editable like any other.
+  const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !bank) return;
+    if (!/\.pdf$/i.test(file.name)) {
+      toast.error('Please choose a PDF file.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const parsed = await parseInterviewPdf(file);
+      if (parsed.total === 0) {
+        toast.error(
+          'No questions found under the five competency modules. Make sure the PDF groups them under Problem Solving / Technical / Communication / Cultural / Interpersonal headings.',
+        );
+        return;
+      }
+      const breakdown = INTERVIEW_MODULES.filter(m => parsed.byModule[m].length)
+        .map(m => `${m} ${parsed.byModule[m].length}`)
+        .join(' · ');
+      const existing = INTERVIEW_MODULES.reduce((n, m) => n + (bank.modules[m]?.length ?? 0), 0);
+      toast.confirm({
+        title: existing
+          ? `Replace all ${existing} question${existing === 1 ? '' : 's'} with ${parsed.total} from this PDF?`
+          : `Import ${parsed.total} question${parsed.total === 1 ? '' : 's'}${
+              parsed.title ? ` from “${parsed.title}”` : ''
+            }?`,
+        description: existing
+          ? `Your current questions will be removed and replaced. Sorted into modules — ${breakdown}. You can edit them afterwards.`
+          : `Sorted into modules — ${breakdown}. You can edit them afterwards.`,
+        confirmLabel: existing ? 'Replace' : 'Import',
+        onConfirm: () => {
+          const stamp = Date.now();
+          let n = 0;
+          // Latest PDF wins — rebuild every module from scratch.
+          const modules = emptyInterviewModules();
+          for (const m of INTERVIEW_MODULES) {
+            const items: InterviewItem[] = parsed.byModule[m].map(text => ({
+              id: `IVQ-${stamp}-${n++}`,
+              text,
+            }));
+            modules[m] = items;
+          }
+          setBanks(prev => prev.map(b => (b.id === bankId ? { ...b, modules } : b)));
+          toast.success(
+            existing
+              ? `Replaced with ${parsed.total} question${parsed.total === 1 ? '' : 's'}.`
+              : `Imported ${parsed.total} question${parsed.total === 1 ? '' : 's'}.`,
+          );
+        },
+      });
+    } catch (err) {
+      console.error('Interview PDF import failed', err);
+      toast.error('Could not read the PDF. Please try a different file.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const back = (
     <Link
       href={`/question-library/${SLUG}`}
@@ -93,19 +161,37 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        {back}
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
-          <CalendarDays size={18} />
-        </span>
-        <h2 className="font-display text-base font-bold tracking-tight text-gray-900">
-          {bank.roleName}
-        </h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          {back}
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+            <CalendarDays size={18} />
+          </span>
+          <h2 className="font-display text-base font-bold tracking-tight text-gray-900">{bank.roleName}</h2>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={handlePdf}
+            className="hidden"
+          />
+          <Button
+            size="sm"
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            title="Import questions from an interview PDF, sorted into the five modules"
+          >
+            {importing ? <Loader2 className="animate-spin" /> : <FileUp />}
+            {importing ? 'Reading PDF…' : 'Upload PDF'}
+          </Button>
+        </div>
       </div>
 
       <p className="mx-auto w-full max-w-3xl text-[11px] text-gray-500">
-        Five competency modules. Add as many questions as you like in each — every question is rated
-        1–5 stars (or NA) by the interviewer.
+        Five competency modules. Add as many questions as you like in each — every question is rated 1–5 stars
+        (or NA) by the interviewer.
       </p>
 
       {/* Five fixed module sections */}
