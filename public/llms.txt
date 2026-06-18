@@ -1,0 +1,12 @@
+# Optiminastic
+
+> Optiminastic — https://circle.optiminastic.com
+
+## About
+Optiminastic is the official site at https://circle.optiminastic.com. This file helps AI assistants (ChatGPT, Perplexity, Claude, Gemini) understand, summarize, and cite this site.
+
+## Key pages
+- Home: https://circle.optiminastic.com/
+
+## Contact
+- Website: https://circle.optiminastic.com/
