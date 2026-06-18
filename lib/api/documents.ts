@@ -37,6 +37,9 @@ export async function uploadDocument(params: {
   fd.append('file', params.file);
   const res = await fetch(`${apiBase()}/api/documents`, { method: 'POST', body: fd });
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new Error('Too many requests. Please wait a minute and try again.');
+    }
     const detail = await res.text().catch(() => '');
     throw new Error(detail || `Upload failed (${res.status})`);
   }

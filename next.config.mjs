@@ -10,6 +10,8 @@ const nextConfig = {
   outputFileTracingRoot: __dirname,
   // Hide the dev-tools indicator that overlaps the bottom of the sidebar.
   devIndicators: false,
+  // NOTE: security headers for the public careers/job pages are applied in
+  // middleware.ts (host-aware, so they also cover the rewritten careers root).
 };
 
 export default nextConfig;
