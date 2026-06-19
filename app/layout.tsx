@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   title: BRAND.product,
   description:
     'Enterprise-grade HR Operating System and Applicant Tracking System for the complete employee lifecycle.',
+  authors: [{ name: 'Optiminastic Team', url: 'https://optiminastic.com' }],
+  other: {
+    'author': 'Optiminastic Team',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -34,7 +38,52 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased" suppressHydrationWarning>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: '{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://circle.optiminastic.com/#organization","name":"Optiminastic","url":"https://circle.optiminastic.com/"},{"@type":"WebSite","@id":"https://circle.optiminastic.com/#website","name":"Optiminastic","url":"https://circle.optiminastic.com/","publisher":{"@id":"https://circle.optiminastic.com/#organization"}}]}' }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Organization",
+                "@id": "https://circle.optiminastic.com/#organization",
+                "name": "Optiminastic",
+                "url": "https://circle.optiminastic.com/",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://circle.optiminastic.com/optiminastic-logo.png"
+                }
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://circle.optiminastic.com/#website",
+                "name": "Optiminastic",
+                "url": "https://circle.optiminastic.com/",
+                "publisher": {
+                  "@id": "https://circle.optiminastic.com/#organization"
+                },
+                "author": {
+                  "@type": "Organization",
+                  "name": "Optiminastic Team",
+                  "url": "https://optiminastic.com"
+                }
+              },
+              {
+                "@type": "WebApplication",
+                "@id": "https://circle.optiminastic.com/#webapp",
+                "name": "Circle",
+                "url": "https://circle.optiminastic.com/",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web",
+                "description": "Enterprise-grade HR Operating System and Applicant Tracking System for the complete employee lifecycle.",
+                "author": {
+                  "@type": "Organization",
+                  "name": "Optiminastic Team",
+                  "url": "https://optiminastic.com"
+                },
+                "provider": {
+                  "@id": "https://circle.optiminastic.com/#organization"
+                }
+              }
+            ]
+          }) }}
         />
         <Providers>{children}</Providers>
       </body>
