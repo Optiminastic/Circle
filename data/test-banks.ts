@@ -45,7 +45,7 @@ export function assignmentBriefFor(position: string, department: string): string
 export const IQ_MARKS_PER_QUESTION = 4;
 export const IQ_TOTAL_MARKS = 200; // 50 questions × 4 marks
 export const IQ_PASS_SCORE = 100; // out of 200
-export const ASSESSMENT_PASS_PERCENT = 60;
+export const ASSESSMENT_PASS_PERCENT = 35;
 
 /** Marks-based IQ score: 4 per correct answer (50 questions → 0–200). */
 export const iqScoreFromCorrect = (correct: number, _total: number): number =>
