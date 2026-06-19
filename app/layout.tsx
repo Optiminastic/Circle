@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   title: BRAND.product,
   description:
-    'Enterprise-grade HR Operating System and Applicant Tracking System for the complete employee lifecycle.',
+    'Enterprise-grade HR Operating System and Applicant Tracking System for the complete employee lifecycle. Built from real-world HR operations experience, powering hiring and employee management workflows.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
