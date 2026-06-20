@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Job } from '@/types';
-import { submitApplication } from '@/lib/api/public';
+import { submitApplication, requestEmailOtp, verifyEmailOtp, checkAlreadyApplied } from '@/lib/api/public';
 import { screeningQuestionsForRole } from '@/lib/screening-bridge';
 import { useToast } from '@/components/Toaster';
 import { Tip } from '@/components/ui/tooltip';
@@ -45,6 +45,25 @@ const formatSize = (bytes: number): string =>
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
+// Pull a number out of a salary string like "12 LPA" / "₹12" / "12".
+const parseLpa = (value: string): number | null => {
+  const m = String(value ?? '').match(/[\d.]+/);
+  const n = m ? parseFloat(m[0]) : NaN;
+  return Number.isFinite(n) ? n : null;
+};
+const fmtLpa = (n: number): string => (Number.isInteger(n) ? `${n}` : n.toFixed(1));
+// LPA options between the role's min & max salary, in 0.5 steps (capped).
+const ctcOptions = (min: string, max: string): string[] => {
+  const lo = parseLpa(min);
+  const hi = parseLpa(max);
+  if (lo == null || hi == null || hi < lo) return [];
+  const out: string[] = [];
+  for (let v = lo; v <= hi + 1e-9 && out.length < 200; v = Math.round((v + 0.5) * 10) / 10) {
+    out.push(fmtLpa(v));
+  }
+  return out;
+};
+
 /**
  * The public job application form. The job is fetched on the server and passed
  * in; this component owns only the interactive apply flow (validation, resume
@@ -71,7 +90,103 @@ export function ApplyForm({ job }: { job: Job }) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Email OTP verification — the applicant must prove they own the email.
+  const [emailVerified, setEmailVerified] = useState(false);
+  // Shown under the email field, e.g. "You have already applied…".
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '']);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [devCode, setDevCode] = useState<string | null>(null);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Both CTC fields become dropdowns of LPA values within the role's range.
+  const ctcChoices = ctcOptions(job.salaryMin, job.salaryMax);
+
   const set = (patch: Partial<typeof EMPTY>) => setForm(prev => ({ ...prev, ...patch }));
+
+  // Changing the email invalidates any prior verification + clears its error.
+  const onEmailChange = (value: string) => {
+    set({ email: value });
+    setEmailVerified(false);
+    setEmailError(null);
+  };
+
+  // Request (or re-request) the code for the entered email.
+  const sendOtp = async () => {
+    setOtpSending(true);
+    setOtpError(null);
+    try {
+      const { devCode: dc } = await requestEmailOtp(form.email.trim());
+      setDevCode(dc ?? null);
+      toast.success(`OTP sent to ${form.email.trim()}.`);
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : 'Could not send the code.');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  // Clicking "Verify": block re-applications first (message shown under the
+  // email field), otherwise open the OTP modal and send the code right away.
+  const openOtp = async () => {
+    if (!EMAIL_RE.test(form.email.trim())) {
+      toast.error('Please enter a valid email first.');
+      return;
+    }
+    setEmailError(null);
+    setCheckingEmail(true);
+    try {
+      if (await checkAlreadyApplied(job.id, form.email.trim())) {
+        setEmailError('You have already applied to this role with this email.');
+        return;
+      }
+    } finally {
+      setCheckingEmail(false);
+    }
+    setOtpDigits(['', '', '', '']);
+    setOtpError(null);
+    setDevCode(null);
+    setOtpOpen(true);
+    await sendOtp();
+  };
+
+  const setOtpDigit = (i: number, value: string) => {
+    const d = value.replace(/\D/g, '').slice(-1);
+    setOtpDigits(prev => {
+      const next = [...prev];
+      next[i] = d;
+      return next;
+    });
+    if (d && i < 3) otpRefs.current[i + 1]?.focus();
+  };
+
+  const onOtpKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpDigits[i] && i > 0) otpRefs.current[i - 1]?.focus();
+  };
+
+  const verifyOtp = async () => {
+    const code = otpDigits.join('');
+    if (code.length !== 4) {
+      setOtpError('Enter the 4-digit code.');
+      return;
+    }
+    setOtpVerifying(true);
+    setOtpError(null);
+    try {
+      await verifyEmailOtp(form.email.trim(), code);
+      setEmailVerified(true);
+      setOtpOpen(false);
+      toast.success('Email verified.');
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : 'Verification failed.');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
 
   const pickResume = (file: File | null) => {
     if (!file) {
@@ -100,6 +215,7 @@ export function ApplyForm({ job }: { job: Job }) {
     if (!form.fullName.trim()) return 'Please enter your full name.';
     if (!form.email.trim()) return 'Please enter your email.';
     if (!EMAIL_RE.test(form.email.trim())) return 'Please enter a valid email address.';
+    if (!emailVerified) return 'Please verify your email before applying.';
     if (!form.phone.trim()) return 'Please enter your phone number.';
     if (form.phone.trim().length !== 10) return 'Please enter a valid 10-digit phone number.';
     if (!form.currentDesignation.trim()) return 'Please enter your current title.';
@@ -252,14 +368,38 @@ export function ApplyForm({ job }: { job: Job }) {
               </Field>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Email *">
-                  <input
-                    type="email"
-                    className={inputCls}
-                    value={form.email}
-                    onChange={e => set({ email: e.target.value })}
-                    placeholder="example@email.com"
-                    required
-                  />
+                  <div
+                    className={`flex items-stretch rounded-lg border bg-white transition focus-within:ring-2 ${
+                      emailError
+                        ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-500/30'
+                        : 'border-[#E4E6EA] focus-within:border-accent-500 focus-within:ring-accent-500/30'
+                    }`}
+                  >
+                    <input
+                      type="email"
+                      className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                      value={form.email}
+                      onChange={e => onEmailChange(e.target.value)}
+                      placeholder="example@email.com"
+                      required
+                    />
+                    {emailVerified ? (
+                      <span className="my-1.5 mr-1.5 inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-600">
+                        <CheckCircle2 size={13} /> Verified
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={openOtp}
+                        disabled={checkingEmail}
+                        className="my-1.5 mr-1.5 inline-flex shrink-0 items-center gap-1 rounded-md bg-red-600 px-3 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 cursor-pointer"
+                      >
+                        {checkingEmail ? <Loader2 size={12} className="animate-spin" /> : null}
+                        Verify
+                      </button>
+                    )}
+                  </div>
+                  {emailError && <span className="text-[11px] text-red-600">{emailError}</span>}
                 </Field>
                 <Field label="Phone *">
                   <div className="flex items-stretch">
@@ -298,24 +438,60 @@ export function ApplyForm({ job }: { job: Job }) {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Current CTC (LPA) *">
-                  <input
-                    inputMode="decimal"
-                    className={inputCls}
-                    value={form.currentCtc}
-                    onChange={e => set({ currentCtc: onlyDecimal(e.target.value) })}
-                    placeholder="e.g. 12"
-                    required
-                  />
+                  {ctcChoices.length ? (
+                    <select
+                      className={inputCls}
+                      value={form.currentCtc}
+                      onChange={e => set({ currentCtc: e.target.value })}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select CTC
+                      </option>
+                      {ctcChoices.map(n => (
+                        <option key={n} value={n}>
+                          {n} LPA
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      inputMode="decimal"
+                      className={inputCls}
+                      value={form.currentCtc}
+                      onChange={e => set({ currentCtc: onlyDecimal(e.target.value) })}
+                      placeholder="e.g. 12"
+                      required
+                    />
+                  )}
                 </Field>
                 <Field label="Expected CTC (LPA) *">
-                  <input
-                    inputMode="decimal"
-                    className={inputCls}
-                    value={form.expectedCtc}
-                    onChange={e => set({ expectedCtc: onlyDecimal(e.target.value) })}
-                    placeholder="e.g. 15"
-                    required
-                  />
+                  {ctcChoices.length ? (
+                    <select
+                      className={inputCls}
+                      value={form.expectedCtc}
+                      onChange={e => set({ expectedCtc: e.target.value })}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select CTC
+                      </option>
+                      {ctcChoices.map(n => (
+                        <option key={n} value={n}>
+                          {n} LPA
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      inputMode="decimal"
+                      className={inputCls}
+                      value={form.expectedCtc}
+                      onChange={e => set({ expectedCtc: onlyDecimal(e.target.value) })}
+                      placeholder="e.g. 15"
+                      required
+                    />
+                  )}
                 </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -481,11 +657,17 @@ export function ApplyForm({ job }: { job: Job }) {
 
           {error && <p className="text-xs text-red-600">{error}</p>}
 
+          {step === 0 && !emailVerified && (
+            <p className="text-[11px] font-medium text-red-600">Verify your email to continue.</p>
+          )}
+
           {step === 0 && hasQuestions ? (
             <button
               type="button"
               onClick={goNext}
-              className="w-full bg-accent-600 hover:bg-accent-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
+              disabled={!emailVerified}
+              title={!emailVerified ? 'Verify your email to continue' : undefined}
+              className="w-full bg-accent-600 hover:bg-accent-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
             >
               Next: a few questions
             </button>
@@ -502,8 +684,9 @@ export function ApplyForm({ job }: { job: Job }) {
               )}
               <button
                 type="submit"
-                disabled={busy}
-                className="flex-1 bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
+                disabled={busy || !emailVerified}
+                title={!emailVerified ? 'Verify your email to continue' : undefined}
+                className="flex-1 bg-accent-600 hover:bg-accent-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
               >
                 {busy ? (
                   <>
@@ -516,6 +699,91 @@ export function ApplyForm({ job }: { job: Job }) {
             </div>
           )}
         </form>
+      )}
+
+      {/* Email OTP verification modal */}
+      {otpOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setOtpOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-900">Verify your email</h3>
+              <button
+                type="button"
+                onClick={() => setOtpOpen(false)}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="mb-5 text-[13px] text-gray-500">
+              {otpSending ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 size={13} className="animate-spin" /> Sending an OTP to{' '}
+                  <span className="font-semibold text-gray-700">{form.email}</span>…
+                </span>
+              ) : (
+                <>
+                  We&apos;ve sent an OTP to <span className="font-semibold text-gray-700">{form.email}</span>.
+                  Enter the 4-digit code below to verify.
+                </>
+              )}
+            </p>
+
+            <div className="flex justify-center gap-3">
+              {otpDigits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={el => {
+                    otpRefs.current[i] = el;
+                  }}
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={d}
+                  onChange={e => setOtpDigit(i, e.target.value)}
+                  onKeyDown={e => onOtpKey(i, e)}
+                  className="h-14 w-12 rounded-lg border border-[#E4E6EA] text-center text-2xl font-bold text-gray-900 focus:border-accent-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30"
+                />
+              ))}
+            </div>
+
+            {devCode && (
+              <p className="mt-3 text-center text-[11px] text-amber-600">
+                Dev code (email not configured): <span className="font-mono font-bold">{devCode}</span>
+              </p>
+            )}
+            {otpError && <p className="mt-3 text-center text-xs text-red-600">{otpError}</p>}
+
+            <button
+              type="button"
+              onClick={verifyOtp}
+              disabled={otpVerifying || otpDigits.join('').length !== 4}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60 cursor-pointer"
+            >
+              {otpVerifying ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" /> Verifying…
+                </>
+              ) : (
+                'Verify email'
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={sendOtp}
+              disabled={otpSending}
+              className="mt-2 w-full text-center text-[12px] font-semibold text-accent-600 hover:underline disabled:opacity-60 cursor-pointer"
+            >
+              {otpSending ? 'Sending…' : 'Resend code'}
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );

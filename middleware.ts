@@ -4,6 +4,19 @@ import { BRAND } from '@/lib/brand';
 
 const CAREERS_HOST = BRAND.careersHost; // careers.optiminastic.com
 
+// The backend API origin (from NEXT_PUBLIC_API_URL). In production this is an
+// https URL already covered by the `https:` source; in local dev it's the http
+// backend (e.g. http://localhost:8000), which the browser would otherwise block
+// — so it's added to connect-src explicitly. Empty/same-origin needs nothing.
+const API_ORIGIN = (() => {
+  try {
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    return url ? new URL(url).origin : '';
+  } catch {
+    return '';
+  }
+})();
+
 // Security headers for the PUBLIC, world-facing pages (careers + job postings).
 // Hardens against clickjacking, MIME sniffing, referrer leakage and XSS. Applied
 // here (not next.config) so they also cover the rewritten careers-host root.
@@ -15,7 +28,9 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https:",
+  // Allow XHR/fetch to self, any https API, and the configured backend origin
+  // (lets the public apply page reach the http dev backend; harmless in prod).
+  `connect-src ${["'self'", 'https:', API_ORIGIN].filter(Boolean).join(' ')}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -27,10 +42,7 @@ function withSecurityHeaders(res: NextResponse): NextResponse {
   res.headers.set('X-Content-Type-Options', 'nosniff');
   res.headers.set('X-Frame-Options', 'DENY');
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-  );
+  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   return res;
 }
 
