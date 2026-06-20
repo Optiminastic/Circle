@@ -26,6 +26,12 @@ export interface Candidate {
   hrRemarks?: string;
   status: CandidateStatus;
   appliedDate: string;
+  // Full ISO timestamp of when the candidate was added/applied — used to sort
+  // the list newest-first (finer-grained than the date-only appliedDate).
+  appliedAt?: string;
+  // Full ISO timestamp of when a final decision (selected/shortlisted/rejected)
+  // was recorded — shown on the Decision step + activity feed.
+  decidedAt?: string;
 
   // Set when the candidate applied through a public job posting link.
   jobId?: string;

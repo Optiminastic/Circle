@@ -29,11 +29,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const DEFAULT_MAX = 10;
-const HARD_MAX = 100;
+// Every assessment/interview bank defaults to 20 questions. The count is NOT
+// editable at role-creation time — HR adjusts it later from the bank's own page
+// (top-right), which caps it at 100.
+const DEFAULT_MAX = 20;
 
 interface RoleQuestionBanksViewProps {
   category: BankCategory;
@@ -55,7 +56,6 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
   const [banks, setBanks] = useState<RoleQuestionBank[]>([]);
   const [open, setOpen] = useState(false);
   const [jobId, setJobId] = useState('');
-  const [maxQuestions, setMaxQuestions] = useState(String(DEFAULT_MAX));
 
   useEffect(() => {
     setBanks(loadBanks(category));
@@ -70,17 +70,13 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
       toast.error('Please select a role.');
       return;
     }
-    const max = Number(maxQuestions);
-    if (!Number.isInteger(max) || max < 1 || max > HARD_MAX) {
-      toast.error(`Enter a question limit between 1 and ${HARD_MAX}.`);
-      return;
-    }
     const bank: RoleQuestionBank = {
       id: `BANK-${Date.now()}`,
       jobId: job.id,
       jobTitle: job.title,
       department: job.department,
-      maxQuestions: max,
+      // Fixed default of 20 — changed later from the bank page, not here.
+      maxQuestions: DEFAULT_MAX,
       questions: [],
     };
     const next = [...banks, bank];
@@ -88,7 +84,6 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
     saveBanks(category, next);
     setOpen(false);
     setJobId('');
-    setMaxQuestions(String(DEFAULT_MAX));
     toast.success(`Created a question bank for ${job.title}.`);
     // Jump straight into the editor so HR can start adding questions.
     router.push(`/question-library/${slug}/${bank.id}`);
@@ -254,20 +249,6 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
               </Select>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="max-questions" className="text-[11px] font-semibold text-gray-600">
-                Maximum questions
-              </Label>
-              <Input
-                id="max-questions"
-                type="number"
-                min={1}
-                max={HARD_MAX}
-                value={maxQuestions}
-                onChange={e => setMaxQuestions(e.target.value)}
-                placeholder="e.g. 10"
-              />
-            </div>
           </div>
 
           <DialogFooter>

@@ -2,7 +2,12 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Job } from '@/types';
-import { submitApplication, requestEmailOtp, verifyEmailOtp, checkAlreadyApplied } from '@/lib/api/public';
+import {
+  submitApplicationAction,
+  requestOtpAction,
+  verifyOtpAction,
+  checkAppliedAction,
+} from '@/lib/actions/public';
 import { screeningQuestionsForRole } from '@/lib/screening-bridge';
 import { useToast } from '@/components/Toaster';
 import { Tip } from '@/components/ui/tooltip';
@@ -90,6 +95,19 @@ export function ApplyForm({ job }: { job: Job }) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Browser-level guard: once someone applies to this role from this browser, we
+  // remember it in localStorage. On revisit we show the same "submitted"
+  // confirmation instead of letting them apply again. (The backend still enforces
+  // one-application-per-email as the real source of truth — this is just UX.)
+  const appliedKey = `curcle.applied.${job.id}`;
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(appliedKey)) setSubmitted(true);
+    } catch {
+      /* localStorage blocked (private mode) — server checks still apply */
+    }
+  }, [appliedKey]);
+
   // Email OTP verification — the applicant must prove they own the email.
   const [emailVerified, setEmailVerified] = useState(false);
   // Shown under the email field, e.g. "You have already applied…".
@@ -120,11 +138,15 @@ export function ApplyForm({ job }: { job: Job }) {
     setOtpSending(true);
     setOtpError(null);
     try {
-      const { devCode: dc } = await requestEmailOtp(form.email.trim());
-      setDevCode(dc ?? null);
+      const res = await requestOtpAction(form.email.trim());
+      if (!res.ok) {
+        setOtpError(res.error ?? 'Could not send the code.');
+        return;
+      }
+      setDevCode(res.devCode ?? null);
       toast.success(`OTP sent to ${form.email.trim()}.`);
-    } catch (err) {
-      setOtpError(err instanceof Error ? err.message : 'Could not send the code.');
+    } catch {
+      setOtpError('Could not send the code.');
     } finally {
       setOtpSending(false);
     }
@@ -140,7 +162,8 @@ export function ApplyForm({ job }: { job: Job }) {
     setEmailError(null);
     setCheckingEmail(true);
     try {
-      if (await checkAlreadyApplied(job.id, form.email.trim())) {
+      const { applied } = await checkAppliedAction(job.id, form.email.trim());
+      if (applied) {
         setEmailError('You have already applied to this role with this email.');
         return;
       }
@@ -168,6 +191,19 @@ export function ApplyForm({ job }: { job: Job }) {
     if (e.key === 'Backspace' && !otpDigits[i] && i > 0) otpRefs.current[i - 1]?.focus();
   };
 
+  // Paste the whole code at once (e.g. copied from the email) into any box —
+  // the digits spread across all four inputs. Works regardless of which box the
+  // paste lands in.
+  const onOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (!digits) return;
+    e.preventDefault();
+    const next = ['', '', '', ''];
+    for (let i = 0; i < digits.length; i++) next[i] = digits[i];
+    setOtpDigits(next);
+    otpRefs.current[Math.min(digits.length, 3)]?.focus();
+  };
+
   const verifyOtp = async () => {
     const code = otpDigits.join('');
     if (code.length !== 4) {
@@ -177,12 +213,16 @@ export function ApplyForm({ job }: { job: Job }) {
     setOtpVerifying(true);
     setOtpError(null);
     try {
-      await verifyEmailOtp(form.email.trim(), code);
+      const res = await verifyOtpAction(form.email.trim(), code);
+      if (!res.ok) {
+        setOtpError(res.error ?? 'Verification failed.');
+        return;
+      }
       setEmailVerified(true);
       setOtpOpen(false);
       toast.success('Email verified.');
-    } catch (err) {
-      setOtpError(err instanceof Error ? err.message : 'Verification failed.');
+    } catch {
+      setOtpError('Verification failed.');
     } finally {
       setOtpVerifying(false);
     }
@@ -268,7 +308,7 @@ export function ApplyForm({ job }: { job: Job }) {
     // server-side (id, status, source, role/department, fit rating).
     setSubmitting(true);
     try {
-      await submitApplication(
+      const res = await submitApplicationAction(
         {
           jobId: job.id,
           fullName: form.fullName.trim(),
@@ -288,13 +328,19 @@ export function ApplyForm({ job }: { job: Job }) {
         },
         resumeFile,
       );
-      setSubmitted(true);
-    } catch (err) {
-      setError(
-        err instanceof Error && err.message
-          ? err.message
-          : 'Could not submit your application. Please try again.',
-      );
+      if (res.ok) {
+        // Remember the application in this browser so a re-visit can't re-apply.
+        try {
+          localStorage.setItem(appliedKey, new Date().toISOString());
+        } catch {
+          /* ignore storage errors */
+        }
+        setSubmitted(true);
+      } else {
+        setError(res.error ?? 'Could not submit your application. Please try again.');
+      }
+    } catch {
+      setError('Could not submit your application. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -744,10 +790,12 @@ export function ApplyForm({ job }: { job: Job }) {
                     otpRefs.current[i] = el;
                   }}
                   inputMode="numeric"
+                  autoComplete={i === 0 ? 'one-time-code' : undefined}
                   maxLength={1}
                   value={d}
                   onChange={e => setOtpDigit(i, e.target.value)}
                   onKeyDown={e => onOtpKey(i, e)}
+                  onPaste={onOtpPaste}
                   className="h-14 w-12 rounded-lg border border-[#E4E6EA] text-center text-2xl font-bold text-gray-900 focus:border-accent-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30"
                 />
               ))}

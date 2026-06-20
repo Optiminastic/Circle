@@ -171,18 +171,22 @@ export function CandidateListView({
   ];
   const sources = ['All', ...org.sources];
 
-  // Apply sequential pipeline filters
-  const filtered = candidates.filter(cand => {
-    const matchesSearch =
-      cand.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      cand.appliedRole.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = selectedDept === 'All' || cand.department === selectedDept;
-    const matchesStatus = selectedStatus === 'All' || cand.status === selectedStatus;
-    const matchesSource = selectedSource === 'All' || cand.sourceOfApplication === selectedSource;
-    const matchesNotice = cand.noticePeriodDays <= maxNoticePeriod;
-    const matchesExp = cand.totalExperienceYears >= minExperience;
-    return matchesSearch && matchesDept && matchesStatus && matchesSource && matchesNotice && matchesExp;
-  });
+  // Apply sequential pipeline filters, then sort newest-first so the latest
+  // applicant is always on top (falls back to the date when no timestamp exists).
+  const recencyKey = (c: Candidate) => c.appliedAt ?? c.appliedDate ?? '';
+  const filtered = candidates
+    .filter(cand => {
+      const matchesSearch =
+        cand.fullName.toLowerCase().includes(search.toLowerCase()) ||
+        cand.appliedRole.toLowerCase().includes(search.toLowerCase());
+      const matchesDept = selectedDept === 'All' || cand.department === selectedDept;
+      const matchesStatus = selectedStatus === 'All' || cand.status === selectedStatus;
+      const matchesSource = selectedSource === 'All' || cand.sourceOfApplication === selectedSource;
+      const matchesNotice = cand.noticePeriodDays <= maxNoticePeriod;
+      const matchesExp = cand.totalExperienceYears >= minExperience;
+      return matchesSearch && matchesDept && matchesStatus && matchesSource && matchesNotice && matchesExp;
+    })
+    .sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)));
 
   const sel = useTableSelection(filtered.map(c => c.id));
 
@@ -244,6 +248,7 @@ export function CandidateListView({
       hrRemarks: newCand.hrRemarks,
       status: 'New Application',
       appliedDate: new Date().toISOString().split('T')[0],
+      appliedAt: new Date().toISOString(),
     };
 
     onAddCandidate(created);

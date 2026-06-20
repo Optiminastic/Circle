@@ -334,7 +334,7 @@ export default function CandidateDetailPage() {
       reached: true,
       done: true,
       desc: fmtDate(candidate.appliedDate),
-      when: candidate.appliedDate,
+      when: candidate.appliedAt ?? candidate.appliedDate,
     },
     {
       label: 'Screening',
@@ -406,7 +406,7 @@ export default function CandidateDetailPage() {
           : offerShortlisted
             ? 'Shortlisted'
             : 'Pending',
-      when: undefined as string | undefined,
+      when: candidate.decidedAt,
     },
   ];
   let currentIndex = 0;
@@ -421,11 +421,15 @@ export default function CandidateDetailPage() {
 
   // ---- activity timeline (line flow) ----
   type Ev = { date: string; title: string; detail?: string; tone: 'accent' | 'green' | 'red' | 'gray' };
+  // Prefer the precise real timestamps; fall back to the date-only fields for
+  // older records created before those timestamps were captured.
+  const appliedWhen = candidate.appliedAt ?? candidate.appliedDate;
+  const decidedWhen = candidate.decidedAt ?? appliedWhen;
   const events: Ev[] = [];
-  events.push({ date: candidate.appliedDate, title: 'Applied', detail: candidate.appliedRole, tone: 'accent' });
+  events.push({ date: appliedWhen, title: 'Applied', detail: candidate.appliedRole, tone: 'accent' });
   if (candidate.fitRating)
     events.push({
-      date: candidate.appliedDate,
+      date: candidate.screeningReview?.reviewedDate ?? appliedWhen,
       title: `Screening — ${fit}`,
       detail: `${candidate.screeningAnswers?.length ?? 0} questions answered`,
       tone: fit === 'Unfit' ? 'red' : fit === 'Fit' ? 'green' : 'accent',
@@ -464,10 +468,10 @@ export default function CandidateDetailPage() {
     events.push({ date: iv.dateTime, title: `${iv.interviewRound} interview`, detail: iv.interviewerName, tone: 'gray' }),
   );
   if (offerShortlisted)
-    events.push({ date: candidate.appliedDate, title: 'Shortlisted for the offer', detail: 'Confirmation email sent', tone: 'green' });
+    events.push({ date: decidedWhen, title: 'Shortlisted for the offer', detail: 'Confirmation email sent', tone: 'green' });
   if (selected)
-    events.push({ date: candidate.appliedDate, title: 'Selected for the role', detail: 'Availability email sent', tone: 'green' });
-  if (rejected) events.push({ date: candidate.appliedDate, title: 'Rejected', tone: 'red' });
+    events.push({ date: decidedWhen, title: 'Selected for the role', detail: 'Availability email sent', tone: 'green' });
+  if (rejected) events.push({ date: decidedWhen, title: 'Rejected', tone: 'red' });
   events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const toneDot: Record<Ev['tone'], string> = {
@@ -740,7 +744,7 @@ export default function CandidateDetailPage() {
       : openSchedule(candidate.id, candidate.fullName, type);
 
   const selectForRole = () => {
-    move.mutate({ id: candidate.id, status: 'Selected' });
+    update.mutate({ ...candidate, status: 'Selected', decidedAt: nowISO() });
     // Selecting confirms the hire — move them into onboarding regardless of email delivery.
     ensureOnboarding.mutate(candidate, {
       onError: () => toast.error('Selected, but could not start onboarding — try again.'),
@@ -767,7 +771,7 @@ export default function CandidateDetailPage() {
   // First positive decision after the interview: shortlist for the offer and send
   // a confirmation email. "Select for role" then finalizes it.
   const shortlistForOffer = () => {
-    move.mutate({ id: candidate.id, status: 'Offer Shortlisted' });
+    update.mutate({ ...candidate, status: 'Offer Shortlisted', decidedAt: nowISO() });
     if (!candidate.email) {
       toast.info('Shortlisted, but no email on file — candidate not notified.');
       return;
@@ -788,7 +792,7 @@ export default function CandidateDetailPage() {
   };
 
   const rejectCandidate = () => {
-    move.mutate({ id: candidate.id, status: 'Rejected' });
+    update.mutate({ ...candidate, status: 'Rejected', decidedAt: nowISO() });
     toast.info('Candidate marked as rejected.');
   };
 
@@ -852,6 +856,7 @@ export default function CandidateDetailPage() {
         Decision: isAccept ? 'Accepted' : 'Rejected',
       },
       hrRemarks: decisionSummary.trim() || candidate.hrRemarks,
+      decidedAt: nowISO(),
     });
     if (isAccept)
       ensureOnboarding.mutate(candidate, {
@@ -899,7 +904,15 @@ export default function CandidateDetailPage() {
 
   const setStageDecision = (label: string, decision: StageDecision, status?: CandidateStatus) => {
     const stageDecisions = { ...(candidate.stageDecisions ?? {}), [label]: decision };
-    update.mutate({ ...candidate, stageDecisions, ...(status ? { status } : {}) });
+    // Stamp the decision time when this transition reaches a terminal outcome so
+    // the activity feed can show when it actually happened.
+    const terminal = status === 'Rejected' || status === 'Selected';
+    update.mutate({
+      ...candidate,
+      stageDecisions,
+      ...(status ? { status } : {}),
+      ...(terminal ? { decidedAt: nowISO() } : {}),
+    });
   };
 
   const acceptStage = (label: string) => {
@@ -1703,7 +1716,7 @@ export default function CandidateDetailPage() {
                     <div className="flex shrink-0 items-center gap-2.5">
                       {stage.when && (
                         <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
-                          {fmtDate(stage.when)}
+                          {fmtDateTime(stage.when)}
                         </span>
                       )}
                       {/* Stage action icons sit next to the info button (Decision's
