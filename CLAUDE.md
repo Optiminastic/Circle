@@ -20,25 +20,25 @@ public operation goes through a **Next.js server action**, never a client fetch:
   actions — it never calls `/api/public/*` directly.
 - Actions: `lib/actions/public.ts` (`'use server'`) — `checkAppliedAction`,
   `requestOtpAction`, `verifyOtpAction`, `submitApplicationAction`.
-- Server caller: `lib/server/backend.ts` (server-only) — adds the shared
-  `X-Internal-Token` secret and forwards the real client IP, then calls FastAPI.
+- Server caller: `lib/server/backend.ts` (server-only) — forwards the real
+  client IP (so backend per-IP limits stay per-visitor), then calls FastAPI.
 - `lib/api/public.ts` is **types only** — no client-side endpoint calls live there.
 
-Why: the browser's Network tab shows only same-origin server-action calls, and
-the backend rejects any direct `/api/public/*` call that lacks the internal
-token (so a copied cURL can't replay it). This is the server-side-enforcement
-rule from the backend CLAUDE.md, applied at the edge.
+Why: the browser's Network tab shows only same-origin server-action calls (the
+backend URL stays hidden), and abuse is stopped **server-side by rate limiting**
+— per-IP limits on every `/api/public/*` path (no origin exemption, so a copied
+cURL can't bypass it) plus a per-email OTP cap + cooldown. No shared secret /
+env token is required.
 
 **When adding a new public/unauthenticated operation:** add a server action +
-a gated backend endpoint. Do not call the backend from a client component, and
-do not rely on origin/CSRF checks alone.
+a rate-limited backend endpoint. Do not call the backend from a client
+component, and do not rely on origin/CSRF checks alone (cURL can spoof Origin).
 
 ## Env
 
 - `NEXT_PUBLIC_API_URL` — backend origin used by the **browser**.
-- `INTERNAL_API_TOKEN` — server-only; must equal the backend's value. Set it in
-  the host env (Vercel) in production, never commit it.
-- `API_INTERNAL_URL` — optional server-only backend URL override.
+- `API_INTERNAL_URL` — optional server-only backend URL override (defaults to
+  `NEXT_PUBLIC_API_URL`).
 
 ## Before done
 
