@@ -128,9 +128,12 @@ function parseLines(lines: string[]): ParsedAssessment {
       }
     }
 
-    // New question: "Q1.", "Q1)", "Q 1 -", "1." etc.
-    const qM = line.match(/^Q?\s*(\d{1,3})\s*[.):\-]\s*(.*)$/i);
-    if (qM && /^Q/i.test(line)) {
+    // New question: "Q1.", "Q1)", "Q 1 -", "1.", "2)" etc. The "Q" prefix is
+    // OPTIONAL, so plain-numbered assessments (1. 2. 3. …) are recognised too.
+    // Requiring a space + text after the marker keeps decimals like "1.5" and
+    // bare page numbers from being mistaken for a question.
+    const qM = line.match(/^Q?\s*(\d{1,3})\s*[.):\-]\s+(.+)$/i);
+    if (qM) {
       commit();
       draft = { num: Number(qM[1]), q: qM[2] || '', options: [], answer: null };
       target = 'q';
