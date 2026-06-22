@@ -128,28 +128,36 @@ export function InterviewScheduleModal({
 
   // Keep the email body in sync with the form until HR manually edits it.
   const composedBody = useMemo(() => {
-    const place =
-      type === 'Online' ? 'an online interview' : 'an offline interview at our office';
+    const place = type === 'Online' ? 'an online interview' : 'an offline interview at our office';
     const interviewer = interviewerName.trim() || 'The Hiring Team';
     const intro = isReschedule
-      ? ['We would like to let you know that your interview has been rescheduled. The updated details are below.']
+      ? [
+          'We would like to let you know that your interview has been rescheduled. The updated details are below.',
+        ]
       : [
           'Congratulations! We are pleased to inform you that you have been shortlisted for the next stage of our hiring process.',
           '',
           `We would like to invite you for ${place}.`,
         ];
+    // Overview of the three-stage hiring process, shown in the default template.
+    const stages = [
+      'Our hiring process has three rounds:',
+      '1. IQ Test — a 30-minute timed aptitude test.',
+      '2. Assessment — a role-specific assessment round.',
+      '3. Interview — a final in-person interview at our office.',
+    ];
     return [
       `Dear ${candidate.fullName},`,
       '',
       ...intro,
       '',
+      ...stages,
+      '',
       `Date: ${fmtDate(date)}`,
       `Time: ${fmtTime(time)}`,
       // Office address as plain text + a "View map" anchor (the [[label|url]]
       // token is rendered as a clickable link by the email backend).
-      ...(type === 'Offline'
-        ? [`Location: ${OFFICE_ADDRESS}`, `[[View map|${OFFICE_LOCATION_URL}]]`]
-        : []),
+      ...(type === 'Offline' ? [`Location: ${OFFICE_ADDRESS}`, `[[View map|${OFFICE_LOCATION_URL}]]`] : []),
       '',
       isReschedule
         ? 'Please confirm the new slot works for you by replying to this email. We apologise for any inconvenience.'
@@ -167,7 +175,6 @@ export function InterviewScheduleModal({
     if (!emailEdited) setBody(composedBody);
   }, [composedBody, emailEdited]);
 
-
   // --- validation + conflict detection -------------------------------------
   const startMs = useMemo(() => {
     const ms = new Date(`${date}T${time || '00:00'}`).getTime();
@@ -179,9 +186,7 @@ export function InterviewScheduleModal({
     const endMs = startMs + DURATION_MIN * 60_000;
     // Ignore the candidate's own existing slot (matters when rescheduling).
     return (
-      busyInterviews.find(
-        b => b.candidateId !== candidate.id && startMs < b.end && endMs > b.start,
-      ) ?? null
+      busyInterviews.find(b => b.candidateId !== candidate.id && startMs < b.end && endMs > b.start) ?? null
     );
   }, [startMs, busyInterviews, candidate.id]);
 
