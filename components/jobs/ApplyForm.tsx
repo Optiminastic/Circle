@@ -38,7 +38,6 @@ const MAX_RESUME_MB = 5;
 const onlyLetters = (v: string) => v.replace(/[^A-Za-z\s.'-]/g, ''); // names, titles
 const onlyCompany = (v: string) => v.replace(/[^A-Za-z0-9\s.,&'-]/g, ''); // company names
 const onlyDigits = (v: string) => v.replace(/\D/g, ''); // phone
-const onlyDecimal = (v: string) => v.replace(/[^0-9.]/g, ''); // CTC
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // LinkedIn profile/company URL (linkedin.com or its country/sub domains).
 const LINKEDIN_RE = /^https?:\/\/([a-z0-9-]+\.)*linkedin\.com\/.+/i;
@@ -57,24 +56,28 @@ const parseLpa = (value: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 const fmtLpa = (n: number): string => (Number.isInteger(n) ? `${n}` : n.toFixed(1));
-// Default LPA range used when a role has no usable salary range, so the CTC
-// fields are ALWAYS dropdowns (never a free-text input).
-const DEFAULT_CTC_MIN = 1;
-const DEFAULT_CTC_MAX = 50;
-// LPA options between the role's min & max salary (or the default range), in
-// 0.5 steps (capped).
-const ctcOptions = (min: string, max: string): string[] => {
-  let lo = parseLpa(min);
-  let hi = parseLpa(max);
-  if (lo == null || hi == null || hi < lo) {
-    lo = DEFAULT_CTC_MIN;
-    hi = DEFAULT_CTC_MAX;
-  }
+// Build LPA options from `lo` to `hi` in 0.5 steps (capped).
+const lpaRange = (lo: number, hi: number): string[] => {
   const out: string[] = [];
   for (let v = lo; v <= hi + 1e-9 && out.length < 200; v = Math.round((v + 0.5) * 10) / 10) {
     out.push(fmtLpa(v));
   }
   return out;
+};
+// Current CTC is the candidate's existing salary (not tied to the role): a
+// general 1–10 LPA dropdown.
+const currentCtcOptions = (): string[] => lpaRange(1, 10);
+// Expected CTC must sit inside the role's offered salary band (min–max). Falls
+// back to a sensible range when the role has no usable salary, so it's always a
+// dropdown (never a free-text input).
+const expectedCtcOptions = (min: string, max: string): string[] => {
+  let lo = parseLpa(min);
+  let hi = parseLpa(max);
+  if (lo == null || hi == null || hi < lo) {
+    lo = 1;
+    hi = 50;
+  }
+  return lpaRange(lo, hi);
 };
 
 /**
@@ -129,8 +132,9 @@ export function ApplyForm({ job }: { job: Job }) {
   const [devCode, setDevCode] = useState<string | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Both CTC fields become dropdowns of LPA values within the role's range.
-  const ctcChoices = ctcOptions(job.salaryMin, job.salaryMax);
+  // Current CTC = general 1–10 LPA; Expected CTC = the role's salary band.
+  const currentCtcChoices = currentCtcOptions();
+  const expectedCtcChoices = expectedCtcOptions(job.salaryMin, job.salaryMax);
 
   const set = (patch: Partial<typeof EMPTY>) => setForm(prev => ({ ...prev, ...patch }));
 
@@ -492,60 +496,38 @@ export function ApplyForm({ job }: { job: Job }) {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Current CTC (LPA) *">
-                  {ctcChoices.length ? (
-                    <select
-                      className={inputCls}
-                      value={form.currentCtc}
-                      onChange={e => set({ currentCtc: e.target.value })}
-                      required
-                    >
-                      <option value="" disabled>
-                        Select CTC
+                  <select
+                    className={inputCls}
+                    value={form.currentCtc}
+                    onChange={e => set({ currentCtc: e.target.value })}
+                    required
+                  >
+                    <option value="" disabled>
+                      Select CTC
+                    </option>
+                    {currentCtcChoices.map(n => (
+                      <option key={n} value={n}>
+                        {n} LPA
                       </option>
-                      {ctcChoices.map(n => (
-                        <option key={n} value={n}>
-                          {n} LPA
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      inputMode="decimal"
-                      className={inputCls}
-                      value={form.currentCtc}
-                      onChange={e => set({ currentCtc: onlyDecimal(e.target.value) })}
-                      placeholder="e.g. 12"
-                      required
-                    />
-                  )}
+                    ))}
+                  </select>
                 </Field>
                 <Field label="Expected CTC (LPA) *">
-                  {ctcChoices.length ? (
-                    <select
-                      className={inputCls}
-                      value={form.expectedCtc}
-                      onChange={e => set({ expectedCtc: e.target.value })}
-                      required
-                    >
-                      <option value="" disabled>
-                        Select CTC
+                  <select
+                    className={inputCls}
+                    value={form.expectedCtc}
+                    onChange={e => set({ expectedCtc: e.target.value })}
+                    required
+                  >
+                    <option value="" disabled>
+                      Select CTC
+                    </option>
+                    {expectedCtcChoices.map(n => (
+                      <option key={n} value={n}>
+                        {n} LPA
                       </option>
-                      {ctcChoices.map(n => (
-                        <option key={n} value={n}>
-                          {n} LPA
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      inputMode="decimal"
-                      className={inputCls}
-                      value={form.expectedCtc}
-                      onChange={e => set({ expectedCtc: onlyDecimal(e.target.value) })}
-                      placeholder="e.g. 15"
-                      required
-                    />
-                  )}
+                    ))}
+                  </select>
                 </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
