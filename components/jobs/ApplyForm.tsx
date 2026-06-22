@@ -57,11 +57,19 @@ const parseLpa = (value: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 const fmtLpa = (n: number): string => (Number.isInteger(n) ? `${n}` : n.toFixed(1));
-// LPA options between the role's min & max salary, in 0.5 steps (capped).
+// Default LPA range used when a role has no usable salary range, so the CTC
+// fields are ALWAYS dropdowns (never a free-text input).
+const DEFAULT_CTC_MIN = 1;
+const DEFAULT_CTC_MAX = 50;
+// LPA options between the role's min & max salary (or the default range), in
+// 0.5 steps (capped).
 const ctcOptions = (min: string, max: string): string[] => {
-  const lo = parseLpa(min);
-  const hi = parseLpa(max);
-  if (lo == null || hi == null || hi < lo) return [];
+  let lo = parseLpa(min);
+  let hi = parseLpa(max);
+  if (lo == null || hi == null || hi < lo) {
+    lo = DEFAULT_CTC_MIN;
+    hi = DEFAULT_CTC_MAX;
+  }
   const out: string[] = [];
   for (let v = lo; v <= hi + 1e-9 && out.length < 200; v = Math.round((v + 0.5) * 10) / 10) {
     out.push(fmtLpa(v));
