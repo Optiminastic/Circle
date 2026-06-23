@@ -95,6 +95,9 @@ export interface ScreeningQuestion {
   options?: string[];
   /** choice: the option that counts as a pass. */
   expectedOption?: string;
+  /** choice: also offer an "Other" option that reveals a free-text input so the
+   *  applicant can type an answer not covered by the listed options. */
+  allowOther?: boolean;
 }
 
 /** A candidate's answer to one screening question, with the pass result. */

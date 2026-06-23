@@ -329,7 +329,7 @@ export function InterviewsView({
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
           <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
             Interview Panel & Scheduling
@@ -340,7 +340,7 @@ export function InterviewsView({
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1 cursor-pointer transition"
+          className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1 cursor-pointer transition shrink-0 self-start sm:self-auto"
         >
           <Plus size={14} /> Schedule Interview
         </button>
@@ -579,7 +579,7 @@ export function IQTestAssignmentsView({
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
           <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
             Assessments & Assignments Library
@@ -588,7 +588,7 @@ export function IQTestAssignmentsView({
             Role-based question building, IQ metrics automatic scoring, and trial repo reviews.
           </p>
         </div>
-        <div className="border border-[#E4E6EA] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs">
+        <div className="border border-[#E4E6EA] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs shrink-0 self-start sm:self-auto">
           <button
             onClick={() => setActiveTab('iq')}
             className={`px-3 py-1.5 transition ${activeTab === 'iq' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EDEEF1]'}`}
@@ -615,7 +615,8 @@ export function IQTestAssignmentsView({
                 <span>Awaiting IQ Test</span>
                 <span className="text-[10px] font-mono text-gray-500">({awaitingIq.length})</span>
               </div>
-              <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-xs">
                 <THead>
                   <Th select checked={selAwait.allSelected} indeterminate={selAwait.someSelected} onToggle={selAwait.toggleAll} />
                   <Th icon={<UserCheck size={11} />}>Candidate</Th>
@@ -668,6 +669,7 @@ export function IQTestAssignmentsView({
                   })}
                 </TBody>
               </table>
+              </div>
             </div>
           )}
 
@@ -1018,8 +1020,8 @@ export function EmployeeDirectoryView({
         </div>
 
         {/* Directory filter bars */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-auto">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500">
               <Search size={13} />
             </span>
@@ -1028,7 +1030,7 @@ export function EmployeeDirectoryView({
               placeholder="Filter names..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="h-9 w-52 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] pl-8 pr-3 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="h-9 w-full sm:w-52 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] pl-8 pr-3 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
           </div>
 
@@ -1446,7 +1448,7 @@ export function CredentialsAssetsView({
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div>
           <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
             Credentials & IT Hardware Assets
@@ -1456,7 +1458,7 @@ export function CredentialsAssetsView({
           </p>
         </div>
 
-        <div className="border border-[#E4E6EA] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs shrink-0">
+        <div className="border border-[#E4E6EA] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs shrink-0 self-start sm:self-auto">
           <button
             onClick={() => setActiveTab('creds')}
             className={`px-3 py-1.5 transition ${activeTab === 'creds' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EDEEF1]'}`}
@@ -1628,7 +1630,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex justify-between items-center bg-[#F7F8FA] border-b border-[#E4E6EA] pb-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-[#F7F8FA] border-b border-[#E4E6EA] pb-3">
         <div>
           <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
             Appraisals & Growth Scorecards
@@ -1641,7 +1643,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
         <Select
           value={selectedEmp}
           onChange={e => setSelectedEmp(e.target.value)}
-          className="px-2.5 py-1 text-xs border border-[#E4E6EA] bg-[#FFFFFF] rounded font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          className="w-full sm:w-auto shrink-0 px-2.5 py-1 text-xs border border-[#E4E6EA] bg-[#FFFFFF] rounded font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
         >
           {employees.map(e => (
             <option key={e.id} value={e.fullName}>
@@ -1658,7 +1660,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
         >
           <h3 className="font-bold text-gray-900">Conduct Annual Appraisal Cycle Review</h3>
 
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
               <label className="font-semibold text-gray-700">Review Cycle Period</label>
               <input
@@ -1703,7 +1705,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
               <label className="font-semibold text-gray-700">Recommended Promotion Target</label>
               <input
@@ -2094,7 +2096,7 @@ export function SettingsView() {
   >('general');
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-6 text-xs select-none space-y-5">
+    <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 md:p-6 text-xs select-none space-y-5">
       <div>
         <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
           {BRAND.name} Workspace Settings
@@ -2120,7 +2122,7 @@ export function SettingsView() {
 
         <TabsContent value="general">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <p className="font-semibold text-gray-800">Workspace Tenant Name</p>
               <input
@@ -2207,11 +2209,11 @@ export function SettingsView() {
         <div className="space-y-3">
           <h4 className="font-bold text-gray-850">Regulatory Role permissions matrix</h4>
           <div className="border border-[#E4E6EA] rounded bg-[#EDEEF1] p-3 space-y-2 font-mono text-[11px]">
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-3">
               <span className="font-semibold">HR Specialist Role:</span>
               <span>Reads CRM, Uploads CVs, Schedules slots, triggers email templates drafts.</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-3">
               <span className="font-semibold">Admin / Leadership Role:</span>
               <span>
                 Approves salary revision levels, signs employment agreements, triggers global settings.

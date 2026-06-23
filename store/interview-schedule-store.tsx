@@ -168,7 +168,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       const interviewerAttendees = [input.interviewerEmail, HR_EMAIL].filter(
         (e): e is string => !!e && e.trim().length > 0,
       );
-      // Update the same calendar event (keyed by the interview id).
+      // Update the same calendar event (keyed by the interview id). In-person by
+      // default — no Meet link here (that's decided on the Physical Interview email).
       pushCalendarEvent({
         appEventId: existing.id,
         type: 'Interview',
@@ -178,6 +179,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         location: input.location,
         attendees,
         notes: `Rescheduled interview for ${c.fullName} (${position}).`,
+        online: false,
       }).catch(() => {});
 
       // Move the interviewer's own event (+1h) too.
@@ -191,6 +193,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           location: input.location,
           attendees: interviewerAttendees,
           notes: `Rescheduled interview for ${c.fullName} (${position}).`,
+          online: false,
         }).catch(() => {});
       }
 
@@ -346,6 +349,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           location: input.location,
           attendees,
           notes: eventDescription,
+          online: false,
         });
         pushed = res.pushed;
         meetLink = res.meetLink;
@@ -386,6 +390,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             location: input.location,
             attendees: interviewerAttendees,
             notes: eventDescription,
+            online: false,
           });
           pushedInterviewer = ivRes.pushed;
         } catch {

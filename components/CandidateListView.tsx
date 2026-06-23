@@ -308,7 +308,7 @@ export function CandidateListView({
     <div className="space-y-4 text-xs select-none">
       {/* View Header with CTA triggers */}
       {showHeader && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-4">
           <div>
             <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
               Candidate Evaluation & ATS Panel

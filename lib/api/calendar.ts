@@ -35,6 +35,8 @@ export function pushCalendarEvent(input: {
   attendees?: string[];
   /** Office address (offline) or meeting link (online). */
   location?: string;
+  /** True → attach a real Google Meet link to the event; False → none. */
+  online?: boolean;
 }): Promise<CalendarPushResult> {
   return http.post<CalendarPushResult>('/calendar/events', input);
 }

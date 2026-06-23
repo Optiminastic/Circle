@@ -15,6 +15,7 @@ import {
   Mail,
   LogOut,
   ShieldCheck,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -45,9 +46,11 @@ function relativeTime(iso: string): string {
 interface HeaderProps {
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  /** Open the off-canvas nav drawer on mobile (< md). */
+  onOpenMobileNav?: () => void;
 }
 
-export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
+export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: HeaderProps) {
   const router = useRouter();
   const { user, isAdmin, logout } = useAuth();
   const { setCommandOpen } = useUiStore();
@@ -84,36 +87,53 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
   return (
     <header
       id="app-header"
-      className="bg-[#FFFFFF] h-14 px-6 flex items-center justify-between sticky top-0 z-50 select-none"
+      className="bg-[#FFFFFF] h-14 px-4 md:px-6 flex items-center justify-between gap-2 sticky top-0 z-50 select-none"
     >
-      <div className="flex items-center gap-2">
-        {/* Sidebar collapse toggle */}
+      <div className="flex items-center gap-2 min-w-0">
+        {/* Mobile: open the nav drawer (the in-flow sidebar is hidden < md) */}
+        <button
+          onClick={onOpenMobileNav}
+          aria-label="Open navigation"
+          className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-[#EDEEF1] hover:text-gray-700 cursor-pointer transition md:hidden"
+        >
+          <Menu size={18} />
+        </button>
+
+        {/* Desktop: collapse/expand the sidebar */}
         <button
           id="btn-sidebar-collapse"
           onClick={onToggleSidebar}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-[#EDEEF1] hover:text-gray-700 cursor-pointer transition"
+          className="hidden shrink-0 rounded-lg p-2 text-gray-500 hover:bg-[#EDEEF1] hover:text-gray-700 cursor-pointer transition md:block"
         >
           {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
 
-        {/* Global Search — opens the ⌘K command palette */}
+        {/* Global Search — opens the ⌘K command palette. Full bar on sm+, icon-only on mobile. */}
         <button
           id="global-search-trigger"
           type="button"
           onClick={() => setCommandOpen(true)}
-          className="group flex w-80 items-center gap-2 rounded-xl border border-[#E4E6EA] bg-[#EDEEF1] py-2 pl-3 pr-2 text-left text-xs text-gray-500 transition hover:bg-[#FFFFFF] hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          className="group hidden w-44 items-center gap-2 rounded-xl border border-[#E4E6EA] bg-[#EDEEF1] py-2 pl-3 pr-2 text-left text-xs text-gray-500 transition hover:bg-[#FFFFFF] hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 sm:flex sm:w-64 lg:w-80"
         >
           <Search size={14} className="shrink-0 text-gray-500" />
           <span className="flex-1 truncate">Search candidates, roles, employees…</span>
-          <kbd className="shrink-0 rounded border border-[#D7DAE0] bg-[#FFFFFF] px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-500">
+          <kbd className="hidden shrink-0 rounded border border-[#D7DAE0] bg-[#FFFFFF] px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-500 lg:block">
             {isMac ? '⌘' : 'Ctrl'} K
           </kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          aria-label="Search"
+          className="shrink-0 rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-[#EDEEF1] hover:text-gray-700 sm:hidden"
+        >
+          <Search size={16} />
         </button>
       </div>
 
       {/* Right Actions & Profile */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4 shrink-0">
         {/* Recruitment calendar */}
         <Link
           href="/calendar"

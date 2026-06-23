@@ -102,6 +102,9 @@ export function ApplyForm({ job }: { job: Job }) {
   const [form, setForm] = useState(EMPTY);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [responses, setResponses] = useState<Record<string, string>>({});
+  // Choice questions with allowOther: tracks which have the "Other" free-text
+  // box active (so it stays open even before the applicant types anything).
+  const [otherActive, setOtherActive] = useState<Record<string, boolean>>({});
   const [step, setStep] = useState(0); // 0 = your details, 1 = screening questions
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -660,25 +663,55 @@ export function ApplyForm({ job }: { job: Job }) {
                               placeholder="Your answer…"
                             />
                           ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {(qType === 'choice' ? (q.options ?? []).filter(Boolean) : ['Yes', 'No']).map(
-                                opt => {
-                                  const active = responses[q.id] === opt;
-                                  return (
-                                    <button
-                                      key={opt}
-                                      type="button"
-                                      onClick={() => setResponses(r => ({ ...r, [q.id]: opt }))}
-                                      className={`min-w-[6rem] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
-                                        active
-                                          ? 'border-accent-500 bg-accent-50 text-accent-700'
-                                          : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 hover:border-accent-300'
-                                      }`}
-                                    >
-                                      {opt}
-                                    </button>
-                                  );
-                                },
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap gap-2">
+                                {(qType === 'choice' ? (q.options ?? []).filter(Boolean) : ['Yes', 'No']).map(
+                                  opt => {
+                                    const active = !otherActive[q.id] && responses[q.id] === opt;
+                                    return (
+                                      <button
+                                        key={opt}
+                                        type="button"
+                                        onClick={() => {
+                                          setOtherActive(o => ({ ...o, [q.id]: false }));
+                                          setResponses(r => ({ ...r, [q.id]: opt }));
+                                        }}
+                                        className={`min-w-[6rem] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                                          active
+                                            ? 'border-accent-500 bg-accent-50 text-accent-700'
+                                            : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 hover:border-accent-300'
+                                        }`}
+                                      >
+                                        {opt}
+                                      </button>
+                                    );
+                                  },
+                                )}
+                                {qType === 'choice' && q.allowOther && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOtherActive(o => ({ ...o, [q.id]: true }));
+                                      setResponses(r => ({ ...r, [q.id]: '' }));
+                                    }}
+                                    className={`min-w-[6rem] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                                      otherActive[q.id]
+                                        ? 'border-accent-500 bg-accent-50 text-accent-700'
+                                        : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 hover:border-accent-300'
+                                    }`}
+                                  >
+                                    Other
+                                  </button>
+                                )}
+                              </div>
+                              {qType === 'choice' && q.allowOther && otherActive[q.id] && (
+                                <input
+                                  className={inputCls}
+                                  value={responses[q.id] ?? ''}
+                                  onChange={e => setResponses(r => ({ ...r, [q.id]: e.target.value }))}
+                                  placeholder="Please specify…"
+                                  autoFocus
+                                />
                               )}
                             </div>
                           )}

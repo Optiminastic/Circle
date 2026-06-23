@@ -504,7 +504,7 @@ export function CandidateProfileModal({
                   ) : (
                     /* Display call summary state */
                     <div className="text-xs space-y-3">
-                      <div className="grid grid-cols-2 gap-3 bg-[#F7F8FA] p-3 rounded-lg border border-[#E4E6EA]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#F7F8FA] p-3 rounded-lg border border-[#E4E6EA]">
                         <div>
                           <p className="text-gray-500 font-mono text-[9px] uppercase">Availability</p>
                           <p className="font-semibold text-gray-850">
@@ -756,7 +756,7 @@ export function CandidateProfileModal({
                               <p className="font-bold text-gray-500 font-mono text-[9px] uppercase">
                                 Input secure interview feedback:
                               </p>
-                              <div className="grid grid-cols-2 gap-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 <Select
                                   value={gradingForm.recommendation}
                                   onChange={e =>

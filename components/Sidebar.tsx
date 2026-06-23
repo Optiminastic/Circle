@@ -23,9 +23,17 @@ interface SidebarProps {
   setUserRole: (role: 'HR' | 'Admin') => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  /** Whether the off-canvas drawer is open on mobile (< md). */
+  mobileOpen?: boolean;
+  /** Close the mobile drawer (tapping a nav link / the backdrop / Esc). */
+  onCloseMobile?: () => void;
 }
 
-export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: SidebarProps) {
+export function Sidebar({
+  collapsed: isCollapsed,
+  mobileOpen = false,
+  onCloseMobile,
+}: SidebarProps) {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState({
     employees: true,
@@ -41,11 +49,12 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
     return (
       <Link
         href={href}
+        onClick={onCloseMobile}
         className={`group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 ${
           isActive
             ? 'bg-[#FFFFFF] text-gray-900 font-semibold shadow-2xs ring-1 ring-[#ECEDF0]'
             : 'text-gray-600 hover:bg-[#F1F3F5] hover:text-gray-900'
-        } ${isCollapsed ? 'justify-center' : ''}`}
+        } ${isCollapsed ? 'md:justify-center' : ''}`}
         title={label}
       >
         <span
@@ -61,9 +70,11 @@ export function Sidebar({ userRole, setUserRole, collapsed: isCollapsed }: Sideb
   return (
     <aside
       id="app-sidebar"
-      className={`bg-[#FBFBFC] h-screen select-none flex flex-col shrink-0 transition-all duration-200 sticky top-0 ${
-        isCollapsed ? 'w-16' : 'w-64'
-      }`}
+      className={`bg-[#FBFBFC] h-screen select-none flex flex-col transition-transform duration-200
+        fixed inset-y-0 left-0 z-50 w-64 shadow-xl
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:static md:z-auto md:shrink-0 md:translate-x-0 md:shadow-none md:transition-all
+        ${isCollapsed ? 'md:w-16' : 'md:w-64'}`}
     >
       {/* Workspace switcher — height aligned to the main header */}
       <div className="flex h-14 shrink-0 items-center bg-[#FFFFFF] px-3">

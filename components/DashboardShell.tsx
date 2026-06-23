@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -18,10 +18,19 @@ import { qk } from '@/lib/query/keys';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, ready } = useAuth();
   const { userRole, setUserRole } = useUiStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const toggleSidebar = () => setSidebarCollapsed(v => !v);
+
+  // Off-canvas nav drawer for mobile (< md). Separate from the desktop collapse.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+  // Close the drawer whenever the route changes (tapping a nav link navigates).
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   // Access gate: bounce unauthenticated visitors to the login screen.
   useEffect(() => {
@@ -95,12 +104,27 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         setUserRole={setUserRole}
         collapsed={sidebarCollapsed}
         onToggleCollapse={toggleSidebar}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={closeMobileNav}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#FFFFFF]">
-        <Header sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+      {/* Backdrop for the mobile drawer (md and up never renders it). */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={closeMobileNav}
+          aria-hidden
+        />
+      )}
 
-        <main className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-[#F1F3F5] rounded-tl-2xl border-t border-l border-[#E4E6EA]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#FFFFFF]">
+        <Header
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={toggleSidebar}
+          onOpenMobileNav={() => setMobileNavOpen(true)}
+        />
+
+        <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 min-h-0 bg-[#F1F3F5] rounded-tl-2xl border-t border-l border-[#E4E6EA]">
           {error ? (
             <div className="max-w-md mx-auto mt-20 text-center">
               <div className="bg-[#FFFFFF] border border-red-200 rounded-xl p-6">

@@ -96,6 +96,9 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
     mapItem(bucket, id, it => ({ ...it, options: it.options.filter((_, i) => i !== idx) }));
   };
 
+  const toggleAllowOther = (bucket: Bucket, id: string) =>
+    mapItem(bucket, id, it => ({ ...it, allowOther: !it.allowOther }));
+
   // Import questions from a screening PDF, routing each into the Must-have /
   // Good-to-have section it appears under. If the set already holds questions,
   // the latest PDF replaces them all (after confirmation). Each bucket keeps its
@@ -229,6 +232,7 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
           onChangeOption={(id, idx, v) => setOption('mustHave', id, idx, v)}
           onAddOption={id => addOption('mustHave', id)}
           onRemoveOption={(id, idx) => removeOption('mustHave', id, idx)}
+          onToggleAllowOther={id => toggleAllowOther('mustHave', id)}
         />
         <Section
           title="Good-to-have questions"
@@ -242,6 +246,7 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
           onChangeOption={(id, idx, v) => setOption('goodToHave', id, idx, v)}
           onAddOption={id => addOption('goodToHave', id)}
           onRemoveOption={(id, idx) => removeOption('goodToHave', id, idx)}
+          onToggleAllowOther={id => toggleAllowOther('goodToHave', id)}
         />
       </div>
     </div>
@@ -260,6 +265,7 @@ interface SectionProps {
   onChangeOption: (id: string, idx: number, value: string) => void;
   onAddOption: (id: string) => void;
   onRemoveOption: (id: string, idx: number) => void;
+  onToggleAllowOther: (id: string) => void;
 }
 
 /** One FAQ-style collapsible importance bucket. */
@@ -275,6 +281,7 @@ function Section({
   onChangeOption,
   onAddOption,
   onRemoveOption,
+  onToggleAllowOther,
 }: SectionProps) {
   const atMax = items.length >= SCREENING_MAX;
   return (
@@ -375,16 +382,32 @@ function Section({
                       </div>
                     ))}
 
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => onAddOption(it.id)}
-                      disabled={!canAddOption}
-                      title={canAddOption ? 'Add an option' : `Up to ${SCREENING_MAX_OPTIONS} options`}
-                      className="text-accent-600 hover:text-accent-700"
-                    >
-                      <Plus /> Add option
-                    </Button>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => onAddOption(it.id)}
+                        disabled={!canAddOption}
+                        title={canAddOption ? 'Add an option' : `Up to ${SCREENING_MAX_OPTIONS} options`}
+                        className="text-accent-600 hover:text-accent-700"
+                      >
+                        <Plus /> Add option
+                      </Button>
+
+                      {/* Let applicants type their own answer via an "Other" choice. */}
+                      <label
+                        className="flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-gray-600 select-none"
+                        title='Adds an "Other" choice on the apply page that reveals a free-text box'
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!it.allowOther}
+                          onChange={() => onToggleAllowOther(it.id)}
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+                        />
+                        Allow “Other” (free text)
+                      </label>
+                    </div>
                   </div>
                 </div>
               );

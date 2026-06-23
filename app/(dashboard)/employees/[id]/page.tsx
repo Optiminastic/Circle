@@ -325,7 +325,7 @@ export default function EmployeeDetailPage() {
           {tab === 'overview' && (
             <>
               <Card icon={<Briefcase size={14} />} title="Job details">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <KV k="Reporting manager" v={employee.reportingManager} />
                   <KV k="Work location" v={employee.workLocation} />
                   <KV k="Joining date" v={fmtDate(employee.joiningDate)} />
@@ -390,7 +390,7 @@ export default function EmployeeDetailPage() {
           {tab === 'compensation' && (
             <>
               <Card icon={<Wallet size={14} />} title="Compensation">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <KV k="Annual CTC" v={employee.annualCtc || '—'} />
                   <KV k="Source" v={cid ? 'From accepted offer' : 'Set manually'} />
                 </div>
@@ -398,14 +398,14 @@ export default function EmployeeDetailPage() {
 
               <Card icon={<Landmark size={14} />} title="Bank details">
                 {bank?.accountNumber ? (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <KV k="Account holder" v={bank.accountHolderName || employee.fullName} />
                     <KV k="Bank" v={bank.bankName || '—'} />
                     <KV k="Account number" v={bank.accountNumber} />
                     <KV k="IFSC" v={bank.ifscCode} />
                   </div>
                 ) : employee.personalDetails?.accountNumber ? (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <KV k="Account holder" v={employee.fullName} />
                     <KV k="Bank" v={employee.personalDetails.bankName || '—'} />
                     <KV k="Account number" v={employee.personalDetails.accountNumber} />
@@ -607,7 +607,7 @@ export default function EmployeeDetailPage() {
                   <option value="Absconding">Absconding</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="font-semibold text-gray-700">Resignation date</label>
                   <DatePicker value={resignDate} onChange={setResignDate} className="mt-1" />

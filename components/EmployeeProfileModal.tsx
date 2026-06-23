@@ -208,7 +208,7 @@ export function EmployeeProfileModal({
                 <h3 className="font-bold text-gray-900 font-mono text-[10px] uppercase tracking-wider text-gray-500">
                   Corporate Assignment Details
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <span className="text-gray-500 font-mono text-[9px] uppercase">Department Squad</span>
                     <p className="font-semibold text-gray-800">{employee.department}</p>

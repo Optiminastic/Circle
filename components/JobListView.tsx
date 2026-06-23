@@ -510,7 +510,7 @@ export function JobListView({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <RefreshButton queryKeys={[qk.jobs.all, qk.candidates.all]} title="Refresh job postings" />
           <div className="relative">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500">

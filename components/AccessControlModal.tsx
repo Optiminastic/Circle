@@ -100,7 +100,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
+      <DialogContent className="max-w-md max-h-[90vh] gap-0 overflow-y-auto p-0">
         <DialogHeader className="flex-row items-center gap-2.5 space-y-0 border-b border-border px-5 py-4 text-left">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
             <ShieldCheck size={17} />

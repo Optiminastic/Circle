@@ -64,6 +64,7 @@ interface InterviewScheduleModalProps {
 }
 
 const DURATION_MIN = 45;
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
@@ -104,7 +105,10 @@ export function InterviewScheduleModal({
 
   const [date, setDate] = useState(initial?.date || tomorrow);
   const [time, setTime] = useState(initial?.time || '10:00');
-  const [type, setType] = useState<'Online' | 'Offline'>(initial?.type || 'Offline');
+  // Interviews are scheduled as in-person by default. Whether the round is
+  // actually run online (with a Google Meet link) is decided later, on the
+  // Physical Interview email — so no mode picker here.
+  const type = 'Offline' as const;
   const [interviewerName, setInterviewerName] = useState(initial?.interviewerName || '');
   const [interviewerEmail, setInterviewerEmail] = useState(initial?.interviewerEmail || '');
   const [notes, setNotes] = useState(initial?.notes || '');
@@ -128,7 +132,6 @@ export function InterviewScheduleModal({
 
   // Keep the email body in sync with the form until HR manually edits it.
   const composedBody = useMemo(() => {
-    const place = type === 'Online' ? 'an online interview' : 'an offline interview at our office';
     const interviewer = interviewerName.trim() || 'The Hiring Team';
     const intro = isReschedule
       ? [
@@ -137,14 +140,14 @@ export function InterviewScheduleModal({
       : [
           'Congratulations! We are pleased to inform you that you have been shortlisted for the next stage of our hiring process.',
           '',
-          `We would like to invite you for ${place}.`,
+          'We would like to invite you for an interview at our office.',
         ];
     // Overview of the three-stage hiring process, shown in the default template.
     const stages = [
       'Our hiring process has three rounds:',
       '1. IQ Test — a 30-minute timed aptitude test.',
       '2. Assessment — a role-specific assessment round.',
-      '3. Interview — a final in-person interview at our office.',
+      '3. Interview — a final interview.',
     ];
     return [
       `Dear ${candidate.fullName},`,
@@ -155,9 +158,9 @@ export function InterviewScheduleModal({
       '',
       `Date: ${fmtDate(date)}`,
       `Time: ${fmtTime(time)}`,
-      // Office address as plain text + a "View map" anchor (the [[label|url]]
-      // token is rendered as a clickable link by the email backend).
-      ...(type === 'Offline' ? [`Location: ${OFFICE_ADDRESS}`, `[[View map|${OFFICE_LOCATION_URL}]]`] : []),
+      // In-person by default — office address + a "View map" anchor.
+      `Location: ${OFFICE_ADDRESS}`,
+      `[[View map|${OFFICE_LOCATION_URL}]]`,
       '',
       isReschedule
         ? 'Please confirm the new slot works for you by replying to this email. We apologise for any inconvenience.'
@@ -169,7 +172,7 @@ export function InterviewScheduleModal({
       interviewer,
       BRAND.company,
     ].join('\n');
-  }, [candidate.fullName, type, interviewerName, date, time, isReschedule]);
+  }, [candidate.fullName, interviewerName, date, time, isReschedule]);
 
   useEffect(() => {
     if (!emailEdited) setBody(composedBody);
@@ -206,7 +209,7 @@ export function InterviewScheduleModal({
       dateTimeIso: `${date}T${time}:00`,
       durationMin: DURATION_MIN,
       type,
-      location: type === 'Online' ? '' : OFFICE_LOCATION_URL,
+      location: OFFICE_LOCATION_URL,
       interviewerName: interviewerName.trim(),
       interviewerEmail: interviewerEmail.trim() || undefined,
       notes: notes.trim() || undefined,
@@ -289,17 +292,6 @@ export function InterviewScheduleModal({
                   Interview Time <span className="text-accent-600">*</span>
                 </Label>
                 <TimeSelect id="iv-time" value={time} onChange={setTime} step={15} className="mt-1" />
-              </div>
-              <div>
-                <Label className="text-[11px] font-medium text-gray-600">Interview Type</Label>
-                <Select
-                  value={type}
-                  onChange={e => setType(e.target.value as 'Online' | 'Offline')}
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm"
-                >
-                  <option value="Offline">Offline</option>
-                  <option value="Online">Online</option>
-                </Select>
               </div>
               <div>
                 <Label htmlFor="iv-interviewer" className="text-[11px] font-medium text-gray-600">

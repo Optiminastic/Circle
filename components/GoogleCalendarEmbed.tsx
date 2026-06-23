@@ -7,10 +7,10 @@
  * (Calendar settings → "Make available to public").
  */
 
-// Shared HR calendar. The literal '@' is percent-encoded by URLSearchParams
-// below — do NOT pre-encode it to %40 here, or it double-encodes and breaks.
-const SRC =
-  'c_0117eacbc11439a47e07d129c4a2b9ac21cce6951992e14d5d3926b0d6c23b58@group.calendar.google.com';
+// Shared HR calendar — the PRIMARY calendar of the hr@optiminastic.com account.
+// The literal '@' is percent-encoded by URLSearchParams below — do NOT pre-encode
+// it to %40 here, or it double-encodes and breaks.
+const SRC = 'hr@optiminastic.com';
 const TZ = 'Asia/Kolkata';
 
 export function GoogleCalendarEmbed() {

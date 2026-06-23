@@ -60,6 +60,8 @@ import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { effectiveFit, fitStyle } from '@/lib/screening';
 import { sendTestEmail, sendCustomEmail } from '@/lib/api/notifications';
+import { pushCalendarEvent } from '@/lib/api/calendar';
+import { HR_EMAIL } from '@/lib/config';
 import { BRAND } from '@/lib/brand';
 import {
   ASSIGNMENT_MAX_MARKS,
@@ -188,6 +190,12 @@ export default function CandidateDetailPage() {
   const [ivpackBankId, setIvpackBankId] = useState('');
   const [ivpackSubject, setIvpackSubject] = useState('');
   const [ivpackBody, setIvpackBody] = useState('');
+  // Physical Interview mode: Offline emails only the interviewer; Online creates
+  // a Google Meet link and emails both the candidate and the interviewer.
+  const [ivpackMode, setIvpackMode] = useState<'Online' | 'Offline'>('Offline');
+  // Optional manual Google Meet link — if HR pastes one, that exact link is sent
+  // to both; left blank, a Meet link is auto-created on the calendar event.
+  const [ivpackMeetLink, setIvpackMeetLink] = useState('');
   const [sr, setSr] = useState<ScreeningReview>(blankScreening());
   const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
   const [gradeScore, setGradeScore] = useState('');
@@ -320,8 +328,18 @@ export default function CandidateDetailPage() {
   const iqDone =
     myIq.length > 0 || Boolean(iqInvite && ['Completed', 'Auto-Submitted'].includes(iqInvite.status));
   const iqReached = iqDone || Boolean(iqInvite) || mySchedules.some(s => s.type === 'IQ Test');
-  const asgInvite = myInvites.filter(i => i.kind === 'assignment').sort(byCreatedDesc)[0];
-  const asgDone = asgInvite?.status === 'Graded';
+  // "assignment" and "assessment" are used interchangeably across the flows that
+  // create the role-skills test — accept either so the stage resolves regardless.
+  const asgInvite = myInvites
+    .filter(i => i.kind === 'assignment' || i.kind === 'assessment')
+    .sort(byCreatedDesc)[0];
+  // The proctored runner (/test) finishes an assessment as Completed/Auto-Submitted
+  // (with a score), while the simple runner (/assessment) marks it Graded. Treat any
+  // of those — or any recorded score — as done, so HR can act on the result.
+  const asgDone =
+    !!asgInvite &&
+    (['Graded', 'Completed', 'Auto-Submitted'].includes(asgInvite.status) ||
+      asgInvite.score != null);
   const asgReached = Boolean(asgInvite) || mySchedules.some(s => s.type === 'Assessment');
   const interviewDone = myInterviews.some(iv => iv.status === 'Completed');
   const interviewReached = myInterviews.length > 0 || mySchedules.some(s => s.type === 'Interview');
@@ -387,8 +405,8 @@ export default function CandidateDetailPage() {
       done: asgDone,
       desc: asgDone
         ? asgInvite!.passed
-          ? `Cleared · ${asgInvite!.score}%`
-          : 'Not selected'
+          ? `Passed · ${asgInvite!.score}%`
+          : `Failed · ${asgInvite!.score}%`
         : asgReached
           ? 'Scheduled'
           : 'Pending',
@@ -466,12 +484,12 @@ export default function CandidateDetailPage() {
     }),
   );
   myInvites
-    .filter(i => i.kind === 'assessment')
+    .filter(i => i.kind === 'assessment' || i.kind === 'assignment')
     .forEach(i => {
-      if (['Completed', 'Auto-Submitted'].includes(i.status))
+      if (['Completed', 'Auto-Submitted', 'Graded'].includes(i.status))
         events.push({
           date: i.completedAt ?? i.createdAt,
-          title: `Assessment — ${i.passed ? 'cleared' : 'not selected'}`,
+          title: `Assessment — ${i.passed ? 'passed' : 'failed'}`,
           detail:
             i.score != null
               ? `${i.score}%${i.correct != null ? ` · ${i.correct}/${i.total}` : ''}`
@@ -637,7 +655,7 @@ export default function CandidateDetailPage() {
         return (
           <div className="space-y-2.5">
             <KV k="Role" v={`${asgInvite.position} MCQ`} />
-            <KV k="Result" v={asgInvite.passed ? 'Cleared' : 'Not selected'} />
+            <KV k="Result" v={asgInvite.passed ? 'Passed' : 'Failed'} />
             <KV k="Score" v={asgInvite.score != null ? `${asgInvite.score}%` : '—'} />
             {asgInvite.correct != null && asgInvite.total != null && (
               <KV k="Correct" v={`${asgInvite.correct} / ${asgInvite.total}`} />
@@ -1115,6 +1133,8 @@ export default function CandidateDetailPage() {
     setIvpackBanks(banks);
     const match = banks.find(b => b.roleName.trim().toLowerCase() === position.trim().toLowerCase());
     setIvpackBankId(match?.id ?? '');
+    setIvpackMode((latestInterview?.interviewType as 'Online' | 'Offline') || 'Offline');
+    setIvpackMeetLink(latestInterview?.meetingLink || '');
     setIvpackSubject(`Interview pack: ${candidate.fullName} — ${position}`);
     setIvpackBody(
       [
@@ -1146,6 +1166,7 @@ export default function CandidateDetailPage() {
       toast.error('Please select an interview question set.');
       return;
     }
+    const isOnline = ivpackMode === 'Online';
     const questions = INTERVIEW_MODULES.flatMap(m =>
       (bank.modules[m] ?? [])
         .filter(it => it.text.trim())
@@ -1166,22 +1187,63 @@ export default function CandidateDetailPage() {
       resumeUrl,
       interviewerName: latestInterview.interviewerName,
       whenIso: latestInterview.dateTime,
-      mode: latestInterview.interviewType,
+      mode: ivpackMode,
       roleLabel: bank.roleName,
       questions,
     });
     const sheetUrl = `${window.location.origin}/interview-sheet?d=${encodeURIComponent(encoded)}`;
-    const links = [
+
+    setOpenForm(null);
+
+    // Online: share a Google Meet link with BOTH the candidate and interviewer.
+    // If HR pasted a link, use that exact one; otherwise auto-create one on the
+    // interview's calendar event. Offline: just the interviewer pack.
+    const manualLink = ivpackMeetLink.trim();
+    let meetLink: string | null | undefined = manualLink || undefined;
+    if (isOnline) {
+      try {
+        const attendees = [candidate.email, latestInterview.interviewerEmail, HR_EMAIL].filter(
+          (e): e is string => !!e && e.trim().length > 0,
+        );
+        const res = await pushCalendarEvent({
+          appEventId: latestInterview.id,
+          type: 'Interview',
+          title: `Interview - ${candidate.fullName} - ${position}`,
+          dateTimeIso: latestInterview.dateTime,
+          durationMin: latestInterview.durationMinutes ?? 45,
+          attendees,
+          // Manual link → put it on the event (no auto-Meet). Blank → auto-create.
+          ...(manualLink ? { location: manualLink, online: false } : { online: true }),
+          notes: `Online interview for ${candidate.fullName} (${position}).`,
+        });
+        if (!manualLink) meetLink = res.meetLink;
+      } catch {
+        /* calendar sync is best-effort — fall back to "link to follow" copy */
+      }
+      // Reflect the mode + link on the interview record.
+      repositories.interviews
+        .patch(latestInterview.id, {
+          interviewType: 'Online',
+          interviewRound: 'Online',
+          meetingMode: 'Google Meet',
+          ...(meetLink ? { meetingLink: meetLink } : {}),
+        })
+        .then(() => qc.invalidateQueries({ queryKey: qk.interviews.all }))
+        .catch(() => {});
+    }
+
+    // Interviewer email — pack + (online) the Meet link.
+    const interviewerLinks = [
       ...(resumeUrl ? [{ label: 'View candidate resume', url: resumeUrl }] : []),
       { label: 'Open interview questions', url: sheetUrl },
+      ...(isOnline && meetLink ? [{ label: 'Join the Google Meet', url: meetLink }] : []),
     ];
-    setOpenForm(null);
     try {
       const res = await sendCustomEmail({
         to: latestInterview.interviewerEmail,
         subject: ivpackSubject,
         body: ivpackBody,
-        links,
+        links: interviewerLinks,
       });
       repositories.sentEmails
         .create({
@@ -1196,8 +1258,58 @@ export default function CandidateDetailPage() {
         })
         .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
         .catch(() => {});
+
+      // Online: also email the candidate the joining link.
+      if (isOnline && candidate.email) {
+        const joinLine = meetLink
+          ? `[[Join the Google Meet|${meetLink}]]`
+          : 'Your meeting link will be shared with you shortly.';
+        const candidateBody = [
+          `Dear ${candidate.fullName},`,
+          '',
+          `Your interview for the ${position} role will be held online via Google Meet.`,
+          '',
+          `Date & time: ${fmtDateTime(latestInterview.dateTime)}`,
+          `Interviewer: ${latestInterview.interviewerName || 'The Hiring Team'}`,
+          '',
+          `Joining link: ${joinLine}`,
+          '',
+          'Please join a few minutes early. Reply to this email if you have any questions.',
+          '',
+          'Best Regards,',
+          hr.signoff,
+        ].join('\n');
+        sendCustomEmail({
+          to: candidate.email,
+          subject: `Your interview (online) — ${position} — ${BRAND.company}`,
+          body: candidateBody,
+          links: meetLink ? [{ label: 'Join the Google Meet', url: meetLink }] : undefined,
+        })
+          .then(r =>
+            repositories.sentEmails
+              .create({
+                id: randomId('EML'),
+                recipientName: candidate.fullName,
+                recipientEmail: candidate.email!,
+                templateTitle: 'Interview — online link',
+                subject: `Your interview (online) — ${position} — ${BRAND.company}`,
+                dateSent: nowISO(),
+                status: r.sent ? 'Sent' : 'Failed',
+                relatedEntity: candidate.fullName,
+              })
+              .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all })),
+          )
+          .catch(() => {});
+      }
+
       toast.success(
-        res.sent ? 'Interview pack sent to the interviewer.' : 'Pack created — email could not be sent.',
+        isOnline
+          ? res.sent
+            ? 'Online interview details sent to the candidate and interviewer.'
+            : 'Created — but the interviewer email could not be sent.'
+          : res.sent
+            ? 'Interview pack sent to the interviewer.'
+            : 'Pack created — email could not be sent.',
       );
     } catch {
       toast.error('Could not send the interview pack — try again.');
@@ -2356,10 +2468,53 @@ export default function CandidateDetailPage() {
             {openForm === 'ivpack' && (
               <>
                 <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
-                  Sends to {latestInterview?.interviewerName || 'the interviewer'}
-                  {latestInterview?.interviewerEmail ? ` (${latestInterview.interviewerEmail})` : ''} with the
-                  candidate&apos;s resume and the selected interview questions attached as links.
+                  {ivpackMode === 'Online' ? (
+                    <>
+                      Creates a Google Meet link and emails it to both the candidate
+                      {candidate.email ? ` (${candidate.email})` : ''} and{' '}
+                      {latestInterview?.interviewerName || 'the interviewer'}, along with the resume and
+                      questions.
+                    </>
+                  ) : (
+                    <>
+                      Sends to {latestInterview?.interviewerName || 'the interviewer'}
+                      {latestInterview?.interviewerEmail ? ` (${latestInterview.interviewerEmail})` : ''} with
+                      the candidate&apos;s resume and the selected interview questions attached as links.
+                    </>
+                  )}
                 </p>
+                <div>
+                  <Label htmlFor="ivp-mode" className="text-sm font-medium">
+                    Interview mode
+                  </Label>
+                  <select
+                    id="ivp-mode"
+                    value={ivpackMode}
+                    onChange={e => setIvpackMode(e.target.value as 'Online' | 'Offline')}
+                    className={SELECT_CLS}
+                  >
+                    <option value="Offline">Offline (in-person)</option>
+                    <option value="Online">Online (Google Meet)</option>
+                  </select>
+                </div>
+                {ivpackMode === 'Online' && (
+                  <div>
+                    <Label htmlFor="ivp-meet" className="text-sm font-medium">
+                      Google Meet link <span className="text-gray-400">(optional)</span>
+                    </Label>
+                    <Input
+                      id="ivp-meet"
+                      value={ivpackMeetLink}
+                      onChange={e => setIvpackMeetLink(e.target.value)}
+                      placeholder="https://meet.google.com/abc-defg-hij"
+                      className="mt-2"
+                    />
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Paste a Meet link to send that exact one to both the candidate and interviewer, or
+                      leave blank to auto-create a Google Meet on the calendar.
+                    </p>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="ivp-bank" className="text-sm font-medium">
                     Interview question set
@@ -2445,7 +2600,8 @@ export default function CandidateDetailPage() {
             )}
             {openForm === 'ivpack' && (
               <Button onClick={submitIvPack} disabled={!ivpackBankId}>
-                <Send size={14} /> Send to interviewer
+                <Send size={14} />{' '}
+                {ivpackMode === 'Online' ? 'Send to candidate & interviewer' : 'Send to interviewer'}
               </Button>
             )}
           </SheetFooter>

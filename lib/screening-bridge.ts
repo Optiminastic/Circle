@@ -38,6 +38,8 @@ export const itemToQuestion = (it: ScreeningItem, importance: QuestionImportance
     importance,
     type: hasChoices ? 'choice' : 'text',
     ...(hasChoices ? { options } : {}),
+    // "Other" free-text only applies to choice questions.
+    ...(hasChoices && it.allowOther ? { allowOther: true } : {}),
   };
 };
 
@@ -54,6 +56,7 @@ const questionToItem = (q: ScreeningQuestion): ScreeningItem =>
     id: uid('SQ-'),
     text: q.text.trim(),
     options: q.type === 'choice' && q.options ? q.options : q.type === 'yesno' ? ['Yes', 'No'] : [],
+    allowOther: q.allowOther ?? false,
   });
 
 const findIndexForRole = (banks: ScreeningBank[], roleName: string) =>

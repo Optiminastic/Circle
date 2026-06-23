@@ -64,6 +64,9 @@ export interface ScreeningItem {
   id: string;
   text: string;
   options: string[];
+  /** When true, applicants also get an "Other" choice that reveals a free-text
+   *  input so they can type an answer not covered by the options. */
+  allowOther?: boolean;
 }
 
 export interface ScreeningBank {
@@ -169,5 +172,10 @@ export const blankInterviewItem = (id: string): InterviewItem => ({ id, text: ''
 export const normalizeScreeningItem = (it: ScreeningItem): ScreeningItem => {
   const options = Array.isArray(it.options) ? [...it.options] : [];
   while (options.length < SCREENING_MIN_OPTIONS) options.push('');
-  return { ...it, text: it.text ?? '', options: options.slice(0, SCREENING_MAX_OPTIONS) };
+  return {
+    ...it,
+    text: it.text ?? '',
+    options: options.slice(0, SCREENING_MAX_OPTIONS),
+    allowOther: it.allowOther ?? false,
+  };
 };
