@@ -3,7 +3,11 @@
 import React, { useRef } from 'react';
 import { Download, Eye, FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import { openDocument, useDocumentMutations, useDocuments } from '@/features/documents/hooks';
+import { documentPreviewUrl } from '@/lib/api/documents';
 import { Tip } from '@/components/ui/tooltip';
+
+/** Open a document's inline preview in a new tab. */
+const previewDocument = (id: string) => window.open(documentPreviewUrl(id), '_blank', 'noopener,noreferrer');
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -74,7 +78,9 @@ export function DocumentsPanel({
       </div>
 
       {!previewOnly && upload.isError && (
-        <p className="text-[10px] text-red-500">Upload failed — check the file size (max 15 MB) and try again.</p>
+        <p className="text-[10px] text-red-500">
+          Upload failed — check the file size (max 15 MB) and try again.
+        </p>
       )}
 
       {isError ? (
@@ -105,6 +111,15 @@ export function DocumentsPanel({
                 <Eye size={13} className="text-gray-500 shrink-0" aria-hidden />
               ) : (
                 <>
+                  <Tip label="Preview">
+                    <button
+                      onClick={() => previewDocument(doc.id)}
+                      aria-label="Preview"
+                      className="p-1 text-gray-500 hover:text-accent-600 cursor-pointer"
+                    >
+                      <Eye size={13} />
+                    </button>
+                  </Tip>
                   <Tip label="Download">
                     <button
                       onClick={() => openDocument(doc.id)}

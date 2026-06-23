@@ -701,6 +701,23 @@ export interface OffboardingWorkflow {
   ktRecord?: KnowledgeTransferRecord;
 }
 
+/** A public exit-handover link sent to a departing employee to collect their
+ *  work credentials (encrypted server-side) and handover files. Keyed by
+ *  employeeId; the public link uses the random `token`. */
+export interface ExitHandover {
+  employeeId: string;
+  employeeName: string;
+  lastWorkingDay?: string;
+  token: string;
+  status: 'Sent' | 'Credentials Submitted' | 'Completed';
+  expiresAt: string;
+  createdAt: string;
+  updatedAt?: string;
+  /** Server stores the password ENCRYPTED — never the plaintext. */
+  credentials?: { workEmail: string; password: string; submittedAt: string };
+  submissions?: { documentId: string; fileName: string; size: number; uploadedAt: string }[];
+}
+
 export type OffboardingStatus =
   | 'Exit Initiated'
   | 'Notice Period Active'

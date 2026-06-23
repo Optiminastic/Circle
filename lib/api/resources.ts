@@ -20,6 +20,7 @@ export const RESOURCES = {
   emailTemplates: { slug: 'email-templates', idField: 'id' },
   sentEmails: { slug: 'sent-emails', idField: 'id' },
   offboarding: { slug: 'offboarding', idField: 'employeeId' },
+  exitHandovers: { slug: 'exit-handovers', idField: 'employeeId' },
 } as const;
 
 export type ResourceKey = keyof typeof RESOURCES;

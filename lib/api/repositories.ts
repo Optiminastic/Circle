@@ -7,6 +7,7 @@ import {
   DocRequest,
   EmailTemplate,
   Employee,
+  ExitHandover,
   IQTest,
   Interview,
   Job,
@@ -37,4 +38,5 @@ export const repositories = {
   emailTemplates: new ResourceRepository<EmailTemplate>(RESOURCES.emailTemplates.slug),
   sentEmails: new ResourceRepository<SentEmailLog>(RESOURCES.sentEmails.slug),
   offboarding: new ResourceRepository<OffboardingWorkflow>(RESOURCES.offboarding.slug),
+  exitHandovers: new ResourceRepository<ExitHandover>(RESOURCES.exitHandovers.slug),
 } as const;

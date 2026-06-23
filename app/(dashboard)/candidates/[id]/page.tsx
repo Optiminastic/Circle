@@ -37,7 +37,15 @@ import {
   Download,
   Pencil,
 } from 'lucide-react';
-import { CandidateStatus, HRCallRecord, Interview, ScheduleType, ScreeningReview, StageDecision, TestInvite } from '@/types';
+import {
+  CandidateStatus,
+  HRCallRecord,
+  Interview,
+  ScheduleType,
+  ScreeningReview,
+  StageDecision,
+  TestInvite,
+} from '@/types';
 import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
 import { EditCandidateDialog } from '@/components/EditCandidateDialog';
 import { RefreshButton } from '@/components/RefreshButton';
@@ -64,11 +72,7 @@ import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
 import { useToast } from '@/components/Toaster';
 import { openDocument, useDocuments } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
-import {
-  loadInterviewBanks,
-  INTERVIEW_MODULES,
-  type InterviewBank,
-} from '@/lib/question-banks';
+import { loadInterviewBanks, INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
 import { encodeInterviewSheet } from '@/lib/interview-sheet';
 import { PageLoading } from '@/components/PageLoading';
 import { Tip } from '@/components/ui/tooltip';
@@ -89,7 +93,9 @@ import {
 const fmtDate = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 const fmtDateTime = (iso?: string) => {
   if (!iso) return '—';
@@ -263,9 +269,7 @@ export default function CandidateDetailPage() {
       setOpenForm(null);
       setGradeScore('');
       setGradeComments('');
-      toast.success(
-        `Grade saved (${passed ? 'pass' : 'fail'}) — now Accept, On Hold, or Reject the stage.`,
-      );
+      toast.success(`Grade saved (${passed ? 'pass' : 'fail'}) — now Accept, On Hold, or Reject the stage.`);
     },
     onError: () => toast.error('Could not save the grade — try again.'),
   });
@@ -275,7 +279,10 @@ export default function CandidateDetailPage() {
     return (
       <div className="mx-auto max-w-md py-20 text-center">
         <p className="text-sm font-semibold text-gray-700">Candidate not found</p>
-        <Link href="/candidates" className="mt-3 inline-block text-xs font-semibold text-accent-600 hover:underline">
+        <Link
+          href="/candidates"
+          className="mt-3 inline-block text-xs font-semibold text-accent-600 hover:underline"
+        >
           ← Back to candidates
         </Link>
       </div>
@@ -310,7 +317,8 @@ export default function CandidateDetailPage() {
     (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
   const latestIq = [...myIq].sort((a, b) => (b.testDate ?? '').localeCompare(a.testDate ?? ''))[0];
   const iqInvite = myInvites.filter(i => i.kind === 'iq').sort(byCreatedDesc)[0];
-  const iqDone = myIq.length > 0 || Boolean(iqInvite && ['Completed', 'Auto-Submitted'].includes(iqInvite.status));
+  const iqDone =
+    myIq.length > 0 || Boolean(iqInvite && ['Completed', 'Auto-Submitted'].includes(iqInvite.status));
   const iqReached = iqDone || Boolean(iqInvite) || mySchedules.some(s => s.type === 'IQ Test');
   const asgInvite = myInvites.filter(i => i.kind === 'assignment').sort(byCreatedDesc)[0];
   const asgDone = asgInvite?.status === 'Graded';
@@ -435,7 +443,12 @@ export default function CandidateDetailPage() {
       tone: fit === 'Unfit' ? 'red' : fit === 'Fit' ? 'green' : 'accent',
     });
   mySchedules.forEach(s =>
-    events.push({ date: s.dateTime, title: `${s.type} scheduled`, detail: s.notes || undefined, tone: 'gray' }),
+    events.push({
+      date: s.dateTime,
+      title: `${s.type} scheduled`,
+      detail: s.notes || undefined,
+      tone: 'gray',
+    }),
   );
   if (candidate.hrCall?.completed)
     events.push({
@@ -459,18 +472,36 @@ export default function CandidateDetailPage() {
         events.push({
           date: i.completedAt ?? i.createdAt,
           title: `Assessment — ${i.passed ? 'cleared' : 'not selected'}`,
-          detail: i.score != null ? `${i.score}%${i.correct != null ? ` · ${i.correct}/${i.total}` : ''}` : undefined,
+          detail:
+            i.score != null
+              ? `${i.score}%${i.correct != null ? ` · ${i.correct}/${i.total}` : ''}`
+              : undefined,
           tone: i.passed ? 'green' : 'red',
         });
       else events.push({ date: i.createdAt, title: 'Assessment sent', tone: 'gray' });
     });
   myInterviews.forEach(iv =>
-    events.push({ date: iv.dateTime, title: `${iv.interviewRound} interview`, detail: iv.interviewerName, tone: 'gray' }),
+    events.push({
+      date: iv.dateTime,
+      title: `${iv.interviewRound} interview`,
+      detail: iv.interviewerName,
+      tone: 'gray',
+    }),
   );
   if (offerShortlisted)
-    events.push({ date: decidedWhen, title: 'Shortlisted for the offer', detail: 'Confirmation email sent', tone: 'green' });
+    events.push({
+      date: decidedWhen,
+      title: 'Shortlisted for the offer',
+      detail: 'Confirmation email sent',
+      tone: 'green',
+    });
   if (selected)
-    events.push({ date: decidedWhen, title: 'Selected for the role', detail: 'Availability email sent', tone: 'green' });
+    events.push({
+      date: decidedWhen,
+      title: 'Selected for the role',
+      detail: 'Availability email sent',
+      tone: 'green',
+    });
   if (rejected) events.push({ date: decidedWhen, title: 'Rejected', tone: 'red' });
   events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -513,12 +544,16 @@ export default function CandidateDetailPage() {
               {SCREENING_CRITERIA.map(c => (
                 <div key={c.key} className="flex items-center justify-between">
                   <span className="text-[11px] text-gray-600">{c.label}</span>
-                  <span className="font-mono text-[11px] font-bold text-gray-700">{review[c.key] as number}/5</span>
+                  <span className="font-mono text-[11px] font-bold text-gray-700">
+                    {review[c.key] as number}/5
+                  </span>
                 </div>
               ))}
               <div className="flex items-center justify-between border-t border-[#E4E6EA] pt-1.5">
                 <span className="text-[11px] font-semibold text-gray-700">Average</span>
-                <span className="font-mono text-[11px] font-bold text-accent-600">{screeningAvg(review).toFixed(1)}/5</span>
+                <span className="font-mono text-[11px] font-bold text-accent-600">
+                  {screeningAvg(review).toFixed(1)}/5
+                </span>
               </div>
               {review.remarks && <ReviewRow k="Remarks" v={review.remarks} />}
             </div>
@@ -574,7 +609,9 @@ export default function CandidateDetailPage() {
         );
       }
       const s = schedOf('HR Call')[0];
-      return empty(s ? `Scheduled for ${fmtDateTime(s.dateTime)} — call not completed yet.` : 'HR call not started.');
+      return empty(
+        s ? `Scheduled for ${fmtDateTime(s.dateTime)} — call not completed yet.` : 'HR call not started.',
+      );
     }
 
     if (label === 'IQ Test') {
@@ -865,9 +902,7 @@ export default function CandidateDetailPage() {
     setOpenForm(null);
     setDecisionKind(null);
     if (!candidate.email) {
-      toast.info(
-        `Candidate ${isAccept ? 'selected' : 'rejected'} — no email on file, so none was sent.`,
-      );
+      toast.info(`Candidate ${isAccept ? 'selected' : 'rejected'} — no email on file, so none was sent.`);
       return;
     }
     try {
@@ -1001,7 +1036,9 @@ export default function CandidateDetailPage() {
         })
         .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
         .catch(() => {});
-      toast.success(res.sent ? `${label} link sent to the candidate.` : `${label} created — email could not be sent.`);
+      toast.success(
+        res.sent ? `${label} link sent to the candidate.` : `${label} created — email could not be sent.`,
+      );
     } catch {
       toast.error(`${label} created, but sending the email failed.`);
     }
@@ -1019,12 +1056,14 @@ export default function CandidateDetailPage() {
     setSr(prev => ({ ...prev, [key]: value }));
 
   const openHrCall = () => {
-    setHc(candidate.hrCall ?? {
-      ...blankHrCall(),
-      currentCtc: candidate.currentCtc ?? '',
-      expectedCtc: candidate.expectedCtc ?? '',
-      noticePeriodDays: candidate.noticePeriodDays ?? 0,
-    });
+    setHc(
+      candidate.hrCall ?? {
+        ...blankHrCall(),
+        currentCtc: candidate.currentCtc ?? '',
+        expectedCtc: candidate.expectedCtc ?? '',
+        noticePeriodDays: candidate.noticePeriodDays ?? 0,
+      },
+    );
     setOpenForm('hrcall');
   };
   const updateHc = <K extends keyof HRCallRecord>(key: K, value: HRCallRecord[K]) =>
@@ -1074,9 +1113,7 @@ export default function CandidateDetailPage() {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const banks = loadInterviewBanks();
     setIvpackBanks(banks);
-    const match = banks.find(
-      b => b.roleName.trim().toLowerCase() === position.trim().toLowerCase(),
-    );
+    const match = banks.find(b => b.roleName.trim().toLowerCase() === position.trim().toLowerCase());
     setIvpackBankId(match?.id ?? '');
     setIvpackSubject(`Interview pack: ${candidate.fullName} — ${position}`);
     setIvpackBody(
@@ -1160,9 +1197,7 @@ export default function CandidateDetailPage() {
         .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
         .catch(() => {});
       toast.success(
-        res.sent
-          ? 'Interview pack sent to the interviewer.'
-          : 'Pack created — email could not be sent.',
+        res.sent ? 'Interview pack sent to the interviewer.' : 'Pack created — email could not be sent.',
       );
     } catch {
       toast.error('Could not send the interview pack — try again.');
@@ -1290,9 +1325,7 @@ export default function CandidateDetailPage() {
       // Send the resume + interview-question pack to the assigned interviewer.
       // Locked once their responses are in — no re-sending after that.
       if (latestInterview?.interviewerEmail)
-        btns.push(
-          iconBtn('ivpack', <Send size={15} />, 'Send to interviewer', openIvPack, ivResponded),
-        );
+        btns.push(iconBtn('ivpack', <Send size={15} />, 'Send to interviewer', openIvPack, ivResponded));
       // Reviewing feedback stays disabled until the interviewer has submitted
       // their responses; then it opens the feedback modal (which shows them).
       if (latestInterview)
@@ -1372,8 +1405,7 @@ export default function CandidateDetailPage() {
     // call for HR Call. Before that there's nothing to decide on.
     const showGate =
       isCurrent &&
-      ((label === 'Screening' && !!candidate.screeningReview) ||
-        (label === 'HR Call' && hrCallDone));
+      ((label === 'Screening' && !!candidate.screeningReview) || (label === 'HR Call' && hrCallDone));
     const showResultDecision =
       isCurrent &&
       ((label === 'IQ Test' && iqDone) ||
@@ -1438,7 +1470,13 @@ export default function CandidateDetailPage() {
               </span>
               <span
                 className={`absolute bottom-1 right-1 size-4 rounded-full ring-4 ring-[#FFFFFF] ${
-                  selected ? 'bg-emerald-500' : rejected ? 'bg-red-500' : onHold ? 'bg-yellow-500' : 'bg-accent-500'
+                  selected
+                    ? 'bg-emerald-500'
+                    : rejected
+                      ? 'bg-red-500'
+                      : onHold
+                        ? 'bg-yellow-500'
+                        : 'bg-accent-500'
                 }`}
               />
             </div>
@@ -1518,7 +1556,9 @@ export default function CandidateDetailPage() {
               <Eye size={13} className="ml-auto text-gray-400" />
             </button>
             {candidateDocs.length > 0 && (
-              <p className="mt-2 font-mono text-[10px] text-gray-400">{candidateDocs.length} document(s) on file</p>
+              <p className="mt-2 font-mono text-[10px] text-gray-400">
+                {candidateDocs.length} document(s) on file
+              </p>
             )}
           </div>
         </aside>
@@ -1577,7 +1617,13 @@ export default function CandidateDetailPage() {
                   ) : (
                     <Clock4 size={14} />
                   )}
-                  {selected ? 'Selected for role' : rejected ? 'Rejected' : onHold ? 'On hold' : 'Round in progress'}
+                  {selected
+                    ? 'Selected for role'
+                    : rejected
+                      ? 'Rejected'
+                      : onHold
+                        ? 'On hold'
+                        : 'Round in progress'}
                 </span>
               )}
             </div>
@@ -1602,165 +1648,169 @@ export default function CandidateDetailPage() {
             </div>
 
             <ol className="relative px-6 py-6">
-          {stages.map((stage, i) => {
-            const state = stepState(i);
-            const StageIcon = stage.Icon;
-            const last = i === stages.length - 1;
-            const pathDone = i < currentIndex; // the rail below this node is already travelled
-            const muted = state === 'todo';
-            // Who performed this step: the candidate applied (human icon), every other
-            // step is an HR action (HR profile avatar) — like the inspiration's feed.
-            const isApplied = stage.label === 'Applied';
-            // Status dot colour (entry header chip) — tracks stage state. The chip
-            // itself stays neutral; only this small dot carries the state colour.
-            const dotCls =
-              state === 'done'
-                ? 'bg-emerald-500'
-                : state === 'rejected'
-                  ? 'bg-red-500'
-                  : state === 'current'
-                    ? 'bg-accent-500'
-                    : 'bg-gray-300';
-            // Detail ("i") panel — hidden until the info button is clicked.
-            const infoShown = !!openInfo[i];
-            const toggleInfo = () => setOpenInfo(prev => ({ ...prev, [i]: !infoShown }));
-            // Stage action(s) (e.g. "Edit call notes") sit at the TOP of the entry;
-            // the HR decision row (Accept / On Hold / Reject / Next) sits at the BOTTOM.
-            const actions = stageActions(i);
-            const gate = stageGate(i);
-            return (
-              <li
-                key={stage.label}
-                className="relative flex gap-4 transition-all duration-500"
-                style={{
-                  transitionDelay: `${i * 80}ms`,
-                  opacity: stepIn ? 1 : 0,
-                  transform: stepIn ? 'translateY(0)' : 'translateY(8px)',
-                }}
-              >
-                {/* Rail: continuous thread + actor avatar (candidate vs HR) */}
-                <div className="relative flex w-9 shrink-0 flex-col items-center">
-                  <div className={`relative z-10 ${muted ? 'opacity-60' : ''}`}>
-                    {isApplied ? (
-                      <span
-                        className="grid size-9 place-items-center rounded-full bg-[#F1F3F5] text-gray-500 ring-2 ring-white"
-                        title={candidate.fullName}
-                      >
-                        <User size={16} />
-                      </span>
-                    ) : hr.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={hr.avatarUrl}
-                        alt={hr.name}
-                        title={`${hr.name} · ${hr.role}`}
-                        className="size-9 rounded-full object-cover ring-2 ring-white"
-                      />
-                    ) : (
-                      <span
-                        className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-[10px] font-bold text-white ring-2 ring-white"
-                        title={`${hr.name} · ${hr.role}`}
-                      >
-                        {hr.initials}
-                      </span>
-                    )}
-                    {/* Corner status badge — done / current / rejected */}
-                    {state === 'done' && (
-                      <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
-                        <Check size={9} strokeWidth={3} />
-                      </span>
-                    )}
-                    {state === 'current' && (
-                      <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-accent-500 ring-2 ring-white" />
-                    )}
-                    {state === 'rejected' && (
-                      <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-red-500 text-white ring-2 ring-white">
-                        <XCircle size={9} strokeWidth={3} />
-                      </span>
-                    )}
-                  </div>
-                  {!last && (
-                    <span className={`mt-1.5 w-px flex-1 ${pathDone ? 'bg-emerald-300' : 'bg-[#E4E6EA]'}`} />
-                  )}
-                </div>
-
-                {/* Content — feed entry */}
-                <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-8'}`}>
-                  {/* Header: name + chip + description (left) · timestamp/actions/info (right) */}
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
+              {stages.map((stage, i) => {
+                const state = stepState(i);
+                const StageIcon = stage.Icon;
+                const last = i === stages.length - 1;
+                const pathDone = i < currentIndex; // the rail below this node is already travelled
+                const muted = state === 'todo';
+                // Who performed this step: the candidate applied (human icon), every other
+                // step is an HR action (HR profile avatar) — like the inspiration's feed.
+                const isApplied = stage.label === 'Applied';
+                // Status dot colour (entry header chip) — tracks stage state. The chip
+                // itself stays neutral; only this small dot carries the state colour.
+                const dotCls =
+                  state === 'done'
+                    ? 'bg-emerald-500'
+                    : state === 'rejected'
+                      ? 'bg-red-500'
+                      : state === 'current'
+                        ? 'bg-accent-500'
+                        : 'bg-gray-300';
+                // Detail ("i") panel — hidden until the info button is clicked.
+                const infoShown = !!openInfo[i];
+                const toggleInfo = () => setOpenInfo(prev => ({ ...prev, [i]: !infoShown }));
+                // Stage action(s) (e.g. "Edit call notes") sit at the TOP of the entry;
+                // the HR decision row (Accept / On Hold / Reject / Next) sits at the BOTTOM.
+                const actions = stageActions(i);
+                const gate = stageGate(i);
+                return (
+                  <li
+                    key={stage.label}
+                    className="relative flex gap-4 transition-all duration-500"
+                    style={{
+                      transitionDelay: `${i * 80}ms`,
+                      opacity: stepIn ? 1 : 0,
+                      transform: stepIn ? 'translateY(0)' : 'translateY(8px)',
+                    }}
+                  >
+                    {/* Rail: continuous thread + actor avatar (candidate vs HR) */}
+                    <div className="relative flex w-9 shrink-0 flex-col items-center">
+                      <div className={`relative z-10 ${muted ? 'opacity-60' : ''}`}>
+                        {isApplied ? (
+                          <span
+                            className="grid size-9 place-items-center rounded-full bg-[#F1F3F5] text-gray-500 ring-2 ring-white"
+                            title={candidate.fullName}
+                          >
+                            <User size={16} />
+                          </span>
+                        ) : hr.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={hr.avatarUrl}
+                            alt={hr.name}
+                            title={`${hr.name} · ${hr.role}`}
+                            className="size-9 rounded-full object-cover ring-2 ring-white"
+                          />
+                        ) : (
+                          <span
+                            className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-[10px] font-bold text-white ring-2 ring-white"
+                            title={`${hr.name} · ${hr.role}`}
+                          >
+                            {hr.initials}
+                          </span>
+                        )}
+                        {/* Corner status badge — done / current / rejected */}
+                        {state === 'done' && (
+                          <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                            <Check size={9} strokeWidth={3} />
+                          </span>
+                        )}
+                        {state === 'current' && (
+                          <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-accent-500 ring-2 ring-white" />
+                        )}
+                        {state === 'rejected' && (
+                          <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-red-500 text-white ring-2 ring-white">
+                            <XCircle size={9} strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                      {!last && (
                         <span
-                          className={`grid size-5 shrink-0 place-items-center rounded-md ${
-                            muted ? 'bg-[#F1F3F5] text-gray-400' : 'bg-accent-50 text-accent-600'
+                          className={`mt-1.5 w-px flex-1 ${pathDone ? 'bg-emerald-300' : 'bg-[#E4E6EA]'}`}
+                        />
+                      )}
+                    </div>
+
+                    {/* Content — feed entry */}
+                    <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-8'}`}>
+                      {/* Header: name + chip + description (left) · timestamp/actions/info (right) */}
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`grid size-5 shrink-0 place-items-center rounded-md ${
+                                muted ? 'bg-[#F1F3F5] text-gray-400' : 'bg-accent-50 text-accent-600'
+                              }`}
+                            >
+                              <StageIcon size={12} />
+                            </span>
+                            <span
+                              className={`text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}
+                            >
+                              {stage.label}
+                            </span>
+                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                              <span className={`size-1.5 rounded-full ${dotCls}`} />
+                              {stage.desc}
+                            </span>
+                          </div>
+                          {STAGE_NOTES[stage.label] && (
+                            <p className="mt-1.5 text-[12px] leading-relaxed text-gray-500">
+                              {STAGE_NOTES[stage.label]}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Right group — timestamp + action icon(s) + info "i" button */}
+                        <div className="flex shrink-0 items-center gap-2.5">
+                          {stage.when && (
+                            <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
+                              {fmtDateTime(stage.when)}
+                            </span>
+                          )}
+                          {/* Stage action icons sit next to the info button (Decision's
+                          composer is the exception — it renders below). */}
+                          {stage.label !== 'Decision' && actions}
+                          <button
+                            type="button"
+                            onClick={toggleInfo}
+                            aria-label={infoShown ? 'Hide details' : 'View details'}
+                            aria-expanded={infoShown}
+                            title="View details"
+                            className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
+                              infoShown
+                                ? 'border-accent-200 bg-accent-50 text-accent-600'
+                                : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
+                            }`}
+                          >
+                            <Info size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Decision composer (textarea + outcome buttons) renders below */}
+                      {stage.label === 'Decision' && actions && <div className="mt-3">{actions}</div>}
+
+                      {/* Detail panel — revealed by the info "i" button */}
+                      {infoShown && (
+                        <div
+                          className={`mt-3 rounded-xl bg-[#F7F8FA] p-3.5 ${
+                            state === 'current'
+                              ? 'border border-y-[#ECEDF0] border-r-[#ECEDF0] border-l-2 border-l-accent-400'
+                              : 'border border-[#ECEDF0]'
                           }`}
                         >
-                          <StageIcon size={12} />
-                        </span>
-                        <span className={`text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
-                          {stage.label}
-                        </span>
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600">
-                          <span className={`size-1.5 rounded-full ${dotCls}`} />
-                          {stage.desc}
-                        </span>
-                      </div>
-                      {STAGE_NOTES[stage.label] && (
-                        <p className="mt-1.5 text-[12px] leading-relaxed text-gray-500">
-                          {STAGE_NOTES[stage.label]}
-                        </p>
+                          {stageDetail(i)}
+                        </div>
                       )}
+
+                      {/* HR decision row — Accept / On Hold / Reject, at the bottom */}
+                      {gate && <div className="mt-3 flex flex-wrap items-center gap-2">{gate}</div>}
                     </div>
-
-                    {/* Right group — timestamp + action icon(s) + info "i" button */}
-                    <div className="flex shrink-0 items-center gap-2.5">
-                      {stage.when && (
-                        <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
-                          {fmtDateTime(stage.when)}
-                        </span>
-                      )}
-                      {/* Stage action icons sit next to the info button (Decision's
-                          composer is the exception — it renders below). */}
-                      {stage.label !== 'Decision' && actions}
-                      <button
-                        type="button"
-                        onClick={toggleInfo}
-                        aria-label={infoShown ? 'Hide details' : 'View details'}
-                        aria-expanded={infoShown}
-                        title="View details"
-                        className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
-                          infoShown
-                            ? 'border-accent-200 bg-accent-50 text-accent-600'
-                            : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
-                        }`}
-                      >
-                        <Info size={15} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Decision composer (textarea + outcome buttons) renders below */}
-                  {stage.label === 'Decision' && actions && <div className="mt-3">{actions}</div>}
-
-                  {/* Detail panel — revealed by the info "i" button */}
-                  {infoShown && (
-                    <div
-                      className={`mt-3 rounded-xl bg-[#F7F8FA] p-3.5 ${
-                        state === 'current'
-                          ? 'border border-y-[#ECEDF0] border-r-[#ECEDF0] border-l-2 border-l-accent-400'
-                          : 'border border-[#ECEDF0]'
-                      }`}
-                    >
-                      {stageDetail(i)}
-                    </div>
-                  )}
-
-                  {/* HR decision row — Accept / On Hold / Reject, at the bottom */}
-                  {gate && <div className="mt-3 flex flex-wrap items-center gap-2">{gate}</div>}
-                </div>
-              </li>
-            );
-          })}
+                  </li>
+                );
+              })}
             </ol>
           </div>
         </div>
@@ -1777,7 +1827,9 @@ export default function CandidateDetailPage() {
                   />
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-[12px] font-semibold text-gray-800">{ev.title}</p>
-                    <span className="shrink-0 font-mono text-[10px] text-gray-400">{fmtDateTime(ev.date)}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-gray-400">
+                      {fmtDateTime(ev.date)}
+                    </span>
                   </div>
                   {ev.detail && <p className="text-[11px] text-gray-500">{ev.detail}</p>}
                 </li>
@@ -1810,7 +1862,9 @@ export default function CandidateDetailPage() {
                         <p className="mt-0.5 text-[11px] text-gray-500">Interviewer: {iv.interviewerName}</p>
                       )}
                       {iv.emailStatus && (
-                        <p className="mt-1 font-mono text-[10px] text-gray-400">Invite email: {iv.emailStatus}</p>
+                        <p className="mt-1 font-mono text-[10px] text-gray-400">
+                          Invite email: {iv.emailStatus}
+                        </p>
                       )}
                     </div>
                   );
@@ -1862,7 +1916,9 @@ export default function CandidateDetailPage() {
                     Capture why this candidate is worth a call and what stands out.
                   </p>
                   {fit && (
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${fitStyle(fit)}`}>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${fitStyle(fit)}`}
+                    >
                       {fit}
                     </span>
                   )}
@@ -1907,9 +1963,7 @@ export default function CandidateDetailPage() {
             {openForm === 'hrcall' && (
               <div className="space-y-5 text-xs">
                 <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2">
-                  <p className="text-[11px] italic text-gray-500">
-                    Document the candidate call securely.
-                  </p>
+                  <p className="text-[11px] italic text-gray-500">Document the candidate call securely.</p>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                       candidate.hrCall?.completed
@@ -1927,7 +1981,10 @@ export default function CandidateDetailPage() {
                   <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                     <div className="space-y-1">
                       <label className="font-semibold text-gray-700">Communication Quality</label>
-                      <RatingRow value={hc.communicationRating} onChange={v => updateHc('communicationRating', v)} />
+                      <RatingRow
+                        value={hc.communicationRating}
+                        onChange={v => updateHc('communicationRating', v)}
+                      />
                     </div>
                     <div className="space-y-1">
                       <label className="font-semibold text-gray-700">Interest Level</label>
@@ -2072,12 +2129,26 @@ export default function CandidateDetailPage() {
             {openForm === 'grade' && (
               <>
                 {asgInvite?.submissionDocId && (
-                  <button
-                    onClick={() => openDocument(asgInvite.submissionDocId!)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
-                  >
-                    <Download size={14} /> {asgInvite.submissionFileName ?? 'Download submission'}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() =>
+                        window.open(
+                          documentPreviewUrl(asgInvite.submissionDocId!),
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
+                    >
+                      <Eye size={14} /> Preview submission
+                    </button>
+                    <button
+                      onClick={() => openDocument(asgInvite.submissionDocId!)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
+                    >
+                      <Download size={14} /> {asgInvite.submissionFileName ?? 'Download'}
+                    </button>
+                  </div>
                 )}
 
                 {/* Candidate's MCQ answers — selected option marked, correct in green */}
@@ -2116,9 +2187,7 @@ export default function CandidateDetailPage() {
                                         Candidate
                                       </span>
                                     )}
-                                    {isCorrect && (
-                                      <CheckCircle2 size={13} className="text-emerald-600" />
-                                    )}
+                                    {isCorrect && <CheckCircle2 size={13} className="text-emerald-600" />}
                                   </div>
                                 );
                               })}
@@ -2162,8 +2231,8 @@ export default function CandidateDetailPage() {
                   />
                 </div>
                 <p className="text-[11px] text-gray-500">
-                  Saving records the score &amp; comments only. Then Accept (pass), On Hold, or
-                  Reject the stage to decide how the candidate moves forward.
+                  Saving records the score &amp; comments only. Then Accept (pass), On Hold, or Reject the
+                  stage to decide how the candidate moves forward.
                 </p>
               </>
             )}
@@ -2194,9 +2263,7 @@ export default function CandidateDetailPage() {
                                     Rated: {r.selected} / 5
                                   </span>
                                 ) : (
-                                  <span className="font-medium text-emerald-700">
-                                    Answered: {r.selected}
-                                  </span>
+                                  <span className="font-medium text-emerald-700">Answered: {r.selected}</span>
                                 )
                               ) : (
                                 <span className="text-gray-400">No answer recorded</span>
@@ -2252,9 +2319,7 @@ export default function CandidateDetailPage() {
               <>
                 <p
                   className={`rounded-lg px-3 py-2 text-[12px] font-medium ${
-                    decisionKind === 'accept'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-red-50 text-red-600'
+                    decisionKind === 'accept' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
                   }`}
                 >
                   {decisionKind === 'accept'
@@ -2292,9 +2357,8 @@ export default function CandidateDetailPage() {
               <>
                 <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
                   Sends to {latestInterview?.interviewerName || 'the interviewer'}
-                  {latestInterview?.interviewerEmail ? ` (${latestInterview.interviewerEmail})` : ''}{' '}
-                  with the candidate&apos;s resume and the selected interview questions attached as
-                  links.
+                  {latestInterview?.interviewerEmail ? ` (${latestInterview.interviewerEmail})` : ''} with the
+                  candidate&apos;s resume and the selected interview questions attached as links.
                 </p>
                 <div>
                   <Label htmlFor="ivp-bank" className="text-sm font-medium">
@@ -2302,8 +2366,7 @@ export default function CandidateDetailPage() {
                   </Label>
                   {ivpackBanks.length === 0 ? (
                     <p className="mt-2 rounded-md border border-dashed border-border bg-secondary/20 px-3 py-2 text-[12px] text-gray-500">
-                      No interview question sets found. Create one in Question Library → Interview
-                      Questions.
+                      No interview question sets found. Create one in Question Library → Interview Questions.
                     </p>
                   ) : (
                     <select
@@ -2314,10 +2377,7 @@ export default function CandidateDetailPage() {
                     >
                       <option value="">Select a set…</option>
                       {ivpackBanks.map(b => {
-                        const n = INTERVIEW_MODULES.reduce(
-                          (acc, m) => acc + (b.modules[m]?.length ?? 0),
-                          0,
-                        );
+                        const n = INTERVIEW_MODULES.reduce((acc, m) => acc + (b.modules[m]?.length ?? 0), 0);
                         return (
                           <option key={b.id} value={b.id}>
                             {b.roleName} ({n} question{n === 1 ? '' : 's'})
@@ -2380,8 +2440,7 @@ export default function CandidateDetailPage() {
             )}
             {openForm === 'decision' && (
               <Button onClick={submitDecision} disabled={update.isPending}>
-                <Mail size={14} />{' '}
-                {decisionKind === 'accept' ? 'Select & send email' : 'Reject & send email'}
+                <Mail size={14} /> {decisionKind === 'accept' ? 'Select & send email' : 'Reject & send email'}
               </Button>
             )}
             {openForm === 'ivpack' && (

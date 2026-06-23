@@ -38,7 +38,6 @@ import { DocumentsPanel } from '@/components/DocumentsPanel';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AvatarUploader } from '@/components/AvatarUploader';
 import { EditEmployeeDialog } from '@/components/EditEmployeeDialog';
-import { CtcBreakdownCard } from '@/components/CtcBreakdownCard';
 
 const PROBATION_MONTHS = 6;
 
@@ -396,11 +395,6 @@ export default function EmployeeDetailPage() {
                   <KV k="Source" v={cid ? 'From accepted offer' : 'Set manually'} />
                 </div>
               </Card>
-
-              <CtcBreakdownCard
-                employee={employee}
-                onSave={breakdown => update.mutate({ ...employee, ctcBreakdown: breakdown })}
-              />
 
               <Card icon={<Landmark size={14} />} title="Bank details">
                 {bank?.accountNumber ? (
