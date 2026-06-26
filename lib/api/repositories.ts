@@ -4,6 +4,7 @@ import {
   AuthUser,
   BGVRequirement,
   Candidate,
+  CandidateHandoff,
   DocRequest,
   EmailTemplate,
   Employee,
@@ -39,4 +40,5 @@ export const repositories = {
   sentEmails: new ResourceRepository<SentEmailLog>(RESOURCES.sentEmails.slug),
   offboarding: new ResourceRepository<OffboardingWorkflow>(RESOURCES.offboarding.slug),
   exitHandovers: new ResourceRepository<ExitHandover>(RESOURCES.exitHandovers.slug),
+  candidateHandoffs: new ResourceRepository<CandidateHandoff>(RESOURCES.candidateHandoffs.slug),
 } as const;

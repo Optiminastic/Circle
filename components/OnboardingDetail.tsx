@@ -5,6 +5,7 @@ import { Briefcase, Clock4, Wallet, MapPin, MessageSquare, Phone, Star, Mail } f
 import { InterviewGrading, OnboardingChecklist } from '@/types';
 import { OnboardingStepper } from './OnboardingStepper';
 import { DocRequestPanel } from './DocRequestPanel';
+import { CandidateHandoffCard } from './CandidateHandoffCard';
 import { useToast } from './Toaster';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
@@ -187,11 +188,15 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
       </div>
 
       {/* Documents shared + verification checklist */}
-      <div className="lg:col-span-3">
+      <div className="lg:col-span-3 space-y-4">
         <DocRequestPanel
           candidateId={checklist.candidateId}
           candidateName={checklist.candidateName}
           email={email}
+        />
+        <CandidateHandoffCard
+          candidateId={checklist.candidateId}
+          candidateName={checklist.candidateName}
         />
       </div>
     </div>

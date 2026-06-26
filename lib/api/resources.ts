@@ -21,6 +21,7 @@ export const RESOURCES = {
   sentEmails: { slug: 'sent-emails', idField: 'id' },
   offboarding: { slug: 'offboarding', idField: 'employeeId' },
   exitHandovers: { slug: 'exit-handovers', idField: 'employeeId' },
+  candidateHandoffs: { slug: 'candidate-handoffs', idField: 'candidateId' },
 } as const;
 
 export type ResourceKey = keyof typeof RESOURCES;

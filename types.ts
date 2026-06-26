@@ -721,6 +721,18 @@ export interface ExitHandover {
   submissions?: { documentId: string; fileName: string; size: number; uploadedAt: string }[];
 }
 
+/**
+ * A candidate HR has marked "arrived in office", which lists them in the public
+ * candidate feed the external onboarding system fetches.
+ */
+export interface CandidateHandoff {
+  candidateId: string;
+  candidateName: string;
+  /** Set on the first mark — the candidate's in-office arrival. */
+  arrivedAt?: string;
+  updatedAt?: string;
+}
+
 export type OffboardingStatus =
   | 'Exit Initiated'
   | 'Notice Period Active'

@@ -26,8 +26,10 @@ import {
   ArrowRight,
   ArrowUpRight,
   Plus,
-  Clock,
-  ChevronRight,
+  CalendarClock,
+  Video,
+  MapPin,
+  User,
   MoreHorizontal,
 } from 'lucide-react';
 import { TagPill, StatusPill } from '@/components/ui/table';
@@ -45,11 +47,14 @@ interface DashboardViewProps {
 
 const PROBATION_MONTHS = 6;
 
-/** "13 Jun 2026" style short date. */
-const fmtDate = (d: Date) =>
-  Number.isNaN(d.getTime())
-    ? '—'
-    : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+/** "Tue, 30 Jun · 11:00 AM" style interview slot. */
+const fmtSlot = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const date = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${date} · ${time}`;
+};
 
 export function DashboardView({
   candidates,
@@ -157,9 +162,17 @@ export function DashboardView({
     },
   ];
 
-  const onboardingArrivals = candidates
-    .filter(c => c.status === 'Shortlisted' || c.status === 'Moved to HR Call')
-    .slice(0, 3);
+  // Candidates coming in for interviews — the next 6 scheduled interviews from
+  // now onward, soonest first. Derived from the live `interviews` query, so it
+  // refreshes automatically as new interviews are scheduled / rescheduled.
+  const now = Date.now();
+  const upcomingInterviews = interviews
+    .filter(iv => iv.status === 'Scheduled')
+    .map(iv => ({ iv, t: new Date(iv.dateTime).getTime() }))
+    .filter(x => !Number.isNaN(x.t) && x.t >= now)
+    .sort((a, b) => a.t - b.t)
+    .slice(0, 6)
+    .map(x => x.iv);
 
   return (
     <div className="relative space-y-6 select-none pb-10">
@@ -258,45 +271,44 @@ export function DashboardView({
         })}
       </div>
 
-      {/* Expected arrivals / onboarding */}
+      {/* Upcoming interviews — candidates coming in next, soonest first */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-mono text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Expected Arrivals ({onboardingArrivals.length})
+            Upcoming Interviews ({upcomingInterviews.length})
           </h4>
           <Link
-            href="/onboarding"
+            href="/calendar"
             className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-accent-600 hover:text-accent-700"
           >
-            Onboarding <ArrowRight size={10} />
+            Calendar <ArrowRight size={10} />
           </Link>
         </div>
 
-        {onboardingArrivals.length === 0 ? (
+        {upcomingInterviews.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#E4E6EA] bg-[#FFFFFF] py-10 text-center text-xs text-gray-500">
-            No candidates approaching their joining window.
+            No upcoming interviews scheduled.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {onboardingArrivals.map(oa => {
-              const applied = new Date(oa.appliedDate);
-              const join = new Date(Date.now() + oa.noticePeriodDays * 86_400_000);
+            {upcomingInterviews.map(iv => {
+              const online = iv.interviewRound === 'Online' || iv.interviewType === 'Online';
               return (
                 <button
-                  key={oa.id}
+                  key={iv.id}
                   type="button"
-                  onClick={() => onSelectCandidate(oa.id)}
+                  onClick={() => onSelectCandidate(iv.candidateId)}
                   className="group flex flex-col rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 text-left shadow-2xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-accent-300 hover:shadow-lg"
                 >
                   {/* Header: accent bar + name + tags + kebab */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 border-l-[3px] border-accent-500 pl-2.5">
                       <h5 className="truncate text-sm font-bold text-gray-900 group-hover:text-accent-700">
-                        {oa.fullName}
+                        {iv.candidateName}
                       </h5>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <TagPill color="purple">{oa.department}</TagPill>
-                        <TagPill color="gray">{oa.appliedRole}</TagPill>
+                        {iv.department && <TagPill color="purple">{iv.department}</TagPill>}
+                        {iv.appliedRole && <TagPill color="gray">{iv.appliedRole}</TagPill>}
                       </div>
                     </div>
                     <span className="grid size-6 shrink-0 place-items-center rounded-md text-gray-400 transition group-hover:bg-[#F1F3F5] group-hover:text-accent-600">
@@ -304,32 +316,23 @@ export function DashboardView({
                     </span>
                   </div>
 
-                  {/* Applied → expected join */}
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="flex-1">
-                      <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                        Applied
-                      </p>
-                      <p className="mt-0.5 text-xs font-semibold text-gray-800">{fmtDate(applied)}</p>
-                    </div>
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full border border-[#E4E6EA] text-gray-400">
-                      <ChevronRight size={13} />
-                    </span>
-                    <div className="flex-1">
-                      <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                        Earliest join
-                      </p>
-                      <p className="mt-0.5 text-xs font-semibold text-gray-800">{fmtDate(join)}</p>
-                    </div>
+                  {/* Interview slot */}
+                  <div className="mt-4 flex items-center gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2">
+                    <CalendarClock size={14} className="shrink-0 text-accent-600" />
+                    <span className="text-xs font-semibold text-gray-800">{fmtSlot(iv.dateTime)}</span>
                   </div>
 
-                  {/* Footer: meta + status */}
+                  {/* Footer: interviewer + mode */}
                   <div className="mt-4 flex items-center justify-between gap-2 border-t border-[#EDEEF1] pt-2.5 text-[11px] text-gray-500">
                     <span className="flex min-w-0 items-center gap-1">
-                      <Clock size={11} className="shrink-0" />
-                      <span className="truncate">Notice {oa.noticePeriodDays} days</span>
+                      <User size={11} className="shrink-0" />
+                      <span className="truncate">{iv.interviewerName || 'To be assigned'}</span>
                     </span>
-                    <StatusPill tone="amber" label={oa.status} icon={<Clock size={11} />} />
+                    <StatusPill
+                      tone={online ? 'blue' : 'amber'}
+                      label={online ? 'Online' : 'Onsite'}
+                      icon={online ? <Video size={11} /> : <MapPin size={11} />}
+                    />
                   </div>
                 </button>
               );
