@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, BrainCircuit } from 'lucide-react';
 import { IQ_QUESTIONS, type TestQuestion } from '@/data/test-banks';
 import { useToast } from '@/components/Toaster';
 import { QuestionCards } from '@/components/QuestionCards';
 import { Button } from '@/components/ui/button';
+import { useIqBank, useSaveIqBank } from '@/features/question-banks/hooks';
 
 const MAX_QUESTIONS = 50;
-const STORAGE_KEY = 'curcle:iq-questions';
 
 /** Deep-clone so edits never mutate the shared default bank. */
 const clone = (qs: TestQuestion[]): TestQuestion[] =>
@@ -18,35 +18,46 @@ const clone = (qs: TestQuestion[]): TestQuestion[] =>
 /**
  * Google Forms-style editor for the IQ question bank: every question is shown
  * as an editable card with its four options, the correct one highlighted in the
- * brand accent. Edits/additions/deletions persist locally (no backend bank API).
+ * brand accent. Edits persist to the backend (shared across devices, not
+ * localStorage).
  */
 export function IqQuestionEditor() {
   const toast = useToast();
+  const { data: bank, isSuccess } = useIqBank();
+  const save = useSaveIqBank();
   const [questions, setQuestions] = useState<TestQuestion[]>(() => clone(IQ_QUESTIONS));
   const [loaded, setLoaded] = useState(false);
+  const imported = useRef(false);
 
-  // Load saved edits on mount (client only) so changes survive a reload.
+  // Seed once from the backend. If the DB has no IQ bank yet, import any legacy
+  // localStorage copy (then drop it); otherwise fall back to the default bank.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as TestQuestion[];
-        if (Array.isArray(parsed) && parsed.length) setQuestions(parsed);
+    if (!isSuccess || loaded) return;
+    if (bank && Array.isArray(bank.questions) && bank.questions.length) {
+      setQuestions(bank.questions);
+    } else if (!imported.current) {
+      imported.current = true;
+      try {
+        const raw = localStorage.getItem('curcle:iq-questions');
+        const legacy = raw ? (JSON.parse(raw) as TestQuestion[]) : null;
+        if (Array.isArray(legacy) && legacy.length) {
+          setQuestions(legacy);
+          save.mutate(legacy); // seed the DB from the old local copy
+        }
+        localStorage.removeItem('curcle:iq-questions');
+      } catch {
+        /* ignore malformed legacy data */
       }
-    } catch {
-      /* ignore malformed storage */
     }
     setLoaded(true);
-  }, []);
+  }, [isSuccess, bank, loaded, save]);
 
-  // Auto-persist after the initial load.
+  // Debounced autosave to the backend after the initial load.
   useEffect(() => {
     if (!loaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(questions));
-    } catch {
-      /* ignore quota errors */
-    }
+    const t = setTimeout(() => save.mutate(questions), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, loaded]);
 
   const setQuestionText = (id: string, q: string) =>

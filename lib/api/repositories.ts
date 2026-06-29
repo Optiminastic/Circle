@@ -18,6 +18,12 @@ import {
   SentEmailLog,
   TestInvite,
 } from '@/types';
+import type {
+  RoleQuestionBank,
+  InterviewBank,
+  ScreeningBank,
+  IqBank,
+} from '@/lib/question-banks';
 import { RESOURCES } from './resources';
 import { ResourceRepository } from './resource-repository';
 
@@ -41,4 +47,8 @@ export const repositories = {
   offboarding: new ResourceRepository<OffboardingWorkflow>(RESOURCES.offboarding.slug),
   exitHandovers: new ResourceRepository<ExitHandover>(RESOURCES.exitHandovers.slug),
   candidateHandoffs: new ResourceRepository<CandidateHandoff>(RESOURCES.candidateHandoffs.slug),
+  assessmentBanks: new ResourceRepository<RoleQuestionBank>(RESOURCES.assessmentBanks.slug),
+  interviewBanks: new ResourceRepository<InterviewBank>(RESOURCES.interviewBanks.slug),
+  screeningBanks: new ResourceRepository<ScreeningBank>(RESOURCES.screeningBanks.slug),
+  iqBank: new ResourceRepository<IqBank>(RESOURCES.iqBank.slug),
 } as const;

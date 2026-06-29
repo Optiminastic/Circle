@@ -1,16 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, ChevronRight, Briefcase, ShieldCheck, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/Toaster';
 import { findCategory } from '@/lib/question-library';
-import {
-  loadScreeningBanks,
-  saveScreeningBanks,
-  type ScreeningBank,
-} from '@/lib/question-banks';
+import { useScreeningBanks, useScreeningBankMutations } from '@/features/question-banks/hooks';
+import { type ScreeningBank } from '@/lib/question-banks';
 import {
   Dialog,
   DialogContent,
@@ -36,13 +33,26 @@ export function ScreeningBanksView() {
   const toast = useToast();
   const meta = findCategory(SLUG);
 
-  const [banks, setBanks] = useState<ScreeningBank[]>([]);
+  // Screening sets live in the backend now (shared across devices), not localStorage.
+  const { data: banks = [], isSuccess } = useScreeningBanks();
+  const { create, remove } = useScreeningBankMutations();
   const [open, setOpen] = useState(false);
   const [roleName, setRoleName] = useState('');
 
+  // One-time import of any sets left in the old per-browser localStorage.
+  const imported = useRef(false);
   useEffect(() => {
-    setBanks(loadScreeningBanks());
-  }, []);
+    if (imported.current || !isSuccess || banks.length > 0) return;
+    imported.current = true;
+    try {
+      const raw = localStorage.getItem('curcle:screening-banks');
+      const legacy = raw ? (JSON.parse(raw) as ScreeningBank[]) : [];
+      if (Array.isArray(legacy)) legacy.forEach(b => create.mutate(b));
+      localStorage.removeItem('curcle:screening-banks');
+    } catch {
+      /* ignore malformed legacy data */
+    }
+  }, [isSuccess, banks.length, create]);
 
   const createBank = () => {
     const name = roleName.trim();
@@ -60,9 +70,7 @@ export function ScreeningBanksView() {
       mustHave: [],
       goodToHave: [],
     };
-    const next = [...banks, bank];
-    setBanks(next);
-    saveScreeningBanks(next);
+    create.mutate(bank);
     setOpen(false);
     setRoleName('');
     toast.success(`Created screening questions for ${name}.`);
@@ -75,9 +83,7 @@ export function ScreeningBanksView() {
       description: `This removes all Must-have & Good-to-have questions for this role. This cannot be undone.`,
       confirmLabel: 'Delete',
       onConfirm: () => {
-        const next = banks.filter(b => b.id !== bank.id);
-        setBanks(next);
-        saveScreeningBanks(next);
+        remove.mutate(bank.id);
         toast.success('Screening set deleted.');
       },
     });

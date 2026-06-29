@@ -21,4 +21,17 @@ export const qk = {
   emailTemplates: { all: ['email-templates'] as const },
   sentEmails: { all: ['sent-emails'] as const },
   offboarding: { all: ['offboarding'] as const },
+  assessmentBanks: {
+    all: ['assessment-banks'] as const,
+    detail: (id: string) => ['assessment-banks', id] as const,
+  },
+  interviewBanks: {
+    all: ['interview-banks'] as const,
+    detail: (id: string) => ['interview-banks', id] as const,
+  },
+  screeningBanks: {
+    all: ['screening-banks'] as const,
+    detail: (id: string) => ['screening-banks', id] as const,
+  },
+  iqBank: { all: ['iq-bank'] as const },
 } as const;

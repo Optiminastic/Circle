@@ -56,6 +56,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       [qk.emailTemplates.all, () => repositories.emailTemplates.list()],
       [qk.sentEmails.all, () => repositories.sentEmails.list()],
       [qk.offboarding.all, () => repositories.offboarding.list()],
+      [qk.assessmentBanks.all, () => repositories.assessmentBanks.list()],
+      [qk.interviewBanks.all, () => repositories.interviewBanks.list()],
+      [qk.screeningBanks.all, () => repositories.screeningBanks.list()],
+      [qk.iqBank.all, () => repositories.iqBank.list()],
     ];
     for (const [queryKey, queryFn] of targets) {
       qc.prefetchQuery({ queryKey, queryFn, staleTime: 30_000 });

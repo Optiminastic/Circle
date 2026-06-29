@@ -3,8 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Select } from './Select';
-import { loadScreeningBanks, type ScreeningBank } from '@/lib/question-banks';
-import { bankToQuestions, syncScreeningLibrary } from '@/lib/screening-bridge';
+import { bankToQuestions, computeSyncedScreeningBank } from '@/lib/screening-bridge';
+import {
+  useScreeningBanks,
+  useScreeningBankMutations,
+} from '@/features/question-banks/hooks';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -165,16 +168,15 @@ export function JobListView({
     setShowAddForm(true);
   };
   const [search, setSearch] = useState('');
-  // Reusable Must-have/Good-to-have sets from the Question Library.
-  const [screeningBanks, setScreeningBanks] = useState<ScreeningBank[]>([]);
+  // Reusable Must-have/Good-to-have sets from the Question Library (DB-backed).
+  const { data: screeningBanks = [] } = useScreeningBanks();
+  const { create: createScreeningBank, update: updateScreeningBank } =
+    useScreeningBankMutations();
   const [screeningSetId, setScreeningSetId] = useState('');
 
-  // Refresh the available screening sets each time the create form opens.
+  // Reset the chosen set each time the create form opens.
   useEffect(() => {
-    if (showAddForm) {
-      setScreeningBanks(loadScreeningBanks());
-      setScreeningSetId('');
-    }
+    if (showAddForm) setScreeningSetId('');
   }, [showAddForm]);
 
   // Apply a saved set: replace the form's screening questions with its questions.
@@ -259,8 +261,15 @@ export function JobListView({
         postedDate: new Date().toISOString().split('T')[0],
       });
       // Only on create: mirror the manually-added screening questions into this
-      // role's Must-have / Good-to-have library set so they can be reused/edited.
-      syncScreeningLibrary(fields.title, fields.screeningQuestions);
+      // role's Must-have / Good-to-have library set (DB) so they can be reused.
+      const synced = computeSyncedScreeningBank(
+        screeningBanks,
+        fields.title,
+        fields.screeningQuestions,
+      );
+      if (synced) {
+        (synced.isNew ? createScreeningBank : updateScreeningBank).mutate(synced.bank);
+      }
       toast.success(`"${fields.title}" published — copy its public link from the card.`);
     }
     setShowAddForm(false);

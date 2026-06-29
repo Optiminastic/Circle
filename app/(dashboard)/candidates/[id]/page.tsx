@@ -74,7 +74,8 @@ import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
 import { useToast } from '@/components/Toaster';
 import { openDocument, useDocuments } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
-import { loadInterviewBanks, INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
+import { INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
+import { useInterviewBanks } from '@/features/question-banks/hooks';
 import { encodeInterviewSheet } from '@/lib/interview-sheet';
 import { PageLoading } from '@/components/PageLoading';
 import { Tip } from '@/components/ui/tooltip';
@@ -162,6 +163,7 @@ export default function CandidateDetailPage() {
   const { data: schedules = [] } = useSchedules();
   const { data: interviews = [] } = useInterviews();
   const { data: iqTests = [] } = useIqTests();
+  const { data: interviewBanks = [] } = useInterviewBanks();
   const { data: invites = [] } = useQuery({
     queryKey: qk.testInvites.all,
     queryFn: () => repositories.testInvites.list(),
@@ -1129,7 +1131,7 @@ export default function CandidateDetailPage() {
   // ---- Physical Interview: send the resume + question pack to the interviewer ----
   const openIvPack = () => {
     const position = candidate.appliedRole || candidate.department || 'the role';
-    const banks = loadInterviewBanks();
+    const banks = interviewBanks;
     setIvpackBanks(banks);
     const match = banks.find(b => b.roleName.trim().toLowerCase() === position.trim().toLowerCase());
     setIvpackBankId(match?.id ?? '');

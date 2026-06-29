@@ -1,18 +1,15 @@
 /**
- * Bridge between the Screening Question Library (per-role Must-have /
- * Good-to-have sets, stored in localStorage) and a job posting's
- * `screeningQuestions`.
+ * Pure transforms bridging the Screening Question Library (per-role Must-have /
+ * Good-to-have sets, stored in the backend) and a job posting's
+ * `screeningQuestions`. No persistence lives here — callers read/write banks via
+ * the question-bank hooks and pass the data in.
  *
- * - On job creation, manually-added screening questions are mirrored into the
- *   role's library set (`syncScreeningLibrary`).
- * - When applicants view a posting, the role's library set is the source of
- *   truth so later edits/additions in the library reflect on the apply page
- *   (`screeningQuestionsForRole`), falling back to the job's own snapshot when
- *   no library set exists for the role.
+ * On job creation, manual screening questions are mirrored into the role's
+ * library set via `computeSyncedScreeningBank` (the caller upserts the result).
+ * The public apply page reads the job's own `screeningQuestions` snapshot, so it
+ * never has to fetch the library from the browser.
  */
 import {
-  loadScreeningBanks,
-  saveScreeningBanks,
   normalizeScreeningItem,
   SCREENING_MAX,
   type ScreeningBank,
@@ -62,24 +59,21 @@ const questionToItem = (q: ScreeningQuestion): ScreeningItem =>
 const findIndexForRole = (banks: ScreeningBank[], roleName: string) =>
   banks.findIndex(b => b.roleName.trim().toLowerCase() === roleName.trim().toLowerCase());
 
-/** The saved screening set for a role, if one exists (case-insensitive match). */
-export const findScreeningBankForRole = (roleName: string): ScreeningBank | undefined => {
-  const banks = loadScreeningBanks();
-  const idx = findIndexForRole(banks, roleName);
-  return idx >= 0 ? banks[idx] : undefined;
-};
-
 /**
- * Mirror a job's manually-added screening questions into the role's Must-have /
- * Good-to-have library set so HR can reuse and edit them later. An existing set
- * for the role is merged (deduped by question text); each bucket keeps the cap.
+ * Compute the role's screening set after mirroring a job's manual screening
+ * questions into it (deduped by text, capped per bucket). Returns the bank to
+ * upsert plus whether it's new, or `null` when there's nothing manual to mirror.
+ * Pure — the caller persists the result via the screening-bank mutations.
  */
-export const syncScreeningLibrary = (roleName: string, questions: ScreeningQuestion[]) => {
+export function computeSyncedScreeningBank(
+  banks: ScreeningBank[],
+  roleName: string,
+  questions: ScreeningQuestion[],
+): { bank: ScreeningBank; isNew: boolean } | null {
   const must = questions.filter(q => q.importance === 'Must Have' && q.text.trim());
   const good = questions.filter(q => q.importance === 'Good to Have' && q.text.trim());
-  if (!must.length && !good.length) return; // nothing manual to mirror
+  if (!must.length && !good.length) return null; // nothing manual to mirror
 
-  const banks = loadScreeningBanks();
   const idx = findIndexForRole(banks, roleName);
   const base: ScreeningBank =
     idx >= 0
@@ -98,26 +92,10 @@ export const syncScreeningLibrary = (roleName: string, questions: ScreeningQuest
     return [...existing, ...additions].slice(0, SCREENING_MAX);
   };
 
-  const updated: ScreeningBank = {
+  const bank: ScreeningBank = {
     ...base,
     mustHave: merge(base.mustHave, must),
     goodToHave: merge(base.goodToHave, good),
   };
-  const next = idx >= 0 ? banks.map((b, i) => (i === idx ? updated : b)) : [...banks, updated];
-  saveScreeningBanks(next);
-};
-
-/**
- * Effective screening questions for a posting: the role's library set (so
- * library edits/additions reflect on the apply page) or the job's own snapshot
- * when no library set exists for that role.
- */
-export function screeningQuestionsForRole(
-  roleName: string,
-  fallback: ScreeningQuestion[] = [],
-): ScreeningQuestion[] {
-  const bank = findScreeningBankForRole(roleName);
-  if (!bank) return fallback;
-  const qs = bankToQuestions(bank);
-  return qs.length ? qs : fallback;
+  return { bank, isNew: idx < 0 };
 }

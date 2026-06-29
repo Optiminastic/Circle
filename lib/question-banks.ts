@@ -18,28 +18,11 @@ export interface RoleQuestionBank {
   questions: TestQuestion[];
 }
 
-const STORAGE_KEY: Record<BankCategory, string> = {
-  assessment: 'curcle:assessment-banks',
-  interview: 'curcle:interview-banks',
-};
-
-export function loadBanks(category: BankCategory): RoleQuestionBank[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY[category]);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as RoleQuestionBank[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveBanks(category: BankCategory, banks: RoleQuestionBank[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY[category], JSON.stringify(banks));
-  } catch {
-    /* ignore quota / serialization errors */
-  }
+/** The single, shared IQ bank — one backend record (id = IQ_BANK_ID). */
+export const IQ_BANK_ID = 'default';
+export interface IqBank {
+  id: string; // always IQ_BANK_ID
+  questions: TestQuestion[];
 }
 
 /** A blank MCQ question (4 empty options, first marked correct). */
@@ -77,27 +60,6 @@ export interface ScreeningBank {
   goodToHave: ScreeningItem[];
 }
 
-const SCREENING_KEY = 'curcle:screening-banks';
-
-export function loadScreeningBanks(): ScreeningBank[] {
-  try {
-    const raw = localStorage.getItem(SCREENING_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ScreeningBank[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveScreeningBanks(banks: ScreeningBank[]): void {
-  try {
-    localStorage.setItem(SCREENING_KEY, JSON.stringify(banks));
-  } catch {
-    /* ignore quota / serialization errors */
-  }
-}
-
 export const blankScreeningItem = (id: string): ScreeningItem => ({
   id,
   text: '',
@@ -130,8 +92,6 @@ export interface InterviewBank {
   modules: Record<InterviewModule, InterviewItem[]>;
 }
 
-const INTERVIEW_KEY = 'curcle:interview-modules';
-
 export function emptyInterviewModules(): Record<InterviewModule, InterviewItem[]> {
   return {
     'Problem Solving': [],
@@ -140,30 +100,6 @@ export function emptyInterviewModules(): Record<InterviewModule, InterviewItem[]
     Cultural: [],
     Interpersonal: [],
   };
-}
-
-export function loadInterviewBanks(): InterviewBank[] {
-  try {
-    const raw = localStorage.getItem(INTERVIEW_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((b: Partial<InterviewBank> & { jobTitle?: string }) => ({
-      id: String(b.id),
-      roleName: b.roleName ?? b.jobTitle ?? '',
-      modules: { ...emptyInterviewModules(), ...(b.modules ?? {}) },
-    }));
-  } catch {
-    return [];
-  }
-}
-
-export function saveInterviewBanks(banks: InterviewBank[]): void {
-  try {
-    localStorage.setItem(INTERVIEW_KEY, JSON.stringify(banks));
-  } catch {
-    /* ignore quota / serialization errors */
-  }
 }
 
 export const blankInterviewItem = (id: string): InterviewItem => ({ id, text: '' });

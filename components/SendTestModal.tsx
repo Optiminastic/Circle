@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from './Select';
 import { BRAND } from '@/lib/brand';
 import { Candidate, AssessmentQuestion } from '@/types';
-import { loadBanks, type RoleQuestionBank } from '@/lib/question-banks';
+import { useAssessmentBanks } from '@/features/question-banks/hooks';
 import { useHrIdentity } from '@/features/employees/hooks';
 
 export interface SendTestResult {
@@ -52,16 +52,16 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
   const [to, setTo] = useState(candidate.email || '');
   const [subject, setSubject] = useState(`Your ${what} for ${position} — ${BRAND.company}`);
 
-  // Assessment question sets from the Question Library — auto-select by role.
-  const [assessmentBanks, setAssessmentBanks] = useState<RoleQuestionBank[]>([]);
+  // Assessment question sets from the Question Library (DB) — auto-select by role.
+  const { data: assessmentBanks = [] } = useAssessmentBanks();
   const [bankId, setBankId] = useState('');
   useEffect(() => {
     if (isIq) return;
-    const banks = loadBanks('assessment');
-    setAssessmentBanks(banks);
-    const match = banks.find(b => b.jobTitle.trim().toLowerCase() === position.trim().toLowerCase());
+    const match = assessmentBanks.find(
+      b => b.jobTitle.trim().toLowerCase() === position.trim().toLowerCase(),
+    );
     if (match) setBankId(match.id);
-  }, [isIq, position]);
+  }, [isIq, position, assessmentBanks]);
 
   const selectedBank = assessmentBanks.find(b => b.id === bankId);
   const selectedQuestions: AssessmentQuestion[] = selectedBank

@@ -6,9 +6,8 @@ import { ArrowLeft, Plus, Trash2, X, ChevronDown, ShieldCheck, FileUp, Loader2 }
 import { useToast } from '@/components/Toaster';
 import { Button } from '@/components/ui/button';
 import { parseScreeningPdf } from '@/lib/import-questions-pdf';
+import { useScreeningBanks, useScreeningBankMutations } from '@/features/question-banks/hooks';
 import {
-  loadScreeningBanks,
-  saveScreeningBanks,
   blankScreeningItem,
   normalizeScreeningItem,
   SCREENING_MAX,
@@ -36,21 +35,31 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
   const [openMust, setOpenMust] = useState(true);
   const [openGood, setOpenGood] = useState(true);
 
-  useEffect(() => {
-    const normalized = loadScreeningBanks().map(b => ({
-      ...b,
-      mustHave: b.mustHave.map(normalizeScreeningItem),
-      goodToHave: b.goodToHave.map(normalizeScreeningItem),
-    }));
-    setBanks(normalized);
-    setLoaded(true);
-  }, []);
+  const { data: serverBanks = [], isSuccess } = useScreeningBanks();
+  const { update } = useScreeningBankMutations();
 
+  // Seed the local editing copy once from the backend (DB-backed, not localStorage).
   useEffect(() => {
-    if (loaded) saveScreeningBanks(banks);
-  }, [banks, loaded]);
+    if (!isSuccess || loaded) return;
+    setBanks(
+      serverBanks.map(b => ({
+        ...b,
+        mustHave: (b.mustHave ?? []).map(normalizeScreeningItem),
+        goodToHave: (b.goodToHave ?? []).map(normalizeScreeningItem),
+      })),
+    );
+    setLoaded(true);
+  }, [isSuccess, serverBanks, loaded]);
 
   const bank = banks.find(b => b.id === bankId);
+
+  // Debounced autosave of the edited set to the backend.
+  useEffect(() => {
+    if (!loaded || !bank) return;
+    const t = setTimeout(() => update.mutate(bank), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bank, loaded]);
 
   const patch = (bucket: Bucket, fn: (items: ScreeningItem[]) => ScreeningItem[]) =>
     setBanks(prev => prev.map(b => (b.id === bankId ? { ...b, [bucket]: fn(b[bucket]) } : b)));

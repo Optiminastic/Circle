@@ -10,13 +10,8 @@ import { QuestionCards } from '@/components/QuestionCards';
 import { Button } from '@/components/ui/button';
 import { findCategory } from '@/lib/question-library';
 import { parseAssessmentPdf } from '@/lib/import-questions-pdf';
-import {
-  loadBanks,
-  saveBanks,
-  blankQuestion,
-  type BankCategory,
-  type RoleQuestionBank,
-} from '@/lib/question-banks';
+import { useAssessmentBanks, useAssessmentBankMutations } from '@/features/question-banks/hooks';
+import { blankQuestion, type BankCategory, type RoleQuestionBank } from '@/lib/question-banks';
 
 interface RoleQuestionEditorProps {
   category: BankCategory;
@@ -35,22 +30,31 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
   const meta = findCategory(slug);
   const Icon = meta?.Icon;
 
+  const { data: serverBanks = [], isSuccess } = useAssessmentBanks();
+  const { update, remove } = useAssessmentBankMutations();
   const [banks, setBanks] = useState<RoleQuestionBank[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Seed the local editing copy once from the backend (banks are stored in the
+  // DB now, shared across devices — never localStorage).
   useEffect(() => {
-    setBanks(loadBanks(category));
-    setLoaded(true);
-  }, [category]);
-
-  // Persist after the initial load.
-  useEffect(() => {
-    if (loaded) saveBanks(category, banks);
-  }, [banks, loaded, category]);
+    if (isSuccess && !loaded) {
+      setBanks(serverBanks);
+      setLoaded(true);
+    }
+  }, [isSuccess, serverBanks, loaded]);
 
   const bank = banks.find(b => b.id === bankId);
+
+  // Debounced autosave of the edited bank to the backend.
+  useEffect(() => {
+    if (!loaded || !bank) return;
+    const t = setTimeout(() => update.mutate(bank), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bank, loaded]);
 
   const patchQuestions = (fn: (qs: TestQuestion[]) => TestQuestion[]) =>
     setBanks(prev => prev.map(b => (b.id === bankId ? { ...b, questions: fn(b.questions) } : b)));
@@ -161,10 +165,7 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
       description: `This removes all ${bank.questions.length} ${category} question(s) for this role. This cannot be undone.`,
       confirmLabel: 'Delete',
       onConfirm: () => {
-        saveBanks(
-          category,
-          banks.filter(b => b.id !== bankId),
-        );
+        remove.mutate(bankId);
         toast.success('Question bank deleted.');
         router.push(`/question-library/${slug}`);
       },

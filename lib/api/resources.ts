@@ -22,6 +22,11 @@ export const RESOURCES = {
   offboarding: { slug: 'offboarding', idField: 'employeeId' },
   exitHandovers: { slug: 'exit-handovers', idField: 'employeeId' },
   candidateHandoffs: { slug: 'candidate-handoffs', idField: 'candidateId' },
+  // Question Library banks (shared across devices via the backend, not localStorage).
+  assessmentBanks: { slug: 'assessment-banks', idField: 'id' },
+  interviewBanks: { slug: 'interview-banks', idField: 'id' },
+  screeningBanks: { slug: 'screening-banks', idField: 'id' },
+  iqBank: { slug: 'iq-bank', idField: 'id' },
 } as const;
 
 export type ResourceKey = keyof typeof RESOURCES;

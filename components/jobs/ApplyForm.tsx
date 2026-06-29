@@ -8,7 +8,6 @@ import {
   verifyOtpAction,
   checkAppliedAction,
 } from '@/lib/actions/public';
-import { screeningQuestionsForRole } from '@/lib/screening-bridge';
 import { useToast } from '@/components/Toaster';
 import { Tip } from '@/components/ui/tooltip';
 import { CheckCircle2, Loader2, UploadCloud, FileText, X } from 'lucide-react';
@@ -88,15 +87,11 @@ const expectedCtcOptions = (min: string, max: string): string[] => {
 export function ApplyForm({ job }: { job: Job }) {
   const toast = useToast();
 
-  // The role's live screening set from the Question Library is the source of
-  // truth, so HR's later edits/additions there reflect on this apply form.
-  // Resolved client-side after mount (the library lives in localStorage) to
-  // avoid a hydration mismatch; it starts from — and falls back to — the job's
-  // own server-rendered snapshot when no library set exists for the role.
-  const [screeningQuestions, setScreeningQuestions] = useState(job.screeningQuestions ?? []);
-  useEffect(() => {
-    setScreeningQuestions(screeningQuestionsForRole(job.title, job.screeningQuestions ?? []));
-  }, [job]);
+  // Screening questions come from the job's own server-persisted snapshot. HR's
+  // Question Library set is mirrored onto the job when it's created/edited, so
+  // this stays correct across devices without the public page ever fetching the
+  // library from the browser.
+  const screeningQuestions = job.screeningQuestions ?? [];
 
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY);

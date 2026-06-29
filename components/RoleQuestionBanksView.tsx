@@ -1,18 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, ChevronRight, Briefcase, Trash2 } from 'lucide-react';
 import { useJobs } from '@/features/jobs/hooks';
+import { useAssessmentBanks, useAssessmentBankMutations } from '@/features/question-banks/hooks';
 import { useToast } from '@/components/Toaster';
 import { findCategory } from '@/lib/question-library';
-import {
-  loadBanks,
-  saveBanks,
-  type BankCategory,
-  type RoleQuestionBank,
-} from '@/lib/question-banks';
+import { type BankCategory, type RoleQuestionBank } from '@/lib/question-banks';
 import {
   Dialog,
   DialogContent,
@@ -53,13 +49,28 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
   const meta = findCategory(slug);
   const { data: jobs = [] } = useJobs();
 
-  const [banks, setBanks] = useState<RoleQuestionBank[]>([]);
+  // Assessment banks now live in the backend (shared across devices), not
+  // localStorage. (This view is only mounted for the assessment category.)
+  const { data: banks = [], isSuccess } = useAssessmentBanks();
+  const { create, remove } = useAssessmentBankMutations();
   const [open, setOpen] = useState(false);
   const [jobId, setJobId] = useState('');
 
+  // One-time import of any banks left in the old per-browser localStorage, then
+  // drop the legacy key so nothing is read/written locally afterwards.
+  const imported = useRef(false);
   useEffect(() => {
-    setBanks(loadBanks(category));
-  }, [category]);
+    if (imported.current || !isSuccess || banks.length > 0) return;
+    imported.current = true;
+    try {
+      const raw = localStorage.getItem('curcle:assessment-banks');
+      const legacy = raw ? (JSON.parse(raw) as RoleQuestionBank[]) : [];
+      if (Array.isArray(legacy)) legacy.forEach(b => create.mutate(b));
+      localStorage.removeItem('curcle:assessment-banks');
+    } catch {
+      /* ignore malformed legacy data */
+    }
+  }, [isSuccess, banks.length, create]);
 
   // Roles that don't yet have a bank in this category (no duplicates).
   const availableJobs = jobs.filter(j => !banks.some(b => b.jobId === j.id));
@@ -79,9 +90,7 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
       maxQuestions: DEFAULT_MAX,
       questions: [],
     };
-    const next = [...banks, bank];
-    setBanks(next);
-    saveBanks(category, next);
+    create.mutate(bank);
     setOpen(false);
     setJobId('');
     toast.success(`Created a question bank for ${job.title}.`);
@@ -95,9 +104,7 @@ export function RoleQuestionBanksView({ category, slug }: RoleQuestionBanksViewP
       description: `This removes all ${bank.questions.length} ${category} question(s) for this role. This cannot be undone.`,
       confirmLabel: 'Delete',
       onConfirm: () => {
-        const next = banks.filter(b => b.id !== bank.id);
-        setBanks(next);
-        saveBanks(category, next);
+        remove.mutate(bank.id);
         toast.success('Question bank deleted.');
       },
     });

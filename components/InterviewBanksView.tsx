@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, ChevronRight, Briefcase, CalendarDays, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/Toaster';
 import { findCategory } from '@/lib/question-library';
+import { useInterviewBanks, useInterviewBankMutations } from '@/features/question-banks/hooks';
 import {
-  loadInterviewBanks,
-  saveInterviewBanks,
   emptyInterviewModules,
   INTERVIEW_MODULES,
   type InterviewBank,
@@ -40,13 +39,34 @@ export function InterviewBanksView() {
   const toast = useToast();
   const meta = findCategory(SLUG);
 
-  const [banks, setBanks] = useState<InterviewBank[]>([]);
+  // Interview sets live in the backend now (shared across devices), not localStorage.
+  const { data: banks = [], isSuccess } = useInterviewBanks();
+  const { create, remove } = useInterviewBankMutations();
   const [open, setOpen] = useState(false);
   const [roleName, setRoleName] = useState('');
 
+  // One-time import of any sets left in the old per-browser localStorage.
+  const imported = useRef(false);
   useEffect(() => {
-    setBanks(loadInterviewBanks());
-  }, []);
+    if (imported.current || !isSuccess || banks.length > 0) return;
+    imported.current = true;
+    try {
+      const raw = localStorage.getItem('curcle:interview-modules');
+      const legacy = raw ? (JSON.parse(raw) as Partial<InterviewBank>[]) : [];
+      if (Array.isArray(legacy)) {
+        legacy.forEach(b =>
+          create.mutate({
+            id: String(b.id ?? `IVB-${Date.now()}`),
+            roleName: b.roleName ?? '',
+            modules: { ...emptyInterviewModules(), ...(b.modules ?? {}) },
+          }),
+        );
+      }
+      localStorage.removeItem('curcle:interview-modules');
+    } catch {
+      /* ignore malformed legacy data */
+    }
+  }, [isSuccess, banks.length, create]);
 
   const createBank = () => {
     const name = roleName.trim();
@@ -63,9 +83,7 @@ export function InterviewBanksView() {
       roleName: name,
       modules: emptyInterviewModules(),
     };
-    const next = [...banks, bank];
-    setBanks(next);
-    saveInterviewBanks(next);
+    create.mutate(bank);
     setOpen(false);
     setRoleName('');
     toast.success(`Created interview questions for ${name}.`);
@@ -78,9 +96,7 @@ export function InterviewBanksView() {
       description: 'This removes all module questions for this role. This cannot be undone.',
       confirmLabel: 'Delete',
       onConfirm: () => {
-        const next = banks.filter(b => b.id !== bank.id);
-        setBanks(next);
-        saveInterviewBanks(next);
+        remove.mutate(bank.id);
         toast.success('Interview set deleted.');
       },
     });

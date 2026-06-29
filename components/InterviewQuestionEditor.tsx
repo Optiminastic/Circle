@@ -7,8 +7,6 @@ import { useToast } from '@/components/Toaster';
 import { Button } from '@/components/ui/button';
 import { parseInterviewPdf } from '@/lib/import-questions-pdf';
 import {
-  loadInterviewBanks,
-  saveInterviewBanks,
   blankInterviewItem,
   emptyInterviewModules,
   INTERVIEW_MODULES,
@@ -16,6 +14,7 @@ import {
   type InterviewModule,
   type InterviewItem,
 } from '@/lib/question-banks';
+import { useInterviewBanks, useInterviewBankMutations } from '@/features/question-banks/hooks';
 
 const SLUG = 'interview-questions';
 
@@ -47,16 +46,31 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
     Object.fromEntries(INTERVIEW_MODULES.map(m => [m, true])),
   );
 
-  useEffect(() => {
-    setBanks(loadInterviewBanks());
-    setLoaded(true);
-  }, []);
+  const { data: serverBanks = [], isSuccess } = useInterviewBanks();
+  const { update } = useInterviewBankMutations();
 
+  // Seed the local editing copy once from the backend (DB-backed, not localStorage).
   useEffect(() => {
-    if (loaded) saveInterviewBanks(banks);
-  }, [banks, loaded]);
+    if (!isSuccess || loaded) return;
+    setBanks(
+      serverBanks.map(b => ({
+        id: String(b.id),
+        roleName: b.roleName ?? '',
+        modules: { ...emptyInterviewModules(), ...(b.modules ?? {}) },
+      })),
+    );
+    setLoaded(true);
+  }, [isSuccess, serverBanks, loaded]);
 
   const bank = banks.find(b => b.id === bankId);
+
+  // Debounced autosave of the edited set to the backend.
+  useEffect(() => {
+    if (!loaded || !bank) return;
+    const t = setTimeout(() => update.mutate(bank), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bank, loaded]);
 
   const patch = (module: InterviewModule, fn: (items: InterviewItem[]) => InterviewItem[]) =>
     setBanks(prev =>
