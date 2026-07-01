@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
-import { http } from '@/lib/http/client';
 import {
   decodeInterviewSheet,
   loadInterviewSheet,
+  submitInterviewFeedback,
   type InterviewSheetPayload,
 } from '@/lib/interview-sheet';
 import type { InterviewQuestionResponse } from '@/types';
@@ -51,6 +51,7 @@ function fmtWhen(iso?: string): string {
 
 export default function InterviewSheetPage() {
   const [data, setData] = useState<InterviewSheetPayload | null>(null);
+  const [sheetId, setSheetId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   // Per-question recorded answers (keyed by question index).
   const [responses, setResponses] = useState<Record<number, { selected?: string; note?: string }>>(
@@ -95,12 +96,13 @@ export default function InterviewSheetPage() {
       recommendation,
       gradedAt: new Date().toISOString(),
     };
+    if (!sheetId) {
+      setSubmitError('This interview link is outdated. Please use the latest link from your invitation email.');
+      setSubmitting(false);
+      return;
+    }
     try {
-      await http.patch(`/interviews/${data.interviewId}`, {
-        questionResponses,
-        grading,
-        status: 'Completed',
-      });
+      await submitInterviewFeedback(sheetId, { questionResponses, grading });
       setSubmitted(true);
     } catch {
       setSubmitError('Could not submit your responses. Please try again.');
@@ -116,6 +118,7 @@ export default function InterviewSheetPage() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     if (id) {
+      setSheetId(id);
       loadInterviewSheet(id)
         .then(setData)
         .finally(() => setReady(true));

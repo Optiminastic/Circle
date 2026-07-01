@@ -2,38 +2,15 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AuthUser } from '@/types';
-import { repositories } from '@/lib/api/repositories';
-import { ApiError } from '@/lib/http/client';
-import { BRAND } from '@/lib/brand';
+import { http, ApiError } from '@/lib/http/client';
 
 /**
- * Access control for the HR dashboard. Accounts live in the backend `auth-users`
- * resource so password changes persist and apply across devices. Public job pages
- * (/jobs/[id]) are intentionally NOT gated.
- *
- * NOTE: the backend has no real auth layer yet, so passwords are stored as plain
- * data. This is a pragmatic gate for an internal/demo tool — for production, move
- * verification server-side and hash passwords.
+ * Access control for the HR dashboard. Authentication is enforced SERVER-SIDE:
+ * `POST /api/auth/login` verifies a hashed password and sets an httpOnly session
+ * cookie (the browser can neither read nor forge it). The session is restored via
+ * `GET /api/auth/me`. No password ever reaches the browser, and there is no
+ * client-stored session to tamper with. Public job pages are not gated.
  */
-const STORAGE_KEY = 'curcle.auth.session';
-
-/** Seed accounts created on first run if the resource is empty. */
-const SEED_USERS: AuthUser[] = [
-  {
-    id: 'akshae@optiminastic.com',
-    email: 'akshae@optiminastic.com',
-    password: 'Admin@2026',
-    role: 'admin',
-    name: 'Akshae',
-  },
-  {
-    id: 'hr@optiminastic.com',
-    email: 'hr@optiminastic.com',
-    password: 'opti@100',
-    role: 'hr',
-    name: 'HR Team',
-  },
-];
 
 export interface SessionUser {
   email: string;
@@ -52,135 +29,79 @@ interface AuthState {
   changeEmail: (currentEmail: string, newEmail: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
 const AuthContext = createContext<AuthState | null>(null);
 
-/** Ensure both seed accounts exist (create any that are missing). Idempotent. */
-async function ensureSeeded(): Promise<void> {
-  const existing = await repositories.authUsers.list().catch(() => [] as AuthUser[]);
-  const have = new Set(existing.map(u => u.email));
-  await Promise.all(
-    SEED_USERS.filter(u => !have.has(u.email)).map(u => repositories.authUsers.create(u)),
-  );
+function errorText(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) return err.detail || fallback;
+  return fallback;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
 
-  // Restore a prior session once on mount (client-only — avoids SSR mismatch).
+  // Restore the session from the httpOnly cookie (server-verified) on mount.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setUser(JSON.parse(raw) as SessionUser);
-    } catch {
-      /* corrupt or unavailable */
-    }
-    setReady(true);
+    http
+      .get<SessionUser>('/auth/me')
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setReady(true));
   }, []);
 
   const login = async (email: string, password: string) => {
-    const e = email.trim().toLowerCase();
     try {
-      // Fast path: look the account up directly (1 round trip). Only fall back
-      // to seeding on a 404 — i.e. the very first run against an empty DB.
-      let account: AuthUser;
-      try {
-        account = await repositories.authUsers.get(e);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) {
-          await ensureSeeded();
-          try {
-            account = await repositories.authUsers.get(e);
-          } catch (retryErr) {
-            if (retryErr instanceof ApiError && retryErr.status === 404) {
-              return { ok: false, error: `This email is not authorized to access ${BRAND.short}.` };
-            }
-            throw retryErr;
-          }
-        } else {
-          throw err;
-        }
-      }
-      if (account.password !== password) {
-        return { ok: false, error: 'Incorrect password. Please try again.' };
-      }
-      const session: SessionUser = { email: account.email, role: account.role, name: account.name };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-      } catch {
-        /* ignore */
-      }
+      const session = await http.post<SessionUser>('/auth/login', {
+        email: email.trim().toLowerCase(),
+        password,
+      });
       setUser(session);
       return { ok: true };
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 400)) {
+        return { ok: false, error: err.detail || 'Invalid email or password.' };
+      }
+      if (err instanceof ApiError && err.status === 429) {
+        return { ok: false, error: 'Too many attempts. Please wait a minute and try again.' };
+      }
       return { ok: false, error: 'Could not reach the server. Please try again.' };
     }
   };
 
   const logout = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+    http.post('/auth/logout', {}).catch(() => {});
     setUser(null);
   };
 
-  const listUsers = () => repositories.authUsers.list();
+  const listUsers = () => http.get<AuthUser[]>('/auth/users');
 
   const changePassword = async (targetEmail: string, newPassword: string) => {
-    if (!user || user.role !== 'admin') {
-      return { ok: false, error: 'Only an administrator can change passwords.' };
-    }
     if (newPassword.trim().length < 6) {
       return { ok: false, error: 'Password must be at least 6 characters.' };
     }
     try {
-      await repositories.authUsers.patch(targetEmail.toLowerCase(), { password: newPassword });
+      await http.patch(`/auth/users/${encodeURIComponent(targetEmail.toLowerCase())}/password`, {
+        password: newPassword,
+      });
       return { ok: true };
-    } catch {
-      return { ok: false, error: 'Could not update the password. Please try again.' };
+    } catch (err) {
+      return { ok: false, error: errorText(err, 'Could not update the password. Please try again.') };
     }
   };
 
-  // Change an account's login email. Since the email is the primary key, this
-  // recreates the record under the new email and removes the old one. If the
-  // admin changes their own email, the active session is updated too.
   const changeEmail = async (currentEmail: string, newEmail: string) => {
-    if (!user || user.role !== 'admin') {
-      return { ok: false, error: 'Only an administrator can change emails.' };
-    }
-    const from = currentEmail.trim().toLowerCase();
-    const to = newEmail.trim().toLowerCase();
-    if (!EMAIL_RE.test(to)) {
-      return { ok: false, error: 'Enter a valid email address.' };
-    }
-    if (from === to) {
-      return { ok: false, error: 'That is already the account email.' };
-    }
     try {
-      const taken = await repositories.authUsers.get(to).catch(() => null);
-      if (taken) {
-        return { ok: false, error: 'That email is already in use.' };
-      }
-      const account = await repositories.authUsers.get(from);
-      const moved: AuthUser = { ...account, id: to, email: to };
-      await repositories.authUsers.create(moved);
-      await repositories.authUsers.remove(from).catch(() => {});
-      if (user.email === from) {
-        const session: SessionUser = { email: to, role: account.role, name: account.name };
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-        } catch {
-          /* ignore */
-        }
-        setUser(session);
+      const moved = await http.patch<{ email: string; role: 'admin' | 'hr'; name: string }>(
+        `/auth/users/${encodeURIComponent(currentEmail.toLowerCase())}/email`,
+        { newEmail: newEmail.trim().toLowerCase() },
+      );
+      // If the admin changed their own email, reflect it in the live session.
+      if (user && user.email === currentEmail.trim().toLowerCase()) {
+        setUser({ email: moved.email, role: moved.role, name: moved.name });
       }
       return { ok: true };
-    } catch {
-      return { ok: false, error: 'Could not update the email. Please try again.' };
+    } catch (err) {
+      return { ok: false, error: errorText(err, 'Could not update the email. Please try again.') };
     }
   };
 

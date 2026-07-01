@@ -3,13 +3,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Send, Link2 } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetBody,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -105,18 +106,18 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
           : null;
 
   return (
-    <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent className="flex max-h-[92vh] w-[min(96vw,42rem)] max-w-[42rem] sm:max-w-[42rem] flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
-          <DialogTitle className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
+    <Sheet open onOpenChange={o => !o && onClose()}>
+      <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-2xl">
+        <SheetHeader className="text-left">
+          <SheetTitle className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
             <Send size={15} className="text-accent-600" /> Send {what}
-          </DialogTitle>
-          <DialogDescription>
+          </SheetTitle>
+          <SheetDescription>
             {candidate.fullName} · {position}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5 text-xs">
+        <SheetBody className="space-y-4 text-xs">
           <div>
             <Label htmlFor="st-to" className="text-[11px] font-medium text-gray-600">
               Candidate email <span className="text-accent-600">*</span>
@@ -230,9 +231,9 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
               {error}
             </p>
           )}
-        </div>
+        </SheetBody>
 
-        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+        <SheetFooter className="justify-end">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
@@ -251,9 +252,9 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
           >
             <Send size={14} /> Send {what}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 

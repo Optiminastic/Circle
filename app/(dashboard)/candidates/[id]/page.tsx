@@ -16,6 +16,7 @@ import {
   Clock4,
   CalendarDays,
   CalendarClock,
+  CalendarX,
   CalendarPlus,
   FileText,
   BrainCircuit,
@@ -170,7 +171,7 @@ export default function CandidateDetailPage() {
   });
   const { data: candidateDocs = [] } = useDocuments('candidate', id);
   const { openSchedule } = useScheduler();
-  const { openInterviewSchedule, rescheduleInterview } = useInterviewScheduler();
+  const { openInterviewSchedule, rescheduleInterview, cancelInterview } = useInterviewScheduler();
   const { move, update } = useCandidateMutations();
   const { grade: gradeInterview } = useInterviewMutations();
   const hr = useHrIdentity();
@@ -343,8 +344,17 @@ export default function CandidateDetailPage() {
     (['Graded', 'Completed', 'Auto-Submitted'].includes(asgInvite.status) ||
       asgInvite.score != null);
   const asgReached = Boolean(asgInvite) || mySchedules.some(s => s.type === 'Assessment');
+  // A completed IQ / Assessment that the candidate did NOT clear (failed or
+  // disqualified). Drives the "Reject & email" action on those stages.
+  const iqPassed = (latestIq && latestIq.qualificationStatus === 'Passed') || !!iqInvite?.passed;
+  const iqFailed = iqDone && !iqPassed;
+  const asgFailed = asgDone && !!asgInvite && !asgInvite.passed;
   const interviewDone = myInterviews.some(iv => iv.status === 'Completed');
-  const interviewReached = myInterviews.length > 0 || mySchedules.some(s => s.type === 'Interview');
+  // A cancelled interview no longer counts as "scheduled" — so after cancelling,
+  // the Interview Schedule step reverts to Pending with the Schedule button
+  // available (HR can re-book) until the candidate moves on to the IQ test.
+  const interviewReached =
+    myInterviews.some(iv => iv.status !== 'Cancelled') || mySchedules.some(s => s.type === 'Interview');
   // The in-person round is "reached" once the interview has actually happened
   // (completed or feedback recorded) — scheduling alone only fills Interview Schedule.
   const interviewConducted = interviewDone || myInterviews.some(iv => !!iv.grading);
@@ -702,45 +712,56 @@ export default function CandidateDetailPage() {
           s ? `Interview scheduled for ${fmtDateTime(s.dateTime)}.` : 'No interview scheduled yet.',
         );
       }
+      // Show only the LATEST (active) interview in full; older/cancelled ones are
+      // summarised in a single line at the bottom.
+      const sortedIvs = [...myInterviews].sort((a, b) =>
+        (b.createdAt ?? b.dateTime ?? '').localeCompare(a.createdAt ?? a.dateTime ?? ''),
+      );
+      const primaryIv = sortedIvs.find(iv => iv.status !== 'Cancelled') ?? sortedIvs[0];
+      const cancelledIvs = sortedIvs.filter(
+        iv => iv.status === 'Cancelled' && iv.id !== primaryIv.id,
+      );
+      const online = primaryIv.interviewType === 'Online' || primaryIv.meetingMode !== 'In-Person';
       return (
         <div className="space-y-2.5">
-          {myInterviews.map(iv => {
-            const online = iv.interviewType === 'Online' || iv.meetingMode !== 'In-Person';
-            return (
-              <div key={iv.id} className="space-y-2 rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[12px] font-semibold text-gray-800">
-                    {online ? 'Online' : 'Offline'} interview
-                  </p>
-                  <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
-                    {iv.status}
-                  </span>
-                </div>
-                <KV k="When" v={fmtDateTime(iv.dateTime)} />
-                {iv.interviewerName && iv.interviewerName !== 'To be assigned' && (
-                  <KV k="Interviewer" v={iv.interviewerName} />
-                )}
-                {iv.interviewerEmail && <KV k="Interviewer email" v={iv.interviewerEmail} />}
-                <KV k="Mode" v={online ? 'Online' : 'Offline (office)'} />
-                <KV
-                  k="Invitation email"
-                  v={iv.emailStatus === 'Sent' ? 'Sent ✓ (Yes)' : iv.emailStatus || 'Not sent'}
-                />
-                <KV k="Calendar invite" v={iv.emailStatus === 'Sent' ? 'Sent ✓ (Yes)' : 'Not sent'} />
-                {iv.emailStatus === 'Sent' && (
-                  <div className="mt-1 flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
-                    <CheckCircle2 size={12} /> Candidate invited — calendar event sent; expected to attend on{' '}
-                    {fmtDateTime(iv.dateTime)}
-                  </div>
-                )}
-                {iv.additionalNotes && (
-                  <p className="rounded bg-white/60 p-2 text-[11px] italic text-gray-600">
-                    “{iv.additionalNotes}”
-                  </p>
-                )}
+          <div className="space-y-2 rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] font-semibold text-gray-800">
+                {online ? 'Online' : 'Offline'} interview
+              </p>
+              <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
+                {primaryIv.status}
+              </span>
+            </div>
+            <KV k="When" v={fmtDateTime(primaryIv.dateTime)} />
+            {primaryIv.interviewerName && primaryIv.interviewerName !== 'To be assigned' && (
+              <KV k="Interviewer" v={primaryIv.interviewerName} />
+            )}
+            {primaryIv.interviewerEmail && <KV k="Interviewer email" v={primaryIv.interviewerEmail} />}
+            <KV k="Mode" v={online ? 'Online' : 'Offline (office)'} />
+            <KV
+              k="Invitation email"
+              v={primaryIv.emailStatus === 'Sent' ? 'Sent ✓ (Yes)' : primaryIv.emailStatus || 'Not sent'}
+            />
+            <KV k="Calendar invite" v={primaryIv.emailStatus === 'Sent' ? 'Sent ✓ (Yes)' : 'Not sent'} />
+            {primaryIv.emailStatus === 'Sent' && primaryIv.status !== 'Cancelled' && (
+              <div className="mt-1 flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
+                <CheckCircle2 size={12} /> Candidate invited — calendar event sent; expected to attend on{' '}
+                {fmtDateTime(primaryIv.dateTime)}
               </div>
-            );
-          })}
+            )}
+            {primaryIv.additionalNotes && (
+              <p className="rounded bg-white/60 p-2 text-[11px] italic text-gray-600">
+                “{primaryIv.additionalNotes}”
+              </p>
+            )}
+          </div>
+          {cancelledIvs.length > 0 && (
+            <p className="px-1 text-[11px] text-gray-500">
+              Cancelled interview{cancelledIvs.length > 1 ? 's' : ''}:{' '}
+              {cancelledIvs.map(iv => fmtDateTime(iv.dateTime)).join(' · ')}
+            </p>
+          )}
         </div>
       );
     }
@@ -1078,6 +1099,74 @@ export default function CandidateDetailPage() {
   const rejectStage = (label: string) => {
     setStageDecision(label, 'Rejected', 'Rejected');
     toast.info('Candidate marked as rejected.');
+  };
+
+  // Reject a candidate who did NOT clear the IQ test / Assessment, and email them
+  // their result. Triggered ONLY by the "Reject & email" button (never automatic).
+  // IQ fail → share the IQ score. Assessment fail → share the IQ score + note the
+  // assessment was not cleared.
+  const rejectAfterTest = (stage: 'IQ Test' | 'Assessment') => {
+    const position = candidate.appliedRole || candidate.department || 'the role';
+    const iqScoreText = latestIq
+      ? `${latestIq.scorePercentage}% (${latestIq.correctAnswers}/${latestIq.totalQuestions} correct)`
+      : myIq[0]
+        ? `${myIq[0].scorePercentage}%`
+        : null;
+    const asgScoreText = asgInvite?.score != null ? `${asgInvite.score}%` : null;
+
+    const body =
+      stage === 'IQ Test'
+        ? [
+            `Dear ${candidate.fullName},`,
+            '',
+            `Thank you for taking the IQ test for the ${position} role at ${BRAND.company}.`,
+            '',
+            iqScoreText
+              ? `Your IQ test score: ${iqScoreText}.`
+              : 'We were unable to record a valid IQ test result.',
+            '',
+            'Unfortunately, this did not meet our qualifying bar, so we are unable to move forward with your application at this time.',
+            '',
+            'We appreciate your interest and encourage you to apply again in the future.',
+            '',
+            'Warm regards,',
+            hr.signoff,
+          ]
+        : [
+            `Dear ${candidate.fullName},`,
+            '',
+            `Thank you for completing the assessment for the ${position} role at ${BRAND.company}.`,
+            '',
+            ...(iqScoreText ? [`IQ test: ${iqScoreText} — cleared.`] : []),
+            asgScoreText ? `Assessment: ${asgScoreText} — not cleared.` : 'Assessment: not cleared.',
+            '',
+            'Unfortunately, your assessment did not meet our qualifying bar, so we are unable to move forward with your application at this time.',
+            '',
+            'We appreciate the effort you put in and encourage you to apply again in the future.',
+            '',
+            'Warm regards,',
+            hr.signoff,
+          ];
+
+    // Mark rejected first, so the pipeline updates even if the email fails.
+    setStageDecision(stage, 'Rejected', 'Rejected');
+
+    if (!candidate.email) {
+      toast.info('Candidate rejected — no email on file, so no result email was sent.');
+      return;
+    }
+    sendCustomEmail({
+      to: candidate.email,
+      subject: `Update on your application — ${position} at ${BRAND.company}`,
+      body: body.join('\n'),
+    })
+      .then(res => {
+        if (res.sent) toast.success(`Candidate rejected — ${stage} result email sent.`);
+        else if (res.reason === 'not_configured')
+          toast.info('Candidate rejected. Email not sent — SMTP is not configured.');
+        else toast.info('Candidate rejected — the result email could not be sent.');
+      })
+      .catch(() => toast.error('Candidate rejected, but sending the email failed.'));
   };
 
   const openScreening = () => {
@@ -1449,14 +1538,34 @@ export default function CandidateDetailPage() {
     }
 
     if (label === 'Interview Schedule') {
-      if (!interviewReached) btns.push(scheduleBtn('Interview', 'Schedule Interview'));
-      // Once booked, allow rescheduling (re-opens the modal and re-emails the candidate).
-      else
+      // A cancelled interview frees the slot — treat the candidate as unbooked so
+      // HR can schedule a fresh one instead of a dead reschedule/cancel.
+      const hasActiveInterview = myInterviews.some(iv => iv.status !== 'Cancelled');
+      if (!hasActiveInterview) btns.push(scheduleBtn('Interview', 'Schedule Interview'));
+      // Once booked, allow rescheduling (re-opens the modal and re-emails the
+      // candidate) or cancelling (removes the calendar events + frees the slot).
+      else {
         btns.push(
           iconBtn('reschedule', <CalendarClock size={15} />, 'Reschedule interview', () =>
             rescheduleInterview(candidate),
           ),
         );
+        // Cancel is only allowed while Interview Schedule is the CURRENT step —
+        // i.e. the interview is booked but the candidate hasn't moved forward to
+        // the IQ test yet (and isn't already decided). Disabled otherwise.
+        const canCancel = idx === currentIndex && !decided;
+        btns.push(
+          iconBtn(
+            'cancelinterview',
+            <CalendarX size={15} />,
+            canCancel
+              ? 'Cancel interview'
+              : 'Cancel unavailable — the candidate has already moved to the next step',
+            () => cancelInterview(candidate),
+            !canCancel,
+          ),
+        );
+      }
     }
 
     if (label === 'Physical Interview') {
@@ -1555,7 +1664,20 @@ export default function CandidateDetailPage() {
       isCurrent && ((label === 'IQ Test' && iqDone) || (label === 'Assessment' && asgDone));
     const showNext = isCurrent && label === 'Interview Schedule' && interviewReached;
 
-    if (showGate || showResultDecision)
+    if (showGate || showResultDecision) {
+      // A failed/disqualified IQ test or Assessment offers only "Reject & email"
+      // (rescheduling stays available via the stage's Re-assign action). A pass
+      // still gets the normal Accept / On Hold / Reject.
+      const testFailed = (label === 'IQ Test' && iqFailed) || (label === 'Assessment' && asgFailed);
+      if (testFailed)
+        return (
+          <button
+            onClick={() => rejectAfterTest(label as 'IQ Test' | 'Assessment')}
+            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+          >
+            <ThumbsDown size={11} /> Reject &amp; email
+          </button>
+        );
       return (
         <>
           <button
@@ -1578,6 +1700,7 @@ export default function CandidateDetailPage() {
           </button>
         </>
       );
+    }
 
     if (showNext)
       return (

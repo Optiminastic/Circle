@@ -8,6 +8,7 @@ import { useToast } from './Toaster';
  */
 
 import React, { useMemo, useState } from 'react';
+import { usePersistentState } from '@/lib/use-persistent-state';
 import { useQueryClient } from '@tanstack/react-query';
 import { Candidate } from '../types';
 import { useUiStore } from '@/store/ui-store';
@@ -93,6 +94,9 @@ interface CandidateListViewProps {
   showHeader?: boolean;
   /** Show the Evaluation Filters bar (search / department / status / source). */
   showFilters?: boolean;
+  /** When set, the filters persist across navigation (e.g. opening a candidate
+   *  and coming back) until manually changed, keyed by this string. */
+  persistKey?: string;
 }
 
 export function CandidateListView({
@@ -103,6 +107,7 @@ export function CandidateListView({
   onSetFit,
   showHeader = true,
   showFilters = true,
+  persistKey,
 }: CandidateListViewProps) {
   const toast = useToast();
   const qc = useQueryClient();
@@ -129,12 +134,15 @@ export function CandidateListView({
   const postedRoles = Array.from(
     new Set(jobs.filter(j => j.status === 'Open').map(j => j.title)),
   );
-  const [search, setSearch] = useState('');
-  const [selectedDept, setSelectedDept] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('All');
-  const [selectedSource, setSelectedSource] = useState('All');
-  const [maxNoticePeriod, setMaxNoticePeriod] = useState<number>(9999);
-  const [minExperience, setMinExperience] = useState<number>(0);
+  // Filters persist across navigation (open a candidate → back) when a
+  // persistKey is provided — keyed so different lists don't share filters.
+  const fk = (name: string) => (persistKey ? `${persistKey}:${name}` : null);
+  const [search, setSearch] = usePersistentState(fk('search'), '');
+  const [selectedDept, setSelectedDept] = usePersistentState(fk('dept'), 'All');
+  const [selectedStatus, setSelectedStatus] = usePersistentState(fk('status'), 'All');
+  const [selectedSource, setSelectedSource] = usePersistentState(fk('source'), 'All');
+  const [maxNoticePeriod, setMaxNoticePeriod] = usePersistentState<number>(fk('maxNotice'), 9999);
+  const [minExperience, setMinExperience] = usePersistentState<number>(fk('minExp'), 0);
 
   // New Candidate Modal Form state
   const [showAddForm, setShowAddForm] = useState(false);

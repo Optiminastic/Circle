@@ -8,6 +8,7 @@ import { QuizRunner } from '@/components/QuizRunner';
 import { BRAND } from '@/lib/brand';
 import { TestInvite, IQTest } from '@/types';
 import { repositories } from '@/lib/api/repositories';
+import { startTest, flagTestViolation, submitTest } from '@/lib/api/public-test';
 import { qk } from '@/lib/query/keys';
 import { nowISO, randomId } from '@/lib/utils';
 import {
@@ -203,9 +204,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
     setStartedAt(started);
     setPhase('running');
     await enterFullscreen();
-    repositories.testInvites
-      .patch(invite.id, { status: 'In Progress', startedAt: started })
-      .catch(() => {/* tolerated — submit still records everything */});
+    startTest(invite.id).catch(() => {/* tolerated — submit still records everything */});
   };
 
   /* ----------------------------- submit ---------------------------- */
@@ -240,29 +239,10 @@ function TestFlow({ invite }: { invite: TestInvite }) {
         ? Math.max(1, Math.round((Date.now() - new Date(startedAt).getTime()) / 60_000))
         : invite.durationMin;
 
-      try {
-        await repositories.testInvites.patch(invite.id, {
-          status: auto ? 'Auto-Submitted' : 'Completed',
-          completedAt,
-          correct,
-          total,
-          score,
-          passed,
-          disqualified,
-          violations: violationsRef.current,
-          answers: finalAnswers, // per-question record for HR analysis
-        });
-      } catch {
-        /* even if this PATCH fails we still show the result; HR records below */
-      }
-
-      // ---- side effects: record the result only ----
-      // The candidate's pipeline status is NOT changed here. HR reviews the
-      // result on the candidate page and decides manually (Accept / On Hold /
-      // Reject) — a fail or disqualification never auto-rejects the candidate.
-      try {
-        if (isIq) {
-          const iqRecord: IQTest = {
+      // IQ tests carry a detailed result row; the server persists it and binds it
+      // to the invite's candidate. Assessments just record the invite result.
+      const iqRecord: IQTest | undefined = isIq
+        ? {
             id: randomId('IQT', 9000, 1000),
             candidateId: invite.candidateId,
             candidateName: invite.candidateName,
@@ -278,9 +258,28 @@ function TestFlow({ invite }: { invite: TestInvite }) {
             remarks: disqualified
               ? `Disqualified · ${violationsRef.current} rule violation(s) — attempt voided`
               : `IQ score ${score} · ${violationsRef.current} violation(s)${auto ? ' · auto-submitted' : ''}`,
-          };
-          await repositories.iqTests.create(iqRecord).catch(() => {});
-        }
+          }
+        : undefined;
+
+      try {
+        // Write-once submit: the server rejects a resubmission and only accepts
+        // the known result fields. HR reviews the result and decides manually.
+        await submitTest(
+          invite.id,
+          {
+            status: auto ? 'Auto-Submitted' : 'Completed',
+            correct,
+            total,
+            score,
+            passed,
+            disqualified,
+            violations: violationsRef.current,
+            answers: finalAnswers, // per-question record for HR analysis
+          },
+          iqRecord,
+        );
+      } catch {
+        /* show the result anyway; a resubmit is blocked server-side */
       } finally {
         try {
           localStorage.removeItem(answersKey(invite.id));
@@ -320,7 +319,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
 
       const next = violationsRef.current + 1;
       setViolations(next);
-      repositories.testInvites.patch(invite.id, { violations: next }).catch(() => {});
+      flagTestViolation(invite.id).catch(() => {});
       if (next >= MAX_VIOLATIONS) {
         setWarning(null);
         submit('violation');

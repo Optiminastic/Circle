@@ -8,7 +8,7 @@ import { useToast } from '@/components/Toaster';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { sendCustomEmail } from '@/lib/api/notifications';
-import { pushCalendarEvent } from '@/lib/api/calendar';
+import { pushCalendarEvent, deleteCalendarEvent } from '@/lib/api/calendar';
 import { BRAND } from '@/lib/brand';
 import { HR_EMAIL } from '@/lib/config';
 import { randomId, nowISO } from '@/lib/utils';
@@ -23,6 +23,9 @@ interface InterviewSchedulerApi {
   openInterviewSchedule: (candidate: Candidate) => void;
   /** Re-open the dialog pre-filled with the existing slot to reschedule it. */
   rescheduleInterview: (candidate: Candidate) => void;
+  /** Cancel the candidate's interview + remove its Google Calendar events, freeing
+   *  the slot for another candidate. */
+  cancelInterview: (candidate: Candidate) => void;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -121,6 +124,33 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
     }
     setMode('reschedule');
     setPending(candidate);
+  };
+
+  const cancelInterview = (candidate: Candidate) => {
+    const existing = existingFor(candidate.id);
+    if (!existing) {
+      toast.info(`No scheduled interview to cancel for ${candidate.fullName}.`);
+      return;
+    }
+    toast.confirm({
+      title: `Cancel ${candidate.fullName}'s interview?`,
+      description:
+        'This cancels the interview and removes the event from the HR, interviewer and candidate calendars. The time slot becomes free for another candidate.',
+      confirmLabel: 'Cancel interview',
+      onConfirm: async () => {
+        // Remove both calendar events (candidate + interviewer +1h). Google
+        // notifies attendees of the cancellation (sendUpdates=all). Best-effort.
+        deleteCalendarEvent(existing.id).catch(() => {});
+        deleteCalendarEvent(`${existing.id}-interviewer`).catch(() => {});
+        try {
+          await repositories.interviews.patch(existing.id, { status: 'Cancelled' });
+          qc.invalidateQueries({ queryKey: qk.interviews.all });
+          toast.success('Interview cancelled — calendar events removed, slot freed.');
+        } catch {
+          toast.error('Could not cancel the interview — please try again.');
+        }
+      },
+    });
   };
 
   const confirm = async (input: InterviewScheduleResult) => {
@@ -550,7 +580,9 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       : undefined;
 
   return (
-    <InterviewSchedulerContext.Provider value={{ openInterviewSchedule, rescheduleInterview }}>
+    <InterviewSchedulerContext.Provider
+      value={{ openInterviewSchedule, rescheduleInterview, cancelInterview }}
+    >
       {children}
       {pending && (
         <InterviewScheduleModal

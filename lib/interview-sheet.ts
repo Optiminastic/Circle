@@ -57,14 +57,27 @@ export async function saveInterviewSheet(payload: InterviewSheetPayload): Promis
   return id;
 }
 
-/** Load a previously-saved sheet payload by its token; null if missing/invalid. */
+/** Load a previously-saved sheet payload by its token; null if missing/invalid.
+ * Uses the PUBLIC endpoint (the generic resource API now requires a login). */
 export async function loadInterviewSheet(id: string): Promise<InterviewSheetPayload | null> {
   try {
     const doc = await http.get<InterviewSheetPayload>(
-      `/interview-sheets/${encodeURIComponent(id)}`,
+      `/public/interview-sheet/${encodeURIComponent(id)}`,
     );
     return doc && Array.isArray(doc.questions) ? doc : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Submit the interviewer's feedback via the PUBLIC endpoint. The backend derives
+ * the target interview from the (unguessable) sheet token — the interviewer never
+ * writes to `/api/interviews/{id}` directly.
+ */
+export async function submitInterviewFeedback(
+  sheetId: string,
+  feedback: { questionResponses: unknown[]; grading: unknown },
+): Promise<void> {
+  await http.post(`/public/interview-sheet/${encodeURIComponent(sheetId)}/feedback`, feedback);
 }

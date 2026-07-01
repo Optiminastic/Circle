@@ -13,6 +13,7 @@ export default function CandidatesPage() {
 
   return (
     <CandidateListView
+      persistKey="candidates"
       candidates={candidates}
       onSelectCandidate={id => router.push(`/candidates/${id}`)}
       onAddCandidate={candidate => create.mutate(candidate)}

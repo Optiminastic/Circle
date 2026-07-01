@@ -3,13 +3,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarPlus, CalendarClock, Mail, Phone, Briefcase, User, Loader2 } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetBody,
+  SheetFooter,
+} from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -222,19 +223,19 @@ export function InterviewScheduleModal({
     'mt-1 flex items-center gap-1.5 rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-gray-700';
 
   return (
-    <Dialog open onOpenChange={open => !open && !isSending && onClose()}>
-      <DialogContent className="flex max-h-[92vh] w-[min(96vw,46rem)] max-w-[46rem] sm:max-w-[46rem] flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
-          <DialogTitle className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
+    <Sheet open onOpenChange={open => !open && !isSending && onClose()}>
+      <SheetContent side="right" className="w-full gap-0 p-0 sm:max-w-2xl">
+        <SheetHeader className="text-left">
+          <SheetTitle className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-gray-900">
             <CalendarClock size={15} className="text-accent-600" />{' '}
             {isReschedule ? 'Reschedule Interview' : 'Schedule Interview'}
-          </DialogTitle>
-          <DialogDescription>
+          </SheetTitle>
+          <SheetDescription>
             {candidate.fullName} · {position}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5 text-xs">
+        <SheetBody className="space-y-6 text-xs">
           {/* Candidate information (auto-filled) */}
           <section className="space-y-3">
             <h3 className="font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
@@ -384,9 +385,9 @@ export function InterviewScheduleModal({
               {error}
             </p>
           )}
-        </div>
+        </SheetBody>
 
-        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+        <SheetFooter className="justify-end">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSending}>
             Cancel
           </Button>
@@ -401,9 +402,9 @@ export function InterviewScheduleModal({
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 

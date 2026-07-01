@@ -188,7 +188,7 @@ export interface AssessmentQuestion {
 export interface AuthUser {
   id: string; // email (primary key)
   email: string;
-  password: string;
+  password?: string; // server-only; never returned to the browser
   role: 'admin' | 'hr';
   name: string;
 }

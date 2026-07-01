@@ -6,8 +6,8 @@ import { Logo } from '@/components/Logo';
 import { QuizRunner } from '@/components/QuizRunner';
 import { BRAND } from '@/lib/brand';
 import { repositories } from '@/lib/api/repositories';
+import { submitTest } from '@/lib/api/public-test';
 import { ASSESSMENT_PASS_PERCENT } from '@/data/test-banks';
-import { nowISO } from '@/lib/utils';
 import { TestInvite } from '@/types';
 import { AlertTriangle, CheckCircle2, Loader2, ClipboardList } from 'lucide-react';
 
@@ -51,9 +51,10 @@ export default function AssessmentPage() {
       if (answers[i] != null) answerMap[String(i)] = answers[i];
     });
     try {
-      await repositories.testInvites.patch(invite.id, {
+      // Write-once submit via the dedicated public endpoint (server rejects a
+      // resubmission and stamps completedAt itself).
+      await submitTest(invite.id, {
         status: 'Graded',
-        completedAt: nowISO(),
         correct,
         total,
         score,
