@@ -10,6 +10,7 @@
  * the two views never disagree.
  */
 import { Candidate, ScheduleEvent, Interview, IQTest, TestInvite } from '@/types';
+import type { DotColor } from '@/components/ui/table';
 
 /** Ordered pipeline stages, mirroring the detail-page stepper. */
 export const PIPELINE_STAGES = [
@@ -123,6 +124,74 @@ export function pipelineColumn(candidate: Candidate, ctx: PipelineContext): Kanb
   if (f.screeningStarted) return 'Screening';
   return 'New';
 }
+
+/**
+ * The candidate's current stage as a single tag, in the detail-page order
+ * (Screening → HR Call → Interview Scheduled → IQ Test → Assessment → Physical
+ * Interview → Hired) plus the terminal On Hold / Rejected states. Used by the
+ * Candidates table's Stage Status column + filter.
+ */
+export type StageStatus =
+  | 'Screening'
+  | 'HR Call'
+  | 'Interview Scheduled'
+  | 'IQ Test'
+  | 'Assessment'
+  | 'Physical Interview'
+  | 'Hired'
+  | 'On Hold'
+  | 'Rejected';
+
+/** Filter options for the Stage Status dropdown, in pipeline order. */
+export const STAGE_STATUS_OPTIONS: StageStatus[] = [
+  'Screening',
+  'HR Call',
+  'Interview Scheduled',
+  'IQ Test',
+  'Assessment',
+  'Physical Interview',
+  'Hired',
+  'On Hold',
+  'Rejected',
+];
+
+export function candidateStageStatus(candidate: Candidate, ctx: PipelineContext): StageStatus {
+  const f = pipelineFlags(candidate, ctx);
+  if (f.rejected) return 'Rejected';
+  if (f.selected) return 'Hired';
+  if (f.onHold) return 'On Hold';
+
+  const accepted = (label: string) => candidate.stageDecisions?.[label] === 'Accepted';
+  const myInterviews = ctx.interviews.filter(iv => iv.candidateId === candidate.id);
+  const myInvites = ctx.invites.filter(i => i.candidateId === candidate.id);
+  // Match the detail page: the in-person round counts as "conducted" once it's
+  // completed or feedback is recorded; the assessment stage accepts either the
+  // 'assignment' or 'assessment' invite kind.
+  const interviewConducted = f.interviewDone || myInterviews.some(iv => Boolean(iv.grading));
+  const asgReached = f.asgReached || myInvites.some(i => i.kind === 'assignment');
+
+  // Highest reached stage wins (checked top-down).
+  if (interviewConducted || accepted('Assessment')) return 'Physical Interview';
+  if (asgReached || accepted('IQ Test')) return 'Assessment';
+  if (f.iqReached || accepted('Interview Schedule')) return 'IQ Test';
+  if (f.interviewReached || accepted('HR Call')) return 'Interview Scheduled';
+  if (f.hrCallReached) return 'HR Call';
+  return 'Screening';
+}
+
+const STAGE_STATUS_COLORS: Record<StageStatus, DotColor> = {
+  Screening: 'gray',
+  'HR Call': 'blue',
+  'Interview Scheduled': 'purple',
+  'IQ Test': 'accent',
+  Assessment: 'amber',
+  'Physical Interview': 'pink',
+  Hired: 'green',
+  'On Hold': 'amber',
+  Rejected: 'red',
+};
+
+export const stageStatusColor = (s: StageStatus): DotColor => STAGE_STATUS_COLORS[s];
 
 /** Short human-readable status for a candidate's current position, used on cards. */
 export function pipelineSummary(candidate: Candidate, ctx: PipelineContext): string {

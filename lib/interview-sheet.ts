@@ -1,10 +1,14 @@
+import { http } from '@/lib/http/client';
+import { randomToken } from '@/lib/utils';
+
 /**
- * Self-contained payload for the interviewer's public question sheet.
+ * Payload for the interviewer's public question sheet — candidate basics, the
+ * resume link, and the questions (without revealing correct answers).
  *
- * The interview question banks live in the HR user's browser (localStorage), so
- * the link emailed to an external interviewer carries everything it needs encoded
- * in the URL — candidate basics, the resume link, and the questions (without
- * revealing correct answers).
+ * It is persisted server-side under a short unguessable token, and the link
+ * emailed to the interviewer carries only that token (`?id=IVS-…`). Older links
+ * that inlined the whole payload as base64 (`?d=…`) still resolve via
+ * encode/decode below.
  */
 export interface InterviewSheetPayload {
   /** Interview record id — lets the interviewer submit answers back to it. */
@@ -37,6 +41,29 @@ export function decodeInterviewSheet(encoded: string): InterviewSheetPayload | n
     const parsed = JSON.parse(decodeURIComponent(atob(encoded)));
     if (parsed && Array.isArray(parsed.questions)) return parsed as InterviewSheetPayload;
     return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist the sheet payload server-side and return a short unguessable token to
+ * put in the link (`/interview-sheet?id=<token>`). Throws if the save fails so
+ * the caller can avoid emailing a broken link.
+ */
+export async function saveInterviewSheet(payload: InterviewSheetPayload): Promise<string> {
+  const id = randomToken('IVS');
+  await http.post('/interview-sheets', { id, createdAt: new Date().toISOString(), ...payload });
+  return id;
+}
+
+/** Load a previously-saved sheet payload by its token; null if missing/invalid. */
+export async function loadInterviewSheet(id: string): Promise<InterviewSheetPayload | null> {
+  try {
+    const doc = await http.get<InterviewSheetPayload>(
+      `/interview-sheets/${encodeURIComponent(id)}`,
+    );
+    return doc && Array.isArray(doc.questions) ? doc : null;
   } catch {
     return null;
   }

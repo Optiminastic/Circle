@@ -7,12 +7,17 @@ import { useToast } from './Toaster';
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Candidate, CandidateStatus } from '../types';
+import { Candidate } from '../types';
 import { useUiStore } from '@/store/ui-store';
 import { useOrgSettings } from '@/store/org-settings';
 import { useJobs } from '@/features/jobs/hooks';
+import { useSchedules } from '@/features/schedule/hooks';
+import { useInterviews } from '@/features/interviews/hooks';
+import { useIqTests } from '@/features/assessments/hooks';
+import { useTestInvites } from '@/features/test-invites/hooks';
+import { candidateStageStatus, STAGE_STATUS_OPTIONS, stageStatusColor } from '@/lib/pipeline';
 import { qk } from '@/lib/query/keys';
 import { RefreshButton } from '@/components/RefreshButton';
 import { EditableSelect } from '@/components/ui/editable-select';
@@ -77,24 +82,6 @@ const DEPT_COLOR: Record<string, DotColor> = {
 };
 const deptColor = (d: string): DotColor => DEPT_COLOR[d] ?? 'gray';
 
-const statusColor = (s: CandidateStatus): DotColor => {
-  switch (s) {
-    case 'Selected':
-    case 'Offer Shortlisted':
-      return 'green';
-    case 'Shortlisted':
-      return 'purple';
-    case 'Moved to HR Call':
-      return 'blue';
-    case 'Rejected':
-      return 'red';
-    case 'On Hold':
-      return 'amber';
-    default:
-      return 'accent';
-  }
-};
-
 interface CandidateListViewProps {
   candidates: Candidate[];
   onSelectCandidate: (id: string) => void;
@@ -123,6 +110,19 @@ export function CandidateListView({
   const org = useOrgSettings();
   const { data: jobs = [] } = useJobs();
 
+  // Cross-entity data needed to derive each candidate's current pipeline stage
+  // (same signals the detail page uses). All are cached/prefetched, so cheap.
+  const { data: schedules = [] } = useSchedules();
+  const { data: interviews = [] } = useInterviews();
+  const { data: iqTests = [] } = useIqTests();
+  const { data: invites = [] } = useTestInvites();
+  const stageOf = useMemo(() => {
+    const ctx = { schedules, interviews, iqTests, invites };
+    const map = new Map<string, ReturnType<typeof candidateStageStatus>>();
+    for (const c of candidates) map.set(c.id, candidateStageStatus(c, ctx));
+    return (id: string) => map.get(id);
+  }, [candidates, schedules, interviews, iqTests, invites]);
+
   // Applied-role options are sourced ONLY from live job postings (status
   // "Open") so a candidate can never be admitted against a role we aren't
   // actually hiring for. De-duplicated by title.
@@ -143,7 +143,7 @@ export function CandidateListView({
     fullName: '',
     email: '',
     phone: '',
-    location: 'San Francisco, CA',
+    location: 'Mumbai, India',
     currentCompany: '',
     currentDesignation: '',
     totalExperienceYears: 4,
@@ -160,15 +160,9 @@ export function CandidateListView({
   // Dropdown lists — roles/departments/sources come from the customisable
   // org-settings store; statuses are pipeline-driven so they stay fixed.
   const departments = ['All', ...org.departments];
-  const statuses = [
-    'All',
-    'New Application',
-    'Under Review',
-    'Shortlisted',
-    'Moved to HR Call',
-    'Rejected',
-    'On Hold',
-  ];
+  // Stage Status filter — the candidate's current pipeline stage (derived), not
+  // the raw status field.
+  const statuses = ['All', ...STAGE_STATUS_OPTIONS];
   const sources = ['All', ...org.sources];
 
   // Apply sequential pipeline filters, then sort newest-first so the latest
@@ -180,7 +174,7 @@ export function CandidateListView({
         cand.fullName.toLowerCase().includes(search.toLowerCase()) ||
         cand.appliedRole.toLowerCase().includes(search.toLowerCase());
       const matchesDept = selectedDept === 'All' || cand.department === selectedDept;
-      const matchesStatus = selectedStatus === 'All' || cand.status === selectedStatus;
+      const matchesStatus = selectedStatus === 'All' || stageOf(cand.id) === selectedStatus;
       const matchesSource = selectedSource === 'All' || cand.sourceOfApplication === selectedSource;
       const matchesNotice = cand.noticePeriodDays <= maxNoticePeriod;
       const matchesExp = cand.totalExperienceYears >= minExperience;
@@ -288,7 +282,7 @@ export function CandidateListView({
       fullName: '',
       email: '',
       phone: '',
-      location: 'San Francisco, CA',
+      location: 'Mumbai, India',
       currentCompany: '',
       currentDesignation: '',
       totalExperienceYears: 4,
@@ -389,7 +383,7 @@ export function CandidateListView({
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Hiring status</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Stage status</span>
             <Select
               value={selectedStatus}
               onChange={e => setSelectedStatus(e.target.value)}
@@ -486,7 +480,10 @@ export function CandidateListView({
                 <Td align="center" className="font-mono font-semibold text-accent-600">{cand.expectedCtc}</Td>
                 <Td align="center" className="font-mono text-gray-700">{cand.noticePeriodDays} Days</Td>
                 <Td>
-                  <TagPill color={statusColor(cand.status)}>{cand.status}</TagPill>
+                  {(() => {
+                    const stage = stageOf(cand.id) ?? 'Screening';
+                    return <TagPill color={stageStatusColor(stage)}>{stage}</TagPill>;
+                  })()}
                 </Td>
                 <Td align="center">
                   {(() => {
@@ -620,7 +617,7 @@ export function CandidateListView({
                       </Label>
                       <Input
                         id="cand-location"
-                        placeholder="San Francisco, CA"
+                        placeholder="Mumbai, India"
                         value={newCand.location}
                         onChange={e => setNewCand({ ...newCand, location: e.target.value })}
                         className="mt-2"

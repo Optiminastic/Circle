@@ -47,6 +47,10 @@ interface DashboardViewProps {
 
 const PROBATION_MONTHS = 6;
 
+// Looping, muted ambient video behind the dashboard greeting header (Cloudinary).
+const HEADER_VIDEO =
+  'https://res.cloudinary.com/dui7h1n3d/video/upload/v1782882408/From_Klickpin.com-_Wave-filled_ocean_moods_for_people_who_love_beauty_with_soft_aesthetic_charm_to_brighten_your_feed-pin-id-23573598046061690_-_ROTATE_-_Videobolt.net_x2dqmi.mp4';
+
 /** "Tue, 30 Jun · 11:00 AM" style interview slot. */
 const fmtSlot = (iso: string) => {
   const d = new Date(iso);
@@ -68,26 +72,15 @@ export function DashboardView({
   const { user } = useAuth();
   const name = (user?.name || displayName(user?.email) || 'there').split(' ')[0];
 
-  // Time-of-day greeting, backdrop + today's date, computed after mount to avoid
-  // any server/client hydration mismatch.
+  // Time-of-day greeting + today's date, computed after mount to avoid any
+  // server/client hydration mismatch.
   const [greeting, setGreeting] = useState('Welcome back');
   const [today, setToday] = useState('');
-  const [bgImage, setBgImage] = useState('/greeting-bg.jpg');
   useEffect(() => {
     const h = new Date().getHours();
-    if (h < 12) {
-      setGreeting('Good morning');
-      setBgImage('/greeting-bg-morning.jpg');
-    } else if (h < 17) {
-      setGreeting('Good afternoon');
-      setBgImage('/greeting-bg-afternoon.jpg');
-    } else if (h < 21) {
-      setGreeting('Good evening');
-      setBgImage('/greeting-bg-evening.jpg');
-    } else {
-      setGreeting('Good evening');
-      setBgImage('/greeting-bg-night.jpg');
-    }
+    if (h < 12) setGreeting('Good morning');
+    else if (h < 17) setGreeting('Good afternoon');
+    else setGreeting('Good evening');
     setToday(
       new Date().toLocaleDateString('en-US', {
         weekday: 'long',
@@ -164,10 +157,13 @@ export function DashboardView({
 
   // Candidates coming in for interviews — the next 6 scheduled interviews from
   // now onward, soonest first. Derived from the live `interviews` query, so it
-  // refreshes automatically as new interviews are scheduled / rescheduled.
+  // refreshes automatically as new interviews are scheduled / rescheduled. Only
+  // interviews whose candidate still exists are shown, so a deleted candidate's
+  // orphaned interview never lingers here.
   const now = Date.now();
+  const liveCandidateIds = new Set(candidates.map(c => c.id));
   const upcomingInterviews = interviews
-    .filter(iv => iv.status === 'Scheduled')
+    .filter(iv => iv.status === 'Scheduled' && liveCandidateIds.has(iv.candidateId))
     .map(iv => ({ iv, t: new Date(iv.dateTime).getTime() }))
     .filter(x => !Number.isNaN(x.t) && x.t >= now)
     .sort((a, b) => a.t - b.t)
@@ -189,11 +185,16 @@ export function DashboardView({
 
       {/* Greeting header */}
       <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] px-7 py-8 sm:flex-row sm:items-center sm:justify-between">
-        {/* Photo backdrop */}
-        <div
+        {/* Ambient looping video backdrop — muted, auto-playing, cover-fit */}
+        <video
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-cover bg-bottom opacity-55"
-          style={{ backgroundImage: `url('${bgImage}')` }}
+          src={HEADER_VIDEO}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
         />
         {/* Light wash on the left so the text stays readable */}
         <div

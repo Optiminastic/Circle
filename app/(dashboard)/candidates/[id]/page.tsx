@@ -76,7 +76,7 @@ import { openDocument, useDocuments } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
 import { INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
 import { useInterviewBanks } from '@/features/question-banks/hooks';
-import { encodeInterviewSheet } from '@/lib/interview-sheet';
+import { saveInterviewSheet } from '@/lib/interview-sheet';
 import { PageLoading } from '@/components/PageLoading';
 import { Tip } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -195,8 +195,8 @@ export default function CandidateDetailPage() {
   // Physical Interview mode: Offline emails only the interviewer; Online creates
   // a Google Meet link and emails both the candidate and the interviewer.
   const [ivpackMode, setIvpackMode] = useState<'Online' | 'Offline'>('Offline');
-  // Optional manual Google Meet link — if HR pastes one, that exact link is sent
-  // to both; left blank, a Meet link is auto-created on the calendar event.
+  // Fallback Google Meet link — used only when one can't be created automatically
+  // (e.g. Google Calendar isn't connected), so HR can still send a link.
   const [ivpackMeetLink, setIvpackMeetLink] = useState('');
   const [sr, setSr] = useState<ScreeningReview>(blankScreening());
   const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
@@ -348,11 +348,17 @@ export default function CandidateDetailPage() {
   // The in-person round is "reached" once the interview has actually happened
   // (completed or feedback recorded) — scheduling alone only fills Interview Schedule.
   const interviewConducted = interviewDone || myInterviews.some(iv => !!iv.grading);
+  // The interviewer's overall recommendation (submitted via the public sheet, or
+  // saved by HR in the feedback modal). Shown on the Physical Interview step; a
+  // hire recommendation, once HR saves it, opens the final Decision step.
+  const interviewRecommendation = [...myInterviews].reverse().find(iv => iv.grading)?.grading
+    ?.recommendation;
   const rejected = candidate.status === 'Rejected';
   const selected = candidate.status === 'Selected';
   const decided = rejected || selected;
   const onHold = candidate.status === 'On Hold';
-  // The physical interview must be accepted by HR before the final Decision opens.
+  // The physical interview must be accepted by HR (saving a hire recommendation
+  // in the feedback modal) before the final Decision opens.
   const physicalAccepted = candidate.stageDecisions?.['Physical Interview'] === 'Accepted';
 
   const stages = [
@@ -419,7 +425,13 @@ export default function CandidateDetailPage() {
       Icon: CalendarDays,
       reached: interviewConducted || candidate.stageDecisions?.['Assessment'] === 'Accepted',
       done: interviewDone,
-      desc: interviewDone ? 'Completed' : interviewReached ? 'Awaiting' : 'Pending',
+      // Show the interviewer's recommendation once it's in, instead of a generic
+      // status — HR reviews it, then a hire opens the Decision step.
+      desc: interviewRecommendation
+        ? interviewRecommendation
+        : interviewReached
+          ? 'Awaiting'
+          : 'Pending',
       when: myInterviews[0]?.dateTime,
     },
     {
@@ -1113,11 +1125,17 @@ export default function CandidateDetailPage() {
   };
   const submitFeedback = () => {
     if (!fbInterview) return;
+    // A hire recommendation (Hire / Strong Hire) opens the final Decision step;
+    // anything else keeps it closed. HR's saved choice is the gate.
+    const positive = fbRec === 'Hire' || fbRec === 'Strong Hire';
     gradeInterview.mutate(
       { interviewId: fbInterview.id, recommendation: fbRec, comments: fbComments },
       {
         onSuccess: () => {
-          toast.success('Interview feedback saved.');
+          setStageDecision('Physical Interview', positive ? 'Accepted' : 'On Hold');
+          toast.success(
+            positive ? 'Feedback saved — proceed to the final decision.' : 'Feedback saved.',
+          );
           setOpenForm(null);
           setFbInterview(null);
         },
@@ -1175,33 +1193,42 @@ export default function CandidateDetailPage() {
         .map(it => ({ text: it.text.trim(), options: [] as string[], module: m })),
     );
     const resumeUrl = resumeDoc ? documentPreviewUrl(resumeDoc.id) : '';
-    const encoded = encodeInterviewSheet({
-      interviewId: latestInterview.id,
-      candidateName: candidate.fullName,
-      role: position,
-      department: candidate.department,
-      experienceYears: candidate.totalExperienceYears,
-      relevantExperienceYears: candidate.relevantExperienceYears,
-      email: candidate.email,
-      phone: candidate.phone,
-      currentCompany: candidate.currentCompany,
-      currentDesignation: candidate.currentDesignation,
-      resumeUrl,
-      interviewerName: latestInterview.interviewerName,
-      whenIso: latestInterview.dateTime,
-      mode: ivpackMode,
-      roleLabel: bank.roleName,
-      questions,
-    });
-    const sheetUrl = `${window.location.origin}/interview-sheet?d=${encodeURIComponent(encoded)}`;
+    // Persist the sheet payload server-side and link to it by a short token, so
+    // the emailed URL stays short (the old base64 `?d=` blob was multiple KB).
+    let sheetToken: string;
+    try {
+      sheetToken = await saveInterviewSheet({
+        interviewId: latestInterview.id,
+        candidateName: candidate.fullName,
+        role: position,
+        department: candidate.department,
+        experienceYears: candidate.totalExperienceYears,
+        relevantExperienceYears: candidate.relevantExperienceYears,
+        email: candidate.email,
+        phone: candidate.phone,
+        currentCompany: candidate.currentCompany,
+        currentDesignation: candidate.currentDesignation,
+        resumeUrl,
+        interviewerName: latestInterview.interviewerName,
+        whenIso: latestInterview.dateTime,
+        mode: ivpackMode,
+        roleLabel: bank.roleName,
+        questions,
+      });
+    } catch {
+      toast.error('Could not create the interview sheet link. Please try again.');
+      return;
+    }
+    const sheetUrl = `${window.location.origin}/interview-sheet?id=${sheetToken}`;
 
     setOpenForm(null);
 
-    // Online: share a Google Meet link with BOTH the candidate and interviewer.
-    // If HR pasted a link, use that exact one; otherwise auto-create one on the
-    // interview's calendar event. Offline: just the interviewer pack.
+    // Online: auto-create a Google Meet link on the interview's calendar event
+    // and share it with BOTH the candidate and interviewer. If Google can't create
+    // one (e.g. Calendar not connected), fall back to the link HR pasted. Offline:
+    // just the interviewer pack.
     const manualLink = ivpackMeetLink.trim();
-    let meetLink: string | null | undefined = manualLink || undefined;
+    let meetLink: string | null | undefined;
     if (isOnline) {
       try {
         const attendees = [candidate.email, latestInterview.interviewerEmail, HR_EMAIL].filter(
@@ -1214,14 +1241,15 @@ export default function CandidateDetailPage() {
           dateTimeIso: latestInterview.dateTime,
           durationMin: latestInterview.durationMinutes ?? 45,
           attendees,
-          // Manual link → put it on the event (no auto-Meet). Blank → auto-create.
-          ...(manualLink ? { location: manualLink, online: false } : { online: true }),
+          online: true,
           notes: `Online interview for ${candidate.fullName} (${position}).`,
         });
-        if (!manualLink) meetLink = res.meetLink;
+        meetLink = res.meetLink;
       } catch {
-        /* calendar sync is best-effort — fall back to "link to follow" copy */
+        /* calendar sync is best-effort — fall back to the manual link below */
       }
+      // Auto-create didn't produce a link → use the one HR pasted, if any.
+      if (!meetLink && manualLink) meetLink = manualLink;
       // Reflect the mode + link on the interview record.
       repositories.interviews
         .patch(latestInterview.id, {
@@ -1520,11 +1548,11 @@ export default function CandidateDetailPage() {
     const showGate =
       isCurrent &&
       ((label === 'Screening' && !!candidate.screeningReview) || (label === 'HR Call' && hrCallDone));
+    // Physical Interview has NO accept/hold/reject buttons here — its outcome is
+    // driven by the interviewer's recommendation, which HR reviews & saves in the
+    // feedback modal (a hire opens the Decision step).
     const showResultDecision =
-      isCurrent &&
-      ((label === 'IQ Test' && iqDone) ||
-        (label === 'Assessment' && asgDone) ||
-        (label === 'Physical Interview' && interviewConducted));
+      isCurrent && ((label === 'IQ Test' && iqDone) || (label === 'Assessment' && asgDone));
     const showNext = isCurrent && label === 'Interview Schedule' && interviewReached;
 
     if (showGate || showResultDecision)
@@ -2498,11 +2526,17 @@ export default function CandidateDetailPage() {
                     <option value="Offline">Offline (in-person)</option>
                     <option value="Online">Online (Google Meet)</option>
                   </select>
+                  {ivpackMode === 'Online' && (
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      A Google Meet link is created automatically and emailed to both the candidate and
+                      interviewer.
+                    </p>
+                  )}
                 </div>
                 {ivpackMode === 'Online' && (
                   <div>
                     <Label htmlFor="ivp-meet" className="text-sm font-medium">
-                      Google Meet link <span className="text-gray-400">(optional)</span>
+                      Fallback Google Meet link <span className="text-gray-400">(optional)</span>
                     </Label>
                     <Input
                       id="ivp-meet"
@@ -2512,8 +2546,8 @@ export default function CandidateDetailPage() {
                       className="mt-2"
                     />
                     <p className="mt-1 text-[11px] text-gray-500">
-                      Paste a Meet link to send that exact one to both the candidate and interviewer, or
-                      leave blank to auto-create a Google Meet on the calendar.
+                      Used only if a link can&apos;t be created automatically (e.g. Google Calendar isn&apos;t
+                      connected). Paste one here to send it to both.
                     </p>
                   </div>
                 )}

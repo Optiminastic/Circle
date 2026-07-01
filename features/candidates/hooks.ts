@@ -64,9 +64,28 @@ export function useCandidateMutations() {
     ),
   });
 
+  // Deleting a candidate cascades on the backend (interviews, schedules, tests,
+  // doc-requests, BGV, onboarding, handoff, documents). Invalidate those queries
+  // too so dependent views (e.g. the dashboard's Upcoming Interviews) refresh and
+  // don't keep showing the removed candidate.
   const remove = useMutation({
     mutationFn: (id: string) => repositories.candidates.remove(id),
-    ...optimisticOptions<string, Candidate>(qc, qk.candidates.all, id => listOps.removeBy(c => c.id === id)),
+    ...optimisticOptions<string, Candidate>(
+      qc,
+      qk.candidates.all,
+      id => listOps.removeBy(c => c.id === id),
+      [
+        qk.candidates.all,
+        qk.interviews.all,
+        qk.schedules.all,
+        qk.iqTests.all,
+        qk.testInvites.all,
+        qk.assignments.all,
+        qk.docRequests.all,
+        qk.onboarding.all,
+        qk.bgvs.all,
+      ],
+    ),
   });
 
   // HR override of the auto-computed screening fit rating.

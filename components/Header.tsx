@@ -12,6 +12,7 @@ import {
   Search,
   Bell,
   CalendarRange,
+  Library,
   Mail,
   LogOut,
   ShieldCheck,
@@ -134,6 +135,19 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
 
       {/* Right Actions & Profile */}
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        {/* Question Library */}
+        <Link
+          href="/question-library"
+          aria-label="Question Bank"
+          title="Question Bank"
+          className={cn(
+            'rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+            ui.focusRing,
+          )}
+        >
+          <Library size={14} />
+        </Link>
+
         {/* Recruitment calendar */}
         <Link
           href="/calendar"

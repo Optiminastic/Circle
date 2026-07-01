@@ -4,7 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
 import { http } from '@/lib/http/client';
-import { decodeInterviewSheet, type InterviewSheetPayload } from '@/lib/interview-sheet';
+import {
+  decodeInterviewSheet,
+  loadInterviewSheet,
+  type InterviewSheetPayload,
+} from '@/lib/interview-sheet';
 import type { InterviewQuestionResponse } from '@/types';
 import {
   AlertTriangle,
@@ -105,10 +109,18 @@ export default function InterviewSheetPage() {
     }
   };
 
-  // Read the encoded payload from the URL on the client (avoids useSearchParams
-  // Suspense requirements and keeps this a fully static public page).
+  // Read the sheet from the URL on the client (avoids useSearchParams Suspense
+  // requirements and keeps this a fully static public page). New links carry a
+  // short token (`?id=`) and we fetch the payload; old links inlined it (`?d=`).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (id) {
+      loadInterviewSheet(id)
+        .then(setData)
+        .finally(() => setReady(true));
+      return;
+    }
     setData(decodeInterviewSheet(params.get('d') ?? ''));
     setReady(true);
   }, []);
