@@ -6,6 +6,7 @@ import { InterviewGrading, OnboardingChecklist } from '@/types';
 import { OnboardingStepper } from './OnboardingStepper';
 import { DocRequestPanel } from './DocRequestPanel';
 import { CandidateHandoffCard } from './CandidateHandoffCard';
+import { OfferLetterCard } from './OfferLetterCard';
 import { useToast } from './Toaster';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
@@ -55,8 +56,10 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
 
   return (
     <div className="grid grid-cols-1 gap-5 text-xs lg:grid-cols-12 lg:items-start">
+      {/* Left column: candidate snapshot + offer-letter builder */}
+      <div className="space-y-4 lg:col-span-3">
       {/* Candidate snapshot */}
-      <div className="space-y-4 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 lg:col-span-3">
+      <div className="space-y-4 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5">
         <div className="space-y-1">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             Candidate Snapshot
@@ -180,6 +183,14 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
             Clear all tasks to active EMP conversion
           </button>
         )}
+      </div>
+
+        {/* Offer-letter builder */}
+        <OfferLetterCard
+          candidateId={checklist.candidateId}
+          candidateName={checklist.candidateName}
+          offerLetter={checklist.offerLetter}
+        />
       </div>
 
       {/* Journey */}

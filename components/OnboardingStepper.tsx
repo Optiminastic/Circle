@@ -2,22 +2,24 @@
 
 import React, { useState } from 'react';
 import {
-  ShieldCheck,
   FileSignature,
   PenLine,
-  Building2,
+  FileText,
+  ShieldCheck,
   Fingerprint,
+  CalendarCheck,
+  DoorOpen,
+  Mail,
   BadgeCheck,
   Check,
   Send,
   Loader2,
   Lock,
   Info,
-  Mail,
 } from 'lucide-react';
 import { BGVRequirement, OnboardingChecklist } from '@/types';
 import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
-import { useDocRequests } from '@/features/doc-requests/hooks';
+import { useDocRequests, useDocRequestMutations } from '@/features/doc-requests/hooks';
 import {
   useOnboardingEmails,
   usePromoteFromOnboarding,
@@ -35,14 +37,17 @@ interface OnboardingStepperProps {
 type StageAction =
   | { kind: 'email'; emailKind: OnboardingEmailKind; cta: string }
   | { kind: 'mark-signed'; cta: string }
+  | { kind: 'request-docs'; cta: string }
   | { kind: 'start-bgv'; cta: string }
   | { kind: 'verify-bgv'; cta: string }
+  | { kind: 'confirm-joining'; cta: string }
+  | { kind: 'mark-arrived'; cta: string }
   | { kind: 'convert-employee'; cta: string }
   | { kind: 'none' };
 
 type StepState = 'done' | 'current' | 'todo';
 
-const fmtDateTime = (iso?: string) =>
+const fmtDate = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
@@ -52,16 +57,18 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const { data: candidates = [] } = useCandidates();
   const { data: requests = [] } = useDocRequests();
   const { data: bgvs = [] } = useBgvs();
-  const { sendComposed, markOfferSigned } = useOnboardingEmails();
+  const { sendComposed, markOfferSigned, setJoiningDate, markFirstDayArrived } = useOnboardingEmails();
+  const { create: createDocRequest } = useDocRequestMutations();
   const updateBgv = useUpdateBgv();
   const startBgv = useStartBgv();
   const promote = usePromoteFromOnboarding();
 
   const [openInfo, setOpenInfo] = useState<Record<number, boolean>>({});
-  // Editable email composer (offer letter / job offer / office invite).
   const [composer, setComposer] = useState<(ComposerSeed & { kind: OnboardingEmailKind }) | null>(
     null,
   );
+  // Joining-date picker value for the "Joining date confirmation" step.
+  const [joiningInput, setJoiningInput] = useState(checklist.joiningDate ?? '');
 
   const candidate = candidates.find(c => c.id === checklist.candidateId);
   // Resending mints a fresh link, so pick the request that actually holds the
@@ -76,15 +83,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )[0];
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
+  const toEmail = candidate?.email || checklist.candidateEmail || '';
 
   const verifiedCount = docRequest?.submissions?.filter(s => s.status === 'Verified').length ?? 0;
   const requiredCount = docRequest?.requiredDocs?.length ?? 0;
+  const docsRequested = Boolean(docRequest);
   const docsVerified = docRequest?.status === 'Verified';
-  // The candidate has shared at least one document (or finished) — enough to send
-  // the offer letter without waiting for HR to verify every doc.
-  const docsShared =
-    docsVerified || (docRequest?.submissions?.length ?? 0) > 0 || docRequest?.status === 'Submitted';
   const bgvVerified = bgv?.overallStatus === 'Verified';
+  const joiningConfirmed = Boolean(checklist.joiningDateConfirmedAt);
+  const firstDayArrived = Boolean(checklist.firstDayArrivedAt);
   const joined =
     checklist.progressPercentage === 100 ||
     checklist.onboardingStatus === 'Joined' ||
@@ -99,28 +106,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     detail: string;
     action: StageAction;
   }[] = [
-    {
-      Icon: ShieldCheck,
-      label: 'Documents verified',
-      done: docsVerified,
-      desc: docsVerified ? 'Verified' : docRequest ? `${verifiedCount}/${requiredCount} verified` : 'Pending',
-      detail: docsVerified
-        ? 'All joining documents have been verified.'
-        : docRequest
-          ? `${verifiedCount} of ${requiredCount} documents verified. Finish verifying the uploads below before sending the offer.`
-          : 'No documents collected yet — request and verify them in the panel below.',
-      action: { kind: 'none' },
-    },
-    {
-      Icon: Mail,
-      label: 'Job offer',
-      done: Boolean(checklist.jobOfferSentAt),
-      desc: checklist.jobOfferSentAt ? 'Sent' : 'Pending',
-      at: checklist.jobOfferSentAt,
-      detail:
-        'Email the candidate their job offer — the role, salary, working days/hours and mode. The formal offer letter follows next.',
-      action: { kind: 'email', emailKind: 'job_offer', cta: 'job offer' },
-    },
     {
       Icon: FileSignature,
       label: 'Offer letter',
@@ -138,17 +123,33 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       desc: checklist.offerSignedReceivedAt ? 'Received' : 'Awaiting',
       at: checklist.offerSignedReceivedAt,
       detail:
-        'Once the candidate returns the signed offer, mark it received here to unlock the office invite.',
+        'Once the candidate returns the signed offer, mark it received here to move on to document collection.',
       action: { kind: 'mark-signed', cta: 'Mark received' },
     },
     {
-      Icon: Building2,
-      label: 'Office invite',
-      done: Boolean(checklist.officeInviteSentAt),
-      desc: checklist.officeInviteSentAt ? 'Sent' : 'Pending',
-      at: checklist.officeInviteSentAt,
-      detail: 'Send a welcome-to-office email with the office address so they can visit and complete formalities.',
-      action: { kind: 'email', emailKind: 'office_invite', cta: 'office invite' },
+      Icon: FileText,
+      label: 'Documents verification',
+      done: docsRequested,
+      desc: docsRequested ? 'Requested' : 'Pending',
+      detail:
+        'Email the candidate a secure link to upload their joining documents. Verify each upload in the Joining documents panel below.',
+      action: { kind: 'request-docs', cta: 'Request documents' },
+    },
+    {
+      Icon: ShieldCheck,
+      label: 'Documents received',
+      done: docsVerified,
+      desc: docsVerified
+        ? 'Verified'
+        : docRequest
+          ? `${verifiedCount}/${requiredCount} verified`
+          : 'Pending',
+      detail: docsVerified
+        ? 'All joining documents have been verified.'
+        : docRequest
+          ? `${verifiedCount} of ${requiredCount} documents verified. Verify the remaining uploads in the panel below.`
+          : 'Waiting for the candidate to upload their documents.',
+      action: { kind: 'none' },
     },
     {
       Icon: Fingerprint,
@@ -158,11 +159,41 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       detail: bgvVerified
         ? 'Background verification is cleared.'
         : bgv
-          ? `Background check is "${bgv.overallStatus}". Mark it verified once all checks pass to enable employee conversion.`
-          : 'Background verification has not started yet. Kick it off to begin collecting & checking documents.',
-      action: bgv
-        ? { kind: 'verify-bgv', cta: 'Mark BGV verified' }
-        : { kind: 'start-bgv', cta: 'Start BGV' },
+          ? `Background check is "${bgv.overallStatus}". Mark it verified once all checks pass.`
+          : 'Background verification has not started yet. Kick it off to begin the checks.',
+      action: bgv ? { kind: 'verify-bgv', cta: 'Mark BGV verified' } : { kind: 'start-bgv', cta: 'Start BGV' },
+    },
+    {
+      Icon: CalendarCheck,
+      label: 'Joining date confirmation',
+      done: joiningConfirmed,
+      desc: joiningConfirmed
+        ? `Confirmed${checklist.joiningDate ? ` · ${fmtDate(checklist.joiningDate)}` : ''}`
+        : 'Pending',
+      at: checklist.joiningDateConfirmedAt,
+      detail:
+        'Pick the first working day and email the candidate to confirm it (with the office address and what to bring).',
+      action: { kind: 'confirm-joining', cta: 'Confirm & email' },
+    },
+    {
+      Icon: DoorOpen,
+      label: 'First day',
+      done: firstDayArrived,
+      desc: firstDayArrived ? 'Arrived' : 'Pending',
+      at: checklist.firstDayArrivedAt,
+      detail:
+        "On the candidate's first office day, mark them arrived — this also pushes their profile + documents to the external onboarding system (feed webhook).",
+      action: { kind: 'mark-arrived', cta: 'Mark arrived' },
+    },
+    {
+      Icon: Mail,
+      label: 'Appointment letter',
+      done: Boolean(checklist.appointmentLetterSentAt),
+      desc: checklist.appointmentLetterSentAt ? 'Sent' : 'Pending',
+      at: checklist.appointmentLetterSentAt,
+      detail:
+        'Email the candidate their letter of appointment confirming the full terms of their employment.',
+      action: { kind: 'email', emailKind: 'appointment_letter', cta: 'appointment letter' },
     },
     {
       Icon: BadgeCheck,
@@ -171,7 +202,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       desc: joined ? 'Onboarded' : 'Pending',
       detail: joined
         ? 'The candidate has been onboarded into the employee directory.'
-        : 'Once background verification is cleared, convert the candidate into an employee. This is the final step.',
+        : 'The final step — convert the candidate into an employee once the appointment letter is out.',
       action: { kind: 'convert-employee', cta: 'Convert to employee' },
     },
   ];
@@ -183,18 +214,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const stepState = (i: number): StepState =>
     i < currentIndex ? 'done' : i === currentIndex ? (stages[i].done ? 'done' : 'current') : 'todo';
 
-  const toEmail = candidate?.email || checklist.candidateEmail || '';
-
   // Open the editable composer pre-filled from the template for this email kind.
-  const openComposer = (emailKind: OnboardingEmailKind, cta: string) => {
-    const draft = buildOnboardingEmailDraft(emailKind, candidate);
-    setComposer({
-      kind: emailKind,
-      title: `Send ${cta}`,
-      to: toEmail,
-      subject: draft.subject,
-      body: draft.body,
-    });
+  const openComposer = (emailKind: OnboardingEmailKind, cta: string, startDate?: string) => {
+    const draft = buildOnboardingEmailDraft(emailKind, candidate, startDate ? { startDate } : undefined);
+    setComposer({ kind: emailKind, title: `Send ${cta}`, to: toEmail, subject: draft.subject, body: draft.body });
   };
 
   const sendFromComposer = (subject: string, body: string) => {
@@ -220,6 +243,43 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     markOfferSigned.mutate(checklist.candidateId, {
       onSuccess: () => toast.success('Signed offer recorded.'),
       onError: () => toast.error('Could not record the signed offer — try again.'),
+    });
+
+  const requestDocs = () =>
+    createDocRequest.mutate(
+      {
+        candidateId: checklist.candidateId,
+        candidateName: checklist.candidateName,
+        email: toEmail,
+        role: candidate?.appliedRole,
+        prior: docRequest,
+      },
+      {
+        onSuccess: () =>
+          toast.success(toEmail ? `Document upload link sent to ${toEmail}.` : 'Document link created.'),
+        onError: () => toast.error('Could not send the document request — try again.'),
+      },
+    );
+
+  // Store the picked joining date, then open the confirmation email pre-filled with it.
+  const confirmJoining = () => {
+    if (!joiningInput) {
+      toast.error('Pick a joining date first.');
+      return;
+    }
+    setJoiningDate.mutate(
+      { candidateId: checklist.candidateId, date: joiningInput },
+      {
+        onSuccess: () => openComposer('joining_date', 'joining date', fmtDate(joiningInput)),
+        onError: () => toast.error('Could not save the joining date — try again.'),
+      },
+    );
+  };
+
+  const markArrived = () =>
+    markFirstDayArrived.mutate(checklist.candidateId, {
+      onSuccess: () => toast.success('Marked arrived — pushed to the onboarding feed.'),
+      onError: () => toast.error('Could not mark arrived — try again.'),
     });
 
   const beginBgv = () => {
@@ -255,22 +315,18 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   };
 
   // --- per-stage action helpers (each entry drives its own button) ---
-  const gateMetFor = (i: number) => {
-    if (i === 0) return true;
-    const action = stages[i].action;
-    // The job offer goes out as soon as the candidate has SHARED their documents,
-    // without waiting for HR to verify each one. The offer letter then follows it.
-    if (action.kind === 'email' && action.emailKind === 'job_offer') return docsShared;
-    return stages[i - 1].done;
-  };
+  const gateMetFor = (i: number) => (i === 0 ? true : stages[i - 1].done);
   const showActionFor = (i: number) => {
     const a = stages[i].action;
     const done = stages[i].done;
     return (
       a.kind === 'email' ||
+      a.kind === 'request-docs' ||
+      a.kind === 'confirm-joining' ||
       (a.kind === 'mark-signed' && !done) ||
       a.kind === 'start-bgv' ||
       (a.kind === 'verify-bgv' && !done) ||
+      (a.kind === 'mark-arrived' && !done) ||
       (a.kind === 'convert-employee' && !done)
     );
   };
@@ -279,6 +335,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     return (
       (sendComposed.isPending && a.kind === 'email' && sendComposed.variables?.kind === a.emailKind) ||
       (markOfferSigned.isPending && a.kind === 'mark-signed') ||
+      (createDocRequest.isPending && a.kind === 'request-docs') ||
+      (setJoiningDate.isPending && a.kind === 'confirm-joining') ||
+      (markFirstDayArrived.isPending && a.kind === 'mark-arrived') ||
       (startBgv.isPending && a.kind === 'start-bgv') ||
       (updateBgv.isPending && a.kind === 'verify-bgv') ||
       (promote.isPending && a.kind === 'convert-employee')
@@ -291,6 +350,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         return openComposer(a.emailKind, a.cta);
       case 'mark-signed':
         return markSigned();
+      case 'request-docs':
+        return requestDocs();
+      case 'confirm-joining':
+        return confirmJoining();
+      case 'mark-arrived':
+        return markArrived();
       case 'start-bgv':
         return beginBgv();
       case 'verify-bgv':
@@ -302,15 +367,27 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const actionMetaFor = (i: number) => {
     const a = stages[i].action;
     const label =
-      a.kind === 'email' ? `${stages[i].done ? 'Resend' : 'Send'} ${a.cta}` : a.kind !== 'none' ? a.cta : '';
-    const Icon =
       a.kind === 'email'
+        ? `${stages[i].done ? 'Resend' : 'Send'} ${a.cta}`
+        : a.kind === 'request-docs'
+          ? stages[i].done
+            ? 'Resend link'
+            : a.cta
+          : a.kind !== 'none'
+            ? a.cta
+            : '';
+    const Icon =
+      a.kind === 'email' || a.kind === 'request-docs'
         ? Send
         : a.kind === 'convert-employee'
           ? BadgeCheck
           : a.kind === 'verify-bgv' || a.kind === 'start-bgv'
             ? Fingerprint
-            : PenLine;
+            : a.kind === 'confirm-joining'
+              ? CalendarCheck
+              : a.kind === 'mark-arrived'
+                ? DoorOpen
+                : PenLine;
     return { label, Icon };
   };
 
@@ -341,6 +418,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           const gateMet = gateMetFor(i);
           const pending = pendingFor(i);
           const { label: actionLabel, Icon: ActionIcon } = actionMetaFor(i);
+          const isJoining = stage.action.kind === 'confirm-joining';
 
           return (
             <li key={stage.label} className="relative flex gap-4">
@@ -397,7 +475,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                   <div className="flex shrink-0 items-center gap-2.5">
                     {stage.at && (
                       <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
-                        {fmtDateTime(stage.at)}
+                        {fmtDate(stage.at)}
                       </span>
                     )}
                     <button
@@ -428,10 +506,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                   >
                     <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
                     {stage.at && (
-                      <p className="mt-2 text-[11px] text-gray-400">
-                        {stage.label === 'Signed offer received' ? 'Recorded' : 'Sent'} on{' '}
-                        {fmtDateTime(stage.at)}
-                      </p>
+                      <p className="mt-2 text-[11px] text-gray-400">Recorded on {fmtDate(stage.at)}</p>
                     )}
                   </div>
                 )}
@@ -439,6 +514,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                 {/* Action row */}
                 {showAction && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {isJoining && (
+                      <input
+                        type="date"
+                        value={joiningInput}
+                        onChange={e => setJoiningInput(e.target.value)}
+                        disabled={!gateMet}
+                        className="h-6 rounded-md border border-[#E4E6EA] bg-white px-2 text-[11px] text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50"
+                      />
+                    )}
                     <button
                       onClick={() => onActionClickFor(i)}
                       disabled={!gateMet || pending}

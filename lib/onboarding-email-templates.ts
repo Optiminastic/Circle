@@ -113,6 +113,26 @@ export function buildOnboardingEmailDraft(
         ].join('\n'),
       };
 
+    case 'joining_date':
+      return {
+        subject: `Your joining date — ${role} at ${COMPANY}`,
+        body: [
+          `Dear ${name},`,
+          '',
+          `Welcome to the team! We're pleased to confirm your first working day as ${startDate}.`,
+          '',
+          'Please visit our office on your joining date to complete the joining formalities:',
+          OFFICE,
+          '',
+          'Do carry the documents mentioned in your offer letter. If anything prevents you from joining on this date, please let the HR team know at your earliest convenience.',
+          '',
+          'We look forward to welcoming you!',
+          '',
+          'Warm regards,',
+          `${COMPANY} HR`,
+        ].join('\n'),
+      };
+
     case 'appointment_letter':
       return {
         subject: `Your letter of appointment — ${COMPANY}`,

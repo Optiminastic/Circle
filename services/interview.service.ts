@@ -40,7 +40,12 @@ export function buildInterviewInviteEmail(candidate: Candidate, round: string): 
   };
 }
 
-export function applyGrading(interview: Interview, recommendation: string, comments: string): Interview {
+export function applyGrading(
+  interview: Interview,
+  recommendation: string,
+  comments: string,
+  summary?: string,
+): Interview {
   // Derive a representative score from the interviewer's actual recommendation
   // rather than hardcoding a fixed scorecard.
   const base = /strong/i.test(recommendation)
@@ -66,6 +71,7 @@ export function applyGrading(interview: Interview, recommendation: string, comme
         overallSuitability: base,
       },
       interviewerComments: comments,
+      ...(summary && summary.trim() ? { summary: summary.trim() } : {}),
       recommendation: recommendation as any,
       gradedAt: todayISO(),
     },

@@ -209,6 +209,8 @@ export default function CandidateDetailPage() {
   const [fbInterview, setFbInterview] = useState<Interview | null>(null);
   const [fbRec, setFbRec] = useState('Hire');
   const [fbComments, setFbComments] = useState('');
+  // Optional HR-written summary of the physical interview.
+  const [fbSummary, setFbSummary] = useState('');
   // Final decision (Decision step): the HR summary + the editable outcome email.
   const [decisionSummary, setDecisionSummary] = useState('');
   const [decisionKind, setDecisionKind] = useState<'accept' | 'reject' | null>(null);
@@ -787,6 +789,12 @@ export default function CandidateDetailPage() {
                   {iv.grading.interviewerComments}”
                 </p>
               )}
+              {iv.grading?.summary && (
+                <p className="mt-1 text-[11px] text-gray-600">
+                  <span className="font-semibold text-gray-500">Summary: </span>
+                  {iv.grading.summary}
+                </p>
+              )}
               {/* The interviewer's per-question responses are reviewed in the
                   "Review feedback" modal, so they're intentionally not repeated here. */}
             </div>
@@ -1210,6 +1218,7 @@ export default function CandidateDetailPage() {
     setFbInterview(iv);
     setFbRec(iv.grading?.recommendation ?? 'Hire');
     setFbComments(iv.grading?.interviewerComments ?? '');
+    setFbSummary(iv.grading?.summary ?? '');
     setOpenForm('feedback');
   };
   const submitFeedback = () => {
@@ -1218,7 +1227,7 @@ export default function CandidateDetailPage() {
     // anything else keeps it closed. HR's saved choice is the gate.
     const positive = fbRec === 'Hire' || fbRec === 'Strong Hire';
     gradeInterview.mutate(
-      { interviewId: fbInterview.id, recommendation: fbRec, comments: fbComments },
+      { interviewId: fbInterview.id, recommendation: fbRec, comments: fbComments, summary: fbSummary },
       {
         onSuccess: () => {
           setStageDecision('Physical Interview', positive ? 'Accepted' : 'On Hold');
@@ -2573,6 +2582,19 @@ export default function CandidateDetailPage() {
                     onChange={e => setFbComments(e.target.value)}
                     placeholder="Strengths, concerns, overall fit…"
                     rows={4}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="fb-summary" className="text-sm font-medium">
+                    Feedback summary <span className="text-gray-400">(optional)</span>
+                  </Label>
+                  <Textarea
+                    id="fb-summary"
+                    value={fbSummary}
+                    onChange={e => setFbSummary(e.target.value)}
+                    placeholder="Add your own summary of the interview (optional)…"
+                    rows={3}
                     className="mt-2"
                   />
                 </div>

@@ -316,6 +316,8 @@ export interface InterviewGrading {
     overallSuitability: number;
   };
   interviewerComments: string;
+  /** Optional free-text summary HR adds manually in the feedback modal. */
+  summary?: string;
   recommendation: 'Strong Hire' | 'Hire' | 'Hold' | 'Reject' | 'Re-Interview Required';
   gradedAt: string;
 }
@@ -487,6 +489,29 @@ export type BGVDocumentStatus =
 
 export type BGVOverallStatus = BGVDocumentStatus;
 
+/** HR-built offer letter values (rendered into the fixed Optiminastic format). */
+export interface OfferLetterData {
+  candidateName: string;
+  salutation: string;
+  role: string;
+  location: string;
+  ctcAnnual: number;
+  joiningDate: string;
+  probationPeriod: string;
+  medicalInsurance: number;
+  basic: number;
+  hra: number;
+  specialAllowance: number;
+  pfEmployer: number;
+  pfEmployee: number;
+  professionalTax: number;
+  signatoryName: string;
+  signatoryTitle: string;
+  hrEmail: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface OnboardingChecklist {
   candidateId: string;
   candidateName: string;
@@ -509,10 +534,18 @@ export interface OnboardingChecklist {
   offerLetterSentAt?: string;
   /** HR marked the signed offer as received back. */
   offerSignedReceivedAt?: string;
-  /** Invite-to-office email sent. */
+  /** Invite-to-office email sent. (Legacy — replaced by joining-date confirmation.) */
   officeInviteSentAt?: string;
+  /** The confirmed first-day joining date (YYYY-MM-DD). */
+  joiningDate?: string;
+  /** HR confirmed the joining date + emailed the candidate. */
+  joiningDateConfirmedAt?: string;
+  /** Candidate arrived in office on their first day (also fired the handoff webhook). */
+  firstDayArrivedAt?: string;
   /** Letter of appointment email sent. */
   appointmentLetterSentAt?: string;
+  /** HR-built offer letter (values + fixed Optiminastic format). */
+  offerLetter?: OfferLetterData;
 }
 
 export type OnboardingStatus =

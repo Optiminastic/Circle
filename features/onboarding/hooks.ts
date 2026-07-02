@@ -1,14 +1,15 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Candidate, OnboardingChecklist } from '@/types';
+import { Candidate, OfferLetterData, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { optimisticOptions } from '@/lib/query/mutations';
 import { toggleOnboardingTask } from '@/services/onboarding.service';
 import { buildEmployeeFromCandidate } from '@/services/employee.service';
 import { buildOnboardingForCandidate } from '@/services/candidate.service';
-import { sendTestEmail, sendCustomEmail } from '@/lib/api/notifications';
+import { sendTestEmail, sendCustomEmail, type TestEmailTemplate } from '@/lib/api/notifications';
+import { markCandidateArrived } from '@/lib/api/handoff';
 import { nowISO } from '@/lib/utils';
 
 export function useOnboarding() {
@@ -55,6 +56,7 @@ export type OnboardingEmailKind =
   | 'job_offer'
   | 'offer_letter'
   | 'office_invite'
+  | 'joining_date'
   | 'appointment_letter';
 
 // The checklist field each email stamps when sent.
@@ -62,6 +64,7 @@ const stampByKind: Record<OnboardingEmailKind, () => Partial<OnboardingChecklist
   job_offer: () => ({ jobOfferSentAt: nowISO() }),
   offer_letter: () => ({ offerLetterSentAt: nowISO() }),
   office_invite: () => ({ officeInviteSentAt: nowISO() }),
+  joining_date: () => ({ joiningDateConfirmedAt: nowISO() }),
   appointment_letter: () => ({ appointmentLetterSentAt: nowISO() }),
 };
 
@@ -90,7 +93,9 @@ export function useOnboardingEmails() {
         const res = await sendTestEmail({
           to: input.email,
           candidateName: input.candidateName,
-          template: input.kind,
+          // joining_date has no backend template — it's always sent via sendComposed,
+          // so this template-based path is never called with it.
+          template: input.kind as TestEmailTemplate,
           position: input.role,
           salary: input.salary,
         }).catch(() => ({ sent: false, reason: undefined } as { sent: boolean; reason?: string }));
@@ -135,7 +140,41 @@ export function useOnboardingEmails() {
     onSuccess: invalidate,
   });
 
-  return { send, sendComposed, markOfferSigned };
+  // Record the joining date HR picked (stamped before the confirmation email is
+  // composed/sent; the send then stamps joiningDateConfirmedAt via stampByKind).
+  const setJoiningDate = useMutation({
+    mutationFn: ({ candidateId, date }: { candidateId: string; date: string }) =>
+      repositories.onboarding.patch(candidateId, { joiningDate: date }),
+    onSuccess: invalidate,
+  });
+
+  // Candidate arrived for their first office day: stamp it AND fire the handoff
+  // webhook (adds them to the external onboarding feed).
+  const markFirstDayArrived = useMutation({
+    mutationFn: async (candidateId: string) => {
+      await markCandidateArrived(candidateId).catch(() => {
+        /* feed is best-effort; still record the arrival locally */
+      });
+      await repositories.onboarding.patch(candidateId, { firstDayArrivedAt: nowISO() });
+    },
+    onSuccess: invalidate,
+  });
+
+  // Save the HR-built offer letter (values) onto the onboarding record.
+  const saveOfferLetter = useMutation({
+    mutationFn: ({ candidateId, offerLetter }: { candidateId: string; offerLetter: OfferLetterData }) =>
+      repositories.onboarding.patch(candidateId, { offerLetter }),
+    onSuccess: invalidate,
+  });
+
+  return {
+    send,
+    sendComposed,
+    markOfferSigned,
+    setJoiningDate,
+    markFirstDayArrived,
+    saveOfferLetter,
+  };
 }
 
 /** Promote a finished onboarding into a full employee (touches 3 resources). */

@@ -31,24 +31,31 @@ export function useInterviewMutations() {
       interviewId,
       recommendation,
       comments,
+      summary,
     }: {
       interviewId: string;
       recommendation: string;
       comments: string;
+      summary?: string;
     }) => {
       const list = qc.getQueryData<Interview[]>(qk.interviews.all) ?? [];
       const target = list.find(i => i.id === interviewId);
       if (!target) return;
-      const updated = applyGrading(target, recommendation, comments);
+      const updated = applyGrading(target, recommendation, comments, summary);
       await repositories.interviews.update(interviewId, updated);
       return updated;
     },
-    ...optimisticOptions<{ interviewId: string; recommendation: string; comments: string }, Interview>(
+    ...optimisticOptions<
+      { interviewId: string; recommendation: string; comments: string; summary?: string },
+      Interview
+    >(
       qc,
       qk.interviews.all,
-      ({ interviewId, recommendation, comments }) =>
+      ({ interviewId, recommendation, comments, summary }) =>
         prev =>
-          prev.map(i => (i.id === interviewId ? applyGrading(i, recommendation, comments) : i)),
+          prev.map(i =>
+            i.id === interviewId ? applyGrading(i, recommendation, comments, summary) : i,
+          ),
     ),
   });
 
