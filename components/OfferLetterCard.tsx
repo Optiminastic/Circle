@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
-import { FileText, Eye, Pencil, Plus, X, Printer, Loader2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2 } from 'lucide-react';
 import type { Candidate, OfferLetterData } from '@/types';
 import { blankOfferLetter, computeBreakup, formatINRNumber } from '@/lib/offer-letter';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useOnboardingEmails } from '@/features/onboarding/hooks';
 import { nowISO } from '@/lib/utils';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from './Toaster';
-import { OfferLetterDocument } from './OfferLetterDocument';
+import { OfferLetterPaged } from './OfferLetterPaged';
 
 interface OfferLetterCardProps {
   candidateId: string;
@@ -26,10 +27,12 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
   const toast = useToast();
   const { data: candidates = [] } = useCandidates();
   const candidate = candidates.find((c: Candidate) => c.id === candidateId);
-  const { saveOfferLetter } = useOnboardingEmails();
+  const { saveOfferLetter, deleteOfferLetter } = useOnboardingEmails();
 
   const [mode, setMode] = useState<'form' | 'preview' | null>(null);
   const [draft, setDraft] = useState<OfferLetterData | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const pagesRootRef = useRef<HTMLDivElement>(null);
 
   const openCreate = () => {
     setDraft(offerLetter ?? blankOfferLetter(candidate, candidateName, nowISO()));
@@ -58,26 +61,46 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
     );
   };
 
+  const del = () => {
+    if (!offerLetter || deleting) return;
+    toast.confirm({
+      title: 'Delete this offer letter?',
+      description: 'The saved offer letter and its details are cleared. This cannot be undone.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          await deleteOfferLetter.mutateAsync(candidateId);
+          toast.success('Offer letter deleted.');
+        } catch {
+          toast.error('Could not delete the offer letter — try again.');
+        } finally {
+          setDeleting(false);
+        }
+      },
+    });
+  };
+
   const close = () => {
     setMode(null);
     setDraft(null);
   };
 
-  // Print in a clean popup: no app chrome, no fixed modal, no browser date/title
-  // (via @page margin:0). The <thead>/<tfoot> banners repeat on every page and the
-  // body paginates between them.
+  // Print the exact self-paginated A4 pages shown in the preview. Each `.ol-page`
+  // is a full A4 (794×1123px @96dpi = 210×297mm) with the header flush at the top
+  // and the footer flush at the bottom, so with @page margin 0 they print 1:1.
   const printLetter = () => {
-    const el = document.getElementById('offer-letter-print');
-    if (!el) return;
+    const root = pagesRootRef.current;
+    const pages = root?.querySelectorAll('.ol-page');
+    if (!root || !pages || pages.length === 0) {
+      toast.error('Preview is still rendering — try again in a moment.');
+      return;
+    }
     const w = window.open('', 'OFFER_LETTER_PRINT', 'width=900,height=1200');
     if (!w) {
       toast.error('Allow pop-ups to print the offer letter.');
       return;
     }
-    // Carry over the app's stylesheets so Tailwind classes render in the popup.
-    // <link> hrefs MUST be absolutised — root-relative "/_next/..." URLs don't
-    // resolve against the popup's about:blank origin, which would leave the table
-    // completely unstyled (no borders/shading).
     const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
       .map(n =>
         n.tagName === 'LINK'
@@ -85,27 +108,19 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
           : n.outerHTML,
       )
       .join('\n');
+    const pagesHtml = Array.from(pages)
+      .map(p => (p as HTMLElement).outerHTML)
+      .join('');
     w.document.write(
       `<!doctype html><html><head><title></title>${styles}<style>` +
         `@page { size: A4; margin: 0; }` +
-        // Force the grey/pink table shading to actually print.
         `* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }` +
         `html, body { margin: 0 !important; padding: 0 !important; background: #fff; }` +
-        `#offer-letter-print { width: 100% !important; max-width: none !important; margin: 0 !important; }` +
-        `table.ol-table { width: 100%; border-collapse: collapse; }` +
-        `thead.ol-band { display: table-header-group; }` +
-        // tfoot stays in flow as an invisible SPACER (reserves the footer's exact
-        // height on every page) while #ol-fixed-footer draws the real footer pinned
-        // to the physical page bottom — so it's flush even on a short last page.
-        `tfoot.ol-band { display: table-footer-group; }` +
-        `tfoot.ol-band img { visibility: hidden !important; }` +
-        `#ol-fixed-footer { display: block !important; position: fixed; left: 0; right: 0; bottom: 0; width: 100% !important; margin: 0 !important; }` +
-        `.ol-band td { padding: 0 !important; }` +
-        `.ol-content { padding: 10mm 16mm !important; }` +
-        `</style></head><body>${el.outerHTML}</body></html>`,
+        `.ol-page { width: 794px !important; height: 1123px !important; position: relative; overflow: hidden; page-break-after: always; break-after: page; }` +
+        `.ol-page:last-child { page-break-after: auto; break-after: auto; }` +
+        `</style></head><body>${pagesHtml}</body></html>`,
     );
     w.document.close();
-    // Print once the popup has loaded its stylesheets + images (with a fallback).
     let fired = false;
     const fire = () => {
       if (fired) return;
@@ -113,8 +128,8 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
       w.focus();
       w.print();
     };
-    w.onload = () => setTimeout(fire, 250);
-    setTimeout(fire, 2500); // fallback if a resource stalls
+    w.onload = () => setTimeout(fire, 350);
+    setTimeout(fire, 2500);
   };
 
   return (
@@ -127,7 +142,7 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
       {offerLetter ? (
         <>
           <p className="mb-3 text-[11px] text-gray-500">
-            Created {fmtDate(offerLetter.createdAt)}
+            Saved {fmtDate(offerLetter.updatedAt || offerLetter.createdAt)}
             {offerLetter.ctcAnnual ? ` · CTC ₹${formatINRNumber(offerLetter.ctcAnnual)}` : ''}.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -142,6 +157,13 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
             >
               <Pencil size={12} /> Edit
+            </button>
+            <button
+              onClick={del}
+              disabled={deleting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+            >
+              {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete
             </button>
           </div>
         </>
@@ -179,11 +201,7 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Salutation">
-                  <select
-                    className={inputCls}
-                    value={draft.salutation}
-                    onChange={e => set('salutation', e.target.value)}
-                  >
+                  <select className={inputCls} value={draft.salutation} onChange={e => set('salutation', e.target.value)}>
                     <option>Mr.</option>
                     <option>Ms.</option>
                     <option>Mx.</option>
@@ -199,27 +217,19 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
                   <input className={inputCls} value={draft.location} onChange={e => set('location', e.target.value)} />
                 </Field>
                 <Field label="Annual CTC (INR)">
-                  <input
-                    className={inputCls}
-                    type="number"
-                    min={0}
-                    value={draft.ctcAnnual || ''}
-                    onChange={e => setNum('ctcAnnual', e.target.value)}
-                    placeholder="e.g. 180000"
-                  />
+                  <input className={inputCls} type="number" min={0} value={draft.ctcAnnual || ''} onChange={e => setNum('ctcAnnual', e.target.value)} placeholder="e.g. 180000" />
                 </Field>
                 <Field label="Medical insurance (INR)">
                   <input className={inputCls} type="number" min={0} value={draft.medicalInsurance || ''} onChange={e => setNum('medicalInsurance', e.target.value)} />
                 </Field>
                 <Field label="Joining / start date">
-                  <input className={inputCls} value={draft.joiningDate} onChange={e => set('joiningDate', e.target.value)} placeholder="e.g. 12th March 2026" />
+                  <DatePicker value={draft.joiningDate} onChange={v => set('joiningDate', v)} />
                 </Field>
                 <Field label="Probation period">
                   <input className={inputCls} value={draft.probationPeriod} onChange={e => set('probationPeriod', e.target.value)} placeholder="e.g. six months" />
                 </Field>
               </div>
 
-              {/* CTC breakup (monthly inputs; annual = ×12; totals auto) */}
               <div>
                 <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
                   CTC breakup — monthly amounts (₹)
@@ -232,16 +242,13 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
                   <Field label="PF (deduction)"><input className={inputCls} type="number" min={0} value={draft.pfEmployee || ''} onChange={e => setNum('pfEmployee', e.target.value)} /></Field>
                   <Field label="Professional tax"><input className={inputCls} type="number" min={0} value={draft.professionalTax || ''} onChange={e => setNum('professionalTax', e.target.value)} /></Field>
                 </div>
-                {/* Live computed summary */}
                 <div className="mt-2 space-y-0.5 rounded-lg bg-[#F7F8FA] p-2.5 text-[11px] text-gray-600">
                   {computeBreakup(draft)
                     .filter(r => r.strong || r.highlight)
                     .map((r, i) => (
                       <div key={i} className="flex justify-between">
                         <span className="font-medium">{r.label}</span>
-                        <span>
-                          ₹{formatINRNumber(r.monthly)}/mo · ₹{formatINRNumber(r.annual)}/yr
-                        </span>
+                        <span>₹{formatINRNumber(r.monthly)}/mo · ₹{formatINRNumber(r.annual)}/yr</span>
                       </div>
                     ))}
                 </div>
@@ -268,7 +275,7 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
         </div>
       )}
 
-      {/* Preview modal */}
+      {/* Preview modal — self-paginated A4 pages */}
       {mode === 'preview' && draft && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={close}>
           <div className="my-4 w-full max-w-[860px] rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
@@ -286,9 +293,9 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
                 </button>
               </div>
             </div>
-            <div className="max-h-[80vh] overflow-y-auto bg-[#F1F3F5] p-4">
-              <div className="rounded-lg bg-white shadow-sm">
-                <OfferLetterDocument data={draft} />
+            <div className="max-h-[80vh] overflow-auto bg-[#F1F3F5] p-4">
+              <div className="[&_.ol-page]:mx-auto [&_.ol-page]:mb-4 [&_.ol-page]:shadow-md">
+                <OfferLetterPaged data={draft} rootRef={pagesRootRef} />
               </div>
             </div>
           </div>

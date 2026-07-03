@@ -36,3 +36,24 @@ export async function openDocument(id: string): Promise<void> {
   const { url } = await getDocumentUrl(id);
   window.open(url, '_blank', 'noopener,noreferrer');
 }
+
+/** Download the file (fetch the presigned URL as a blob and save it). Falls back
+ *  to opening it in a tab if the cross-origin fetch is blocked. */
+export async function downloadDocument(id: string, fileName?: string): Promise<void> {
+  const { url, fileName: fn } = await getDocumentUrl(id);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = fileName || fn || 'document';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}

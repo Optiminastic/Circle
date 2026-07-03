@@ -4,12 +4,12 @@ import React, { useMemo, useState } from 'react';
 import {
   FileText,
   Landmark,
-  Send,
   Copy,
   Clock4,
   CheckCircle2,
   XCircle,
   Eye,
+  Download,
   Loader2,
   ShieldCheck,
   RefreshCw,
@@ -20,7 +20,7 @@ import { DocRequest } from '@/types';
 import { qk } from '@/lib/query/keys';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useDocRequests, useDocRequestMutations, isDocRequestLive } from '@/features/doc-requests/hooks';
-import { openDocument } from '@/features/documents/hooks';
+import { openDocument, downloadDocument } from '@/features/documents/hooks';
 import { REQUIRED_DOCS, isSubmissionLocked } from '@/lib/onboarding-docs';
 import { useToast } from '@/components/Toaster';
 
@@ -44,7 +44,10 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
   const qc = useQueryClient();
   const { data: candidates = [] } = useCandidates();
   const { data: requests = [], isFetching } = useDocRequests();
-  const { create, verify } = useDocRequestMutations();
+  const { verify, verifyBank, reactivate } = useDocRequestMutations();
+  const [reHours, setReHours] = useState(24);
+  const [rejectingBank, setRejectingBank] = useState(false);
+  const [bankReason, setBankReason] = useState('');
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: qk.docRequests.all });
@@ -62,7 +65,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
     const score = (r: DocRequest) =>
       (r.submissions?.length ?? 0) + (r.bankDetails?.accountNumber ? 1 : 0);
     return requests
-      .filter(r => r.candidateId === candidateId)
+      .filter(r => r.candidateId === candidateId && r.kind !== 'signed-offer')
       .sort(
         (a, b) =>
           score(b) - score(a) ||
@@ -80,30 +83,6 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
   }, [request]);
 
   const requestLink = request ? `${window.location.origin}/onboarding-docs/${request.id}` : '';
-
-  const handleRequest = () => {
-    create.mutate(
-      {
-        candidateId,
-        candidateName,
-        email: toEmail,
-        role: candidate?.appliedRole,
-        // Carry verified/locked docs forward so a resend never wipes them.
-        prior: request,
-      },
-      {
-        onSuccess: ({ emailed, emailReason }) => {
-          if (emailed) toast.success(`Document link sent to ${toEmail}.`);
-          else if (emailReason === 'not_configured')
-            toast.info('Link created. Email not sent — SMTP is not configured (copy the link to share).');
-          else if (!toEmail)
-            toast.info('Link created, but no email on file — copy the link to share it.');
-          else toast.info('Link created, but the email could not be sent — copy the link to share.');
-        },
-        onError: () => toast.error('Could not create the document link — try again.'),
-      },
-    );
-  };
 
   const copyLink = () => {
     navigator.clipboard?.writeText(requestLink).then(
@@ -123,6 +102,21 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
           setReason('');
         },
         onError: () => toast.error('Could not update the document — try again.'),
+      },
+    );
+  };
+
+  const runVerifyBank = (status: 'Verified' | 'Rejected', why?: string) => {
+    if (!request) return;
+    verifyBank.mutate(
+      { request, status, reason: why },
+      {
+        onSuccess: () => {
+          toast.success(status === 'Verified' ? 'Bank details verified.' : 'Bank details rejected.');
+          setRejectingBank(false);
+          setBankReason('');
+        },
+        onError: () => toast.error('Could not update bank details — try again.'),
       },
     );
   };
@@ -165,21 +159,14 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
             </button>
           )}
-          <button
-            onClick={handleRequest}
-            disabled={create.isPending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-50"
-          >
-            {create.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-            {request ? 'Resend / new link' : 'Request documents'}
-          </button>
         </div>
       </div>
 
       {!request ? (
         <p className="py-6 text-center text-[12px] text-gray-500">
-          No document request yet. Click <span className="font-semibold">Request documents</span> to email{' '}
-          {toEmail || 'the candidate'} a secure upload link.
+          No document request yet. Use{' '}
+          <span className="font-semibold">Request documents</span> on the “Documents verification” step to
+          email {toEmail || 'the candidate'} a secure upload link.
         </p>
       ) : (
         <>
@@ -192,12 +179,45 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
             >
               <Clock4 size={12} /> {fmtExpiry(request)}
             </span>
-            <button
-              onClick={copyLink}
-              className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2 py-1 text-[10px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
-            >
-              <Copy size={11} /> Copy link
-            </button>
+            <div className="flex items-center gap-1.5">
+              {!live && request && (
+                <>
+                  <select
+                    value={reHours}
+                    onChange={e => setReHours(Number(e.target.value))}
+                    className="rounded-md border border-[#E4E6EA] bg-white px-1.5 py-1 text-[10px] font-semibold text-gray-600"
+                    title="Extend by"
+                  >
+                    <option value={24}>24h</option>
+                    <option value={48}>48h</option>
+                    <option value={72}>72h</option>
+                    <option value={168}>7 days</option>
+                  </select>
+                  <button
+                    onClick={() =>
+                      reactivate.mutate(
+                        { id: request.id, hours: reHours },
+                        {
+                          onSuccess: () => toast.success('Upload link reactivated.'),
+                          onError: () => toast.error('Could not reactivate the link — try again.'),
+                        },
+                      )
+                    }
+                    disabled={reactivate.isPending}
+                    className="inline-flex items-center gap-1 rounded-md border border-accent-300 bg-accent-50 px-2 py-1 text-[10px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
+                  >
+                    {reactivate.isPending ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    Reactivate
+                  </button>
+                </>
+              )}
+              <button
+                onClick={copyLink}
+                className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2 py-1 text-[10px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
+              >
+                <Copy size={11} /> Copy link
+              </button>
+            </div>
           </div>
 
           {/* Document verification rows */}
@@ -233,6 +253,9 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                       <div className="flex shrink-0 items-center gap-1">
                         <IconBtn title="View" onClick={() => openDocument(sub.documentId)}>
                           <Eye size={13} />
+                        </IconBtn>
+                        <IconBtn title="Download" onClick={() => downloadDocument(sub.documentId, sub.fileName)}>
+                          <Download size={13} />
                         </IconBtn>
                         {locked ? (
                           // Verified = approved & locked: no further review actions.
@@ -290,16 +313,76 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
 
           {/* Bank details */}
           <div className="rounded-lg border border-[#E4E6EA] bg-white p-3">
-            <p className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold text-gray-800">
-              <Landmark size={13} className="text-accent-600" /> Bank details
-            </p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-800">
+                <Landmark size={13} className="text-accent-600" /> Bank details
+              </p>
+              {bank?.accountNumber && bank.status && (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    bank.status === 'Verified'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-red-50 text-red-600'
+                  }`}
+                >
+                  {bank.status}
+                </span>
+              )}
+            </div>
             {bank?.accountNumber ? (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-                <KV k="Account holder" v={bank.accountHolderName || '—'} />
-                <KV k="Bank" v={bank.bankName || '—'} />
-                <KV k="Account no." v={bank.accountNumber} />
-                <KV k="IFSC" v={bank.ifscCode} />
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                  <KV k="Account holder" v={bank.accountHolderName || '—'} />
+                  <KV k="Bank" v={bank.bankName || '—'} />
+                  <KV k="Account no." v={bank.accountNumber} />
+                  <KV k="IFSC" v={bank.ifscCode} />
+                </div>
+                {bank.status === 'Rejected' && bank.reviewReason && (
+                  <p className="mt-1.5 text-[10px] text-red-600">Rejected — {bank.reviewReason}</p>
+                )}
+                {bank.status === 'Verified' ? (
+                  <p className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                    <Lock size={11} /> Verified &amp; locked
+                  </p>
+                ) : (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <button
+                      onClick={() => runVerifyBank('Verified')}
+                      disabled={verifyBank.isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-60"
+                    >
+                      <CheckCircle2 size={12} /> Verify
+                    </button>
+                    <button
+                      onClick={() => setRejectingBank(v => !v)}
+                      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold transition ${
+                        bank.status === 'Rejected'
+                          ? 'border-red-500 bg-red-50 text-red-600'
+                          : 'border-[#E4E6EA] bg-white text-gray-600 hover:bg-red-50 hover:text-red-600'
+                      }`}
+                    >
+                      <XCircle size={12} /> Reject
+                    </button>
+                  </div>
+                )}
+                {rejectingBank && bank.status !== 'Verified' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={bankReason}
+                      onChange={e => setBankReason(e.target.value)}
+                      placeholder="Reason for rejection (shown to the candidate)"
+                      className="flex-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-1 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    />
+                    <button
+                      onClick={() => runVerifyBank('Rejected', bankReason.trim() || undefined)}
+                      className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <p className="text-[11px] text-gray-500">Not submitted yet.</p>
             )}

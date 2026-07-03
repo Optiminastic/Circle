@@ -356,6 +356,10 @@ export interface BankDetails {
   bankName?: string;
   accountNumber: string;
   ifscCode: string;
+  /** HR review of the submitted bank details (like a document). */
+  status?: 'Verified' | 'Rejected';
+  reviewReason?: string;
+  reviewedAt?: string;
 }
 
 export type DocSubmissionStatus = 'Submitted' | 'Verified' | 'Rejected';
@@ -383,6 +387,9 @@ export interface DocRequest {
   candidateName: string;
   email: string;
   role?: string;
+  /** 'signed-offer' = a 48h link for the candidate's signed offer letter (kept
+   *  separate from the joining-documents request). undefined = joining docs. */
+  kind?: 'signed-offer';
   requiredDocs: string[];
   submissions: DocSubmission[];
   bankDetails?: BankDetails;

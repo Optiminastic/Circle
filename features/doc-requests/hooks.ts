@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DocRequest } from '@/types';
+import { BankDetails, DocRequest } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { sendTestEmail } from '@/lib/api/notifications';
@@ -40,14 +40,19 @@ export function useDocRequestMutations() {
       email: string;
       role?: string;
       prior?: DocRequest;
+      // When true, only create/reuse the request + return the link — the caller
+      // sends its own (editable) email instead of the built-in template.
+      skipEmail?: boolean;
     }) => {
       const expiresAt = new Date(Date.now() + DOC_REQUEST_TTL_HOURS * 3600 * 1000).toISOString();
 
       // Reuse an existing live request for this candidate so "Resend" re-emails the
       // SAME link (and extends its window) instead of spawning empty duplicates the
       // candidate's uploads won't show up on. Only mint a new token if none is live.
+      // Exclude the signed-offer link (kind='signed-offer') — it only accepts the
+      // signed offer letter, not the joining documents.
       const existing = (qc.getQueryData<DocRequest[]>(qk.docRequests.all) ?? [])
-        .filter(r => r.candidateId === input.candidateId)
+        .filter(r => r.candidateId === input.candidateId && r.kind !== 'signed-offer')
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const live = existing.find(r => new Date(r.expiresAt).getTime() > Date.now());
 
@@ -68,7 +73,7 @@ export function useDocRequestMutations() {
         const bank = prior?.bankDetails;
         const allVerified =
           carried.length > 0 && REQUIRED_DOC_TYPES.every(rt => carried.some(s => s.docType === rt));
-        const bankOk = Boolean(bank?.accountNumber && bank?.ifscCode);
+        const bankOk = bank?.status === 'Verified';
         request = {
           id: randomToken('DOC'),
           candidateId: input.candidateId,
@@ -88,7 +93,7 @@ export function useDocRequestMutations() {
       const link = `${window.location.origin}${docPortalPath(request.id)}`;
       let emailed = false;
       let emailReason: string | undefined;
-      if (input.email) {
+      if (input.email && !input.skipEmail) {
         const res = await sendTestEmail({
           to: input.email,
           candidateName: input.candidateName,
@@ -120,9 +125,7 @@ export function useDocRequestMutations() {
       const allVerified = input.request.requiredDocs.every(
         rt => submissions.find(s => s.docType === rt)?.status === 'Verified',
       );
-      const bankOk = Boolean(
-        input.request.bankDetails?.accountNumber && input.request.bankDetails?.ifscCode,
-      );
+      const bankOk = input.request.bankDetails?.status === 'Verified';
       return repositories.docRequests.patch(input.request.id, {
         submissions,
         status: allVerified && bankOk ? 'Verified' : input.request.status,
@@ -131,5 +134,40 @@ export function useDocRequestMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, verify };
+  // HR verifies (or rejects) the submitted bank details, like a document.
+  const verifyBank = useMutation({
+    mutationFn: async (input: { request: DocRequest; status: 'Verified' | 'Rejected'; reason?: string }) => {
+      const bank: BankDetails = {
+        ...(input.request.bankDetails as BankDetails),
+        status: input.status,
+        reviewReason: input.reason,
+        reviewedAt: nowISO(),
+      };
+      const allDocsVerified = input.request.requiredDocs.every(
+        rt => input.request.submissions.find(s => s.docType === rt)?.status === 'Verified',
+      );
+      const bankVerified = input.status === 'Verified';
+      const status =
+        allDocsVerified && bankVerified
+          ? 'Verified'
+          : input.request.status === 'Verified'
+            ? 'Submitted'
+            : input.request.status;
+      return repositories.docRequests.patch(input.request.id, { bankDetails: bank, status });
+    },
+    onSuccess: invalidate,
+  });
+
+  // Reactivate an expired link by extending its window by `hours` from now (the
+  // token/URL stays the same, so a link already in the candidate's inbox works
+  // again — no new email needed).
+  const reactivate = useMutation({
+    mutationFn: ({ id, hours }: { id: string; hours: number }) =>
+      repositories.docRequests.patch(id, {
+        expiresAt: new Date(Date.now() + Math.max(1, hours) * 3600 * 1000).toISOString(),
+      }),
+    onSuccess: invalidate,
+  });
+
+  return { create, verify, verifyBank, reactivate };
 }

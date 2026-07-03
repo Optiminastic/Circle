@@ -109,6 +109,7 @@ export function useOnboardingEmails() {
   });
 
   // Send an HR-edited onboarding email (custom subject/body) and stamp the stage.
+  // `attachment` (optional) carries the offer-letter PDF.
   const sendComposed = useMutation({
     mutationFn: async (input: {
       candidateId: string;
@@ -116,6 +117,7 @@ export function useOnboardingEmails() {
       to: string;
       subject: string;
       body: string;
+      attachment?: { name: string; base64: string; type: string };
     }) => {
       let emailed = false;
       let emailReason: string | undefined;
@@ -124,6 +126,9 @@ export function useOnboardingEmails() {
           to: input.to,
           subject: input.subject,
           body: input.body,
+          attachmentName: input.attachment?.name,
+          attachmentBase64: input.attachment?.base64,
+          attachmentType: input.attachment?.type,
         }).catch(() => ({ sent: false, reason: undefined } as { sent: boolean; reason?: string }));
         emailed = res.sent;
         emailReason = res.reason;
@@ -167,6 +172,16 @@ export function useOnboardingEmails() {
     onSuccess: invalidate,
   });
 
+  // Remove the offer letter from the onboarding record (the S3 PDF is deleted by
+  // the caller). null clears the JSONB field.
+  const deleteOfferLetter = useMutation({
+    mutationFn: (candidateId: string) =>
+      repositories.onboarding.patch(candidateId, {
+        offerLetter: null,
+      } as unknown as Partial<OnboardingChecklist>),
+    onSuccess: invalidate,
+  });
+
   return {
     send,
     sendComposed,
@@ -174,6 +189,7 @@ export function useOnboardingEmails() {
     setJoiningDate,
     markFirstDayArrived,
     saveOfferLetter,
+    deleteOfferLetter,
   };
 }
 

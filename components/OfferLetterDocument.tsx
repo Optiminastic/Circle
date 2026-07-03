@@ -1,8 +1,20 @@
 'use client';
 
 import React from 'react';
+import { format, parse, isValid } from 'date-fns';
 import type { OfferLetterData } from '@/types';
 import { computeBreakup, formatINRNumber, numberToIndianWords } from '@/lib/offer-letter';
+
+/** Format the picked joining date (yyyy-MM-dd) as "12th March 2026" — date only. */
+function formatJoining(value?: string): string {
+  if (!value) return '[start date]';
+  const m = value.match(/^(\d{4}-\d{2}-\d{2})/); // take the date part; ignore any time
+  if (m) {
+    const d = parse(m[1], 'yyyy-MM-dd', new Date());
+    if (isValid(d)) return format(d, 'do MMMM yyyy');
+  }
+  return value; // legacy free-text value
+}
 
 // Exact PDF header/footer banners (logo + CIN + petals / location-contact-social +
 // pink bar + yellow arc). Full-bleed images so the letter matches the source 1:1.
@@ -59,6 +71,13 @@ export function OfferLetterDocument({ data }: { data: OfferLetterData }) {
       id="offer-letter-print"
       className="mx-auto max-w-[820px] bg-white text-[13px] leading-relaxed text-gray-900"
     >
+      {/* Running header for the paged.js preview — placed into every page's top
+          margin box via CSS `position: running()`. Hidden on screen + in the print
+          popup (which uses the <thead> below instead). */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <div className="ol-run-header" style={{ display: 'none' }}>
+        <img src={HEADER_IMG} alt="Optiminastic" className="block w-full" />
+      </div>
       {/* A table lets the browser repeat the header (<thead>) and footer (<tfoot>)
           on EVERY printed page while the body (<tbody>) paginates between them. */}
       <table className="ol-table w-full border-collapse">
@@ -103,7 +122,7 @@ export function OfferLetterDocument({ data }: { data: OfferLetterData }) {
 
         <p className="mb-1 font-bold">2. Date of Commencement</p>
         <p className="mb-3">
-          Your effective start date is <strong>{data.joiningDate || '[start date]'}</strong>. In case of
+          Your effective start date is <strong>{formatJoining(data.joiningDate)}</strong>. In case of
           any emergencies or issues preventing you from joining on this date, kindly inform the HR team at
           your earliest convenience.
         </p>
@@ -219,6 +238,12 @@ export function OfferLetterDocument({ data }: { data: OfferLetterData }) {
           footer sits flush even on a short last page. Hidden in the on-screen preview. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img id="ol-fixed-footer" src={FOOTER_IMG} alt="" className="hidden w-full" />
+      {/* Running footer for the paged.js preview — placed into every page's bottom
+          margin box. Hidden on screen + in the print popup. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <div className="ol-run-footer" style={{ display: 'none' }}>
+        <img src={FOOTER_IMG} alt="" className="block w-full" />
+      </div>
     </div>
   );
 }

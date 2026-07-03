@@ -57,6 +57,10 @@ export function sendCustomEmail(input: {
   attendees?: string[];
   eventUid?: string;
   links?: { label: string; url: string }[];
+  // Optional file attachment (e.g. the offer-letter PDF), base64-encoded.
+  attachmentName?: string;
+  attachmentBase64?: string;
+  attachmentType?: string;
 }): Promise<ScheduleEmailResult> {
   return http.post<ScheduleEmailResult>('/notifications/custom-email', input);
 }
