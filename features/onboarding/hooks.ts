@@ -118,6 +118,7 @@ export function useOnboardingEmails() {
       subject: string;
       body: string;
       attachment?: { name: string; base64: string; type: string };
+      links?: { label: string; url: string }[];
     }) => {
       let emailed = false;
       let emailReason: string | undefined;
@@ -126,6 +127,7 @@ export function useOnboardingEmails() {
           to: input.to,
           subject: input.subject,
           body: input.body,
+          links: input.links,
           attachmentName: input.attachment?.name,
           attachmentBase64: input.attachment?.base64,
           attachmentType: input.attachment?.type,
