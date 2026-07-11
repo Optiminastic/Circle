@@ -193,12 +193,10 @@ export default function CandidateDetailPage() {
   const [ivpackBankId, setIvpackBankId] = useState('');
   const [ivpackSubject, setIvpackSubject] = useState('');
   const [ivpackBody, setIvpackBody] = useState('');
-  // Physical Interview mode: Offline emails only the interviewer; Online creates
-  // a Google Meet link and emails both the candidate and the interviewer.
+  // Physical Interview mode: Offline emails only the interviewer; Online
+  // auto-creates a Google Meet link (via the connected Google Calendar) and
+  // emails it to both the candidate and the interviewer — no manual link.
   const [ivpackMode, setIvpackMode] = useState<'Online' | 'Offline'>('Offline');
-  // Fallback Google Meet link — used only when one can't be created automatically
-  // (e.g. Google Calendar isn't connected), so HR can still send a link.
-  const [ivpackMeetLink, setIvpackMeetLink] = useState('');
   const [sr, setSr] = useState<ScreeningReview>(blankScreening());
   const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
   const [gradeScore, setGradeScore] = useState('');
@@ -1252,7 +1250,6 @@ export default function CandidateDetailPage() {
     const match = banks.find(b => b.roleName.trim().toLowerCase() === position.trim().toLowerCase());
     setIvpackBankId(match?.id ?? '');
     setIvpackMode((latestInterview?.interviewType as 'Online' | 'Offline') || 'Offline');
-    setIvpackMeetLink(latestInterview?.meetingLink || '');
     setIvpackSubject(`Interview pack: ${candidate.fullName} — ${position}`);
     setIvpackBody(
       [
@@ -1322,10 +1319,8 @@ export default function CandidateDetailPage() {
     setOpenForm(null);
 
     // Online: auto-create a Google Meet link on the interview's calendar event
-    // and share it with BOTH the candidate and interviewer. If Google can't create
-    // one (e.g. Calendar not connected), fall back to the link HR pasted. Offline:
-    // just the interviewer pack.
-    const manualLink = ivpackMeetLink.trim();
+    // (via the connected Google Calendar) and share it with BOTH the candidate and
+    // interviewer. Offline: just the interviewer pack.
     let meetLink: string | null | undefined;
     if (isOnline) {
       try {
@@ -1344,10 +1339,8 @@ export default function CandidateDetailPage() {
         });
         meetLink = res.meetLink;
       } catch {
-        /* calendar sync is best-effort — fall back to the manual link below */
+        /* calendar sync is best-effort — handled by the no-link warning below */
       }
-      // Auto-create didn't produce a link → use the one HR pasted, if any.
-      if (!meetLink && manualLink) meetLink = manualLink;
       // Reflect the mode + link on the interview record.
       repositories.interviews
         .patch(latestInterview.id, {
@@ -1439,6 +1432,12 @@ export default function CandidateDetailPage() {
             ? 'Interview pack sent to the interviewer.'
             : 'Pack created — email could not be sent.',
       );
+      // Online but no Meet link was generated → Google Calendar isn't connected.
+      if (isOnline && !meetLink) {
+        toast.info(
+          'No Google Meet link could be created — connect Google Calendar in Global Settings so links auto-generate.',
+        );
+      }
     } catch {
       toast.error('Could not send the interview pack — try again.');
     }
@@ -2678,24 +2677,6 @@ export default function CandidateDetailPage() {
                     </p>
                   )}
                 </div>
-                {ivpackMode === 'Online' && (
-                  <div>
-                    <Label htmlFor="ivp-meet" className="text-sm font-medium">
-                      Fallback Google Meet link <span className="text-gray-400">(optional)</span>
-                    </Label>
-                    <Input
-                      id="ivp-meet"
-                      value={ivpackMeetLink}
-                      onChange={e => setIvpackMeetLink(e.target.value)}
-                      placeholder="https://meet.google.com/abc-defg-hij"
-                      className="mt-2"
-                    />
-                    <p className="mt-1 text-[11px] text-gray-500">
-                      Used only if a link can&apos;t be created automatically (e.g. Google Calendar isn&apos;t
-                      connected). Paste one here to send it to both.
-                    </p>
-                  </div>
-                )}
                 <div>
                   <Label htmlFor="ivp-bank" className="text-sm font-medium">
                     Interview question set
