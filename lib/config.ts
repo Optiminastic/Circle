@@ -17,4 +17,4 @@ export const OFFICE_ADDRESS =
   'NIBR Corporate Park 1 Aerocity, 8002, Andheri - Kurla Rd, Safed Phool Saki Naka, Andheri East, Mumbai, Maharashtra 400072';
 
 /** Shared HR account — used as the organizer on interview calendar invites. */
-export const HR_EMAIL = process.env.NEXT_PUBLIC_HR_EMAIL ?? 'tech5@optiminastic.com';
+export const HR_EMAIL = process.env.NEXT_PUBLIC_HR_EMAIL ?? 'hr@optiminastic.com';
