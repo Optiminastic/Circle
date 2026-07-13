@@ -11,6 +11,22 @@ import type { Candidate, OfferLetterData } from '@/types';
 
 export type { OfferLetterData };
 
+/**
+ * PDF file base name for an offer letter: "Offer_Letter_Tushar_Suthar"
+ * (candidate name title-cased, spaces → underscores, punctuation dropped).
+ * Callers append ".pdf" (or set it as the print title, letting the browser add it).
+ */
+export function offerLetterFileBaseName(candidateName?: string): string {
+  const name = (candidateName || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join('_');
+  return `Offer_Letter_${name || 'Candidate'}`;
+}
+
 /** Indian-grouped number: 180000 -> "1,80,000". */
 export function formatINRNumber(n: number): string {
   const num = Math.round(Number(n) || 0);

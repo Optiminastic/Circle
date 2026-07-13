@@ -7,6 +7,7 @@ import type { Candidate, OfferLetterData } from '@/types';
 import { useOnboardingEmails } from '@/features/onboarding/hooks';
 import { createSignOfferRequest, signOfferPath, SIGN_OFFER_TTL_HOURS } from '@/lib/sign-offer';
 import { pagesToPdfBlob, blobToBase64 } from '@/lib/offer-letter-pdf';
+import { offerLetterFileBaseName } from '@/lib/offer-letter';
 import { DatePicker } from '@/components/ui/date-picker';
 import { OfferLetterPaged } from './OfferLetterPaged';
 import { useToast } from './Toaster';
@@ -21,17 +22,7 @@ interface Props {
 }
 
 function offerFileName(d?: OfferLetterData): string {
-  const clean = (s: string) =>
-    (s || '')
-      .trim()
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .split(/\s+/)
-      .filter(Boolean)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-      .join('_');
-  const name = clean(d?.candidateName || '') || 'Candidate';
-  const role = clean(d?.role || '');
-  return `Offer_Letter_${name}${role ? `_${role}` : ''}.pdf`;
+  return `${offerLetterFileBaseName(d?.candidateName)}.pdf`;
 }
 
 /** Format the offer letter's joining date (yyyy-MM-dd) as "23rd July 2026". */

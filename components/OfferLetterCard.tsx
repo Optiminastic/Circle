@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2 } from 'lucide-react';
 import type { Candidate, OfferLetterData } from '@/types';
-import { blankOfferLetter, computeBreakup, formatINRNumber } from '@/lib/offer-letter';
+import { blankOfferLetter, computeBreakup, formatINRNumber, offerLetterFileBaseName } from '@/lib/offer-letter';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useOnboardingEmails } from '@/features/onboarding/hooks';
 import { nowISO } from '@/lib/utils';
@@ -111,8 +111,10 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
     const pagesHtml = Array.from(pages)
       .map(p => (p as HTMLElement).outerHTML)
       .join('');
+    // The document title becomes the browser's suggested "Save as PDF" filename.
+    const fileTitle = offerLetterFileBaseName(draft?.candidateName);
     w.document.write(
-      `<!doctype html><html><head><title></title>${styles}<style>` +
+      `<!doctype html><html><head><title>${fileTitle}</title>${styles}<style>` +
         `@page { size: A4; margin: 0; }` +
         `* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }` +
         `html, body { margin: 0 !important; padding: 0 !important; background: #fff; }` +
