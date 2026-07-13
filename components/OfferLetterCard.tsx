@@ -232,26 +232,64 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
 
               <div>
                 <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                  CTC breakup — monthly amounts (₹)
+                  CTC breakdown{' '}
+                  <span className="font-normal normal-case text-gray-400">
+                    (auto-calculated from Annual CTC)
+                  </span>
                 </p>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <Field label="Basic"><input className={inputCls} type="number" min={0} value={draft.basic || ''} onChange={e => setNum('basic', e.target.value)} /></Field>
-                  <Field label="HRA"><input className={inputCls} type="number" min={0} value={draft.hra || ''} onChange={e => setNum('hra', e.target.value)} /></Field>
-                  <Field label="Special allowance"><input className={inputCls} type="number" min={0} value={draft.specialAllowance || ''} onChange={e => setNum('specialAllowance', e.target.value)} /></Field>
-                  <Field label="PF (employer)"><input className={inputCls} type="number" min={0} value={draft.pfEmployer || ''} onChange={e => setNum('pfEmployer', e.target.value)} /></Field>
-                  <Field label="PF (deduction)"><input className={inputCls} type="number" min={0} value={draft.pfEmployee || ''} onChange={e => setNum('pfEmployee', e.target.value)} /></Field>
-                  <Field label="Professional tax"><input className={inputCls} type="number" min={0} value={draft.professionalTax || ''} onChange={e => setNum('professionalTax', e.target.value)} /></Field>
-                </div>
-                <div className="mt-2 space-y-0.5 rounded-lg bg-[#F7F8FA] p-2.5 text-[11px] text-gray-600">
-                  {computeBreakup(draft)
-                    .filter(r => r.strong || r.highlight)
-                    .map((r, i) => (
-                      <div key={i} className="flex justify-between">
-                        <span className="font-medium">{r.label}</span>
-                        <span>₹{formatINRNumber(r.monthly)}/mo · ₹{formatINRNumber(r.annual)}/yr</span>
-                      </div>
-                    ))}
-                </div>
+                {draft.ctcAnnual ? (
+                  <div className="overflow-hidden rounded-lg border border-[#E4E6EA]">
+                    <table className="w-full border-collapse text-[11px]">
+                      <thead>
+                        <tr className="bg-[#EDEEF1] font-semibold text-gray-700">
+                          <th className="px-2.5 py-1 text-left">Headings</th>
+                          <th className="px-2.5 py-1 text-right">Monthly</th>
+                          <th className="px-2.5 py-1 text-right">Annual</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {computeBreakup(draft).map((r, i) =>
+                          r.spacer ? (
+                            <tr key={i}>
+                              <td colSpan={3} className="py-1">
+                                &nbsp;
+                              </td>
+                            </tr>
+                          ) : r.section ? (
+                            <tr key={i}>
+                              <td colSpan={3} className="px-2.5 py-1 font-bold uppercase text-gray-600">
+                                {r.label}
+                              </td>
+                            </tr>
+                          ) : (
+                            <tr
+                              key={i}
+                              className={
+                                r.highlight
+                                  ? 'bg-accent-50 font-semibold text-accent-800'
+                                  : r.strong
+                                    ? 'bg-[#F1F3F5] font-semibold text-gray-900'
+                                    : 'text-gray-700'
+                              }
+                            >
+                              <td className="px-2.5 py-1">{r.label}</td>
+                              <td className="px-2.5 py-1 text-right tabular-nums">
+                                ₹{formatINRNumber(r.monthly)}
+                              </td>
+                              <td className="px-2.5 py-1 text-right tabular-nums">
+                                ₹{formatINRNumber(r.annual)}
+                              </td>
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="rounded-lg bg-[#F7F8FA] p-2.5 text-[11px] text-gray-500">
+                    Enter the Annual CTC above to auto-generate the full breakdown.
+                  </p>
+                )}
               </div>
             </div>
 

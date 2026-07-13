@@ -3,9 +3,9 @@
  * the fixed Optiminastic letter format (header/footer + section copy) is rendered
  * from these values in components/OfferLetterDocument.tsx.
  *
- * HR fills MONTHLY amounts for the breakup rows; annual = monthly × 12, and the
- * Gross / CTC / Total-deduction / Net-take-home rows are derived (matches the
- * sample letter's arithmetic).
+ * HR enters only the Annual CTC; the whole breakup (Basic/HRA/PF/Special →
+ * Gross → CTC → deductions → Net) is derived from it via Finance's Salary
+ * Breakdown formula in computeBreakup().
  */
 import type { Candidate, OfferLetterData } from '@/types';
 
@@ -73,29 +73,54 @@ export interface BreakupRow {
   section?: boolean;
 }
 
-/** Build the CTC breakup table rows (with derived totals) from the monthly inputs. */
+/**
+ * CTC breakup derived entirely from the Annual CTC, using Finance's
+ * "Salary Breakdown" sheet formula (permanent employees):
+ *   Basic   = CTC × 30% / 12          HRA = Basic / 2
+ *   PF      = min(1800, Basic × 12%)
+ *   Special = CTC/12 − Basic − HRA − PF   (balances the monthly CTC)
+ *   Gross   = Basic + HRA + Special       CTC (A) = Gross + PF
+ *   LESS: PF (= employer PF) + Professional Tax (₹200/mo, ₹2,500/yr)
+ *   Net (monthly) = Gross − Total Deduction;  Net (annual) = CTC − Total Deduction
+ */
 export function computeBreakup(d: OfferLetterData): BreakupRow[] {
-  const yr = (m: number) => Math.round(m) * 12;
-  const grossM = (d.basic || 0) + (d.hra || 0) + (d.specialAllowance || 0);
-  const ctcM = grossM + (d.pfEmployer || 0);
-  const totalDedM = (d.pfEmployee || 0) + (d.professionalTax || 0);
+  const annual = Math.max(0, Math.round(Number(d.ctcAnnual) || 0));
+  const y = (m: number) => m * 12;
+
+  const ctcM = Math.round(annual / 12);
+  const basicM = Math.round((annual * 0.3) / 12);
+  const hraM = Math.round(basicM / 2);
+  const pfM = Math.min(1800, Math.round(basicM * 0.12));
+  const specialM = Math.max(0, ctcM - basicM - hraM - pfM);
+  const grossM = basicM + hraM + specialM;
+
+  const grossY = y(basicM) + y(hraM) + y(specialM);
+  const pfY = y(pfM);
+  const ctcY = grossY + pfY; // == annual CTC
+
+  const ptM = 200;
+  const ptY = 2500; // Maharashtra professional tax is ₹2,500/yr, not ₹200 × 12
+  const totalDedM = pfM + ptM;
+  const totalDedY = y(totalDedM);
   const netM = grossM - totalDedM;
+  const netY = ctcY - totalDedY;
+
   return [
-    { label: 'Basic', monthly: d.basic || 0, annual: yr(d.basic || 0) },
-    { label: 'HRA', monthly: d.hra || 0, annual: yr(d.hra || 0) },
-    { label: 'Special Allowance', monthly: d.specialAllowance || 0, annual: yr(d.specialAllowance || 0) },
-    { label: 'Gross Salary', monthly: grossM, annual: yr(grossM), strong: true },
-    { label: 'PF', monthly: d.pfEmployer || 0, annual: yr(d.pfEmployer || 0) },
+    { label: 'Basic', monthly: basicM, annual: y(basicM) },
+    { label: 'HRA', monthly: hraM, annual: y(hraM) },
+    { label: 'Special Allowance', monthly: specialM, annual: y(specialM) },
+    { label: 'Gross Salary', monthly: grossM, annual: grossY, strong: true },
+    { label: 'PF', monthly: pfM, annual: pfY },
     { label: '', monthly: 0, annual: 0, spacer: true },
-    { label: 'CTC (Cost to the Company) A', monthly: ctcM, annual: yr(ctcM), strong: true },
+    { label: 'CTC (Cost to the Company) A', monthly: ctcM, annual: ctcY, strong: true },
     { label: 'LESS', monthly: 0, annual: 0, section: true },
-    { label: 'PF', monthly: d.pfEmployee || 0, annual: yr(d.pfEmployee || 0) },
-    { label: 'Professional Tax', monthly: d.professionalTax || 0, annual: yr(d.professionalTax || 0) },
-    { label: 'Total Deduction', monthly: totalDedM, annual: yr(totalDedM), strong: true },
+    { label: 'PF', monthly: pfM, annual: pfY },
+    { label: 'Professional Tax', monthly: ptM, annual: ptY },
+    { label: 'Total Deduction', monthly: totalDedM, annual: totalDedY, strong: true },
     {
       label: 'Gross Salary - Total Deduction = Net Take Home',
       monthly: netM,
-      annual: yr(netM),
+      annual: netY,
       highlight: true,
     },
   ];
