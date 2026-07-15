@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Select } from '@/components/Select';
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
 import {
@@ -339,17 +340,17 @@ export default function InterviewSheetPage() {
                     <label className="mb-1.5 block text-[12px] font-semibold text-gray-700">
                       Recommendation
                     </label>
-                    <select
+                    <Select
                       value={recommendation}
                       onChange={e => setRecommendation(e.target.value as Recommendation)}
-                      className="w-full rounded-lg border border-[#E4E6EA] bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                      className="w-full rounded-lg border border-[#E4E6EA] bg-white px-3 py-2 text-sm text-gray-900"
                     >
                       {RECOMMENDATIONS.map(r => (
                         <option key={r} value={r}>
                           {r}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   <div>
                     <label className="mb-1.5 block text-[12px] font-semibold text-gray-700">

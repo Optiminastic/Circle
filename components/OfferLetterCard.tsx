@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import { Select } from './Select';
 import { FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2 } from 'lucide-react';
 import type { Candidate, OfferLetterData } from '@/types';
 import { blankOfferLetter, computeBreakup, formatINRNumber, offerLetterFileBaseName } from '@/lib/offer-letter';
@@ -203,11 +204,11 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Salutation">
-                  <select className={inputCls} value={draft.salutation} onChange={e => set('salutation', e.target.value)}>
-                    <option>Mr.</option>
-                    <option>Ms.</option>
-                    <option>Mx.</option>
-                  </select>
+                  <Select className={inputCls} value={draft.salutation} onChange={e => set('salutation', e.target.value)}>
+                    <option value="Mr.">Mr.</option>
+                    <option value="Ms.">Ms.</option>
+                    <option value="Mx.">Mx.</option>
+                  </Select>
                 </Field>
                 <Field label="Candidate name">
                   <input className={inputCls} value={draft.candidateName} onChange={e => set('candidateName', e.target.value)} />

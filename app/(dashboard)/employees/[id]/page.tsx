@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Select } from '@/components/Select';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -594,7 +595,7 @@ export default function EmployeeDetailPage() {
             <div className="space-y-3 text-xs">
               <div>
                 <label className="font-semibold text-gray-700">Reason</label>
-                <select
+                <Select
                   value={resignReason}
                   onChange={e => setResignReason(e.target.value as OffboardingWorkflow['triggerReason'])}
                   className="mt-1 w-full rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] px-2.5 py-1.5 text-xs"
@@ -605,7 +606,7 @@ export default function EmployeeDetailPage() {
                   <option value="Mutual separation">Mutual separation</option>
                   <option value="Role redundancy">Role redundancy</option>
                   <option value="Absconding">Absconding</option>
-                </select>
+                </Select>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { Select } from './Select';
 import {
   FileText,
   Landmark,
@@ -182,17 +183,16 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
             <div className="flex items-center gap-1.5">
               {!live && request && (
                 <>
-                  <select
+                  <Select
                     value={reHours}
                     onChange={e => setReHours(Number(e.target.value))}
                     className="rounded-md border border-[#E4E6EA] bg-white px-1.5 py-1 text-[10px] font-semibold text-gray-600"
-                    title="Extend by"
                   >
                     <option value={24}>24h</option>
                     <option value={48}>48h</option>
                     <option value={72}>72h</option>
                     <option value={168}>7 days</option>
-                  </select>
+                  </Select>
                   <button
                     onClick={() =>
                       reactivate.mutate(

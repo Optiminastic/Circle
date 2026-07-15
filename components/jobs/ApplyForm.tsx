@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Select } from '@/components/Select';
 import { Job } from '@/types';
 import {
   submitApplicationAction,
@@ -494,11 +495,11 @@ export function ApplyForm({ job }: { job: Job }) {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Current CTC (LPA) *">
-                  <select
+                  <Select
                     className={inputCls}
                     value={form.currentCtc}
                     onChange={e => set({ currentCtc: e.target.value })}
-                    required
+                    placeholder="Select CTC"
                   >
                     <option value="" disabled>
                       Select CTC
@@ -508,14 +509,14 @@ export function ApplyForm({ job }: { job: Job }) {
                         {n} LPA
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="Expected CTC (LPA) *">
-                  <select
+                  <Select
                     className={inputCls}
                     value={form.expectedCtc}
                     onChange={e => set({ expectedCtc: e.target.value })}
-                    required
+                    placeholder="Select CTC"
                   >
                     <option value="" disabled>
                       Select CTC
@@ -525,7 +526,7 @@ export function ApplyForm({ job }: { job: Job }) {
                         {n} LPA
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

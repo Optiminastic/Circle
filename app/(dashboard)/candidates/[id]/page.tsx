@@ -79,6 +79,7 @@ import { INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
 import { useInterviewBanks } from '@/features/question-banks/hooks';
 import { saveInterviewSheet } from '@/lib/interview-sheet';
 import { PageLoading } from '@/components/PageLoading';
+import { Select } from '@/components/Select';
 import { Tip } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -2377,7 +2378,7 @@ export default function CandidateDetailPage() {
                   <SectionLabel>Outcome</SectionLabel>
                   <div className="space-y-1">
                     <label className="font-semibold text-gray-700">Recommended Next Step</label>
-                    <select
+                    <Select
                       value={hc.nextStep}
                       onChange={e => updateHc('nextStep', e.target.value as HRCallRecord['nextStep'])}
                       className={FIELD_CLS}
@@ -2387,7 +2388,7 @@ export default function CandidateDetailPage() {
                       <option value="Request More Information">Request More Information</option>
                       <option value="Keep on Hold">Keep on Hold</option>
                       <option value="Reject">Reject Candidate</option>
-                    </select>
+                    </Select>
                   </div>
                   {hc.nextStep === 'Reject' && (
                     <p className="rounded-md bg-red-50 px-2.5 py-1.5 text-[11px] font-medium text-red-600">
@@ -2558,7 +2559,7 @@ export default function CandidateDetailPage() {
                   <Label htmlFor="fb-rec" className="text-sm font-medium">
                     Recommendation
                   </Label>
-                  <select
+                  <Select
                     id="fb-rec"
                     value={fbRec}
                     onChange={e => setFbRec(e.target.value)}
@@ -2569,7 +2570,7 @@ export default function CandidateDetailPage() {
                     <option value="Hold">Hold</option>
                     <option value="Re-Interview Required">Re-Interview Required</option>
                     <option value="Reject">Reject</option>
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="fb-comments" className="text-sm font-medium">
@@ -2661,7 +2662,7 @@ export default function CandidateDetailPage() {
                   <Label htmlFor="ivp-mode" className="text-sm font-medium">
                     Interview mode
                   </Label>
-                  <select
+                  <Select
                     id="ivp-mode"
                     value={ivpackMode}
                     onChange={e => setIvpackMode(e.target.value as 'Online' | 'Offline')}
@@ -2669,7 +2670,7 @@ export default function CandidateDetailPage() {
                   >
                     <option value="Offline">Offline (in-person)</option>
                     <option value="Online">Online (Google Meet)</option>
-                  </select>
+                  </Select>
                   {ivpackMode === 'Online' && (
                     <p className="mt-1 text-[11px] text-gray-500">
                       A Google Meet link is created automatically and emailed to both the candidate and
@@ -2686,7 +2687,7 @@ export default function CandidateDetailPage() {
                       No interview question sets found. Create one in Question Library → Interview Questions.
                     </p>
                   ) : (
-                    <select
+                    <Select
                       id="ivp-bank"
                       value={ivpackBankId}
                       onChange={e => setIvpackBankId(e.target.value)}
@@ -2701,7 +2702,7 @@ export default function CandidateDetailPage() {
                           </option>
                         );
                       })}
-                    </select>
+                    </Select>
                   )}
                 </div>
                 <div>
