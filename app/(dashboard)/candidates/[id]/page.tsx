@@ -1369,10 +1369,11 @@ export default function CandidateDetailPage() {
     }
 
     // Interviewer email — pack + (online) the Meet link.
+    // No Meet button here — for an online round the interviewer is an attendee on
+    // the calendar event, so Google's own invitation carries the Meet link.
     const interviewerLinks = [
       ...(resumeUrl ? [{ label: 'View candidate resume', url: resumeUrl }] : []),
       { label: 'Open interview questions', url: sheetUrl },
-      ...(isOnline && meetLink ? [{ label: 'Join the Google Meet', url: meetLink }] : []),
     ];
     try {
       const res = await sendCustomEmail({
@@ -1397,8 +1398,10 @@ export default function CandidateDetailPage() {
 
       // Online: also email the candidate the joining link.
       if (isOnline && candidate.email) {
+        // Show the URL itself as a plain inline link (label = the URL) rather than
+        // a button — the calendar invite already carries the styled Meet card.
         const joinLine = meetLink
-          ? `[[Join the Google Meet|${meetLink}]]`
+          ? `[[${meetLink}|${meetLink}]]`
           : 'Your meeting link will be shared with you shortly.';
         const candidateBody = [
           `Dear ${candidate.fullName},`,
@@ -1419,7 +1422,6 @@ export default function CandidateDetailPage() {
           to: candidate.email,
           subject: `Your interview (online) — ${position} — ${BRAND.company}`,
           body: candidateBody,
-          links: meetLink ? [{ label: 'Join the Google Meet', url: meetLink }] : undefined,
         })
           .then(r =>
             repositories.sentEmails
