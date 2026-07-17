@@ -25,29 +25,26 @@ interface HiringFunnelChartProps {
 }
 
 export function HiringFunnelChart({ candidates, interviews, onSelectCandidate }: HiringFunnelChartProps) {
-  // Aggregate candidate stages
-  const stageCounts = {
-    new: candidates.filter(c => c.status === 'New Application').length,
-    review: candidates.filter(c => c.status === 'Under Review').length,
-    shortlisted: candidates.filter(c => c.status === 'Shortlisted').length,
-    hrCall: candidates.filter(c => c.status === 'Moved to HR Call').length,
-    interviews: interviews.filter(i => i.status === 'Scheduled').length,
-    selected: candidates.filter(
-      c => c.status === 'Shortlisted' && c.hrCall?.nextStep === 'Proceed to Interview',
-    ).length,
-  };
-
-  // A funnel tracks distinct candidates through stages, so every stage is a
-  // subset of the one above it. We count unique candidates who reached the
-  // interview stage (not interview events, which can exceed the candidate count
-  // and produce nonsense like ">100%").
-  const total = candidates.length;
-  const interviewedCandidates = new Set(
+  // Cumulative funnel: each stage counts the DISTINCT candidates who reached it
+  // OR moved beyond it. Status is a single current value, so we also infer
+  // progress from HR-call records, interview records, and terminal outcomes —
+  // otherwise a candidate who advanced would wrongly drop out of earlier stages.
+  const interviewedIds = new Set(
     interviews
       .filter(i => i.status === 'Scheduled' || i.status === 'Completed')
       .map(i => i.candidateId),
-  ).size;
+  );
+  const isEngaged = (c: Candidate) =>
+    c.status !== 'New Application' && c.status !== 'Duplicate Profile';
+  const reachedHrCall = (c: Candidate) =>
+    Boolean(c.hrCall) ||
+    interviewedIds.has(c.id) ||
+    ['Moved to HR Call', 'Offer Shortlisted', 'Selected'].includes(c.status);
+  const reachedInterview = (c: Candidate) =>
+    interviewedIds.has(c.id) || ['Offer Shortlisted', 'Selected'].includes(c.status);
+  const isSelected = (c: Candidate) => c.status === 'Selected';
 
+  const total = candidates.length;
   const rawStages = [
     {
       label: 'Applications received',
@@ -57,25 +54,32 @@ export function HiringFunnelChart({ candidates, interviews, onSelectCandidate }:
       track: 'bg-accent-50',
     },
     {
-      label: 'Shortlisted for assessment',
-      count: stageCounts.shortlisted + stageCounts.hrCall,
+      label: 'Under review / shortlisted',
+      count: candidates.filter(isEngaged).length,
       Icon: ClipboardCheck,
       bar: 'from-purple-500 to-purple-700',
       track: 'bg-purple-50',
     },
     {
       label: 'HR screening calls',
-      count: stageCounts.hrCall,
+      count: candidates.filter(reachedHrCall).length,
       Icon: Phone,
       bar: 'from-teal-500 to-teal-700',
       track: 'bg-teal-50',
     },
     {
-      label: 'Active interviews',
-      count: Math.min(interviewedCandidates, total || interviewedCandidates),
+      label: 'Interviewed',
+      count: candidates.filter(reachedInterview).length,
       Icon: CalendarClock,
       bar: 'from-amber-500 to-amber-600',
       track: 'bg-amber-50',
+    },
+    {
+      label: 'Selected',
+      count: candidates.filter(isSelected).length,
+      Icon: CheckCircle2,
+      bar: 'from-emerald-500 to-emerald-700',
+      track: 'bg-emerald-50',
     },
   ];
 
@@ -104,10 +108,7 @@ export function HiringFunnelChart({ candidates, interviews, onSelectCandidate }:
       Candidates: candidates.filter(c => monthKey(c.appliedDate) === key).length,
       Interviews: interviews.filter(iv => monthKey(iv.dateTime) === key).length,
       Selected: candidates.filter(
-        c =>
-          monthKey(c.appliedDate) === key &&
-          c.status === 'Shortlisted' &&
-          c.hrCall?.nextStep === 'Proceed to Interview',
+        c => monthKey(c.appliedDate) === key && c.status === 'Selected',
       ).length,
     };
   });
@@ -205,6 +206,10 @@ export function HiringFunnelChart({ candidates, interviews, onSelectCandidate }:
                   <stop offset="5%" stopColor="#9AA0A6" stopOpacity={0.2} />
                   <stop offset="95%" stopColor="#9AA0A6" stopOpacity={0} />
                 </linearGradient>
+                <linearGradient id="colorSelected" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                </linearGradient>
               </defs>
               <XAxis dataKey="name" stroke="#9CA3AF" fontSize={10} tickLine={false} />
               <YAxis stroke="#9CA3AF" fontSize={10} tickLine={false} />
@@ -226,6 +231,14 @@ export function HiringFunnelChart({ candidates, interviews, onSelectCandidate }:
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#colorInterviews)"
+              />
+              <Area
+                type="monotone"
+                dataKey="Selected"
+                stroke="#10B981"
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#colorSelected)"
               />
             </AreaChart>
           </ResponsiveContainer>
