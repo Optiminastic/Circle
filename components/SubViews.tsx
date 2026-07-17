@@ -12,6 +12,7 @@ import { useScheduler } from '@/store/schedule-store';
 import {
   getCalendarStatus,
   getCalendarAuthUrl,
+  disconnectCalendar,
   type CalendarStatus,
 } from '@/lib/api/calendar';
 import { workspace } from '@/lib/config';
@@ -2030,6 +2031,31 @@ function GoogleCalendarCard() {
     }
   };
 
+  // Forget the stored account. Scheduling keeps working; events/Meet links just
+  // stop being pushed until someone connects again (reconnecting as HR switches
+  // the account, since the token is one shared row and the latest wins).
+  const disconnect = () => {
+    toast.confirm({
+      title: 'Disconnect Google Calendar?',
+      description: `${
+        status?.connectedEmail ? `${status.connectedEmail} will be forgotten. ` : ''
+      }Interviews will still be scheduled, but no calendar events or Google Meet links will be created until you connect again.`,
+      confirmLabel: 'Disconnect',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          await disconnectCalendar();
+          toast.success('Google Calendar disconnected.');
+          refresh();
+        } catch {
+          toast.error('Could not disconnect — try again.');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+  };
+
   const connected = !!status?.connected;
   const configured = !!status?.configured;
 
@@ -2075,14 +2101,25 @@ function GoogleCalendarCard() {
             <span className="font-mono">.env</span>, then reload to connect.
           </p>
         ) : (
-          <button
-            onClick={connect}
-            disabled={loading}
-            className="bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white px-3 py-1.5 rounded-lg font-medium cursor-pointer transition flex items-center gap-1.5"
-          >
-            <CalendarDays size={13} />
-            {connected ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={connect}
+              disabled={loading}
+              className="bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white px-3 py-1.5 rounded-lg font-medium cursor-pointer transition flex items-center gap-1.5"
+            >
+              <CalendarDays size={13} />
+              {connected ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}
+            </button>
+            {connected && (
+              <button
+                onClick={disconnect}
+                disabled={loading}
+                className="border border-[#E4E6EA] bg-white text-red-600 hover:bg-red-50 disabled:opacity-60 px-3 py-1.5 rounded-lg font-medium cursor-pointer transition"
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

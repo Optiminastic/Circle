@@ -51,6 +51,11 @@ export function getCalendarStatus(): Promise<CalendarStatus> {
   return http.get<CalendarStatus>('/calendar/status');
 }
 
+/** Forget the connected Google account — deletes its stored refresh token. */
+export function disconnectCalendar(): Promise<{ disconnected: boolean; reason?: string }> {
+  return http.delete<{ disconnected: boolean; reason?: string }>('/calendar/connection');
+}
+
 /** The Google consent URL used to connect the shared HR account (admin, one-time). */
 export function getCalendarAuthUrl(): Promise<{ url: string | null; reason?: string }> {
   return http.get<{ url: string | null; reason?: string }>('/calendar/oauth/url');
