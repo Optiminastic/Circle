@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
   ChevronRight,
-  ChevronDown,
+  Info,
   Mail,
   Phone,
   MapPin,
@@ -53,7 +53,6 @@ import { RefreshButton } from '@/components/RefreshButton';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
 import { useHrIdentity } from '@/features/employees/hooks';
-import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
 import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { useScheduler } from '@/store/schedule-store';
@@ -472,9 +471,7 @@ export default function CandidateDetailPage() {
   const stepState = (i: number): StepState => {
     if (i < currentIndex) return 'done';
     if (i === currentIndex) return rejected ? 'rejected' : stages[i].done ? 'done' : 'current';
-    // Once the candidate is rejected (incl. an auto-reject in the IQ test), every
-    // remaining step is crossed out — the pipeline stops here.
-    return rejected ? 'rejected' : 'todo';
+    return 'todo';
   };
 
   // ---- activity timeline (line flow) ----
@@ -905,26 +902,46 @@ export default function CandidateDetailPage() {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const summary = decisionSummary.trim();
     setDecisionKind(kind);
-    // Copy comes from Settings → Email templates ("Hired — congratulations" /
-    // "Rejected — after interview"), so HR's saved edits seed this composer.
-    const iqText = myIq[0]
-      ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
-      : '—';
-    const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
-    fetchRenderedTemplate(kind === 'accept' ? 'hired_congratulations' : 'rejection_interview', {
-      candidate_name: candidate.fullName,
-      role: position,
-      iq_score: iqText,
-      assessment_score: asgText,
-      summary: summary || '',
-      hr_signoff: hr.signoff,
-    })
-      .then(tpl => {
-        if (!tpl) return;
-        setDecisionSubject(tpl.subject);
-        setDecisionBody(tpl.body);
-      })
-      .catch(() => {});
+    if (kind === 'accept') {
+      setDecisionSubject(`Congratulations — ${position} at ${BRAND.company}`);
+      setDecisionBody(
+        [
+          `Dear ${candidate.fullName},`,
+          '',
+          `Congratulations! We are delighted to move forward with you for the ${position} role at ${BRAND.company}.`,
+          ...(summary ? ['', summary] : []),
+          '',
+          'Our team will be in touch shortly with the next steps.',
+          '',
+          'Warm regards,',
+          hr.signoff,
+        ].join('\n'),
+      );
+    } else {
+      const iqText = myIq[0]
+        ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
+        : '—';
+      const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
+      setDecisionSubject(`Update on your application — ${position} at ${BRAND.company}`);
+      setDecisionBody(
+        [
+          `Dear ${candidate.fullName},`,
+          '',
+          `Thank you for your time interviewing for the ${position} role at ${BRAND.company}.`,
+          '',
+          'After careful review, we have decided not to move forward at this stage. A summary of your evaluation:',
+          '',
+          `• IQ test: ${iqText}`,
+          `• Assessment: ${asgText}`,
+          ...(summary ? ['', `Summary: ${summary}`] : []),
+          '',
+          'We genuinely appreciate your interest and wish you the very best.',
+          '',
+          'Regards,',
+          hr.signoff,
+        ].join('\n'),
+      );
+    }
     setOpenForm('decision');
   };
 
@@ -1108,6 +1125,40 @@ export default function CandidateDetailPage() {
         : null;
     const asgScoreText = asgInvite?.score != null ? `${asgInvite.score}%` : null;
 
+    const body =
+      stage === 'IQ Test'
+        ? [
+            `Dear ${candidate.fullName},`,
+            '',
+            `Thank you for taking the IQ test for the ${position} role at ${BRAND.company}.`,
+            '',
+            iqScoreText
+              ? `Your IQ test score: ${iqScoreText}.`
+              : 'We were unable to record a valid IQ test result.',
+            '',
+            'Unfortunately, this did not meet our qualifying bar, so we are unable to move forward with your application at this time.',
+            '',
+            'We appreciate your interest and encourage you to apply again in the future.',
+            '',
+            'Warm regards,',
+            hr.signoff,
+          ]
+        : [
+            `Dear ${candidate.fullName},`,
+            '',
+            `Thank you for completing the assessment for the ${position} role at ${BRAND.company}.`,
+            '',
+            ...(iqScoreText ? [`IQ test: ${iqScoreText} — cleared.`] : []),
+            asgScoreText ? `Assessment: ${asgScoreText} — not cleared.` : 'Assessment: not cleared.',
+            '',
+            'Unfortunately, your assessment did not meet our qualifying bar, so we are unable to move forward with your application at this time.',
+            '',
+            'We appreciate the effort you put in and encourage you to apply again in the future.',
+            '',
+            'Warm regards,',
+            hr.signoff,
+          ];
+
     // Mark rejected first, so the pipeline updates even if the email fails.
     setStageDecision(stage, 'Rejected', 'Rejected');
 
@@ -1115,19 +1166,11 @@ export default function CandidateDetailPage() {
       toast.info('Candidate rejected — no email on file, so no result email was sent.');
       return;
     }
-    // Copy comes from Settings → Email templates ("Rejected — IQ test" /
-    // "Rejected — assessment"), so HR's saved edits are what goes out.
-    fetchRenderedTemplate(stage === 'IQ Test' ? 'rejection_iq' : 'rejection_assessment', {
-      candidate_name: candidate.fullName,
-      role: position,
-      iq_score: iqScoreText ?? '—',
-      assessment_score: asgScoreText ?? 'not cleared',
-      hr_signoff: hr.signoff,
+    sendCustomEmail({
+      to: candidate.email,
+      subject: `Update on your application — ${position} at ${BRAND.company}`,
+      body: body.join('\n'),
     })
-      .then(tpl => {
-        if (!tpl) throw new Error('missing template');
-        return sendCustomEmail({ to: candidate.email, subject: tpl.subject, body: tpl.body });
-      })
       .then(res => {
         if (res.sent) toast.success(`Candidate rejected — ${stage} result email sent.`);
         else if (res.reason === 'not_configured')
@@ -1214,22 +1257,23 @@ export default function CandidateDetailPage() {
     setIvpackMode((latestInterview?.interviewType as 'Online' | 'Offline') || 'Offline');
     // Pre-fill with any link already on the interview so re-sending keeps it.
     setIvpackMeetLink(latestInterview?.meetingLink ?? '');
-    // Copy comes from Settings → Email templates ("Physical interview —
-    // interviewer pack").
-    fetchRenderedTemplate('physical_interview_interviewer', {
-      interviewer_name: latestInterview?.interviewerName || 'there',
-      candidate_name: candidate.fullName,
-      role: position,
-      department: candidate.department,
-      experience: `${candidate.totalExperienceYears} yrs total`,
-      hr_signoff: hr.signoff,
-    })
-      .then(tpl => {
-        if (!tpl) return;
-        setIvpackSubject(tpl.subject);
-        setIvpackBody(tpl.body);
-      })
-      .catch(() => {});
+    setIvpackSubject(`Interview pack: ${candidate.fullName} — ${position}`);
+    setIvpackBody(
+      [
+        `Hi ${latestInterview?.interviewerName || 'there'},`,
+        '',
+        `Here is the interview pack for your upcoming interview with ${candidate.fullName} for the ${position} role.`,
+        '',
+        `Candidate: ${candidate.fullName}`,
+        `Role: ${position} (${candidate.department})`,
+        `Experience: ${candidate.totalExperienceYears} yrs total`,
+        '',
+        'The candidate resume and the interview questions are linked below. Please rate each question 1–5 (or NA) and add your recommendation.',
+        '',
+        'Best regards,',
+        hr.signoff,
+      ].join('\n'),
+    );
     setOpenForm('ivpack');
   };
 
@@ -1286,9 +1330,9 @@ export default function CandidateDetailPage() {
 
     setOpenForm(null);
 
-    // Online: share a meeting link with BOTH the candidate and interviewer. A link
-    // pasted by HR wins; otherwise we auto-create a Google Meet on the interview's
-    // calendar event (needs Google Calendar connected). Offline: interviewer pack only.
+    // Online: auto-create a Google Meet link on the interview's calendar event
+    // (via the connected Google Calendar) and share it with BOTH the candidate and
+    // interviewer. Offline: just the interviewer pack.
     let meetLink: string | null | undefined = manualMeetLink || undefined;
     if (isOnline) {
       try {
@@ -1356,20 +1400,26 @@ export default function CandidateDetailPage() {
         const joinLine = meetLink
           ? `[[Join the Google Meet|${meetLink}]]`
           : 'Your meeting link will be shared with you shortly.';
-        // Copy comes from Settings → Email templates ("Physical interview —
-        // candidate (online)"); the template embeds the Meet link itself.
-        const tpl = await fetchRenderedTemplate('physical_interview_candidate', {
-          candidate_name: candidate.fullName,
-          role: position,
-          date_time: fmtDateTime(latestInterview.dateTime),
-          interviewer_name: latestInterview.interviewerName || 'The Hiring Team',
-          meet_link: meetLink || '',
-          hr_signoff: hr.signoff,
-        });
+        const candidateBody = [
+          `Dear ${candidate.fullName},`,
+          '',
+          `Your interview for the ${position} role will be held online via Google Meet.`,
+          '',
+          `Date & time: ${fmtDateTime(latestInterview.dateTime)}`,
+          `Interviewer: ${latestInterview.interviewerName || 'The Hiring Team'}`,
+          '',
+          `Joining link: ${joinLine}`,
+          '',
+          'Please join a few minutes early. Reply to this email if you have any questions.',
+          '',
+          'Best Regards,',
+          hr.signoff,
+        ].join('\n');
         sendCustomEmail({
           to: candidate.email,
-          subject: tpl?.subject ?? `Your interview (online) — ${position} — ${BRAND.company}`,
-          body: tpl?.body ?? '',
+          subject: `Your interview (online) — ${position} — ${BRAND.company}`,
+          body: candidateBody,
+          links: meetLink ? [{ label: 'Join the Google Meet', url: meetLink }] : undefined,
         })
           .then(r =>
             repositories.sentEmails
@@ -1892,9 +1942,7 @@ export default function CandidateDetailPage() {
                 const StageIcon = stage.Icon;
                 const last = i === stages.length - 1;
                 const pathDone = i < currentIndex; // the rail below this node is already travelled
-                // Steps never reached read muted — those not started yet, and the ones
-                // crossed out after a rejection (everything past the rejection point).
-                const muted = state === 'todo' || (state === 'rejected' && i > currentIndex);
+                const muted = state === 'todo';
                 // Who performed this step: the candidate applied (human icon), every other
                 // step is an HR action (HR profile avatar) — like the inspiration's feed.
                 const isApplied = stage.label === 'Applied';
@@ -2025,10 +2073,7 @@ export default function CandidateDetailPage() {
                                 : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
                             }`}
                           >
-                            <ChevronDown
-                              size={15}
-                              className={`transition-transform duration-200 ${infoShown ? 'rotate-180' : ''}`}
-                            />
+                            <Info size={15} />
                           </button>
                         </div>
                       </div>
