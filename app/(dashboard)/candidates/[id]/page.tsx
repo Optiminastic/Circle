@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
   ChevronRight,
-  Info,
+  ChevronDown,
   Mail,
   Phone,
   MapPin,
@@ -53,6 +53,7 @@ import { RefreshButton } from '@/components/RefreshButton';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
 import { useHrIdentity } from '@/features/employees/hooks';
+import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
 import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { useScheduler } from '@/store/schedule-store';
@@ -198,6 +199,10 @@ export default function CandidateDetailPage() {
   // auto-creates a Google Meet link (via the connected Google Calendar) and
   // emails it to both the candidate and the interviewer — no manual link.
   const [ivpackMode, setIvpackMode] = useState<'Online' | 'Offline'>('Offline');
+  // Optional manually-pasted meeting link for an online round. Takes priority
+  // over the auto-created Google Meet link — the fallback when Google Calendar
+  // isn't connected in this environment.
+  const [ivpackMeetLink, setIvpackMeetLink] = useState('');
   const [sr, setSr] = useState<ScreeningReview>(blankScreening());
   const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
   const [gradeScore, setGradeScore] = useState('');
@@ -467,7 +472,9 @@ export default function CandidateDetailPage() {
   const stepState = (i: number): StepState => {
     if (i < currentIndex) return 'done';
     if (i === currentIndex) return rejected ? 'rejected' : stages[i].done ? 'done' : 'current';
-    return 'todo';
+    // Once the candidate is rejected (incl. an auto-reject in the IQ test), every
+    // remaining step is crossed out — the pipeline stops here.
+    return rejected ? 'rejected' : 'todo';
   };
 
   // ---- activity timeline (line flow) ----
@@ -898,46 +905,26 @@ export default function CandidateDetailPage() {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const summary = decisionSummary.trim();
     setDecisionKind(kind);
-    if (kind === 'accept') {
-      setDecisionSubject(`Congratulations — ${position} at ${BRAND.company}`);
-      setDecisionBody(
-        [
-          `Dear ${candidate.fullName},`,
-          '',
-          `Congratulations! We are delighted to move forward with you for the ${position} role at ${BRAND.company}.`,
-          ...(summary ? ['', summary] : []),
-          '',
-          'Our team will be in touch shortly with the next steps.',
-          '',
-          'Warm regards,',
-          hr.signoff,
-        ].join('\n'),
-      );
-    } else {
-      const iqText = myIq[0]
-        ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
-        : '—';
-      const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
-      setDecisionSubject(`Update on your application — ${position} at ${BRAND.company}`);
-      setDecisionBody(
-        [
-          `Dear ${candidate.fullName},`,
-          '',
-          `Thank you for your time interviewing for the ${position} role at ${BRAND.company}.`,
-          '',
-          'After careful review, we have decided not to move forward at this stage. A summary of your evaluation:',
-          '',
-          `• IQ test: ${iqText}`,
-          `• Assessment: ${asgText}`,
-          ...(summary ? ['', `Summary: ${summary}`] : []),
-          '',
-          'We genuinely appreciate your interest and wish you the very best.',
-          '',
-          'Regards,',
-          hr.signoff,
-        ].join('\n'),
-      );
-    }
+    // Copy comes from Settings → Email templates ("Hired — congratulations" /
+    // "Rejected — after interview"), so HR's saved edits seed this composer.
+    const iqText = myIq[0]
+      ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
+      : '—';
+    const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
+    fetchRenderedTemplate(kind === 'accept' ? 'hired_congratulations' : 'rejection_interview', {
+      candidate_name: candidate.fullName,
+      role: position,
+      iq_score: iqText,
+      assessment_score: asgText,
+      summary: summary || '',
+      hr_signoff: hr.signoff,
+    })
+      .then(tpl => {
+        if (!tpl) return;
+        setDecisionSubject(tpl.subject);
+        setDecisionBody(tpl.body);
+      })
+      .catch(() => {});
     setOpenForm('decision');
   };
 
@@ -1121,40 +1108,6 @@ export default function CandidateDetailPage() {
         : null;
     const asgScoreText = asgInvite?.score != null ? `${asgInvite.score}%` : null;
 
-    const body =
-      stage === 'IQ Test'
-        ? [
-            `Dear ${candidate.fullName},`,
-            '',
-            `Thank you for taking the IQ test for the ${position} role at ${BRAND.company}.`,
-            '',
-            iqScoreText
-              ? `Your IQ test score: ${iqScoreText}.`
-              : 'We were unable to record a valid IQ test result.',
-            '',
-            'Unfortunately, this did not meet our qualifying bar, so we are unable to move forward with your application at this time.',
-            '',
-            'We appreciate your interest and encourage you to apply again in the future.',
-            '',
-            'Warm regards,',
-            hr.signoff,
-          ]
-        : [
-            `Dear ${candidate.fullName},`,
-            '',
-            `Thank you for completing the assessment for the ${position} role at ${BRAND.company}.`,
-            '',
-            ...(iqScoreText ? [`IQ test: ${iqScoreText} — cleared.`] : []),
-            asgScoreText ? `Assessment: ${asgScoreText} — not cleared.` : 'Assessment: not cleared.',
-            '',
-            'Unfortunately, your assessment did not meet our qualifying bar, so we are unable to move forward with your application at this time.',
-            '',
-            'We appreciate the effort you put in and encourage you to apply again in the future.',
-            '',
-            'Warm regards,',
-            hr.signoff,
-          ];
-
     // Mark rejected first, so the pipeline updates even if the email fails.
     setStageDecision(stage, 'Rejected', 'Rejected');
 
@@ -1162,11 +1115,19 @@ export default function CandidateDetailPage() {
       toast.info('Candidate rejected — no email on file, so no result email was sent.');
       return;
     }
-    sendCustomEmail({
-      to: candidate.email,
-      subject: `Update on your application — ${position} at ${BRAND.company}`,
-      body: body.join('\n'),
+    // Copy comes from Settings → Email templates ("Rejected — IQ test" /
+    // "Rejected — assessment"), so HR's saved edits are what goes out.
+    fetchRenderedTemplate(stage === 'IQ Test' ? 'rejection_iq' : 'rejection_assessment', {
+      candidate_name: candidate.fullName,
+      role: position,
+      iq_score: iqScoreText ?? '—',
+      assessment_score: asgScoreText ?? 'not cleared',
+      hr_signoff: hr.signoff,
     })
+      .then(tpl => {
+        if (!tpl) throw new Error('missing template');
+        return sendCustomEmail({ to: candidate.email, subject: tpl.subject, body: tpl.body });
+      })
       .then(res => {
         if (res.sent) toast.success(`Candidate rejected — ${stage} result email sent.`);
         else if (res.reason === 'not_configured')
@@ -1251,23 +1212,24 @@ export default function CandidateDetailPage() {
     const match = banks.find(b => b.roleName.trim().toLowerCase() === position.trim().toLowerCase());
     setIvpackBankId(match?.id ?? '');
     setIvpackMode((latestInterview?.interviewType as 'Online' | 'Offline') || 'Offline');
-    setIvpackSubject(`Interview pack: ${candidate.fullName} — ${position}`);
-    setIvpackBody(
-      [
-        `Hi ${latestInterview?.interviewerName || 'there'},`,
-        '',
-        `Here is the interview pack for your upcoming interview with ${candidate.fullName} for the ${position} role.`,
-        '',
-        `Candidate: ${candidate.fullName}`,
-        `Role: ${position} (${candidate.department})`,
-        `Experience: ${candidate.totalExperienceYears} yrs total`,
-        '',
-        'The candidate resume and the interview questions are linked below. Please rate each question 1–5 (or NA) and add your recommendation.',
-        '',
-        'Best regards,',
-        hr.signoff,
-      ].join('\n'),
-    );
+    // Pre-fill with any link already on the interview so re-sending keeps it.
+    setIvpackMeetLink(latestInterview?.meetingLink ?? '');
+    // Copy comes from Settings → Email templates ("Physical interview —
+    // interviewer pack").
+    fetchRenderedTemplate('physical_interview_interviewer', {
+      interviewer_name: latestInterview?.interviewerName || 'there',
+      candidate_name: candidate.fullName,
+      role: position,
+      department: candidate.department,
+      experience: `${candidate.totalExperienceYears} yrs total`,
+      hr_signoff: hr.signoff,
+    })
+      .then(tpl => {
+        if (!tpl) return;
+        setIvpackSubject(tpl.subject);
+        setIvpackBody(tpl.body);
+      })
+      .catch(() => {});
     setOpenForm('ivpack');
   };
 
@@ -1283,6 +1245,11 @@ export default function CandidateDetailPage() {
       return;
     }
     const isOnline = ivpackMode === 'Online';
+    const manualMeetLink = ivpackMeetLink.trim();
+    if (isOnline && manualMeetLink && !/^https?:\/\/\S+$/i.test(manualMeetLink)) {
+      toast.error('Enter a valid meeting link (starting with https://), or leave it blank.');
+      return;
+    }
     const questions = INTERVIEW_MODULES.flatMap(m =>
       (bank.modules[m] ?? [])
         .filter(it => it.text.trim())
@@ -1319,10 +1286,10 @@ export default function CandidateDetailPage() {
 
     setOpenForm(null);
 
-    // Online: auto-create a Google Meet link on the interview's calendar event
-    // (via the connected Google Calendar) and share it with BOTH the candidate and
-    // interviewer. Offline: just the interviewer pack.
-    let meetLink: string | null | undefined;
+    // Online: share a meeting link with BOTH the candidate and interviewer. A link
+    // pasted by HR wins; otherwise we auto-create a Google Meet on the interview's
+    // calendar event (needs Google Calendar connected). Offline: interviewer pack only.
+    let meetLink: string | null | undefined = manualMeetLink || undefined;
     if (isOnline) {
       try {
         const attendees = [candidate.email, latestInterview.interviewerEmail, HR_EMAIL].filter(
@@ -1335,10 +1302,13 @@ export default function CandidateDetailPage() {
           dateTimeIso: latestInterview.dateTime,
           durationMin: latestInterview.durationMinutes ?? 45,
           attendees,
-          online: true,
+          // Only ask Google to mint a Meet when HR hasn't supplied one; when they
+          // have, carry theirs on the event instead.
+          online: !manualMeetLink,
+          location: manualMeetLink || undefined,
           notes: `Online interview for ${candidate.fullName} (${position}).`,
         });
-        meetLink = res.meetLink;
+        if (!manualMeetLink) meetLink = res.meetLink;
       } catch {
         /* calendar sync is best-effort — handled by the no-link warning below */
       }
@@ -1386,26 +1356,20 @@ export default function CandidateDetailPage() {
         const joinLine = meetLink
           ? `[[Join the Google Meet|${meetLink}]]`
           : 'Your meeting link will be shared with you shortly.';
-        const candidateBody = [
-          `Dear ${candidate.fullName},`,
-          '',
-          `Your interview for the ${position} role will be held online via Google Meet.`,
-          '',
-          `Date & time: ${fmtDateTime(latestInterview.dateTime)}`,
-          `Interviewer: ${latestInterview.interviewerName || 'The Hiring Team'}`,
-          '',
-          `Joining link: ${joinLine}`,
-          '',
-          'Please join a few minutes early. Reply to this email if you have any questions.',
-          '',
-          'Best Regards,',
-          hr.signoff,
-        ].join('\n');
+        // Copy comes from Settings → Email templates ("Physical interview —
+        // candidate (online)"); the template embeds the Meet link itself.
+        const tpl = await fetchRenderedTemplate('physical_interview_candidate', {
+          candidate_name: candidate.fullName,
+          role: position,
+          date_time: fmtDateTime(latestInterview.dateTime),
+          interviewer_name: latestInterview.interviewerName || 'The Hiring Team',
+          meet_link: meetLink || '',
+          hr_signoff: hr.signoff,
+        });
         sendCustomEmail({
           to: candidate.email,
-          subject: `Your interview (online) — ${position} — ${BRAND.company}`,
-          body: candidateBody,
-          links: meetLink ? [{ label: 'Join the Google Meet', url: meetLink }] : undefined,
+          subject: tpl?.subject ?? `Your interview (online) — ${position} — ${BRAND.company}`,
+          body: tpl?.body ?? '',
         })
           .then(r =>
             repositories.sentEmails
@@ -1433,10 +1397,11 @@ export default function CandidateDetailPage() {
             ? 'Interview pack sent to the interviewer.'
             : 'Pack created — email could not be sent.',
       );
-      // Online but no Meet link was generated → Google Calendar isn't connected.
+      // Online but still no link → Google Calendar isn't connected and HR didn't
+      // paste one. Point at both ways out.
       if (isOnline && !meetLink) {
         toast.info(
-          'No Google Meet link could be created — connect Google Calendar in Global Settings so links auto-generate.',
+          'No meeting link was sent — paste one in the Meeting link field, or connect Google Calendar in Global Settings to auto-create it.',
         );
       }
     } catch {
@@ -1927,7 +1892,9 @@ export default function CandidateDetailPage() {
                 const StageIcon = stage.Icon;
                 const last = i === stages.length - 1;
                 const pathDone = i < currentIndex; // the rail below this node is already travelled
-                const muted = state === 'todo';
+                // Steps never reached read muted — those not started yet, and the ones
+                // crossed out after a rejection (everything past the rejection point).
+                const muted = state === 'todo' || (state === 'rejected' && i > currentIndex);
                 // Who performed this step: the candidate applied (human icon), every other
                 // step is an HR action (HR profile avatar) — like the inspiration's feed.
                 const isApplied = stage.label === 'Applied';
@@ -2058,7 +2025,10 @@ export default function CandidateDetailPage() {
                                 : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
                             }`}
                           >
-                            <Info size={15} />
+                            <ChevronDown
+                              size={15}
+                              className={`transition-transform duration-200 ${infoShown ? 'rotate-180' : ''}`}
+                            />
                           </button>
                         </div>
                       </div>
@@ -2645,10 +2615,10 @@ export default function CandidateDetailPage() {
                 <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
                   {ivpackMode === 'Online' ? (
                     <>
-                      Creates a Google Meet link and emails it to both the candidate
+                      Emails the meeting link to both the candidate
                       {candidate.email ? ` (${candidate.email})` : ''} and{' '}
                       {latestInterview?.interviewerName || 'the interviewer'}, along with the resume and
-                      questions.
+                      questions. Paste a link below, or leave it blank to auto-create a Google Meet.
                     </>
                   ) : (
                     <>
@@ -2671,13 +2641,26 @@ export default function CandidateDetailPage() {
                     <option value="Offline">Offline (in-person)</option>
                     <option value="Online">Online (Google Meet)</option>
                   </Select>
-                  {ivpackMode === 'Online' && (
-                    <p className="mt-1 text-[11px] text-gray-500">
-                      A Google Meet link is created automatically and emailed to both the candidate and
-                      interviewer.
-                    </p>
-                  )}
                 </div>
+                {ivpackMode === 'Online' && (
+                  <div>
+                    <Label htmlFor="ivp-meet" className="text-sm font-medium">
+                      Meeting link <span className="font-normal text-gray-400">(optional)</span>
+                    </Label>
+                    <Input
+                      id="ivp-meet"
+                      type="url"
+                      value={ivpackMeetLink}
+                      onChange={e => setIvpackMeetLink(e.target.value)}
+                      placeholder="https://meet.google.com/abc-defg-hij"
+                      className="mt-2"
+                    />
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Paste a link to use it. Leave blank to auto-create a Google Meet (requires
+                      Google Calendar connected in Global Settings).
+                    </p>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="ivp-bank" className="text-sm font-medium">
                     Interview question set
