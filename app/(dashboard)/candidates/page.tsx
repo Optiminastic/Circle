@@ -9,7 +9,7 @@ export default function CandidatesPage() {
   const router = useRouter();
   const { openSchedule } = useScheduler();
   const { data: candidates = [] } = useCandidates();
-  const { create, remove, setFit } = useCandidateMutations();
+  const { create, update, remove, setFit } = useCandidateMutations();
 
   return (
     <CandidateListView
@@ -17,6 +17,7 @@ export default function CandidatesPage() {
       candidates={candidates}
       onSelectCandidate={id => router.push(`/candidates/${id}`)}
       onAddCandidate={candidate => create.mutate(candidate)}
+      onUpdateCandidate={candidate => update.mutate(candidate)}
       onDeleteCandidate={id => remove.mutate(id)}
       onShortlistCandidate={(id, name) => openSchedule(id, name, 'HR Call')}
       onSetFit={(id, rating) => setFit.mutate({ id, rating })}

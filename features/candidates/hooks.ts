@@ -117,8 +117,9 @@ export function useUpdateBgv() {
 export function useStartBgv() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (candidate: Candidate) =>
-      repositories.bgvs.create(buildBgvForCandidate(candidate)),
+    // `services` are the rate-card shortforms HR picked in the Start BGV modal.
+    mutationFn: ({ candidate, services = [] }: { candidate: Candidate; services?: string[] }) =>
+      repositories.bgvs.create(buildBgvForCandidate(candidate, services)),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.bgvs.all }),
   });
 }

@@ -19,6 +19,7 @@ export interface ApplicationInput {
   linkedInUrl: string;
   coverNote: string;
   location?: string;
+  gender?: string;
   currentCompany?: string;
   resumeUrl?: string;
   responses?: Record<string, string>;

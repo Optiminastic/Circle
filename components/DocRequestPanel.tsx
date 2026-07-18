@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Lock,
+  Users,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DocRequest } from '@/types';
@@ -22,7 +23,13 @@ import { qk } from '@/lib/query/keys';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useDocRequests, useDocRequestMutations, isDocRequestLive } from '@/features/doc-requests/hooks';
 import { openDocument, downloadDocument } from '@/features/documents/hooks';
-import { REQUIRED_DOCS, isSubmissionLocked } from '@/lib/onboarding-docs';
+import { docDefsFor, needsBank, needsReferences, isSubmissionLocked } from '@/lib/onboarding-docs';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
 import { useToast } from '@/components/Toaster';
 
 interface DocRequestPanelProps {
@@ -124,6 +131,12 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
 
   const live = request ? isDocRequestLive(request) : false;
   const bank = request?.bankDetails;
+  const fileDocs = docDefsFor(request?.requiredDocs).filter(d => d.kind === 'file');
+  const verifiedCount = fileDocs.filter(
+    d => submittedFor.get(d.type)?.status === 'Verified',
+  ).length;
+  // Whatever the candidate saved through the public link — however many.
+  const references = request?.references ?? [];
 
   return (
     <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4 md:col-span-3">
@@ -166,7 +179,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
       {!request ? (
         <p className="py-6 text-center text-[12px] text-gray-500">
           No document request yet. Use{' '}
-          <span className="font-semibold">Request documents</span> on the “Documents verification” step to
+          <span className="font-semibold">Request documents</span> on the “Joining Documents” step to
           email {toEmail || 'the candidate'} a secure upload link.
         </p>
       ) : (
@@ -220,9 +233,24 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
             </div>
           </div>
 
-          {/* Document verification rows */}
+          {/* Document verification rows — collapsed by default to keep the panel
+              scannable; bank details and references stay outside. */}
+          <Accordion type="multiple">
+            <AccordionItem value="docs">
+              <AccordionTrigger className="px-3.5 py-3.5 text-[12.5px]">
+                <span className="flex items-center gap-2">
+                  <FileText size={13} className="text-accent-600" /> Document files
+                  <span className="font-normal text-gray-400">({fileDocs.length})</span>
+                  {verifiedCount > 0 && (
+                    <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-700">
+                      {verifiedCount}/{fileDocs.length} verified
+                    </span>
+                  )}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
           <div className="space-y-2">
-            {REQUIRED_DOCS.map(doc => {
+            {fileDocs.map(doc => {
               const sub = submittedFor.get(doc.type);
               const locked = isSubmissionLocked(sub);
               return (
@@ -238,6 +266,11 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                         {sub?.status === 'Verified' && <CheckCircle2 size={13} className="text-emerald-500" />}
                         {sub?.status === 'Rejected' && <XCircle size={13} className="text-red-500" />}
                         {doc.label}
+                        {doc.optional && !sub && (
+                          <span className="rounded-full bg-gray-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wide text-gray-500">
+                            Optional
+                          </span>
+                        )}
                         {locked && (
                           <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wide text-emerald-700">
                             <Lock size={8} /> Locked
@@ -310,8 +343,12 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               );
             })}
           </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
-          {/* Bank details */}
+          {/* Bank details — only when HR requested them */}
+          {needsBank(request?.requiredDocs) && (
           <div className="rounded-lg border border-[#E4E6EA] bg-white p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-800">
@@ -387,6 +424,49 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               <p className="text-[11px] text-gray-500">Not submitted yet.</p>
             )}
           </div>
+          )}
+
+          {/* Reference contacts the candidate submitted through the public link. */}
+          {needsReferences(request?.requiredDocs) && (
+            <div className="rounded-lg border border-[#E4E6EA] bg-white p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-800">
+                  <Users size={13} className="text-accent-600" /> Reference contacts
+                </p>
+                {references.length > 0 && (
+                  <span className="rounded-full bg-accent-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-accent-700">
+                    {references.length}
+                  </span>
+                )}
+              </div>
+              {references.length === 0 ? (
+                <p className="text-[11px] text-gray-500">Not submitted yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {references.map((r, i) => (
+                    <div key={i} className="rounded-md border border-[#EDEEF1] bg-[#FBFBFC] p-2">
+                      <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                        Reference {i + 1}
+                      </p>
+                      <p className="text-[11.5px] font-semibold text-gray-800">{r.organization}</p>
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-600">
+                        {r.email && (
+                          <a href={`mailto:${r.email}`} className="hover:text-accent-600">
+                            {r.email}
+                          </a>
+                        )}
+                        {r.phone && (
+                          <a href={`tel:${r.phone}`} className="hover:text-accent-600">
+                            {r.phone}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {request.status === 'Verified' && (
             <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">

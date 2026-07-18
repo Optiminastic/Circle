@@ -1,13 +1,17 @@
 import { BGVRequirement, Candidate, OnboardingChecklist } from '@/types';
 import { randomId, todayISO } from '@/lib/utils';
 
-/** Business rule: every new candidate gets a pre-registered BGV record. */
-export function buildBgvForCandidate(candidate: Candidate): BGVRequirement {
+/**
+ * Business rule: every new candidate gets a pre-registered BGV record.
+ * `services` are the rate-card shortforms HR selected (e.g. ["IDV", "PAV"]).
+ */
+export function buildBgvForCandidate(candidate: Candidate, services: string[] = []): BGVRequirement {
   return {
     id: randomId('BGV'),
     candidateId: candidate.id,
     candidateName: candidate.fullName,
     appliedRole: candidate.appliedRole,
+    services,
     documents: [
       { type: 'Aadhaar card', status: 'Pending' },
       { type: 'PAN card', status: 'Pending' },
@@ -19,7 +23,9 @@ export function buildBgvForCandidate(candidate: Candidate): BGVRequirement {
     verificationTimeline: [
       {
         date: todayISO(),
-        action: 'BGV instance pre-registered in pipeline',
+        action: services.length
+          ? `BGV started — checks requested: ${services.join(', ')}`
+          : 'BGV instance pre-registered in pipeline',
         performedBy: 'Circle Engine Automation',
       },
     ],

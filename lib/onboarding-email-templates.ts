@@ -5,6 +5,7 @@
  */
 import { Candidate } from '@/types';
 import { OnboardingEmailKind } from '@/features/onboarding/hooks';
+import { OFFICE_LOCATION_URL } from '@/lib/config';
 
 export interface EmailDraft {
   subject: string;
@@ -12,7 +13,9 @@ export interface EmailDraft {
 }
 
 const COMPANY = 'Optiminastic';
-const OFFICE = 'Optiminastic Infomedia Pvt Ltd.\n4031, NIBR Aerocity1, Saki Naka, Mumbai 400072';
+const OFFICE_ADDR = 'Optiminastic Infomedia Pvt Ltd.\n4031, NIBR Aerocity1, Saki Naka, Mumbai 400072';
+// Any email that prints the office address also prints its Google Maps link.
+const OFFICE = `${OFFICE_ADDR}\nGoogle Maps: ${OFFICE_LOCATION_URL}`;
 const HR_EMAIL = 'hr@optiminastic.com';
 
 export function buildOnboardingEmailDraft(
@@ -115,11 +118,11 @@ export function buildOnboardingEmailDraft(
 
     case 'joining_date':
       return {
-        subject: `Your joining date — ${role} at ${COMPANY}`,
+        subject: `Welcome to ${COMPANY} — your joining date (${role})`,
         body: [
           `Dear ${name},`,
           '',
-          `Welcome to the team! We're pleased to confirm your first working day as ${startDate}.`,
+          `Welcome to the ${COMPANY} team! We're delighted to have you on board and are pleased to confirm your first working day as ${startDate}.`,
           '',
           'Please visit our office on your joining date to complete the joining formalities:',
           OFFICE,

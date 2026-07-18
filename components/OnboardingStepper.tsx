@@ -12,16 +12,23 @@ import {
   Mail,
   BadgeCheck,
   Check,
+  CheckCircle2,
+  XCircle,
   Send,
   Loader2,
+  Clock4,
   Lock,
-  Info,
+  ChevronDown,
   Eye,
   Download,
 } from 'lucide-react';
 import { BGVRequirement, OnboardingChecklist } from '@/types';
 import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
+import { useOngridOnboard } from '@/features/bgv/hooks';
+import { sendCustomEmail } from '@/lib/api/notifications';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useDocRequests, useDocRequestMutations } from '@/features/doc-requests/hooks';
+import { SIGN_OFFER_TTL_HOURS } from '@/lib/sign-offer';
 import { useDocuments, downloadDocument } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
 import {
@@ -34,7 +41,12 @@ import { useToast } from '@/components/Toaster';
 import { OnboardingEmailComposer, type ComposerSeed } from '@/components/OnboardingEmailComposer';
 import { SendOfferLetterModal } from '@/components/SendOfferLetterModal';
 import { RequestDocumentsModal } from '@/components/RequestDocumentsModal';
+import { StartBgvModal } from '@/components/StartBgvModal';
+import { RefreshButton } from '@/components/RefreshButton';
+import { bgvCheckByCode } from '@/lib/bgv-services';
 import { buildOnboardingEmailDraft } from '@/lib/onboarding-email-templates';
+import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
+import { HR_EMAIL } from '@/lib/config';
 
 interface OnboardingStepperProps {
   checklist: OnboardingChecklist;
@@ -58,6 +70,16 @@ const fmtDate = (iso?: string) =>
     ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
 
+/** How long the signed-offer upload link stays live: "Expires in 71h 12m" / "Link expired". */
+const fmtLinkExpiry = (iso: string): string => {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (Number.isNaN(ms)) return '';
+  if (ms <= 0) return 'Link expired';
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return h > 0 ? `Expires in ${h}h ${m}m` : `Expires in ${m}m`;
+};
+
 export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const toast = useToast();
   const { data: candidates = [] } = useCandidates();
@@ -67,16 +89,22 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const { create: createDocRequest, reactivate: reactivateDocRequest } = useDocRequestMutations();
   const updateBgv = useUpdateBgv();
   const startBgv = useStartBgv();
+  const ongridOnboard = useOngridOnboard();
   const promote = usePromoteFromOnboarding();
 
   const [openInfo, setOpenInfo] = useState<Record<number, boolean>>({});
   const [composer, setComposer] = useState<(ComposerSeed & { kind: OnboardingEmailKind }) | null>(
     null,
   );
+  // Separate composer for the "documents invalid" email sent when HR rejects a BGV.
+  const [invalidEmail, setInvalidEmail] = useState<ComposerSeed | null>(null);
+  const [sendingInvalid, setSendingInvalid] = useState(false);
   // The offer letter uses a richer modal (attachment + signed-copy upload link).
   const [sendOfferOpen, setSendOfferOpen] = useState(false);
   // Editable request-documents email modal (To / Subject / Message).
   const [requestDocsOpen, setRequestDocsOpen] = useState(false);
+  // "Start verification" check-picker (which BGV services to run).
+  const [startBgvOpen, setStartBgvOpen] = useState(false);
   // Joining-date picker value for the "Joining date confirmation" step.
   const [joiningInput, setJoiningInput] = useState(checklist.joiningDate ?? '');
 
@@ -95,13 +123,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
   const toEmail = candidate?.email || checklist.candidateEmail || '';
 
-  // Signed offer letter the candidate uploaded via the 48h public link (stored in
+  // Signed offer letter the candidate uploaded via the 72h public link (stored in
   // S3 + the documents table as category "Signed Offer Letter").
   const { data: candidateDocs = [] } = useDocuments('candidate', checklist.candidateId);
   const signedOfferDoc = candidateDocs
     .filter(d => d.category === 'Signed Offer Letter')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
-  // The 48h signed-copy upload link (a "signed-offer" doc-request) — used to offer
+  // The 72h signed-copy upload link (a "signed-offer" doc-request) — used to offer
   // a reactivate button once it has expired and nothing has been uploaded yet.
   const signOfferReq = requests
     .filter(r => r.candidateId === checklist.candidateId && r.kind === 'signed-offer')
@@ -117,6 +145,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const docsRequested = Boolean(docRequest);
   const docsVerified = docRequest?.status === 'Verified';
   const bgvVerified = bgv?.overallStatus === 'Verified';
+  // Once the candidate's data is sent to OnGrid, HR's part of this step is done —
+  // the external check runs for ~20 days and must NOT block the rest of onboarding.
+  const bgvSent = Boolean(bgv?.ongridIndividualId);
   const joiningConfirmed = Boolean(checklist.joiningDateConfirmedAt);
   const firstDayArrived = Boolean(checklist.firstDayArrivedAt);
   const joined =
@@ -153,12 +184,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       at: checklist.offerSignedReceivedAt,
       detail: signedOfferDoc
         ? 'The candidate uploaded their signed offer letter. Preview/download it below, then confirm it is properly signed to complete this step.'
-        : 'The candidate can upload their signed copy via the 48-hour link in the offer email, or mark it received here manually.',
+        : 'The candidate can upload their signed copy via the 72-hour link in the offer email, or mark it received here manually.',
       action: { kind: 'mark-signed', cta: 'Mark received' },
     },
     {
       Icon: FileText,
-      label: 'Documents verification',
+      label: 'Joining Documents',
       // Completes only when every uploaded joining document has been VERIFIED —
       // not merely when the upload link was sent.
       done: docsVerified,
@@ -179,13 +210,17 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     {
       Icon: Fingerprint,
       label: 'Background verification',
-      done: bgvVerified,
-      desc: bgv ? bgv.overallStatus : 'Not started',
+      // Sending to OnGrid completes this step for onboarding purposes — the actual
+      // verification runs externally (~20 days) and never blocks the next steps.
+      done: bgvVerified || bgvSent,
+      desc: bgvVerified ? 'Verified' : bgvSent ? 'Sent · verifying' : bgv ? bgv.overallStatus : 'Not started',
       detail: bgvVerified
         ? 'Background verification is cleared.'
-        : bgv
-          ? `Background check is "${bgv.overallStatus}". Mark it verified once all checks pass.`
-          : 'Background verification has not started yet. Kick it off to begin the checks.',
+        : bgvSent
+          ? 'Sent to OnGrid — verification is in progress (this can take ~20 days). You can continue onboarding now, and record the outcome (Verified / Invalid) here whenever it comes back.'
+          : bgv
+            ? `Background check is "${bgv.overallStatus}". Send it to OnGrid to begin.`
+            : 'Background verification has not started yet. Start it to pick which checks to run.',
       action: bgv ? { kind: 'verify-bgv', cta: 'Mark BGV verified' } : { kind: 'start-bgv', cta: 'Start BGV' },
     },
     {
@@ -240,9 +275,28 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     i < currentIndex ? 'done' : i === currentIndex ? (stages[i].done ? 'done' : 'current') : 'todo';
 
   // Open the editable composer pre-filled from the template for this email kind.
+  // The offer letter is editable in Settings → Email templates, so it reads from
+  // there; the other kinds still use their built-in draft.
   const openComposer = (emailKind: OnboardingEmailKind, cta: string, startDate?: string) => {
     const draft = buildOnboardingEmailDraft(emailKind, candidate, startDate ? { startDate } : undefined);
     setComposer({ kind: emailKind, title: `Send ${cta}`, to: toEmail, subject: draft.subject, body: draft.body });
+    if (emailKind !== 'offer_letter') return;
+    fetchRenderedTemplate('offer_letter', {
+      candidate_name: candidate?.fullName || 'Candidate',
+      role: candidate?.appliedRole || 'the role',
+      ctc: candidate?.expectedCtc || candidate?.currentCtc || '[Annual CTC]',
+      joining_date: startDate || '[start date]',
+      hr_email: HR_EMAIL,
+    })
+      .then(tpl => {
+        if (!tpl) return;
+        setComposer(prev =>
+          prev && prev.kind === 'offer_letter'
+            ? { ...prev, subject: tpl.subject, body: tpl.body }
+            : prev,
+        );
+      })
+      .catch(() => {});
   };
 
   const sendFromComposer = (subject: string, body: string) => {
@@ -294,11 +348,47 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       onError: () => toast.error('Could not mark arrived — try again.'),
     });
 
+  // "Send for verification" opens the check-picker; the modal hands back the
+  // selected verification codes. We record them on the BGV record and then push
+  // the candidate + their documents to OnGrid in one go.
   const beginBgv = () => {
     if (!candidate) return;
-    startBgv.mutate(candidate, {
-      onSuccess: () => toast.success('Background verification started.'),
-      onError: () => toast.error('Could not start BGV — try again.'),
+    setStartBgvOpen(true);
+  };
+  const confirmBgv = async (services: string[]) => {
+    if (!candidate) return;
+    try {
+      // Record which verifications HR selected (create the record or update it on
+      // a re-send), so the "verifications sent" list reflects this selection.
+      if (bgv) {
+        await updateBgv.mutateAsync({ ...bgv, services });
+      } else {
+        await startBgv.mutateAsync({ candidate, services });
+      }
+    } catch {
+      toast.error('Could not save the selected verifications — try again.');
+      return;
+    }
+    // Send everything to OnGrid (identity + accepted documents).
+    ongridOnboard.mutate(candidate.id, {
+      onSuccess: res => {
+        if (res.ok) {
+          const up = (res.documents ?? []).filter(d => d.status === 'uploaded').length;
+          toast.success(
+            `Sent to OnGrid for verification — individual ${res.individualId}, ${up} document(s) uploaded.`,
+          );
+          setStartBgvOpen(false);
+        } else if (res.reason === 'no_consent') {
+          toast.error('Candidate has not given verification consent yet.');
+        } else if (res.reason === 'no_gender') {
+          toast.error('Candidate has no gender on file — needed for OnGrid.');
+        } else if (res.reason === 'not_configured') {
+          toast.info('OnGrid is not configured on the server.');
+        } else {
+          toast.error(`OnGrid could not onboard the candidate: ${res.reason ?? 'unknown error'}.`);
+        }
+      },
+      onError: () => toast.error('Could not reach OnGrid — try again.'),
     });
   };
 
@@ -319,6 +409,62 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     });
   };
 
+  // Reject a BGV: open an editable email telling the candidate their documents /
+  // details are invalid. Records the rejection on the BGV once the email is sent.
+  const openInvalidEmail = () => {
+    if (!candidate) return;
+    const role = candidate.appliedRole || 'the role';
+    setInvalidEmail({
+      title: 'Documents invalid',
+      to: candidate.email || checklist.candidateEmail || '',
+      subject: 'Issue with your submitted documents — Optiminastic',
+      body: [
+        `Dear ${candidate.fullName || 'Candidate'},`,
+        '',
+        `Thank you for submitting your documents for ${role}.`,
+        '',
+        'During verification, we found that some of the documents or details you provided could not be validated. This may be due to unclear scans, mismatched information, or missing documents.',
+        '',
+        'Please re-check and re-share the correct documents/details so we can proceed with your onboarding. If you have any questions, just reply to this email.',
+        '',
+        'Warm regards,',
+        'Optiminastic HR Team',
+      ].join('\n'),
+    });
+  };
+
+  const sendInvalidEmail = async (subject: string, body: string) => {
+    if (!invalidEmail) return;
+    const to = invalidEmail.to.trim();
+    if (!to) {
+      toast.error('No candidate email on file to send to.');
+      return;
+    }
+    setSendingInvalid(true);
+    try {
+      const res = await sendCustomEmail({ to, subject, body });
+      if (res.sent) toast.success(`Sent to ${to}.`);
+      else if (res.reason === 'not_configured') toast.info('Email not sent — SMTP is not configured.');
+      else toast.info('The email could not be sent.');
+      // Record the rejection on the BGV record for the timeline.
+      if (bgv) {
+        updateBgv.mutate({
+          ...bgv,
+          overallStatus: 'Rejected',
+          verificationTimeline: [
+            ...bgv.verificationTimeline,
+            { date: nowISO(), action: 'Documents marked invalid — candidate emailed', performedBy: 'HR' },
+          ],
+        });
+      }
+      setInvalidEmail(null);
+    } catch {
+      toast.error('Could not send the email — try again.');
+    } finally {
+      setSendingInvalid(false);
+    }
+  };
+
   const convertToEmployee = () => {
     promote.mutate(checklist, {
       onSuccess: () => toast.success(`${checklist.candidateName} onboarded into the employee directory.`),
@@ -336,12 +482,17 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     return (
       a.kind === 'email' ||
       a.kind === 'request-docs' ||
-      a.kind === 'confirm-joining' ||
+      // Before it's confirmed: the date picker + "Confirm & email" in the action
+      // row. After confirming, that row is hidden — re-sending a new date moves
+      // into the step's details dropdown ("Re-send joining date").
+      (a.kind === 'confirm-joining' && !done) ||
       // Hide the generic "Mark received" once a copy is uploaded — HR confirms it
       // via the "Confirm valid" button next to Preview/Download instead.
       (a.kind === 'mark-signed' && !done && !signedOfferDoc) ||
       a.kind === 'start-bgv' ||
-      (a.kind === 'verify-bgv' && !done) ||
+      // Once onboarded to OnGrid, HR decides via the green "Verified" / red
+      // "Invalid" buttons instead of this generic action.
+      (a.kind === 'verify-bgv' && !done && !bgv?.ongridIndividualId) ||
       (a.kind === 'mark-arrived' && !done) ||
       (a.kind === 'convert-employee' && !done)
     );
@@ -421,6 +572,14 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         onClose={() => setComposer(null)}
         onSend={sendFromComposer}
       />
+      {/* "Documents invalid" email, opened by the red Invalid button on the BGV step. */}
+      <OnboardingEmailComposer
+        open={!!invalidEmail}
+        seed={invalidEmail}
+        sending={sendingInvalid}
+        onClose={() => setInvalidEmail(null)}
+        onSend={sendInvalidEmail}
+      />
       {sendOfferOpen && (
         <SendOfferLetterModal
           candidate={candidate}
@@ -441,9 +600,23 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           onClose={() => setRequestDocsOpen(false)}
         />
       )}
-      <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
-        Onboarding progress <span className="text-gray-400">· tap ⓘ on a stage for details</span>
-      </p>
+      {startBgvOpen && (
+        <StartBgvModal
+          candidateName={checklist.candidateName}
+          pending={startBgv.isPending || updateBgv.isPending || ongridOnboard.isPending}
+          onStart={confirmBgv}
+          onClose={() => setStartBgvOpen(false)}
+        />
+      )}
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
+          Onboarding progress <span className="text-gray-400">· tap ⓘ on a stage for details</span>
+        </p>
+        {/* Pull fresh uploads / statuses without a full page reload. No explicit
+            keys: refetch every active query so documents (per-entity keys) and the
+            checklist/doc-requests/BGV all come back current. */}
+        <RefreshButton title="Check for new uploads & status changes" className="h-7 w-7" />
+      </div>
 
       <ol className="relative px-1 py-3">
         {stages.map((stage, i) => {
@@ -514,6 +687,53 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2.5">
+                    {/* Signed-copy upload link status on the Offer letter step: how
+                        long the 72h link is live, plus a re-activate button once it
+                        has lapsed (hidden once the signed copy is settled). */}
+                    {stage.action.kind === 'email' &&
+                      stage.action.emailKind === 'offer_letter' &&
+                      signOfferReq &&
+                      !signedOfferDone && (
+                        <>
+                          {signOfferExpired && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                reactivateDocRequest.mutate(
+                                  { id: signOfferReq.id, hours: SIGN_OFFER_TTL_HOURS },
+                                  {
+                                    onSuccess: () =>
+                                      toast.success(
+                                        `Upload link re-activated for ${SIGN_OFFER_TTL_HOURS} hours.`,
+                                      ),
+                                    onError: () =>
+                                      toast.error('Could not activate the link — try again.'),
+                                  },
+                                )
+                              }
+                              disabled={reactivateDocRequest.isPending}
+                              title="Re-activate the signed-offer upload link"
+                              className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            >
+                              {reactivateDocRequest.isPending ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : (
+                                <Send size={11} />
+                              )}
+                              Activate link
+                            </button>
+                          )}
+                          <span
+                            className={`hidden items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
+                              signOfferExpired
+                                ? 'border-red-200 bg-red-50 text-red-600'
+                                : 'border-amber-200 bg-amber-50 text-amber-700'
+                            }`}
+                          >
+                            <Clock4 size={11} /> {fmtLinkExpiry(signOfferReq.expiresAt)}
+                          </span>
+                        </>
+                      )}
                     {stage.at && (
                       <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
                         {fmtDate(stage.at)}
@@ -531,7 +751,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
                       }`}
                     >
-                      <Info size={15} />
+                      <ChevronDown
+                        size={15}
+                        className={`transition-transform duration-200 ${infoShown ? 'rotate-180' : ''}`}
+                      />
                     </button>
                   </div>
                 </div>
@@ -546,6 +769,158 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     }`}
                   >
                     <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
+
+                    {/* Joining date: once confirmed, the action row is gone. Re-send an
+                        UPDATED joining date from here — pick a new date and it re-opens
+                        the confirmation email pre-filled with that date. */}
+                    {stage.action.kind === 'confirm-joining' && stage.done && (
+                      <div className="mt-3 border-t border-[#ECEDF0] pt-3">
+                        <p className="text-[12px] font-semibold text-gray-800">Re-send joining date</p>
+                        <p className="mb-2 text-[11px] text-gray-500">
+                          Confirmed for {fmtDate(checklist.joiningDate)}. Pick a new date to share an
+                          updated joining date with the candidate.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <DatePicker
+                            value={joiningInput}
+                            onChange={setJoiningInput}
+                            placeholder="Pick a new date"
+                            className="h-8 w-[168px]"
+                          />
+                          <button
+                            onClick={confirmJoining}
+                            disabled={setJoiningDate.isPending || !joiningInput}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {setJoiningDate.isPending ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <CalendarCheck size={13} />
+                            )}
+                            Re-send joining date
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BGV: the checks HR picked — shown until they're sent (then the
+                        "Sent for verification" list below takes over). */}
+                    {(stage.action.kind === 'start-bgv' || stage.action.kind === 'verify-bgv') &&
+                      !bgv?.ongridIndividualId &&
+                      !!bgv?.services?.length && (
+                        <div className="mt-2.5">
+                          <p className="mb-1.5 font-mono text-[9.5px] font-bold uppercase tracking-wider text-gray-400">
+                            Verifications selected ({bgv.services.length})
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {bgv.services.map(code => {
+                              const check = bgvCheckByCode(code);
+                              return (
+                                <span
+                                  key={code}
+                                  title={check?.name}
+                                  className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-1.5 py-0.5 text-[11px] text-gray-700"
+                                >
+                                  <span className="font-mono text-[10px] font-bold text-accent-700">
+                                    {code}
+                                  </span>
+                                  {check?.name && <span className="text-gray-500">· {check.name}</span>}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* BGV: send the candidate + documents to OnGrid for verification. */}
+                    {(stage.action.kind === 'start-bgv' || stage.action.kind === 'verify-bgv') && (
+                      <div className="mt-3 border-t border-[#ECEDF0] pt-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-semibold text-gray-800">OnGrid verification</p>
+                            <p className="text-[11px] text-gray-500">
+                              Select the verifications and send the candidate’s details &amp; documents to OnGrid.
+                            </p>
+                          </div>
+                          <button
+                            onClick={beginBgv}
+                            disabled={ongridOnboard.isPending}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                          >
+                            {ongridOnboard.isPending && <Loader2 size={13} className="animate-spin" />}
+                            {bgv?.ongridIndividualId ? 'Re-send for verification' : 'Send for verification'}
+                          </button>
+                        </div>
+
+                        {bgv?.ongridIndividualId && (
+                          <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5">
+                            <p className="flex items-center gap-1.5 text-[11.5px] font-semibold text-emerald-800">
+                              <CheckCircle2 size={13} /> Sent to OnGrid
+                              <span className="font-mono text-[10.5px] font-normal text-emerald-700">
+                                · individual {bgv.ongridIndividualId}
+                              </span>
+                            </p>
+
+                            {/* The verifications this candidate's data was sent for. */}
+                            {!!bgv.services?.length && (
+                              <div className="mt-2">
+                                <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-700/70">
+                                  Sent for verification
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {bgv.services.map(code => {
+                                    const check = bgvCheckByCode(code);
+                                    return (
+                                      <span
+                                        key={code}
+                                        title={check?.name}
+                                        className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-1.5 py-0.5 text-[10.5px] text-gray-700"
+                                      >
+                                        <span className="font-mono text-[9.5px] font-bold text-accent-700">
+                                          {code}
+                                        </span>
+                                        {check?.name && <span className="text-gray-500">· {check.name}</span>}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Documents pushed to OnGrid. */}
+                            {!!bgv.ongridDocuments?.length && (
+                              <div className="mt-2">
+                                <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-700/70">
+                                  Documents sent
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {bgv.ongridDocuments.map((d, i) => (
+                                    <span
+                                      key={`${d.docType}-${i}`}
+                                      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${
+                                        d.status === 'uploaded'
+                                          ? 'border-emerald-200 bg-white text-emerald-700'
+                                          : 'border-amber-200 bg-white text-amber-700'
+                                      }`}
+                                    >
+                                      {d.docType}
+                                      <span className="font-mono text-[9px] uppercase">{d.status}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {bgv.ongridOnboardedAt && (
+                              <p className="mt-2 text-[10px] text-gray-400">
+                                Sent {fmtDate(bgv.ongridOnboardedAt)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {stage.at && (
                       <p className="mt-2 text-[11px] text-gray-400">Recorded on {fmtDate(stage.at)}</p>
                     )}
@@ -556,12 +931,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                 {showAction && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {isJoining && (
-                      <input
-                        type="date"
+                      <DatePicker
                         value={joiningInput}
-                        onChange={e => setJoiningInput(e.target.value)}
+                        onChange={setJoiningInput}
                         disabled={!gateMet}
-                        className="h-6 rounded-md border border-[#E4E6EA] bg-white px-2 text-[11px] text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50"
+                        placeholder="Pick a date"
+                        className="h-8 w-[168px]"
                       />
                     )}
                     <button
@@ -579,13 +954,38 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       )}
                       {actionLabel}
                     </button>
-                    {!gateMet && (
-                      <span className="text-[11px] text-gray-400">
-                        Complete the earlier step to unlock this.
-                      </span>
-                    )}
                   </div>
                 )}
+
+                {/* BGV decision — shown once the candidate is on OnGrid: HR reviews
+                    and either passes them (green) or rejects with an email (red). */}
+                {stage.action.kind === 'verify-bgv' &&
+                  !!bgv?.ongridIndividualId &&
+                  !bgvVerified && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={verifyBgvNow}
+                        disabled={updateBgv.isPending}
+                        className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-600 px-2.5 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {updateBgv.isPending ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <Check size={11} />
+                        )}
+                        Verified
+                      </button>
+                      <button
+                        onClick={openInvalidEmail}
+                        className="inline-flex h-6 items-center gap-1 rounded-md bg-red-600 px-2.5 text-[10px] font-semibold text-white transition hover:bg-red-700"
+                      >
+                        <XCircle size={11} /> Invalid
+                      </button>
+                      <span className="text-[11px] text-gray-400">
+                        Review the candidate in OnGrid, then pass or reject.
+                      </span>
+                    </div>
+                  )}
 
                 {/* Signed offer letter the candidate uploaded — preview / download. */}
                 {stage.action.kind === 'mark-signed' && signedOfferDoc && (
@@ -624,22 +1024,23 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                 )}
 
                 {/* Signed-copy upload link expired (nothing uploaded, not yet marked
-                    received) — one button to re-open it (48h) so the candidate can
+                    received) — one button to re-open it (72h) so the candidate can
                     upload again. */}
                 {stage.action.kind === 'mark-signed' && !signedOfferDone && signOfferReq && signOfferExpired && (
                   <div className="mt-3">
                     <button
                       onClick={() =>
                         reactivateDocRequest.mutate(
-                          { id: signOfferReq.id, hours: 48 },
+                          { id: signOfferReq.id, hours: SIGN_OFFER_TTL_HOURS },
                           {
-                            onSuccess: () => toast.success('Upload link re-activated for 48 hours.'),
+                            onSuccess: () =>
+                              toast.success(`Upload link re-activated for ${SIGN_OFFER_TTL_HOURS} hours.`),
                             onError: () => toast.error('Could not activate the link — try again.'),
                           },
                         )
                       }
                       disabled={reactivateDocRequest.isPending}
-                      className="inline-flex h-6 items-center gap-1 rounded-md bg-accent-600 px-2 text-[10px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                      className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                     >
                       {reactivateDocRequest.isPending ? (
                         <Loader2 size={11} className="animate-spin" />

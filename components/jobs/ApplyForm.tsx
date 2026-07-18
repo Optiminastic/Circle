@@ -18,6 +18,7 @@ const EMPTY = {
   email: '',
   phone: '',
   location: '',
+  gender: '',
   currentCompany: '',
   currentDesignation: '',
   totalExperienceYears: 0,
@@ -269,6 +270,7 @@ export function ApplyForm({ job }: { job: Job }) {
     if (!emailVerified) return 'Please verify your email before applying.';
     if (!form.phone.trim()) return 'Please enter your phone number.';
     if (form.phone.trim().length !== 10) return 'Please enter a valid 10-digit phone number.';
+    if (!form.gender) return 'Please select your gender.';
     if (!form.currentDesignation.trim()) return 'Please enter your current title.';
     if (!String(form.currentCtc).trim()) return 'Please enter your current CTC.';
     if (!String(form.expectedCtc).trim()) return 'Please enter your expected CTC.';
@@ -333,6 +335,7 @@ export function ApplyForm({ job }: { job: Job }) {
           linkedInUrl: form.linkedInUrl,
           coverNote: form.coverNote,
           location: form.location,
+          gender: form.gender,
           currentCompany: form.currentCompany,
           resumeUrl: form.resumeUrl,
           responses,
@@ -472,6 +475,31 @@ export function ApplyForm({ job }: { job: Job }) {
                       required
                     />
                   </div>
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Gender *">
+                  <Select
+                    className={inputCls}
+                    value={form.gender}
+                    onChange={e => set({ gender: e.target.value })}
+                    placeholder="Select gender"
+                  >
+                    <option value="" disabled>
+                      Select gender
+                    </option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </Select>
+                </Field>
+                <Field label="Current location">
+                  <input
+                    className={inputCls}
+                    value={form.location}
+                    onChange={e => set({ location: e.target.value })}
+                    placeholder="City you're based in"
+                  />
                 </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

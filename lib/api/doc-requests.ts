@@ -4,7 +4,7 @@
  * HttpClient. These calls are unauthenticated by design — the unguessable,
  * expiring token in the URL is the credential.
  */
-import { DocRequest, DocSubmission } from '@/types';
+import { DocRequest, DocSubmission, ReferenceContact } from '@/types';
 import { apiBase } from '@/lib/api-base';
 
 /** Fetch a request by its public token (used by the portal page). */
@@ -49,6 +49,40 @@ export async function saveDocRequestBankDetails(
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(detail || `Could not save bank details (${res.status})`);
+  }
+  return res.json();
+}
+
+/** Save the candidate's OnGrid consent onto the request. */
+export async function saveDocRequestConsent(
+  token: string,
+  consent: { agreed: boolean; text: string; at: string },
+): Promise<DocRequest> {
+  const res = await fetch(`${apiBase()}/api/doc-requests/${encodeURIComponent(token)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ consent }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not save consent (${res.status})`);
+  }
+  return res.json();
+}
+
+/** Save the candidate's past-employer references onto the request. */
+export async function saveDocRequestReferences(
+  token: string,
+  references: ReferenceContact[],
+): Promise<DocRequest> {
+  const res = await fetch(`${apiBase()}/api/doc-requests/${encodeURIComponent(token)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ references }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not save references (${res.status})`);
   }
   return res.json();
 }

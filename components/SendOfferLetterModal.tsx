@@ -100,7 +100,7 @@ export function SendOfferLetterModal({
     applyJoining(mode === 'created' ? offerLetter?.joiningDate || '' : '');
   };
 
-  // On open: draft the email + mint the 48h signed-copy upload link. The link is
+  // On open: draft the email + mint the 72h signed-copy upload link. The link is
   // sent as a BUTTON (via `links`), not pasted into the body.
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +138,11 @@ export function SendOfferLetterModal({
     const recipient = to.trim();
     if (!recipient) {
       toast.error('Enter the candidate’s email address.');
+      return;
+    }
+    // The offer email quotes the joining date, so it must be set before sending.
+    if (!joiningDate) {
+      toast.error('Pick the date of joining before sending the offer letter.');
       return;
     }
     if (attachMode === 'upload' && !uploadFile) {
@@ -207,12 +212,16 @@ export function SendOfferLetterModal({
             </div>
 
             <div>
-              <label className="mb-1 block text-[11px] font-semibold text-gray-500">Date of joining</label>
+              <label className="mb-1 block text-[11px] font-semibold text-gray-500">
+                Date of joining <span className="text-accent-600">*</span>
+              </label>
               <DatePicker value={joiningDate} onChange={applyJoining} />
-              <p className="mt-1 text-[11px] text-gray-400">
-                {attachMode === 'created'
-                  ? 'Auto-filled from the created offer letter — edit if needed. Shown in the email.'
-                  : 'Set the joining date to include in the email.'}
+              <p className={`mt-1 text-[11px] ${joiningDate ? 'text-gray-400' : 'text-accent-600'}`}>
+                {joiningDate
+                  ? attachMode === 'created'
+                    ? 'Auto-filled from the created offer letter — edit if needed. Shown in the email.'
+                    : 'Shown in the email as the proposed date of joining.'
+                  : 'Required — the offer email states the joining date, so pick one before sending.'}
               </p>
             </div>
 
@@ -258,7 +267,8 @@ export function SendOfferLetterModal({
               </button>
               <button
                 onClick={send}
-                disabled={sending}
+                disabled={sending || !joiningDate}
+                title={!joiningDate ? 'Pick the date of joining first' : undefined}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 {sending && <Loader2 size={14} className="animate-spin" />}

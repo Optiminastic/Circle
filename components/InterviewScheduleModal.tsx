@@ -21,6 +21,12 @@ import { BRAND } from '@/lib/brand';
 import { OFFICE_LOCATION_URL, OFFICE_ADDRESS } from '@/lib/config';
 import { Candidate } from '@/types';
 import { useEmployees } from '@/features/employees/hooks';
+import { emailTemplateById } from '@/lib/email-templates-catalog';
+import {
+  useEmailTemplateOverrides,
+  resolveTemplate,
+  renderTemplate,
+} from '@/features/email-templates/hooks';
 
 /** An existing interview window used for conflict detection. */
 export interface BusyInterview {
@@ -123,61 +129,48 @@ export function InterviewScheduleModal({
     if (match?.email) setInterviewerEmail(match.email);
   };
 
-  const [subject, setSubject] = useState(
-    isReschedule
-      ? `Interview Rescheduled - ${position} - ${BRAND.company}`
-      : `Interview Invitation - ${position} - ${BRAND.company}`,
+  // The draft comes from Settings → Email templates, so what HR sees here is
+  // exactly the saved template. Scheduling and rescheduling are separate
+  // templates because their wording differs.
+  const { data: overrides } = useEmailTemplateOverrides();
+  const templateDef = emailTemplateById(
+    isReschedule ? 'interview_reschedule_candidate' : 'interview_schedule_candidate',
   );
+
+  const templateVars = useMemo(
+    () => ({
+      candidate_name: candidate.fullName,
+      role: position,
+      date: fmtDate(date),
+      time: fmtTime(time),
+      location: OFFICE_ADDRESS,
+      map_url: OFFICE_LOCATION_URL,
+      interviewer_name: interviewerName.trim() || 'The Hiring Team',
+    }),
+    [candidate.fullName, position, date, time, interviewerName],
+  );
+
+  const composedSubject = useMemo(() => {
+    if (!templateDef) return '';
+    return renderTemplate(resolveTemplate(templateDef, overrides).subject, templateVars);
+  }, [templateDef, overrides, templateVars]);
+
+  const composedBody = useMemo(() => {
+    if (!templateDef) return '';
+    return renderTemplate(resolveTemplate(templateDef, overrides).body, templateVars);
+  }, [templateDef, overrides, templateVars]);
+
+  const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [emailEdited, setEmailEdited] = useState(false);
 
-  // Keep the email body in sync with the form until HR manually edits it.
-  const composedBody = useMemo(() => {
-    const interviewer = interviewerName.trim() || 'The Hiring Team';
-    const intro = isReschedule
-      ? [
-          'We would like to let you know that your interview has been rescheduled. The updated details are below.',
-        ]
-      : [
-          'Congratulations! We are pleased to inform you that you have been shortlisted for the next stage of our hiring process.',
-          '',
-          'We would like to invite you for an interview at our office.',
-        ];
-    // Overview of the three-stage hiring process, shown in the default template.
-    const stages = [
-      'Our hiring process has three rounds:',
-      '1. IQ Test — a 30-minute timed aptitude test.',
-      '2. Assessment — a role-specific assessment round.',
-      '3. Interview — a final interview.',
-    ];
-    return [
-      `Dear ${candidate.fullName},`,
-      '',
-      ...intro,
-      '',
-      ...stages,
-      '',
-      `Date: ${fmtDate(date)}`,
-      `Time: ${fmtTime(time)}`,
-      // In-person by default — office address + a "View map" anchor.
-      `Location: ${OFFICE_ADDRESS}`,
-      `[[View map|${OFFICE_LOCATION_URL}]]`,
-      '',
-      isReschedule
-        ? 'Please confirm the new slot works for you by replying to this email. We apologise for any inconvenience.'
-        : 'Please confirm your availability by replying to this email.',
-      '',
-      'We look forward to meeting you.',
-      '',
-      'Best Regards,',
-      interviewer,
-      BRAND.company,
-    ].join('\n');
-  }, [candidate.fullName, interviewerName, date, time, isReschedule]);
-
+  // Keep the email in sync with the form + template until HR manually edits it.
   useEffect(() => {
-    if (!emailEdited) setBody(composedBody);
-  }, [composedBody, emailEdited]);
+    if (!emailEdited) {
+      setSubject(composedSubject);
+      setBody(composedBody);
+    }
+  }, [composedSubject, composedBody, emailEdited]);
 
   // --- validation + conflict detection -------------------------------------
   const startMs = useMemo(() => {

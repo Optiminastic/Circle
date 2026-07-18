@@ -6,7 +6,14 @@ import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { sendTestEmail } from '@/lib/api/notifications';
 import { nowISO, randomToken } from '@/lib/utils';
-import { REQUIRED_DOC_TYPES, docPortalPath, DOC_REQUEST_TTL_HOURS } from '@/lib/onboarding-docs';
+import {
+  DEFAULT_REQUIRED_DOC_TYPES,
+  BANK_DOC_TYPE,
+  requiredFileDocTypes,
+  needsBank,
+  docPortalPath,
+  DOC_REQUEST_TTL_HOURS,
+} from '@/lib/onboarding-docs';
 
 export function useDocRequests() {
   // Candidates upload from their own session, so HR must poll to see new
@@ -40,10 +47,13 @@ export function useDocRequestMutations() {
       email: string;
       role?: string;
       prior?: DocRequest;
+      /** Items HR ticked in the picker; defaults to the standard set. */
+      requiredDocs?: string[];
       // When true, only create/reuse the request + return the link — the caller
       // sends its own (editable) email instead of the built-in template.
       skipEmail?: boolean;
     }) => {
+      const requiredDocs = input.requiredDocs?.length ? input.requiredDocs : DEFAULT_REQUIRED_DOC_TYPES;
       const expiresAt = new Date(Date.now() + DOC_REQUEST_TTL_HOURS * 3600 * 1000).toISOString();
 
       // Reuse an existing live request for this candidate so "Resend" re-emails the
@@ -58,10 +68,19 @@ export function useDocRequestMutations() {
 
       let request: DocRequest;
       if (live) {
-        request = { ...live, email: input.email || live.email, role: input.role ?? live.role, expiresAt };
+        // Re-requesting also updates what's asked for, so HR can add or drop
+        // items on an existing link.
+        request = {
+          ...live,
+          email: input.email || live.email,
+          role: input.role ?? live.role,
+          requiredDocs,
+          expiresAt,
+        };
         await repositories.docRequests.patch(live.id, {
           email: request.email,
           role: request.role,
+          requiredDocs,
           expiresAt,
         });
       } else {
@@ -71,18 +90,22 @@ export function useDocRequestMutations() {
         const prior = input.prior ?? existing[0];
         const carried = (prior?.submissions ?? []).filter(s => s.status === 'Verified');
         const bank = prior?.bankDetails;
+        // Only the required file items gate completion (optional ones like the
+        // "current offer letter" don't); bank is judged separately, when requested.
+        const fileDocs = requiredFileDocTypes(requiredDocs);
         const allVerified =
-          carried.length > 0 && REQUIRED_DOC_TYPES.every(rt => carried.some(s => s.docType === rt));
-        const bankOk = bank?.status === 'Verified';
+          fileDocs.length > 0 && fileDocs.every(rt => carried.some(s => s.docType === rt));
+        const bankOk = !requiredDocs.includes(BANK_DOC_TYPE) || bank?.status === 'Verified';
         request = {
           id: randomToken('DOC'),
           candidateId: input.candidateId,
           candidateName: input.candidateName,
           email: input.email,
           role: input.role,
-          requiredDocs: REQUIRED_DOC_TYPES,
+          requiredDocs,
           submissions: carried,
           bankDetails: bank,
+          references: prior?.references,
           status: allVerified && bankOk ? 'Verified' : 'Pending',
           createdAt: nowISO(),
           expiresAt,
@@ -122,10 +145,11 @@ export function useDocRequestMutations() {
           ? { ...s, status: input.status, reviewReason: input.reason, reviewedAt: nowISO() }
           : s,
       );
-      const allVerified = input.request.requiredDocs.every(
+      const allVerified = requiredFileDocTypes(input.request.requiredDocs).every(
         rt => submissions.find(s => s.docType === rt)?.status === 'Verified',
       );
-      const bankOk = input.request.bankDetails?.status === 'Verified';
+      const bankOk =
+        !needsBank(input.request.requiredDocs) || input.request.bankDetails?.status === 'Verified';
       return repositories.docRequests.patch(input.request.id, {
         submissions,
         status: allVerified && bankOk ? 'Verified' : input.request.status,
@@ -143,7 +167,7 @@ export function useDocRequestMutations() {
         reviewReason: input.reason,
         reviewedAt: nowISO(),
       };
-      const allDocsVerified = input.request.requiredDocs.every(
+      const allDocsVerified = requiredFileDocTypes(input.request.requiredDocs).every(
         rt => input.request.submissions.find(s => s.docType === rt)?.status === 'Verified',
       );
       const bankVerified = input.status === 'Verified';

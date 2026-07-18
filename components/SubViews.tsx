@@ -4,6 +4,7 @@ import { DocumentsPanel } from './DocumentsPanel';
 import { DocRequestPanel } from './DocRequestPanel';
 import { OnboardingStepper } from './OnboardingStepper';
 import { ActionMenu } from './ActionMenu';
+import { EmailTemplatesManager } from './EmailTemplatesManager';
 import { useToast } from './Toaster';
 import { useUiStore } from '@/store/ui-store';
 import { useSchedules } from '@/features/schedule/hooks';
@@ -2129,7 +2130,7 @@ function GoogleCalendarCard() {
 export function SettingsView() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    'general' | 'lists' | 'questions' | 'roles' | 'rules'
+    'general' | 'email' | 'lists' | 'questions' | 'roles' | 'rules'
   >('general');
 
   return (
@@ -2146,11 +2147,12 @@ export function SettingsView() {
       <Tabs
         value={activeTab}
         onValueChange={v =>
-          setActiveTab(v as 'general' | 'lists' | 'questions' | 'roles' | 'rules')
+          setActiveTab(v as 'general' | 'email' | 'lists' | 'questions' | 'roles' | 'rules')
         }
       >
         <TabsList>
           <TabsTrigger value="general">General Workspace</TabsTrigger>
+          <TabsTrigger value="email">Email Templates</TabsTrigger>
           <TabsTrigger value="lists">Custom Lists</TabsTrigger>
           <TabsTrigger value="questions">Question Bank</TabsTrigger>
           <TabsTrigger value="roles">Roles &amp; Cryptography</TabsTrigger>
@@ -2191,6 +2193,10 @@ export function SettingsView() {
 
           <GoogleCalendarCard />
         </div>
+        </TabsContent>
+
+        <TabsContent value="email">
+          <EmailTemplatesManager />
         </TabsContent>
 
         <TabsContent value="lists">

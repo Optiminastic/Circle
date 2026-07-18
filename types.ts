@@ -9,6 +9,8 @@ export interface Candidate {
   email: string;
   phone: string;
   location: string;
+  /** Captured on the application form; needed to onboard to OnGrid (BGV). */
+  gender?: 'Male' | 'Female' | 'Other';
   currentCompany: string;
   currentDesignation: string;
   totalExperienceYears: number;
@@ -35,6 +37,10 @@ export interface Candidate {
 
   // Set when the candidate applied through a public job posting link.
   jobId?: string;
+
+  /** True when HR added this candidate manually via "Add Candidate" (not a
+   *  public application). Only these candidates are editable from the dashboard. */
+  manuallyAdded?: boolean;
 
   // Screening questionnaire answered at apply time (from the job's questions).
   screeningAnswers?: ScreeningAnswer[];
@@ -349,7 +355,23 @@ export type RequiredDocType =
   | 'Education certificates'
   | 'Experience letter'
   | 'Cancelled cheque'
-  | 'Passport photo';
+  | 'Passport photo'
+  | 'Offer/appraisal letter'
+  | 'Salary slips'
+  | 'Resignation letter'
+  | 'Current offer letter'
+  | 'Bank details'
+  | 'Reference contacts';
+
+/**
+ * A past-employer reference the candidate supplies through the portal. Only
+ * collected when HR requests 'Reference contacts'.
+ */
+export interface ReferenceContact {
+  organization: string;
+  email: string;
+  phone: string;
+}
 
 export interface BankDetails {
   accountHolderName?: string;
@@ -387,12 +409,19 @@ export interface DocRequest {
   candidateName: string;
   email: string;
   role?: string;
-  /** 'signed-offer' = a 48h link for the candidate's signed offer letter (kept
+  /** 'signed-offer' = a 72h link for the candidate's signed offer letter (kept
    *  separate from the joining-documents request). undefined = joining docs. */
   kind?: 'signed-offer';
+  /** What HR asked for — drives which cards the portal shows. May include the
+   *  non-file items 'Bank details' and 'Reference contacts'. */
   requiredDocs: string[];
   submissions: DocSubmission[];
   bankDetails?: BankDetails;
+  /** Past-employer references, when 'Reference contacts' was requested. */
+  references?: ReferenceContact[];
+  /** Candidate's consent to share their data/documents with OnGrid for BGV.
+   *  Required before the candidate can be onboarded to OnGrid. */
+  consent?: { agreed: boolean; text: string; at: string };
   status: 'Pending' | 'Submitted' | 'Verified';
   createdAt: string;
   expiresAt: string;
@@ -453,6 +482,10 @@ export interface BGVRequirement {
   candidateId: string;
   candidateName: string;
   appliedRole: string;
+  /** Verification checks HR selected when starting the BGV, stored as the
+   *  service shortforms from the rate card (e.g. ["IDV", "CCRV + EREF"]).
+   *  See lib/bgv-services.ts. */
+  services?: string[];
   documents: {
     type: BGVDocumentType;
     status: BGVDocumentStatus;
@@ -466,6 +499,19 @@ export interface BGVRequirement {
     action: string;
     performedBy: string;
   }[];
+  /** OnGrid onboarding (BGV phase 1). Set once the candidate is pushed to
+   *  OnGrid; verifications themselves are triggered by HR in OnGrid's portal. */
+  ongridIndividualId?: string;
+  ongridOnboardedAt?: string;
+  ongridResponse?: {
+    id?: string;
+    name?: string;
+    city?: string;
+    phone?: string;
+    gender?: string;
+    currentAddress?: string;
+  };
+  ongridDocuments?: { docType: string; route?: string; status: string }[];
 }
 
 export type BGVDocumentType =

@@ -18,6 +18,9 @@ export const RESOURCES = {
   employees: { slug: 'employees', idField: 'id' },
   assets: { slug: 'assets', idField: 'id' },
   emailTemplates: { slug: 'email-templates', idField: 'id' },
+  // HR's edits to the built-in transactional emails, keyed by template id. Only
+  // edited templates get a row; the rest fall back to the built-in copy.
+  emailTemplateOverrides: { slug: 'email-template-overrides', idField: 'id' },
   sentEmails: { slug: 'sent-emails', idField: 'id' },
   offboarding: { slug: 'offboarding', idField: 'employeeId' },
   exitHandovers: { slug: 'exit-handovers', idField: 'employeeId' },

@@ -19,6 +19,7 @@ export const qk = {
   employees: { all: ['employees'] as const, detail: (id: string) => ['employees', id] as const },
   assets: { all: ['assets'] as const },
   emailTemplates: { all: ['email-templates'] as const },
+  emailTemplateOverrides: { all: ['email-template-overrides'] as const },
   sentEmails: { all: ['sent-emails'] as const },
   offboarding: { all: ['offboarding'] as const },
   assessmentBanks: {

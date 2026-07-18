@@ -12,6 +12,9 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from './Toaster';
 import { OfferLetterPaged } from './OfferLetterPaged';
 
+/** Upper bound for the annual CTC input: ₹1 crore. */
+const MAX_ANNUAL_CTC = 10_000_000;
+
 interface OfferLetterCardProps {
   candidateId: string;
   candidateName: string;
@@ -220,7 +223,16 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
                   <input className={inputCls} value={draft.location} onChange={e => set('location', e.target.value)} />
                 </Field>
                 <Field label="Annual CTC (INR)">
-                  <input className={inputCls} type="number" min={0} value={draft.ctcAnnual || ''} onChange={e => setNum('ctcAnnual', e.target.value)} placeholder="e.g. 180000" />
+                  {/* Capped at ₹1 crore — a higher value is clamped, not accepted. */}
+                  <input
+                    className={inputCls}
+                    type="number"
+                    min={0}
+                    max={MAX_ANNUAL_CTC}
+                    value={draft.ctcAnnual || ''}
+                    onChange={e => setNum('ctcAnnual', String(Math.min(Number(e.target.value) || 0, MAX_ANNUAL_CTC)))}
+                    placeholder="e.g. 180000"
+                  />
                 </Field>
                 <Field label="Medical insurance (INR)">
                   <input className={inputCls} type="number" min={0} value={draft.medicalInsurance || ''} onChange={e => setNum('medicalInsurance', e.target.value)} />

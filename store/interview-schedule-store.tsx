@@ -9,6 +9,7 @@ import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { pushCalendarEvent, deleteCalendarEvent } from '@/lib/api/calendar';
+import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { BRAND } from '@/lib/brand';
 import { HR_EMAIL } from '@/lib/config';
 import { randomId, nowISO } from '@/lib/utils';
@@ -50,9 +51,8 @@ const addMinutesIso = (iso: string, mins: number) => {
   return new Date(d.getTime() + mins * 60_000).toISOString();
 };
 
-// The composed email body uses `[[label|url]]` link tokens meant for the HTML
-// renderer. A Google Calendar description is plain text, so flatten them to
-// "label: url" before using the body as the event description.
+// Flatten `[[label|url]]` link tokens to "label: url" — a Google Calendar event
+// description is plain text, not HTML.
 const plainText = (body: string): string =>
   (body || '').replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, (_m, label, url) => `${label.trim()}: ${url.trim()}`);
 
@@ -209,9 +209,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         (e): e is string => !!e && e.trim().length > 0,
       );
       // Update the same calendar event (keyed by the interview id). In-person by
-      // default — no Meet link here (that's decided on the Physical Interview email).
-      // When Google creates it, its invite from hr@ is the candidate's email, so
-      // carry the composed subject + body on the event and skip the app email.
+      // default. When Google creates it, its invite from hr@ is the candidate's
+      // email — carry the composed subject + body on the event and skip the app one.
       let reschedPushed = false;
       try {
         const r = await pushCalendarEvent({
@@ -237,7 +236,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           const r = await pushCalendarEvent({
             appEventId: `${existing.id}-interviewer`,
             type: 'Interview',
-            title: `Interview - ${c.fullName} - ${position}`,
+            title: `Assigned a interview for ${position} : ${c.fullName}`,
             dateTimeIso: interviewerIso,
             durationMin: input.durationMin,
             location: input.location,
@@ -298,19 +297,31 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       // Notify the interviewer of the new time too — only when Google didn't send
       // them the updated (+1h) invite already.
       if (input.interviewerEmail && !reschedInterviewerPushed) {
-        sendCustomEmail({
-          to: input.interviewerEmail,
-          subject: `Interview rescheduled: ${c.fullName} for ${position}`,
-          body: `Hi ${input.interviewerName || 'there'},\n\nThe interview with ${c.fullName} (${position}) has been rescheduled.\n\nNew time: ${new Date(interviewerIso).toLocaleString()}\n\n— ${BRAND.company}`,
-          eventStartIso: interviewerIso,
-          eventDurationMin: input.durationMin,
-          eventSummary: `Interview - ${c.fullName} - ${position}`,
-          eventLocation: input.location,
-          organizerEmail: HR_EMAIL,
-          organizerName: `${BRAND.company} HR`,
-          attendees: interviewerAttendees,
-          eventUid: `${existing.id}-interviewer`,
-        }).catch(() => {});
+        // Copy comes from Settings → Email templates ("Interview rescheduled —
+        // interviewer").
+        fetchRenderedTemplate('interview_reschedule_interviewer', {
+          interviewer_name: input.interviewerName || 'there',
+          candidate_name: c.fullName,
+          role: position,
+          date_time: new Date(interviewerIso).toLocaleString(),
+        })
+          .then(tpl => {
+            if (!tpl) return;
+            sendCustomEmail({
+              to: input.interviewerEmail,
+              subject: tpl.subject,
+              body: tpl.body,
+              eventStartIso: interviewerIso,
+              eventDurationMin: input.durationMin,
+              eventSummary: `Interview - ${c.fullName} - ${position}`,
+              eventLocation: input.location,
+              organizerEmail: HR_EMAIL,
+              organizerName: `${BRAND.company} HR`,
+              attendees: interviewerAttendees,
+              eventUid: `${existing.id}-interviewer`,
+            }).catch(() => {});
+          })
+          .catch(() => {});
       }
 
       repositories.interviews
@@ -401,8 +412,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         const res = await pushCalendarEvent({
           appEventId: id,
           type: 'Interview',
-          // The Google invite Google sends (from hr@) IS the candidate's email, so
-          // carry the composed subject + body on the event itself.
+          // Google's invite (from hr@) IS the candidate's email — carry the
+          // composed subject + body on the event itself.
           title: input.emailSubject,
           dateTimeIso: input.dateTimeIso,
           durationMin: input.durationMin,
@@ -488,10 +499,10 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
     const { id, eventFields, interviewerEventFields, candidatePushed, interviewerPushed, meetLink, googleEventId } =
       session;
 
-    // 2) Notify the candidate. When Google created the event, its own invite from
-    // hr@ (carrying the composed subject + body) IS the email — so we DON'T send a
-    // second one from notification@. Only when Google isn't connected do we fall
-    // back to the app's branded email (with an .ics). This step gates the modal.
+    // 2) Notify the candidate. When Google created the event, its invite from hr@
+    // (carrying the composed subject + body) IS the email — don't send a second
+    // one from notification@. Only fall back to the app email (with an .ics) when
+    // Google isn't connected. This step gates the modal.
     let emailStatus: Interview['emailStatus'] = 'Not Sent';
     if (c.email) {
       if (candidatePushed) {
@@ -508,9 +519,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         } catch {
           emailStatus = 'Failed';
         }
-        // The invitation couldn't be delivered — keep the modal open so HR can fix
-        // it and retry. The interview/calendar event is preserved in the session,
-        // so retrying only re-sends the email.
+        // Keep the modal open so HR can fix + retry; the interview/event is
+        // preserved in the session, so a retry only re-sends the email.
         if (emailStatus !== 'Sent') {
           setSending(false);
           toast.error('Email not sent — please try again.', { position: 'top-center' });
@@ -533,9 +543,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         .catch(() => {});
     }
 
-    // 3) Notify the interviewer. Same rule: if Google created their (+1h) event,
-    // its invite from hr@ already reached them — no second app email. Otherwise
-    // send the brief with the .ics fallback.
+    // 3) Notify the interviewer — only when Google didn't already send them the
+    // (+1h) invite from hr@.
     if (input.interviewerEmail && !interviewerPushed) {
       // Interviewer's slot is +1h vs the candidate's.
       const interviewerIso = addMinutesIso(input.dateTimeIso, INTERVIEWER_OFFSET_MIN);
@@ -555,29 +564,31 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       // location are intentionally omitted (those are for the candidate); the
       // resume + interview questions are sent separately from the Physical
       // Interview step once the candidate gets there.
-      const ivBody = [
-        `Hi ${input.interviewerName || 'there'},`,
-        '',
-        "You've been assigned to interview a candidate. Details below:",
-        '',
-        `Candidate: ${c.fullName}`,
-        `Role applied: ${position} (${c.department})`,
-        `Experience: ${c.totalExperienceYears} yrs total · ${c.relevantExperienceYears} yrs relevant`,
-        `Current: ${c.currentCompany || '—'} — ${c.currentDesignation || '—'}`,
-        `Email: ${c.email || '—'}`,
-        `Phone: ${c.phone || '—'}`,
-        '',
-        `When: ${whenStr}`,
-        input.notes ? `\nNotes: ${input.notes}` : '',
-        '',
-        `— ${BRAND.company}`,
-      ].join('\n');
-      sendCustomEmail({
-        to: input.interviewerEmail,
-        subject: `Assigned a interview for ${position} : ${c.fullName}`,
-        body: ivBody,
-        ...interviewerEventFields,
-      }).catch(() => {});
+      // Copy comes from Settings → Email templates ("Interview schedule —
+      // interviewer"), so HR's saved edits are what actually goes out.
+      fetchRenderedTemplate('interview_schedule_interviewer', {
+        interviewer_name: input.interviewerName || 'there',
+        candidate_name: c.fullName,
+        role: position,
+        department: c.department,
+        experience: `${c.totalExperienceYears} yrs total · ${c.relevantExperienceYears} yrs relevant`,
+        current_company: c.currentCompany || '—',
+        current_designation: c.currentDesignation || '—',
+        candidate_email: c.email || '—',
+        candidate_phone: c.phone || '—',
+        date_time: whenStr,
+        notes: input.notes || '',
+      })
+        .then(tpl => {
+          if (!tpl) return;
+          sendCustomEmail({
+            to: input.interviewerEmail,
+            subject: tpl.subject,
+            body: tpl.body,
+            ...interviewerEventFields,
+          }).catch(() => {});
+        })
+        .catch(() => {});
     }
 
     // 4) Backfill the interview record with the calendar id, meet link + status.

@@ -20,6 +20,12 @@ import { BRAND } from '@/lib/brand';
 import { Candidate, AssessmentQuestion } from '@/types';
 import { useAssessmentBanks } from '@/features/question-banks/hooks';
 import { useHrIdentity } from '@/features/employees/hooks';
+import { emailTemplateById } from '@/lib/email-templates-catalog';
+import {
+  useEmailTemplateOverrides,
+  resolveTemplate,
+  renderTemplate,
+} from '@/features/email-templates/hooks';
 
 export interface SendTestResult {
   to: string;
@@ -51,7 +57,7 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
 
   // Candidate's email is pre-filled but HR can change it before sending.
   const [to, setTo] = useState(candidate.email || '');
-  const [subject, setSubject] = useState(`Your ${what} for ${position} — ${BRAND.company}`);
+  const [subject, setSubject] = useState('');
 
   // Assessment question sets from the Question Library (DB) — auto-select by role.
   const { data: assessmentBanks = [] } = useAssessmentBanks();
@@ -74,26 +80,38 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
   // The link itself is sent as a labelled button (see `linkLabel` below), so the
   // body only references it — no raw URL is ever pasted into the message.
   const linkLabel = isIq ? 'Start IQ Test' : 'Start Assessment';
-  const composed = useMemo(
-    () =>
-      [
-        `Dear ${candidate.fullName},`,
-        '',
-        `As the next step in your application for ${position}, please complete our ${what.toLowerCase()}.`,
-        '',
-        `Use the "${linkLabel}" button below to begin. The ${what.toLowerCase()} is timed and runs in full screen — please ensure a stable internet connection before you start.`,
-        '',
-        'Best Regards,',
-        hr.signoff,
-      ].join('\n'),
-    [candidate.fullName, position, what, isIq, linkLabel, hr.signoff],
-  );
+
+  // Copy comes from Settings → Email templates, so HR's saved edits show here
+  // and are what gets sent. The template embeds the link itself via
+  // [[Start IQ Test|{{test_url}}]], so no separate link button is attached.
+  const { data: overrides } = useEmailTemplateOverrides();
+  const templateDef = emailTemplateById(isIq ? 'iq_invite' : 'assessment_invite');
+
+  const composed = useMemo(() => {
+    if (!templateDef) return '';
+    const { body: tpl } = resolveTemplate(templateDef, overrides);
+    return renderTemplate(tpl, {
+      candidate_name: candidate.fullName,
+      role: position,
+      test_url: testUrl,
+      hr_signoff: hr.signoff,
+    });
+  }, [templateDef, overrides, candidate.fullName, position, testUrl, hr.signoff]);
+
+  const composedSubject = useMemo(() => {
+    if (!templateDef) return '';
+    const { subject: tpl } = resolveTemplate(templateDef, overrides);
+    return renderTemplate(tpl, { candidate_name: candidate.fullName, role: position });
+  }, [templateDef, overrides, candidate.fullName, position]);
 
   const [body, setBody] = useState(composed);
   const [edited, setEdited] = useState(false);
   useEffect(() => {
-    if (!edited) setBody(composed);
-  }, [composed, edited]);
+    if (!edited) {
+      setSubject(composedSubject);
+      setBody(composed);
+    }
+  }, [composed, composedSubject, edited]);
 
   const error = !to.trim()
     ? 'Candidate email is required.'
@@ -245,7 +263,8 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
                 to: to.trim(),
                 subject: subject.trim(),
                 body,
-                links: [{ label: linkLabel, url: testUrl }],
+                // The link is embedded in the template body, not appended here.
+                links: [],
                 ...(isIq ? {} : { questions: selectedQuestions }),
               })
             }

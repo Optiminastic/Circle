@@ -1,6 +1,7 @@
 'use client';
 import { Select } from './Select';
 import { ActionMenu } from './ActionMenu';
+import { EditCandidateModal } from './EditCandidateModal';
 import { useToast } from './Toaster';
 /**
  * @license
@@ -14,6 +15,8 @@ import { Candidate } from '../types';
 import { useUiStore } from '@/store/ui-store';
 import { useOrgSettings } from '@/store/org-settings';
 import { useJobs } from '@/features/jobs/hooks';
+import { useCandidateMutations } from '@/features/candidates/hooks';
+import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
@@ -26,6 +29,7 @@ import {
   Search,
   Filter,
   Plus,
+  BadgeCheck,
   FileText,
   ChevronRight,
   SlidersHorizontal,
@@ -33,6 +37,7 @@ import {
   UserSearch,
   X,
   Check,
+  Pencil,
   User,
   Briefcase,
   Building2,
@@ -87,6 +92,7 @@ interface CandidateListViewProps {
   candidates: Candidate[];
   onSelectCandidate: (id: string) => void;
   onAddCandidate: (cand: Candidate) => void;
+  onUpdateCandidate?: (cand: Candidate) => void;
   onDeleteCandidate?: (id: string) => void;
   onShortlistCandidate?: (id: string, name: string) => void;
   onSetFit?: (id: string, rating: FitRating) => void;
@@ -103,6 +109,7 @@ export function CandidateListView({
   candidates,
   onSelectCandidate,
   onAddCandidate,
+  onUpdateCandidate,
   onDeleteCandidate,
   onSetFit,
   showHeader = true,
@@ -114,6 +121,17 @@ export function CandidateListView({
   const { openCandidate } = useUiStore();
   const org = useOrgSettings();
   const { data: jobs = [] } = useJobs();
+  // "Hire" shortcut: mark Selected + spin up the onboarding checklist, so a
+  // candidate can be pushed straight into the onboarding flow.
+  const { move } = useCandidateMutations();
+  const ensureOnboarding = useEnsureOnboarding();
+  const hireCandidate = (cand: Candidate) => {
+    move.mutate({ id: cand.id, status: 'Selected' });
+    ensureOnboarding.mutate(cand, {
+      onSuccess: () => toast.success(`${cand.fullName} moved to the onboarding checklist.`),
+      onError: () => toast.error('Could not start onboarding — try again.'),
+    });
+  };
 
   // Cross-entity data needed to derive each candidate's current pipeline stage
   // (same signals the detail page uses). All are cached/prefetched, so cheap.
@@ -147,10 +165,13 @@ export function CandidateListView({
   // New Candidate Modal Form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [resume, setResume] = useState<PickedFile | null>(null);
+  // The manually-added candidate currently being edited (null = closed).
+  const [editCand, setEditCand] = useState<Candidate | null>(null);
   const [newCand, setNewCand] = useState({
     fullName: '',
     email: '',
     phone: '',
+    gender: '' as '' | 'Male' | 'Female' | 'Other',
     location: 'Mumbai, India',
     currentCompany: '',
     currentDesignation: '',
@@ -231,10 +252,11 @@ export function CandidateListView({
     const postedJob = jobs.find(j => j.title === newCand.appliedRole && j.status === 'Open');
 
     const created: Candidate = {
-      id: `CAN-${Math.floor(100 + Math.random() * 900)}`,
+      id: `CAN-${Math.floor(100 + Math.random() * 900)}`, 
       fullName: newCand.fullName,
       email: newCand.email,
       phone: newCand.phone,
+      gender: newCand.gender || undefined,
       location: newCand.location,
       currentCompany: newCand.currentCompany,
       currentDesignation: newCand.currentDesignation,
@@ -251,6 +273,9 @@ export function CandidateListView({
       status: 'New Application',
       appliedDate: new Date().toISOString().split('T')[0],
       appliedAt: new Date().toISOString(),
+      // Manually added by HR (not a public application) — only these can be
+      // edited later from the dashboard.
+      manuallyAdded: true,
     };
 
     onAddCandidate(created);
@@ -290,6 +315,7 @@ export function CandidateListView({
       fullName: '',
       email: '',
       phone: '',
+      gender: '',
       location: 'Mumbai, India',
       currentCompany: '',
       currentDesignation: '',
@@ -308,6 +334,20 @@ export function CandidateListView({
 
   return (
     <div className="space-y-4 text-xs select-none">
+      {editCand && onUpdateCandidate && (
+        <EditCandidateModal
+          candidate={editCand}
+          roles={postedRoles}
+          departments={org.departments}
+          sources={org.sources}
+          onSave={updated => {
+            onUpdateCandidate(updated);
+            setEditCand(null);
+            toast.success(`${updated.fullName}'s details updated.`);
+          }}
+          onClose={() => setEditCand(null)}
+        />
+      )}
       {/* View Header with CTA triggers */}
       {showHeader && (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-4">
@@ -513,6 +553,16 @@ export function CandidateListView({
                   <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
                       <ActionMenu
                         items={[
+                          ...(onUpdateCandidate && cand.manuallyAdded
+                            ? ([
+                                {
+                                  key: 'edit',
+                                  label: 'Edit details',
+                                  icon: <Pencil size={13} />,
+                                  onClick: () => setEditCand(cand),
+                                },
+                              ] as const)
+                            : []),
                           ...(onSetFit
                             ? ([
                                 {
@@ -529,6 +579,19 @@ export function CandidateListView({
                                 },
                               ] as const)
                             : []),
+                          {
+                            key: 'hire',
+                            label: 'Hire',
+                            icon: <BadgeCheck size={13} />,
+                            onClick: () =>
+                              toast.confirm({
+                                title: `Hire ${cand.fullName}?`,
+                                description:
+                                  'Marks them Selected and creates their onboarding checklist, skipping the remaining pipeline steps.',
+                                confirmLabel: 'Hire',
+                                onConfirm: () => hireCandidate(cand),
+                              }),
+                          },
                           {
                             key: 'delete',
                             label: 'Delete',
@@ -618,6 +681,27 @@ export function CandidateListView({
                         onChange={e => setNewCand({ ...newCand, phone: e.target.value })}
                         className="mt-2"
                       />
+                    </div>
+                    <div>
+                      <Label htmlFor="cand-gender" className="text-sm font-medium">
+                        Gender
+                      </Label>
+                      <Select
+                        id="cand-gender"
+                        value={newCand.gender}
+                        onChange={e =>
+                          setNewCand({ ...newCand, gender: e.target.value as typeof newCand.gender })
+                        }
+                        placeholder="Select gender"
+                        className="mt-2 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                      >
+                        <option value="" disabled>
+                          Select gender
+                        </option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="cand-location" className="text-sm font-medium">
