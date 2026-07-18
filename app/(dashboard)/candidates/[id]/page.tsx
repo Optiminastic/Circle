@@ -102,6 +102,10 @@ const fmtDate = (iso?: string) => {
     ? iso
     : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
+// Flatten `[[label|url]]` link tokens to "label: url" for plain-text contexts
+// (e.g. a Google Calendar event description, which isn't HTML).
+const plainText = (body: string): string =>
+  (body || '').replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, (_m, label, url) => `${label.trim()}: ${url.trim()}`);
 const fmtDateTime = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -1334,7 +1338,22 @@ export default function CandidateDetailPage() {
     // (via the connected Google Calendar) and share it with BOTH the candidate and
     // interviewer. Offline: just the interviewer pack.
     let meetLink: string | null | undefined = manualMeetLink || undefined;
+    // Did Google create the event? When it does, its invite (from hr@) reaches
+    // BOTH the candidate and interviewer with the content + Meet link, so we skip
+    // the app's own emails and only fall back to them when Google isn't connected.
+    let pushed = false;
     if (isOnline) {
+      // The Google invite is the single email — carry the composed subject + body
+      // on the event, plus the resume + interview-questions links so the
+      // interviewer (an attendee) still gets them.
+      const eventDescription = [
+        ivpackBody ? plainText(ivpackBody) : `Online interview for ${candidate.fullName} (${position}).`,
+        '',
+        resumeUrl ? `Candidate resume: ${resumeUrl}` : '',
+        `Interview questions: ${sheetUrl}`,
+      ]
+        .filter(Boolean)
+        .join('\n');
       try {
         const attendees = [candidate.email, latestInterview.interviewerEmail, HR_EMAIL].filter(
           (e): e is string => !!e && e.trim().length > 0,
@@ -1342,7 +1361,7 @@ export default function CandidateDetailPage() {
         const res = await pushCalendarEvent({
           appEventId: latestInterview.id,
           type: 'Interview',
-          title: `Interview - ${candidate.fullName} - ${position}`,
+          title: ivpackSubject || `Interview - ${candidate.fullName} - ${position}`,
           dateTimeIso: latestInterview.dateTime,
           durationMin: latestInterview.durationMinutes ?? 45,
           attendees,
@@ -1350,8 +1369,9 @@ export default function CandidateDetailPage() {
           // have, carry theirs on the event instead.
           online: !manualMeetLink,
           location: manualMeetLink || undefined,
-          notes: `Online interview for ${candidate.fullName} (${position}).`,
+          notes: eventDescription,
         });
+        pushed = res.pushed;
         if (!manualMeetLink) meetLink = res.meetLink;
       } catch {
         /* calendar sync is best-effort — handled by the no-link warning below */
@@ -1368,9 +1388,42 @@ export default function CandidateDetailPage() {
         .catch(() => {});
     }
 
-    // Interviewer email — pack + (online) the Meet link.
-    // No Meet button here — for an online round the interviewer is an attendee on
-    // the calendar event, so Google's own invitation carries the Meet link.
+    // Online + the event was created on Google → its invite from hr@ already
+    // reached both the candidate and interviewer (with the content + resume/
+    // questions links + Meet link). Don't send the app's own emails; just record
+    // that they went out. Offline, or when Google isn't connected, fall back to
+    // the app emails below.
+    const sentViaCalendar = isOnline && pushed;
+    const logSent = (name: string, email: string, title: string, subject: string) =>
+      repositories.sentEmails
+        .create({
+          id: randomId('EML'),
+          recipientName: name,
+          recipientEmail: email,
+          templateTitle: title,
+          subject,
+          dateSent: nowISO(),
+          status: 'Sent',
+          relatedEntity: candidate.fullName,
+        })
+        .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+        .catch(() => {});
+
+    if (sentViaCalendar) {
+      logSent(
+        latestInterview.interviewerName || 'Interviewer',
+        latestInterview.interviewerEmail,
+        'Interview pack (Google Calendar)',
+        ivpackSubject,
+      );
+      if (candidate.email)
+        logSent(candidate.fullName, candidate.email, 'Interview invite (Google Calendar)', ivpackSubject);
+      toast.success('Online interview invite sent to the candidate and interviewer via Google Calendar.');
+      return;
+    }
+
+    // Fallback: no Google event (offline round, or Calendar not connected) — send
+    // the app emails. The interviewer pack carries the resume + question links.
     const interviewerLinks = [
       ...(resumeUrl ? [{ label: 'View candidate resume', url: resumeUrl }] : []),
       { label: 'Open interview questions', url: sheetUrl },
@@ -1396,10 +1449,8 @@ export default function CandidateDetailPage() {
         .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
         .catch(() => {});
 
-      // Online: also email the candidate the joining link.
+      // Online (but no Google event): also email the candidate the joining link.
       if (isOnline && candidate.email) {
-        // Show the URL itself as a plain inline link (label = the URL) rather than
-        // a button — the calendar invite already carries the styled Meet card.
         const joinLine = meetLink
           ? `[[${meetLink}|${meetLink}]]`
           : 'Your meeting link will be shared with you shortly.';
@@ -1449,8 +1500,6 @@ export default function CandidateDetailPage() {
             ? 'Interview pack sent to the interviewer.'
             : 'Pack created — email could not be sent.',
       );
-      // Online but still no link → Google Calendar isn't connected and HR didn't
-      // paste one. Point at both ways out.
       if (isOnline && !meetLink) {
         toast.info(
           'No meeting link was sent — paste one in the Meeting link field, or connect Google Calendar in Global Settings to auto-create it.',
