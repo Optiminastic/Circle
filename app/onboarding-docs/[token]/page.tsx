@@ -40,6 +40,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Accordion,
   AccordionItem,
@@ -269,11 +270,25 @@ export default function OnboardingDocsPortal() {
         </div>
       )}
 
-      {/* Documents */}
-      <section className="space-y-2.5">
-        <h2 className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
-          <FileText size={13} /> Documents
-        </h2>
+      {/* Documents / Bank details / Reference contact — one tab each. */}
+      <Tabs defaultValue="documents">
+        <TabsList>
+          <TabsTrigger value="documents" className="flex items-center gap-1.5">
+            <FileText size={13} /> Documents
+          </TabsTrigger>
+          {wantBank && (
+            <TabsTrigger value="bank" className="flex items-center gap-1.5">
+              <Landmark size={13} /> Bank details
+            </TabsTrigger>
+          )}
+          {wantRefs && (
+            <TabsTrigger value="reference" className="flex items-center gap-1.5">
+              <Users size={13} /> Reference contact
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="documents" className="space-y-2.5">
         {docCards.map(doc => {
           const sub = submittedFor.get(doc.type);
           const isUploading = uploading === doc.type;
@@ -346,19 +361,16 @@ export default function OnboardingDocsPortal() {
             </div>
           );
         })}
-      </section>
+        </TabsContent>
 
-      {/* Bank details — only when HR requested them */}
-      {wantBank && (
-      <section className="mt-6 space-y-3">
-        <h2 className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
-          <Landmark size={13} /> Bank details (for salary)
-          {bankLocked && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-emerald-700">
-              <Lock size={8} /> Verified
-            </span>
-          )}
-        </h2>
+        {/* Bank details — only when HR requested them */}
+        {wantBank && (
+        <TabsContent value="bank" className="space-y-3">
+        {bankLocked && (
+          <span className="inline-flex w-fit items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-emerald-700">
+            <Lock size={8} /> Verified
+          </span>
+        )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1">
             <Label htmlFor="bank-holder">Account holder name</Label>
@@ -425,16 +437,13 @@ export default function OnboardingDocsPortal() {
             )}
           </div>
         )}
-      </section>
-      )}
+        </TabsContent>
+        )}
 
-      {/* Past-employer references — only when HR requested them */}
-      {wantRefs && (
-        <section className="mt-6 space-y-3">
-          <h2 className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
-            <Users size={13} /> Reference contacts
-          </h2>
-          <p className="-mt-1 text-[11px] text-gray-500">
+        {/* Past-employer references — only when HR requested them */}
+        {wantRefs && (
+        <TabsContent value="reference" className="space-y-3">
+          <p className="text-[11px] text-gray-500">
             Please share a reference from a past organization. You can add more than one.
           </p>
           {refs.map((r, i) => (
@@ -530,8 +539,9 @@ export default function OnboardingDocsPortal() {
               </span>
             )}
           </div>
-        </section>
-      )}
+        </TabsContent>
+        )}
+      </Tabs>
 
       {/* Consent — required before we can share anything with our verification
           partner. The full text is collapsed behind the arrow on the right. */}
