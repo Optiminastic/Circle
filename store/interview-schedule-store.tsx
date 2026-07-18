@@ -444,7 +444,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           const ivRes = await pushCalendarEvent({
             appEventId: `${id}-interviewer`,
             type: 'Interview',
-            title: `Interview - ${c.fullName} - ${position}`,
+            title: `Assigned a interview for ${position} : ${c.fullName}`,
             dateTimeIso: interviewerIso,
             durationMin: input.durationMin,
             location: input.location,
@@ -574,7 +574,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       ].join('\n');
       sendCustomEmail({
         to: input.interviewerEmail,
-        subject: `Interview scheduled: ${c.fullName} for ${position}`,
+        subject: `Assigned a interview for ${position} : ${c.fullName}`,
         body: ivBody,
         ...interviewerEventFields,
       }).catch(() => {});
