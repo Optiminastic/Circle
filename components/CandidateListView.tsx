@@ -1,5 +1,6 @@
 'use client';
 import { Select } from './Select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ActionMenu } from './ActionMenu';
 import { EditCandidateModal } from './EditCandidateModal';
 import { useToast } from './Toaster';
@@ -161,6 +162,9 @@ export function CandidateListView({
   const [selectedSource, setSelectedSource] = usePersistentState(fk('source'), 'All');
   const [maxNoticePeriod, setMaxNoticePeriod] = usePersistentState<number>(fk('maxNotice'), 9999);
   const [minExperience, setMinExperience] = usePersistentState<number>(fk('minExp'), 0);
+  // Rejected toggle: OFF (default) hides rejected candidates; ON shows ONLY the
+  // rejected ones (rejected at IQ, assessment, physical interview, or any step).
+  const [showRejected, setShowRejected] = usePersistentState<boolean>(fk('rejected'), false);
 
   // New Candidate Modal Form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -191,7 +195,9 @@ export function CandidateListView({
   const departments = ['All', ...org.departments];
   // Stage Status filter — the candidate's current pipeline stage (derived), not
   // the raw status field.
-  const statuses = ['All', ...STAGE_STATUS_OPTIONS];
+  // 'Rejected' is driven by the dedicated Rejected toggle, so it isn't a
+  // stage-status dropdown option.
+  const statuses = ['All', ...STAGE_STATUS_OPTIONS.filter(s => s !== 'Rejected')];
   const sources = ['All', ...org.sources];
 
   // Apply sequential pipeline filters, then sort newest-first so the latest
@@ -203,11 +209,24 @@ export function CandidateListView({
         cand.fullName.toLowerCase().includes(search.toLowerCase()) ||
         cand.appliedRole.toLowerCase().includes(search.toLowerCase());
       const matchesDept = selectedDept === 'All' || cand.department === selectedDept;
-      const matchesStatus = selectedStatus === 'All' || stageOf(cand.id) === selectedStatus;
+      // Rejected toggle owns the rejected/not-rejected split. ON → only rejected;
+      // OFF → everyone except rejected. The stage-status dropdown applies only to
+      // the not-rejected view.
+      const isRejected = cand.status === 'Rejected';
+      const matchesRejected = showRejected ? isRejected : !isRejected;
+      const matchesStatus = showRejected || selectedStatus === 'All' || stageOf(cand.id) === selectedStatus;
       const matchesSource = selectedSource === 'All' || cand.sourceOfApplication === selectedSource;
       const matchesNotice = cand.noticePeriodDays <= maxNoticePeriod;
       const matchesExp = cand.totalExperienceYears >= minExperience;
-      return matchesSearch && matchesDept && matchesStatus && matchesSource && matchesNotice && matchesExp;
+      return (
+        matchesRejected &&
+        matchesSearch &&
+        matchesDept &&
+        matchesStatus &&
+        matchesSource &&
+        matchesNotice &&
+        matchesExp
+      );
     })
     .sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)));
 
@@ -458,6 +477,19 @@ export function CandidateListView({
                 </option>
               ))}
             </Select>
+          </div>
+
+          {/* Rejected toggle — off: hide rejected; on: show only rejected. */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Rejected</span>
+            <label className="flex h-[30px] cursor-pointer items-center gap-2 text-gray-700">
+              <Checkbox
+                checked={showRejected}
+                onCheckedChange={v => setShowRejected(v === true)}
+                aria-label="Show only rejected candidates"
+              />
+              <span className="text-xs font-medium">Show rejected</span>
+            </label>
           </div>
         </div>
       </div>
