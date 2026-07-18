@@ -204,6 +204,11 @@ export default function OnboardingDocsPortal() {
     allDocsIn &&
     (!wantBank || Boolean(request?.bankDetails?.accountNumber)) &&
     (!wantRefs || Boolean(request?.references?.length));
+  // Everything is not just submitted but VERIFIED (each doc locked, bank verified).
+  const allVerified =
+    allDone &&
+    docCards.every(d => isSubmissionLocked(submittedFor.get(d.type))) &&
+    (!wantBank || bankLocked);
 
   /* ----------------------------- states ----------------------------- */
 
@@ -250,19 +255,20 @@ export default function OnboardingDocsPortal() {
             {request.role ? `${request.role} · ` : ''}Upload your joining documents below.
           </p>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 font-mono text-[11px] font-bold text-amber-700">
-          <Clock4 size={12} /> {fmtTimeLeft(expiresMs)}
-        </span>
+        {allDone ? (
+          <span
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+              allVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-50 text-emerald-600'
+            }`}
+          >
+            <CheckCircle2 size={12} /> {allVerified ? 'All verified' : 'All received'}
+          </span>
+        ) : (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 font-mono text-[11px] font-bold text-amber-700">
+            <Clock4 size={12} /> {fmtTimeLeft(expiresMs)}
+          </span>
+        )}
       </div>
-
-      {allDone && (
-        <div className="mb-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
-          <CheckCircle2 size={18} />
-          <p className="text-[12.5px] font-semibold">
-            All set — everything we asked for has been received. Our team will verify it shortly.
-          </p>
-        </div>
-      )}
 
       {errorMsg && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-600">
