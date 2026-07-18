@@ -402,7 +402,7 @@ export function CandidateListView({
           <span>Evaluation Filters</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3.5 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto] gap-3.5 text-xs">
           {/* Text filters — narrower on wide screens so all six filters (incl.
               Rejected) sit on one row. */}
           <div className="space-y-1 col-span-1 sm:col-span-2 lg:col-span-1">
