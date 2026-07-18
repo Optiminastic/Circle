@@ -79,6 +79,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
       'location',
       'map_url',
       'interviewer_name',
+      'jd',
     ],
     defaultSubject: 'Interview Invitation - {{role}} - Optiminastic',
     defaultBody: [
@@ -99,6 +100,8 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
       '[[View map|{{map_url}}]]',
       '',
       'Please confirm your availability by replying to this email.',
+      '',
+      '{{jd}}',
       '',
       'We look forward to meeting you.',
       '',

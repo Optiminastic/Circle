@@ -21,6 +21,7 @@ import { BRAND } from '@/lib/brand';
 import { OFFICE_LOCATION_URL, OFFICE_ADDRESS } from '@/lib/config';
 import { Candidate } from '@/types';
 import { useEmployees } from '@/features/employees/hooks';
+import { useJobs } from '@/features/jobs/hooks';
 import { emailTemplateById } from '@/lib/email-templates-catalog';
 import {
   useEmailTemplateOverrides,
@@ -137,6 +138,22 @@ export function InterviewScheduleModal({
     isReschedule ? 'interview_reschedule_candidate' : 'interview_schedule_candidate',
   );
 
+  // The candidate's job posting → its description, so the invite can carry the
+  // JD (a reminder of the role + what's expected). Matched by jobId, else title.
+  const { data: jobs = [] } = useJobs();
+  const jd = useMemo(() => {
+    const job =
+      jobs.find(j => j.id === candidate.jobId) ??
+      jobs.find(j => j.title.trim().toLowerCase() === (candidate.appliedRole || '').trim().toLowerCase());
+    if (!job) return '';
+    const parts = [
+      job.description?.trim(),
+      job.keyResponsibilities?.trim() && `Key responsibilities:\n${job.keyResponsibilities.trim()}`,
+      job.requirements?.trim() && `What we’re looking for:\n${job.requirements.trim()}`,
+    ].filter(Boolean);
+    return parts.length ? `About the ${position} role:\n\n${parts.join('\n\n')}` : '';
+  }, [jobs, candidate.jobId, candidate.appliedRole, position]);
+
   const templateVars = useMemo(
     () => ({
       candidate_name: candidate.fullName,
@@ -146,8 +163,9 @@ export function InterviewScheduleModal({
       location: OFFICE_ADDRESS,
       map_url: OFFICE_LOCATION_URL,
       interviewer_name: interviewerName.trim() || 'The Hiring Team',
+      jd,
     }),
-    [candidate.fullName, position, date, time, interviewerName],
+    [candidate.fullName, position, date, time, interviewerName, jd],
   );
 
   const composedSubject = useMemo(() => {
