@@ -29,6 +29,7 @@ import {
   ThumbsDown,
   MessageSquarePlus,
   Pause,
+  Info,
   Send,
   Eye,
   Star,
@@ -60,7 +61,7 @@ import { useScheduler } from '@/store/schedule-store';
 import { useInterviewScheduler } from '@/store/interview-schedule-store';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
-import { effectiveFit, fitStyle } from '@/lib/screening';
+import { effectiveFit, fitStyle, FIT_THRESHOLD } from '@/lib/screening';
 import { sendTestEmail, sendCustomEmail } from '@/lib/api/notifications';
 import { pushCalendarEvent } from '@/lib/api/calendar';
 import { HR_EMAIL } from '@/lib/config';
@@ -591,9 +592,14 @@ export default function CandidateDetailPage() {
       const review = candidate.screeningReview;
       const hasAny = Boolean(review) || Boolean(candidate.screeningAnswers?.length);
       if (!hasAny) return empty('No screening notes or questions recorded yet.');
-      // A failed MUST-have screening answer is what auto-marks a candidate Unfit,
-      // so state exactly which one(s) — the reason behind the rating.
+      // The rating is auto-derived from the answers: any must-have failed → Unfit;
+      // otherwise the good-to-have pass rate decides Fit vs Borderline. Spell out
+      // the exact reason behind whichever rating was assigned.
       const failedMustHaves = mustHaves.filter(a => !a.passed);
+      const goodPassed = goodToHaves.filter(a => a.passed).length;
+      const goodTotal = goodToHaves.length;
+      const passBar = Math.round(FIT_THRESHOLD * 100);
+      const mustLabel = `${mustHaves.length} must-have question${mustHaves.length === 1 ? '' : 's'}`;
       return (
         <div className="space-y-3">
           {fit === 'Unfit' && failedMustHaves.length > 0 && (
@@ -610,6 +616,30 @@ export default function CandidateDetailPage() {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+          {fit === 'Fit' && (mustHaves.length > 0 || goodTotal > 0) && (
+            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2.5">
+              <p className="flex items-start gap-1.5 text-[12px] font-semibold text-emerald-700">
+                <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  Marked Fit — {mustHaves.length > 0 ? `passed all ${mustLabel}` : 'no blocking questions'}
+                  {goodTotal > 0
+                    ? `, and cleared ${goodPassed}/${goodTotal} good-to-have (≥ ${passBar}% bar).`
+                    : '.'}
+                </span>
+              </p>
+            </div>
+          )}
+          {fit === 'Borderline' && (
+            <div className="rounded-lg border border-amber-100 bg-amber-50 p-2.5">
+              <p className="flex items-start gap-1.5 text-[12px] font-semibold text-amber-700">
+                <Info size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  Borderline — passed all must-have questions, but only cleared {goodPassed}/{goodTotal}{' '}
+                  good-to-have (below the {passBar}% bar).
+                </span>
+              </p>
             </div>
           )}
           {review && (
