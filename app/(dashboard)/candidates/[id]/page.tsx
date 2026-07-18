@@ -591,8 +591,27 @@ export default function CandidateDetailPage() {
       const review = candidate.screeningReview;
       const hasAny = Boolean(review) || Boolean(candidate.screeningAnswers?.length);
       if (!hasAny) return empty('No screening notes or questions recorded yet.');
+      // A failed MUST-have screening answer is what auto-marks a candidate Unfit,
+      // so state exactly which one(s) — the reason behind the rating.
+      const failedMustHaves = mustHaves.filter(a => !a.passed);
       return (
         <div className="space-y-3">
+          {fit === 'Unfit' && failedMustHaves.length > 0 && (
+            <div className="rounded-lg border border-red-100 bg-red-50 p-2.5">
+              <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-700">
+                <XCircle size={13} className="shrink-0" />
+                Marked Unfit — failed must-have screening question
+                {failedMustHaves.length > 1 ? 's' : ''}:
+              </p>
+              <ul className="mt-1.5 space-y-1 pl-5">
+                {failedMustHaves.map(a => (
+                  <li key={a.questionId} className="list-disc text-[11.5px] leading-snug text-red-700/90">
+                    {a.text} <span className="font-semibold">— answered “{a.answer || '—'}”</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {review && (
             <div className="space-y-1.5 rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-2.5">
               {SCREENING_CRITERIA.map(c => (
