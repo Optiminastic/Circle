@@ -10,9 +10,6 @@ import {
   ChevronDown,
   Mail,
   Phone,
-  MapPin,
-  Briefcase,
-  Wallet,
   Clock4,
   CalendarDays,
   CalendarClock,
@@ -33,10 +30,10 @@ import {
   Send,
   Eye,
   Star,
-  User,
-  UserCheck,
   Download,
   Pencil,
+  Linkedin,
+  ExternalLink,
 } from 'lucide-react';
 import {
   CandidateStatus,
@@ -95,6 +92,13 @@ import {
   SheetBody,
   SheetFooter,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 const fmtDate = (iso?: string) => {
   if (!iso) return '—';
@@ -127,6 +131,19 @@ const STAGE_NOTES: Record<string, string> = {
   Assessment: 'Role-specific skills assessment',
   'Physical Interview': 'In-person interview round',
   Decision: 'Final hiring decision',
+};
+
+// Per-stage icon colour shown once the step is DONE. Before that (pending / not
+// started) the timeline icon is greyscale (see the rail rendering below).
+const STAGE_ICON_COLOR: Record<string, string> = {
+  Applied: 'bg-emerald-50 text-emerald-600',
+  Screening: 'bg-violet-50 text-violet-600',
+  'HR Call': 'bg-blue-50 text-blue-600',
+  'Interview Schedule': 'bg-orange-50 text-orange-600',
+  'IQ Test': 'bg-purple-50 text-purple-600',
+  Assessment: 'bg-green-50 text-green-600',
+  'Physical Interview': 'bg-pink-50 text-pink-600',
+  Decision: 'bg-red-50 text-red-600',
 };
 
 const blankScreening = (): ScreeningReview => ({
@@ -183,6 +200,8 @@ export default function CandidateDetailPage() {
   const hr = useHrIdentity();
   const ensureOnboarding = useEnsureOnboarding();
   const [editOpen, setEditOpen] = useState(false);
+  // Read-only candidate details modal, opened by clicking the header name/avatar.
+  const [profileOpen, setProfileOpen] = useState(false);
   const toast = useToast();
   const qc = useQueryClient();
 
@@ -213,7 +232,9 @@ export default function CandidateDetailPage() {
   const [gradeComments, setGradeComments] = useState('');
   // Which stages have their detail "i" panel open. Keyed by stage index; detail is
   // hidden by default and revealed on demand to keep each entry compact.
-  const [openInfo, setOpenInfo] = useState<Record<number, boolean>>({});
+  // Only one step accordion is open at a time. `null` = the user hasn't chosen
+  // yet, so it defaults to the candidate's current step; `-1` = explicitly none.
+  const [openStep, setOpenStep] = useState<number | null>(null);
   const [fbInterview, setFbInterview] = useState<Interview | null>(null);
   const [fbRec, setFbRec] = useState('Hire');
   const [fbComments, setFbComments] = useState('');
@@ -642,7 +663,7 @@ export default function CandidateDetailPage() {
             </div>
           )}
           {review && (
-            <div className="space-y-1.5 rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-2.5">
+            <div className="space-y-1.5 rounded-lg border border-[#ECEDF0] bg-white p-2.5">
               {SCREENING_CRITERIA.map(c => (
                 <div key={c.key} className="flex items-center justify-between">
                   <span className="text-[11px] text-gray-600">{c.label}</span>
@@ -784,12 +805,12 @@ export default function CandidateDetailPage() {
       const online = primaryIv.interviewType === 'Online' || primaryIv.meetingMode !== 'In-Person';
       return (
         <div className="space-y-2.5">
-          <div className="space-y-2 rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-3">
-            <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between border-b border-[#ECEDF0] pb-1.5">
               <p className="text-[12px] font-semibold text-gray-800">
                 {online ? 'Online' : 'Offline'} interview
               </p>
-              <span className="rounded-full bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
+              <span className="rounded-full border border-[#E4E6EA] bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
                 {primaryIv.status}
               </span>
             </div>
@@ -834,7 +855,7 @@ export default function CandidateDetailPage() {
       return (
         <div className="space-y-2.5">
           {myInterviews.map(iv => (
-            <div key={iv.id} className="rounded-lg border border-[#ECEDF0] bg-[#F1F3F5] p-2.5">
+            <div key={iv.id} className="rounded-lg border border-[#ECEDF0] bg-white p-2.5">
               <p className="text-[12px] font-semibold text-gray-800">
                 {iv.interviewRound} · {iv.status}
               </p>
@@ -1762,7 +1783,7 @@ export default function CandidateDetailPage() {
   };
 
   return (
-    <div className="space-y-5 text-xs">
+    <div className="space-y-2 text-xs">
       <EditCandidateDialog
         open={editOpen}
         candidate={candidate}
@@ -1770,21 +1791,121 @@ export default function CandidateDetailPage() {
         onSave={updated => update.mutate(updated)}
       />
 
+      {/* Read-only candidate details (opened by the header name/avatar) — no
+          edit or actions, just every detail incl. the LinkedIn URL. */}
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-sm font-bold text-white">
+                {candidate.fullName.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-base font-bold text-gray-900">
+                  {candidate.fullName}
+                </span>
+                <span className="block truncate text-[12px] font-normal text-gray-500">
+                  {candidate.appliedRole || candidate.department}
+                </span>
+              </span>
+            </DialogTitle>
+            <DialogDescription className="sr-only">Candidate details</DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[60vh] space-y-3.5 overflow-y-auto pr-1">
+            <ProfileSection title="Contact">
+              <ProfileRow label="Email" value={candidate.email} />
+              <ProfileRow label="Phone" value={candidate.phone} />
+              <ProfileRow label="Location" value={candidate.location} />
+              {candidate.gender && <ProfileRow label="Gender" value={candidate.gender} />}
+            </ProfileSection>
+
+            <ProfileSection title="Professional">
+              <ProfileRow label="Current company" value={candidate.currentCompany} />
+              <ProfileRow label="Designation" value={candidate.currentDesignation} />
+              <ProfileRow label="Total experience" value={`${candidate.totalExperienceYears} yrs`} />
+              <ProfileRow label="Relevant experience" value={`${candidate.relevantExperienceYears} yrs`} />
+              <ProfileRow label="Notice period" value={`${candidate.noticePeriodDays} days`} />
+            </ProfileSection>
+
+            <ProfileSection title="Compensation">
+              <ProfileRow label="Current CTC" value={candidate.currentCtc} />
+              <ProfileRow label="Expected CTC" value={candidate.expectedCtc} />
+            </ProfileSection>
+
+            <ProfileSection title="Application">
+              <ProfileRow label="Applied role" value={candidate.appliedRole} />
+              <ProfileRow label="Department" value={candidate.department} />
+              <ProfileRow label="Source" value={candidate.sourceOfApplication} />
+              {candidate.referralDetails && (
+                <ProfileRow label="Referral" value={candidate.referralDetails} />
+              )}
+              <ProfileRow label="Applied on" value={fmtDate(candidate.appliedDate)} />
+              <ProfileRow label="Status" value={candidate.status} />
+              {fit && <ProfileRow label="Fit" value={fit} />}
+            </ProfileSection>
+
+            <ProfileSection title="Links">
+              {candidate.linkedInUrl ? (
+                <a
+                  href={candidate.linkedInUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-[12px] font-medium text-accent-600 hover:underline"
+                >
+                  <Linkedin size={14} /> LinkedIn profile{' '}
+                  <ExternalLink size={12} className="opacity-60" />
+                </a>
+              ) : (
+                <p className="text-[12px] text-gray-400">No LinkedIn URL on file.</p>
+              )}
+              {candidate.portfolioLink && (
+                <a
+                  href={candidate.portfolioLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-[12px] font-medium text-accent-600 hover:underline"
+                >
+                  <ExternalLink size={14} /> Portfolio
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={openResume}
+                className="flex items-center gap-2 text-[12px] font-medium text-accent-600 hover:underline"
+              >
+                <FileText size={14} /> View résumé <Eye size={12} className="opacity-60" />
+              </button>
+            </ProfileSection>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Full-width candidate header: avatar + name/role on the left, résumé
           preview + "View candidate profile" on the right. */}
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-3 shadow-2xs">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-sm font-bold text-white">
-            {candidate.fullName.slice(0, 2).toUpperCase()}
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            title="View candidate details"
+            className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-lg text-left transition hover:opacity-90"
+          >
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-sm font-bold text-white">
+              {candidate.fullName.slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-display text-sm font-bold text-gray-900 group-hover:text-accent-600">
+                {candidate.fullName}
+              </p>
+              <p className="truncate text-[12px] text-gray-500">
+                {candidate.appliedRole || candidate.department}
+              </p>
+            </div>
+          </button>
+          <span className="shrink-0 font-mono text-[11px] font-medium text-gray-400">
+            {candidate.id}
           </span>
-          <div className="min-w-0">
-            <p className="truncate font-display text-sm font-bold text-gray-900">
-              {candidate.fullName}
-            </p>
-            <p className="truncate text-[12px] text-gray-500">
-              {candidate.appliedRole || candidate.department}
-            </p>
-          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {/* Status tag — which step the candidate is on (or where they were
@@ -1847,111 +1968,78 @@ export default function CandidateDetailPage() {
             onClick={() => setEditOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
           >
-            <User size={14} /> View candidate profile
+            <Pencil size={14} /> Edit
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
-        {/* LEFT — profile, contact, documents */}
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
+        {/* LEFT — full candidate details, all in one card, section by section */}
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 text-center shadow-2xs">
-            <div className="relative mx-auto w-fit">
-              <span className="grid size-20 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-2xl font-bold text-white">
-                {candidate.fullName.slice(0, 2).toUpperCase()}
-              </span>
-              <span
-                className={`absolute bottom-1 right-1 size-4 rounded-full ring-4 ring-[#FFFFFF] ${
-                  selected
-                    ? 'bg-emerald-500'
-                    : rejected
-                      ? 'bg-red-500'
-                      : onHold
-                        ? 'bg-yellow-500'
-                        : 'bg-accent-500'
-                }`}
-              />
-            </div>
-            <h1 className="mt-3 font-display text-base font-bold text-gray-900">{candidate.fullName}</h1>
-            <p className="text-[12px] text-gray-500">{candidate.appliedRole}</p>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-              <span className="rounded-full bg-accent-50 px-2 py-0.5 font-mono text-[9px] font-bold text-accent-600">
-                {candidate.status}
-              </span>
-              {fit && (
-                <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-bold ${fitStyle(fit)}`}>
-                  {fit}
-                  {candidate.fitRatingOverride && <span className="ml-0.5 opacity-60">*</span>}
-                </span>
-              )}
-            </div>
-            <div className="mt-4 flex items-center justify-center gap-2.5">
+          <div className="space-y-3.5 rounded-2xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
+          <ProfileSection title="Contact">
+            <ProfileRow label="Email" value={candidate.email} />
+            <ProfileRow label="Phone" value={candidate.phone} />
+            <ProfileRow label="Location" value={candidate.location} />
+            {candidate.gender && <ProfileRow label="Gender" value={candidate.gender} />}
+          </ProfileSection>
+
+          <ProfileSection title="Professional">
+            <ProfileRow label="Current company" value={candidate.currentCompany} />
+            <ProfileRow label="Designation" value={candidate.currentDesignation} />
+            <ProfileRow label="Total experience" value={`${candidate.totalExperienceYears} yrs`} />
+            <ProfileRow label="Relevant experience" value={`${candidate.relevantExperienceYears} yrs`} />
+            <ProfileRow label="Notice period" value={`${candidate.noticePeriodDays} days`} />
+          </ProfileSection>
+
+          <ProfileSection title="Compensation">
+            <ProfileRow label="Current CTC" value={candidate.currentCtc} />
+            <ProfileRow label="Expected CTC" value={candidate.expectedCtc} />
+          </ProfileSection>
+
+          <ProfileSection title="Application">
+            <ProfileRow label="Applied role" value={candidate.appliedRole} />
+            <ProfileRow label="Department" value={candidate.department} />
+            <ProfileRow label="Source" value={candidate.sourceOfApplication} />
+            {candidate.referralDetails && (
+              <ProfileRow label="Referral" value={candidate.referralDetails} />
+            )}
+            <ProfileRow label="Applied on" value={fmtDate(candidate.appliedDate)} />
+            <ProfileRow label="Status" value={candidate.status} />
+            {fit && <ProfileRow label="Fit" value={fit} />}
+          </ProfileSection>
+
+          <ProfileSection title="Links">
+            {candidate.linkedInUrl ? (
               <a
-                href={candidate.phone ? `tel:${candidate.phone}` : undefined}
-                aria-label="Call candidate"
-                className="grid size-10 place-items-center rounded-full bg-accent-50 text-accent-600 transition hover:bg-accent-100"
+                href={candidate.linkedInUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-[12px] font-medium text-accent-600 hover:underline"
               >
-                <Phone size={16} />
+                LinkedIn profile
               </a>
+            ) : (
+              <p className="text-[12px] text-gray-400">No LinkedIn URL on file.</p>
+            )}
+            {candidate.portfolioLink && (
               <a
-                href={candidate.email ? `mailto:${candidate.email}` : undefined}
-                aria-label="Email candidate"
-                className="grid size-10 place-items-center rounded-full bg-accent-50 text-accent-600 transition hover:bg-accent-100"
+                href={candidate.portfolioLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-[12px] font-medium text-accent-600 hover:underline"
               >
-                <Mail size={16} />
+                Portfolio
               </a>
-            </div>
+            )}
             <button
               type="button"
-              onClick={() => setEditOpen(true)}
-              className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 py-2 text-[12px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600"
-            >
-              <Pencil size={13} /> Edit candidate
-            </button>
-          </div>
-
-          {/* Contact details */}
-          <div className="space-y-2.5 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Details</h3>
-              <span className="font-mono text-[10px] text-gray-400">{candidate.id}</span>
-            </div>
-            <Detail icon={<Mail size={13} />} value={candidate.email} />
-            <Detail icon={<Phone size={13} />} value={candidate.phone || '—'} />
-            <Detail icon={<MapPin size={13} />} value={candidate.location || '—'} />
-            <Detail
-              icon={<Briefcase size={13} />}
-              value={`${candidate.currentCompany || '—'} · ${candidate.currentDesignation || '—'}`}
-            />
-            <Detail
-              icon={<Clock4 size={13} />}
-              value={`${candidate.totalExperienceYears} yrs · ${candidate.noticePeriodDays}d notice`}
-            />
-            <Detail
-              icon={<Wallet size={13} />}
-              value={`Current ${candidate.currentCtc || '—'} → Expected ${candidate.expectedCtc || '—'}`}
-            />
-            <Detail
-              icon={<CalendarDays size={13} />}
-              value={`Applied ${fmtDate(candidate.appliedDate)} · ${candidate.sourceOfApplication}`}
-            />
-          </div>
-
-          {/* Documents */}
-          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
-            <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">Documents</h3>
-            <button
               onClick={openResume}
-              className="flex w-full items-center gap-2 rounded-lg border border-[#ECEDF0] bg-[#F7F8FA] px-3 py-2 text-left text-[12px] font-medium text-gray-700 transition hover:bg-[#EDEEF1] hover:text-accent-600"
+              className="block text-left text-[12px] font-medium text-accent-600 hover:underline"
             >
-              <FileText size={14} className="text-accent-600" /> Résumé
-              <Eye size={13} className="ml-auto text-gray-400" />
+              View résumé
             </button>
-            {candidateDocs.length > 0 && (
-              <p className="mt-2 font-mono text-[10px] text-gray-400">
-                {candidateDocs.length} document(s) on file
-              </p>
-            )}
+          </ProfileSection>
           </div>
         </aside>
 
@@ -1961,190 +2049,217 @@ export default function CandidateDetailPage() {
             className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs transition-all duration-500 ease-out"
             style={{ opacity: stepIn ? 1 : 0, transform: stepIn ? 'translateY(0)' : 'translateY(10px)' }}
           >
-            {/* Activity-log header */}
-            <div className="flex items-center justify-between gap-2 border-b border-[#ECEDF0] px-5 py-3.5">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-gray-900">Recruitment activity</h3>
-                <span className="rounded-full bg-[#F1F3F5] px-2 py-0.5 font-mono text-[10px] font-semibold text-gray-500">
-                  {stages.filter(s => s.done).length}/{stages.length} steps
-                </span>
-              </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F7F8FA] px-2.5 py-1 text-[11px] font-semibold text-gray-500">
-                <CalendarDays size={12} className="text-gray-400" />
-                {fmtDate(candidate.appliedDate)}
-              </span>
-            </div>
+            {/* Header — title + step count on the left, completion + ring on the right */}
+            {(() => {
+              const doneCount = stages.filter(s => s.done).length;
+              const total = stages.length;
+              const pct = total ? Math.round((doneCount / total) * 100) : 0;
+              const r = 15;
+              const circ = 2 * Math.PI * r;
+              return (
+                <div className="flex items-center justify-between gap-3 border-b border-[#ECEDF0] px-5 py-4">
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-sm font-bold text-gray-900">Recruitment Progress</h3>
+                    <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
+                      {total} Steps
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="hidden text-[11px] font-medium text-gray-500 sm:inline">
+                      Completed {doneCount} of {total} steps
+                    </span>
+                    <div className="relative grid size-9 shrink-0 place-items-center">
+                      <svg width="36" height="36" viewBox="0 0 36 36" className="-rotate-90">
+                        <circle cx="18" cy="18" r={r} fill="none" stroke="#EDEEF1" strokeWidth="3" />
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r={r}
+                          fill="none"
+                          className="text-accent-600"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeDasharray={circ}
+                          strokeDashoffset={circ * (1 - pct / 100)}
+                        />
+                      </svg>
+                      <span className="absolute text-[9px] font-bold text-accent-700">{pct}%</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
-            <ol className="relative px-6 py-6">
+            <div className="space-y-2.5 p-4">
               {stages.map((stage, i) => {
                 const state = stepState(i);
                 const StageIcon = stage.Icon;
                 const last = i === stages.length - 1;
-                const pathDone = i < currentIndex; // the rail below this node is already travelled
-                // Steps never reached read muted — those not started yet, and the ones
-                // crossed out after a rejection (everything past the rejection point).
+                const pathDone = i < currentIndex; // the thread below this node is travelled
                 const muted = state === 'todo' || (state === 'rejected' && i > currentIndex);
-                // Who performed this step: the candidate applied (human icon), every other
-                // step is an HR action (HR profile avatar) — like the inspiration's feed.
-                const isApplied = stage.label === 'Applied';
-                // Status dot colour (entry header chip) — tracks stage state. The chip
-                // itself stays neutral; only this small dot carries the state colour.
-                const dotCls =
-                  state === 'done'
-                    ? 'bg-emerald-500'
-                    : state === 'rejected'
-                      ? 'bg-red-500'
-                      : state === 'current'
-                        ? 'bg-accent-500'
-                        : 'bg-gray-300';
-                // Detail ("i") panel — hidden until the info button is clicked.
-                const infoShown = !!openInfo[i];
-                const toggleInfo = () => setOpenInfo(prev => ({ ...prev, [i]: !infoShown }));
-                // Stage action(s) (e.g. "Edit call notes") sit at the TOP of the entry;
-                // the HR decision row (Accept / On Hold / Reject / Next) sits at the BOTTOM.
+                // Icon square colour: the stage's own colour once DONE, else
+                // greyscale while pending / not started. Decision reflects the outcome.
+                const doneColor =
+                  stage.label === 'Decision'
+                    ? selected
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : rejected
+                        ? 'bg-red-50 text-red-600'
+                        : 'bg-[#F1F3F5] text-gray-400'
+                    : (STAGE_ICON_COLOR[stage.label] ?? 'bg-accent-50 text-accent-600');
+                const iconCls = stage.done ? doneColor : 'bg-[#F1F3F5] text-gray-400';
+                // Status pill (Completed / Passed / Scheduled / Pending / …).
+                const pill: { label: string; cls: string } = (() => {
+                  if (state === 'rejected') return { label: 'Rejected', cls: 'bg-red-50 text-red-600' };
+                  if (stage.label === 'Decision') {
+                    if (selected) return { label: 'Selected for role', cls: 'bg-emerald-50 text-emerald-700' };
+                    if (offerShortlisted) return { label: 'Shortlisted', cls: 'bg-emerald-50 text-emerald-700' };
+                    return { label: 'Pending', cls: 'bg-[#F1F3F5] text-gray-500' };
+                  }
+                  if (stage.label === 'IQ Test' && stage.done)
+                    return myIq[0]?.qualificationStatus === 'Passed'
+                      ? { label: 'Passed', cls: 'bg-emerald-50 text-emerald-700' }
+                      : { label: 'Failed', cls: 'bg-red-50 text-red-600' };
+                  if (stage.label === 'Assessment' && stage.done)
+                    return asgInvite?.passed
+                      ? { label: 'Passed', cls: 'bg-emerald-50 text-emerald-700' }
+                      : { label: 'Failed', cls: 'bg-red-50 text-red-600' };
+                  if (stage.done) return { label: 'Completed', cls: 'bg-emerald-50 text-emerald-700' };
+                  if (state === 'current') {
+                    if (stage.label === 'Interview Schedule')
+                      return { label: 'Scheduled', cls: 'bg-accent-50 text-accent-700' };
+                    if (stage.label === 'Physical Interview')
+                      return { label: 'Awaiting', cls: 'bg-accent-50 text-accent-700' };
+                    return { label: 'In progress', cls: 'bg-accent-50 text-accent-700' };
+                  }
+                  return { label: 'Pending', cls: 'bg-[#F1F3F5] text-gray-500' };
+                })();
+                // Default (openStep === null) opens whichever step is current.
+                const activeStep = openStep ?? currentIndex;
+                const infoShown = activeStep === i;
+                const toggleInfo = () => setOpenStep(activeStep === i ? -1 : i);
                 const actions = stageActions(i);
                 const gate = stageGate(i);
                 return (
-                  <li
+                  <div
                     key={stage.label}
-                    className="relative flex gap-4 transition-all duration-500"
+                    className="relative flex gap-3 transition-all duration-500"
                     style={{
-                      transitionDelay: `${i * 80}ms`,
+                      transitionDelay: `${i * 60}ms`,
                       opacity: stepIn ? 1 : 0,
                       transform: stepIn ? 'translateY(0)' : 'translateY(8px)',
                     }}
                   >
-                    {/* Rail: continuous thread + actor avatar (candidate vs HR) */}
-                    <div className="relative flex w-9 shrink-0 flex-col items-center">
-                      <div className={`relative z-10 ${muted ? 'opacity-60' : ''}`}>
-                        {isApplied ? (
-                          <span
-                            className="grid size-9 place-items-center rounded-full bg-[#F1F3F5] text-gray-500 ring-2 ring-white"
-                            title={candidate.fullName}
-                          >
-                            <User size={16} />
+                    {/* Rail: status node + connecting thread (process flow) */}
+                    <div className="relative flex w-6 shrink-0 flex-col items-center">
+                      <span className="mt-4">
+                        {state === 'done' ? (
+                          <span className="grid size-6 place-items-center rounded-full bg-emerald-500 text-white">
+                            <Check size={13} strokeWidth={3} />
                           </span>
-                        ) : hr.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={hr.avatarUrl}
-                            alt={hr.name}
-                            title={`${hr.name} · ${hr.role}`}
-                            className="size-9 rounded-full object-cover ring-2 ring-white"
-                          />
+                        ) : state === 'rejected' ? (
+                          <span className="grid size-6 place-items-center rounded-full bg-red-500 text-white">
+                            <XCircle size={13} />
+                          </span>
+                        ) : state === 'current' ? (
+                          <span className="grid size-6 place-items-center rounded-full bg-[#C21C51] ring-4 ring-[#C21C51]/15">
+                            <span className="size-2 rounded-full bg-white" />
+                          </span>
                         ) : (
-                          <span
-                            className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-[10px] font-bold text-white ring-2 ring-white"
-                            title={`${hr.name} · ${hr.role}`}
-                          >
-                            {hr.initials}
-                          </span>
+                          <span className="size-6 rounded-full border-2 border-[#D8DAE0] bg-white" />
                         )}
-                        {/* Corner status badge — done / current / rejected */}
-                        {state === 'done' && (
-                          <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
-                            <Check size={9} strokeWidth={3} />
-                          </span>
-                        )}
-                        {state === 'current' && (
-                          <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-accent-500 ring-2 ring-white" />
-                        )}
-                        {state === 'rejected' && (
-                          <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-red-500 text-white ring-2 ring-white">
-                            <XCircle size={9} strokeWidth={3} />
-                          </span>
-                        )}
-                      </div>
+                      </span>
                       {!last && (
                         <span
-                          className={`mt-1.5 w-px flex-1 ${pathDone ? 'bg-emerald-300' : 'bg-[#E4E6EA]'}`}
+                          className={`mt-1 w-0.5 flex-1 ${pathDone ? 'bg-emerald-400' : 'bg-[#E4E6EA]'}`}
                         />
                       )}
                     </div>
 
-                    {/* Content — feed entry */}
-                    <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-8'}`}>
-                      {/* Header: name + chip + description (left) · timestamp/actions/info (right) */}
-                      <div className="flex items-start gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
+                    {/* Step card */}
+                    <div
+                      className={`min-w-0 flex-1 rounded-2xl border transition-colors ${
+                        infoShown
+                          ? 'border-[#C21C51] bg-[#C21C51]/[0.06]'
+                          : state === 'current'
+                            ? 'border-[#C21C51]/30 bg-[#C21C51]/[0.05]'
+                            : 'border-[#E9EAEE] bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 px-3.5 py-3">
+                        {/* Clickable identity region (icon + number + name/desc) */}
+                        <button
+                          type="button"
+                          onClick={toggleInfo}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <span
+                            className={`grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
+                          >
+                            <StageIcon size={16} />
+                          </span>
+                          <span className="hidden shrink-0 font-mono text-[11px] font-semibold text-gray-400 sm:inline">
+                            {i + 1}
+                          </span>
+                          <span className="min-w-0">
                             <span
-                              className={`grid size-5 shrink-0 place-items-center rounded-md ${
-                                muted ? 'bg-[#F1F3F5] text-gray-400' : 'bg-accent-50 text-accent-600'
-                              }`}
-                            >
-                              <StageIcon size={12} />
-                            </span>
-                            <span
-                              className={`text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}
+                              className={`block truncate text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}
                             >
                               {stage.label}
                             </span>
-                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600">
-                              <span className={`size-1.5 rounded-full ${dotCls}`} />
-                              {stage.desc}
-                            </span>
-                          </div>
-                          {STAGE_NOTES[stage.label] && (
-                            <p className="mt-1.5 text-[12px] leading-relaxed text-gray-500">
-                              {STAGE_NOTES[stage.label]}
-                            </p>
-                          )}
-                        </div>
+                            {STAGE_NOTES[stage.label] && (
+                              <span className="block truncate text-[12px] text-gray-500">
+                                {STAGE_NOTES[stage.label]}
+                              </span>
+                            )}
+                          </span>
+                        </button>
 
-                        {/* Right group — timestamp + action icon(s) + info "i" button */}
-                        <div className="flex shrink-0 items-center gap-2.5">
-                          {stage.when && (
-                            <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
-                              {fmtDateTime(stage.when)}
-                            </span>
-                          )}
-                          {/* Stage action icons sit next to the info button (Decision's
-                          composer is the exception — it renders below). */}
-                          {stage.label !== 'Decision' && actions}
-                          <button
-                            type="button"
-                            onClick={toggleInfo}
-                            aria-label={infoShown ? 'Hide details' : 'View details'}
-                            aria-expanded={infoShown}
-                            title="View details"
-                            className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
-                              infoShown
-                                ? 'border-accent-200 bg-accent-50 text-accent-600'
-                                : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
-                            }`}
-                          >
-                            <ChevronDown
-                              size={15}
-                              className={`transition-transform duration-200 ${infoShown ? 'rotate-180' : ''}`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Decision composer (textarea + outcome buttons) renders below */}
-                      {stage.label === 'Decision' && actions && <div className="mt-3">{actions}</div>}
-
-                      {/* Detail panel — revealed by the info "i" button */}
-                      {infoShown && (
-                        <div
-                          className={`mt-3 rounded-xl bg-[#F7F8FA] p-3.5 ${
-                            state === 'current'
-                              ? 'border border-y-[#ECEDF0] border-r-[#ECEDF0] border-l-2 border-l-accent-400'
-                              : 'border border-[#ECEDF0]'
+                        {/* Right group — date, status pill, actions, chevron */}
+                        {stage.when && (
+                          <span className="hidden shrink-0 font-mono text-[10px] text-gray-400 md:inline">
+                            {fmtDateTime(stage.when)}
+                          </span>
+                        )}
+                        <span
+                          className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline ${pill.cls}`}
+                        >
+                          {pill.label}
+                        </span>
+                        {stage.label !== 'Decision' && actions}
+                        <button
+                          type="button"
+                          onClick={toggleInfo}
+                          aria-label={infoShown ? 'Hide details' : 'View details'}
+                          aria-expanded={infoShown}
+                          title="View details"
+                          className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
+                            infoShown
+                              ? 'border-[#C21C51]/30 bg-white text-[#C21C51]'
+                              : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
                           }`}
                         >
+                          <ChevronDown
+                            size={15}
+                            className={`transition-transform duration-200 ${infoShown ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Expanded section — required details + actions for this step */}
+                      {infoShown && (
+                        <div className="space-y-3 rounded-b-2xl border-t border-[#C21C51]/15 bg-white px-3.5 py-3">
                           {stageDetail(i)}
+                          {stage.label === 'Decision' && actions && <div>{actions}</div>}
+                          {gate && <div className="flex flex-wrap items-center gap-2">{gate}</div>}
                         </div>
                       )}
-
-                      {/* HR decision row — Accept / On Hold / Reject, at the bottom */}
-                      {gate && <div className="mt-3 flex flex-wrap items-center gap-2">{gate}</div>}
                     </div>
-                  </li>
+                  </div>
                 );
               })}
-            </ol>
+            </div>
           </div>
         </div>
 
@@ -2899,11 +3014,25 @@ function KV({ k, v }: { k: string; v: string }) {
   );
 }
 
-function Detail({ icon, value }: { icon: React.ReactNode; value: string }) {
+// Read-only candidate-details modal helpers.
+function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 text-[12px] text-gray-700">
-      <span className="mt-0.5 text-accent-600">{icon}</span>
-      <span className="min-w-0 break-words">{value}</span>
+    <div className="border-t border-[#ECEDF0] pt-3.5 first:border-t-0 first:pt-0">
+      <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        {title}
+      </p>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function ProfileRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="shrink-0 text-[11px] text-gray-500">{label}</span>
+      <span className="min-w-0 break-words text-right text-[12px] font-medium text-gray-800">
+        {value || '—'}
+      </span>
     </div>
   );
 }
