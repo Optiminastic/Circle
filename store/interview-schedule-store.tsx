@@ -239,7 +239,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             title: `Assigned a interview for ${position} : ${c.fullName}`,
             dateTimeIso: interviewerIso,
             durationMin: input.durationMin,
-            location: input.location,
+            // No office location on the interviewer's event (candidate-only).
             attendees: interviewerAttendees,
             notes: `Rescheduled interview for ${c.fullName} (${position}).`,
             online: false,
@@ -314,7 +314,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
               eventStartIso: interviewerIso,
               eventDurationMin: input.durationMin,
               eventSummary: `Interview - ${c.fullName} - ${position}`,
-              eventLocation: input.location,
+              // Interviewer .ics carries no office location (candidate-only).
               organizerEmail: HR_EMAIL,
               organizerName: `${BRAND.company} HR`,
               attendees: interviewerAttendees,
@@ -458,7 +458,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             title: `Assigned a interview for ${position} : ${c.fullName}`,
             dateTimeIso: interviewerIso,
             durationMin: input.durationMin,
-            location: input.location,
+            // No office location on the interviewer's event — they get the
+            // candidate brief + time only (office address is for the candidate).
             attendees: interviewerAttendees,
             notes: eventDescription,
             online: false,
@@ -473,7 +474,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
               eventStartIso: interviewerIso,
               eventDurationMin: input.durationMin,
               eventSummary: `Interview - ${c.fullName} - ${position}`,
-              eventLocation: input.location,
+              // Interviewer .ics carries no office location (candidate-only).
               eventDescription,
               organizerEmail: HR_EMAIL,
               organizerName: `${BRAND.company} HR`,
