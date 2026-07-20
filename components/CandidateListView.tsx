@@ -612,19 +612,26 @@ export function CandidateListView({
                                 },
                               ] as const)
                             : []),
-                          {
-                            key: 'hire',
-                            label: 'Hire',
-                            icon: <BadgeCheck size={13} />,
-                            onClick: () =>
-                              toast.confirm({
-                                title: `Hire ${cand.fullName}?`,
-                                description:
-                                  'Marks them Selected and creates their onboarding checklist, skipping the remaining pipeline steps.',
-                                confirmLabel: 'Hire',
-                                onConfirm: () => hireCandidate(cand),
-                              }),
-                          },
+                          // Direct "Hire" shortcut — DEV ONLY. Hidden in
+                          // production (Vercel builds run NODE_ENV=production);
+                          // still available when running `next dev` locally.
+                          ...(process.env.NODE_ENV !== 'production'
+                            ? ([
+                                {
+                                  key: 'hire',
+                                  label: 'Hire',
+                                  icon: <BadgeCheck size={13} />,
+                                  onClick: () =>
+                                    toast.confirm({
+                                      title: `Hire ${cand.fullName}?`,
+                                      description:
+                                        'Marks them Selected and creates their onboarding checklist, skipping the remaining pipeline steps.',
+                                      confirmLabel: 'Hire',
+                                      onConfirm: () => hireCandidate(cand),
+                                    }),
+                                },
+                              ] as const)
+                            : []),
                           {
                             key: 'delete',
                             label: 'Delete',
