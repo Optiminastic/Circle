@@ -1255,7 +1255,15 @@ export default function CandidateDetailPage() {
     );
   };
 
-  const latestInterview = myInterviews[myInterviews.length - 1];
+  // The active (non-cancelled) interview drives the Physical Interview step —
+  // its assigned interviewer + email power the "Send to interviewer" pack. Fall
+  // back to the most recent one when every interview has been cancelled.
+  const latestInterview =
+    [...myInterviews]
+      .sort((a, b) =>
+        (b.createdAt ?? b.dateTime ?? '').localeCompare(a.createdAt ?? a.dateTime ?? ''),
+      )
+      .find(iv => iv.status !== 'Cancelled') ?? myInterviews[myInterviews.length - 1];
 
   // ---- Physical Interview: send the resume + question pack to the interviewer ----
   const openIvPack = () => {
@@ -1638,9 +1646,9 @@ export default function CandidateDetailPage() {
       // Responses can only arrive after the pack was emailed, so this single
       // flag gates both buttons: send is open until then, review opens after.
       const ivResponded = !!latestInterview?.questionResponses?.length;
-      // Send the resume + interview-question pack to the assigned interviewer.
-      // Locked once their responses are in — no re-sending after that.
-      if (latestInterview?.interviewerEmail)
+      // Send the resume + interview-question pack to the interviewer. Available
+      // as soon as an interview is scheduled; locked once responses are in.
+      if (interviewReached)
         btns.push(iconBtn('ivpack', <Send size={15} />, 'Send to interviewer', openIvPack, ivResponded));
       // Reviewing feedback stays disabled until the interviewer has submitted
       // their responses; then it opens the feedback modal (which shows them).
@@ -2049,47 +2057,13 @@ export default function CandidateDetailPage() {
             className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs transition-all duration-500 ease-out"
             style={{ opacity: stepIn ? 1 : 0, transform: stepIn ? 'translateY(0)' : 'translateY(10px)' }}
           >
-            {/* Header — title + step count on the left, completion + ring on the right */}
-            {(() => {
-              const doneCount = stages.filter(s => s.done).length;
-              const total = stages.length;
-              const pct = total ? Math.round((doneCount / total) * 100) : 0;
-              const r = 15;
-              const circ = 2 * Math.PI * r;
-              return (
-                <div className="flex items-center justify-between gap-3 border-b border-[#ECEDF0] px-5 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <h3 className="text-sm font-bold text-gray-900">Recruitment Progress</h3>
-                    <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
-                      {total} Steps
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="hidden text-[11px] font-medium text-gray-500 sm:inline">
-                      Completed {doneCount} of {total} steps
-                    </span>
-                    <div className="relative grid size-9 shrink-0 place-items-center">
-                      <svg width="36" height="36" viewBox="0 0 36 36" className="-rotate-90">
-                        <circle cx="18" cy="18" r={r} fill="none" stroke="#EDEEF1" strokeWidth="3" />
-                        <circle
-                          cx="18"
-                          cy="18"
-                          r={r}
-                          fill="none"
-                          className="text-accent-600"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeDasharray={circ}
-                          strokeDashoffset={circ * (1 - pct / 100)}
-                        />
-                      </svg>
-                      <span className="absolute text-[9px] font-bold text-accent-700">{pct}%</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Header — title + step count */}
+            <div className="flex items-center gap-2.5 border-b border-[#ECEDF0] px-5 py-4">
+              <h3 className="text-sm font-bold text-gray-900">Recruitment Progress</h3>
+              <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
+                {stages.length} Steps
+              </span>
+            </div>
 
             <div className="space-y-2.5 p-4">
               {stages.map((stage, i) => {
