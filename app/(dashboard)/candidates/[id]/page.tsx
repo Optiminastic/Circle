@@ -35,7 +35,6 @@ import {
   Star,
   User,
   UserCheck,
-  Lock,
   Download,
   Pencil,
 } from 'lucide-react';
@@ -1579,24 +1578,13 @@ export default function CandidateDetailPage() {
     }
 
     if (label === 'Assessment') {
-      // The assessment can only be assigned once HR has accepted (passed) the IQ test.
-      const iqAccepted = decisionOf('IQ Test') === 'Accepted';
-      if (!asgReached) {
-        if (iqAccepted)
-          btns.push(
-            iconBtn('sendasm', <Send size={15} />, 'Send Assessment', () => openSendTest('assignment')),
-          );
-        else
-          btns.push(
-            iconBtn(
-              'asmlock',
-              <Lock size={14} />,
-              'Accept the IQ test result first to assign the assessment',
-              () => {},
-              true,
-            ),
-          );
-      }
+      // Once the interview is scheduled, HR can run the remaining rounds (IQ test,
+      // assessment, physical interview) in any order — the assessment is no longer
+      // gated behind first accepting the IQ result.
+      if (!asgReached && interviewReached)
+        btns.push(
+          iconBtn('sendasm', <Send size={15} />, 'Send Assessment', () => openSendTest('assignment')),
+        );
       if (asgInvite?.status === 'Submitted')
         btns.push(iconBtn('grade', <Star size={15} />, 'Grade submission', openGrade));
       if (asgInvite?.status === 'Graded')
