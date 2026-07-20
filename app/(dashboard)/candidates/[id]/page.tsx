@@ -874,26 +874,6 @@ export default function CandidateDetailPage() {
   };
 
   // ---- the next round to schedule from this candidate's flow ----
-  // The next round to schedule — only suggested once the prior round is actually
-  // done (a scheduled-but-incomplete round shows "in progress" instead).
-  const nextRound: ScheduleType | null = decided
-    ? null
-    : !hrCallReached
-      ? 'HR Call'
-      : !iqReached
-        ? 'IQ Test'
-        : iqDone && !asgReached
-          ? 'Assessment'
-          : asgDone && asgInvite?.passed && !interviewReached
-            ? 'Interview'
-            : null;
-  const roundLabel: Record<ScheduleType, string> = {
-    'HR Call': 'Schedule HR call',
-    'IQ Test': 'Schedule IQ test',
-    Assessment: 'Send assignment',
-    Interview: 'Schedule interview',
-  };
-
   const schedule = (type: ScheduleType) =>
     type === 'Interview'
       ? openInterviewSchedule(candidate)
@@ -1498,11 +1478,11 @@ export default function CandidateDetailPage() {
             ? 'Interview pack sent to the interviewer.'
             : 'Pack created — email could not be sent.',
       );
-      // Online but still no link → Google Calendar isn't connected and HR didn't
-      // paste one. Point at both ways out.
+      // Online but still no link → Google Calendar isn't connected, so no Meet
+      // could be auto-created.
       if (isOnline && !meetLink) {
         toast.info(
-          'No meeting link was sent — paste one in the Meeting link field, or connect Google Calendar in Global Settings to auto-create it.',
+          'No meeting link was sent — connect Google Calendar in Global Settings to auto-create a Google Meet.',
         );
       }
     } catch {
@@ -1789,6 +1769,89 @@ export default function CandidateDetailPage() {
         onClose={() => setEditOpen(false)}
         onSave={updated => update.mutate(updated)}
       />
+
+      {/* Full-width candidate header: avatar + name/role on the left, résumé
+          preview + "View candidate profile" on the right. */}
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-3 shadow-2xs">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-sm font-bold text-white">
+            {candidate.fullName.slice(0, 2).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-display text-sm font-bold text-gray-900">
+              {candidate.fullName}
+            </p>
+            <p className="truncate text-[12px] text-gray-500">
+              {candidate.appliedRole || candidate.department}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Status tag — which step the candidate is on (or where they were
+              rejected / put on hold), plus the terminal Selected/Shortlisted. */}
+          <span
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              selected || offerShortlisted
+                ? 'bg-emerald-50 text-emerald-700'
+                : rejected
+                  ? 'bg-red-50 text-red-600'
+                  : onHold
+                    ? 'bg-yellow-50 text-yellow-700'
+                    : 'bg-accent-50 text-accent-600'
+            }`}
+          >
+            {selected || offerShortlisted ? (
+              <Award size={13} />
+            ) : rejected ? (
+              <Flag size={13} />
+            ) : onHold ? (
+              <Pause size={13} />
+            ) : (
+              <Clock4 size={13} />
+            )}
+            {selected
+              ? 'Selected for role'
+              : offerShortlisted
+                ? 'Offer shortlisted'
+                : rejected
+                  ? `Rejected · ${stages[currentIndex].label}`
+                  : onHold
+                    ? `On hold · ${stages[currentIndex].label}`
+                    : stages[currentIndex].label}
+          </span>
+          <RefreshButton
+            queryKeys={[
+              qk.candidates.all,
+              qk.iqTests.all,
+              qk.interviews.all,
+              qk.testInvites.all,
+              qk.schedules.all,
+              qk.bgvs.all,
+              qk.assignments.all,
+              qk.onboarding.all,
+              qk.docRequests.all,
+            ]}
+            title="Refresh candidate flow"
+          />
+          <button
+            type="button"
+            onClick={openResume}
+            title="Preview résumé"
+            aria-label="Preview résumé"
+            className="grid size-9 place-items-center rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] text-gray-500 transition hover:border-accent-400 hover:text-accent-600"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
+          >
+            <User size={14} /> View candidate profile
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
         {/* LEFT — profile, contact, documents */}
         <aside className="space-y-4">
@@ -1894,70 +1957,6 @@ export default function CandidateDetailPage() {
 
         {/* CENTER — pipeline */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-3 shadow-2xs">
-            <div className="min-w-0">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                Pipeline progress
-              </p>
-              <p className="truncate text-[12px] text-gray-700">
-                {candidate.appliedRole} · {candidate.department}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <RefreshButton
-                queryKeys={[
-                  qk.candidates.all,
-                  qk.iqTests.all,
-                  qk.interviews.all,
-                  qk.testInvites.all,
-                  qk.schedules.all,
-                  qk.bgvs.all,
-                  qk.assignments.all,
-                  qk.onboarding.all,
-                  qk.docRequests.all,
-                ]}
-                title="Refresh candidate flow"
-              />
-              {nextRound && decisionOf(stages[currentIndex].label) === 'Accepted' ? (
-                <button
-                  onClick={() => schedule(nextRound)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
-                >
-                  <CalendarPlus size={14} /> {roundLabel[nextRound]}
-                </button>
-              ) : (
-                <span
-                  className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
-                    selected
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : rejected
-                        ? 'bg-red-50 text-red-600'
-                        : onHold
-                          ? 'bg-yellow-50 text-yellow-700'
-                          : 'bg-[#F1F3F5] text-gray-500'
-                  }`}
-                >
-                  {selected ? (
-                    <Award size={14} />
-                  ) : rejected ? (
-                    <Flag size={14} />
-                  ) : onHold ? (
-                    <Pause size={14} />
-                  ) : (
-                    <Clock4 size={14} />
-                  )}
-                  {selected
-                    ? 'Selected for role'
-                    : rejected
-                      ? 'Rejected'
-                      : onHold
-                        ? 'On hold'
-                        : 'Round in progress'}
-                </span>
-              )}
-            </div>
-          </div>
-
           <div
             className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs transition-all duration-500 ease-out"
             style={{ opacity: stepIn ? 1 : 0, transform: stepIn ? 'translateY(0)' : 'translateY(10px)' }}
@@ -2708,7 +2707,8 @@ export default function CandidateDetailPage() {
                       Emails the meeting link to both the candidate
                       {candidate.email ? ` (${candidate.email})` : ''} and{' '}
                       {latestInterview?.interviewerName || 'the interviewer'}, along with the resume and
-                      questions. Paste a link below, or leave it blank to auto-create a Google Meet.
+                      questions. A Google Meet link is auto-created (requires Google Calendar connected
+                      in Global Settings).
                     </>
                   ) : (
                     <>
@@ -2732,25 +2732,6 @@ export default function CandidateDetailPage() {
                     <option value="Online">Online (Google Meet)</option>
                   </Select>
                 </div>
-                {ivpackMode === 'Online' && (
-                  <div>
-                    <Label htmlFor="ivp-meet" className="text-sm font-medium">
-                      Meeting link <span className="font-normal text-gray-400">(optional)</span>
-                    </Label>
-                    <Input
-                      id="ivp-meet"
-                      type="url"
-                      value={ivpackMeetLink}
-                      onChange={e => setIvpackMeetLink(e.target.value)}
-                      placeholder="https://meet.google.com/abc-defg-hij"
-                      className="mt-2"
-                    />
-                    <p className="mt-1 text-[11px] text-gray-500">
-                      Paste a link to use it. Leave blank to auto-create a Google Meet (requires
-                      Google Calendar connected in Global Settings).
-                    </p>
-                  </div>
-                )}
                 <div>
                   <Label htmlFor="ivp-bank" className="text-sm font-medium">
                     Interview question set
