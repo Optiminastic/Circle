@@ -21,13 +21,20 @@ import {
   ChevronDown,
   Eye,
   Download,
+  Copy,
+  RefreshCw,
 } from 'lucide-react';
 import { BGVRequirement, OnboardingChecklist } from '@/types';
 import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
 import { useOngridOnboard } from '@/features/bgv/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { DatePicker } from '@/components/ui/date-picker';
-import { useDocRequests, useDocRequestMutations } from '@/features/doc-requests/hooks';
+import { Select } from './Select';
+import {
+  useDocRequests,
+  useDocRequestMutations,
+  isDocRequestLive,
+} from '@/features/doc-requests/hooks';
 import { SIGN_OFFER_TTL_HOURS } from '@/lib/sign-offer';
 import { useDocuments, downloadDocument } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
@@ -65,6 +72,32 @@ type StageAction =
 
 type StepState = 'done' | 'current' | 'todo';
 
+// Per-stage icon colour shown once the step is DONE (greyscale otherwise) —
+// same visual system as the candidate Recruitment Progress flow.
+const STAGE_ICON_COLOR: Record<string, string> = {
+  'Offer letter': 'bg-blue-50 text-blue-600',
+  'Signed offer received': 'bg-violet-50 text-violet-600',
+  'Joining Documents': 'bg-orange-50 text-orange-600',
+  'Background verification': 'bg-purple-50 text-purple-600',
+  'Joining date confirmation': 'bg-pink-50 text-pink-600',
+  'First day': 'bg-green-50 text-green-600',
+  'Appointment letter': 'bg-indigo-50 text-indigo-600',
+  Employee: 'bg-emerald-50 text-emerald-600',
+};
+
+// One-line subtitle under each stage name (collapsed row) — static, unlike
+// `desc` which reflects live status.
+const STAGE_NOTES: Record<string, string> = {
+  'Offer letter': 'Send the formal offer for review & signature',
+  'Signed offer received': 'Candidate returns their signed copy',
+  'Joining Documents': 'Collect & verify joining paperwork',
+  'Background verification': 'Run background checks via OnGrid',
+  'Joining date confirmation': 'Confirm & share the first working day',
+  'First day': "Candidate's first day at the office",
+  'Appointment letter': 'Confirm full terms of employment',
+  Employee: 'Convert into the employee directory',
+};
+
 const fmtDate = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
@@ -92,7 +125,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const ongridOnboard = useOngridOnboard();
   const promote = usePromoteFromOnboarding();
 
-  const [openInfo, setOpenInfo] = useState<Record<number, boolean>>({});
+  // Only one step accordion is open at a time. `null` = the user hasn't chosen
+  // yet, so it defaults to the current step; `-1` = explicitly none.
+  const [openStep, setOpenStep] = useState<number | null>(null);
   const [composer, setComposer] = useState<(ComposerSeed & { kind: OnboardingEmailKind }) | null>(
     null,
   );
@@ -107,6 +142,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const [startBgvOpen, setStartBgvOpen] = useState(false);
   // Joining-date picker value for the "Joining date confirmation" step.
   const [joiningInput, setJoiningInput] = useState(checklist.joiningDate ?? '');
+  // Re-activation duration picker for the joining-documents upload link.
+  const [docReqHours, setDocReqHours] = useState(24);
 
   const candidate = candidates.find(c => c.id === checklist.candidateId);
   // Resending mints a fresh link, so pick the request that actually holds the
@@ -120,6 +157,24 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         ((a.submissions?.length ?? 0) + (a.bankDetails?.accountNumber ? 1 : 0)) ||
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )[0];
+  // Live/expiry status of the joining-documents upload link, and a copy-link
+  // action — shown on the Joining Documents step until it's fully verified.
+  const docReqLive = docRequest ? isDocRequestLive(docRequest) : false;
+  const fmtDocReqExpiry = (req: NonNullable<typeof docRequest>): string => {
+    const ms = new Date(req.expiresAt).getTime() - Date.now();
+    if (ms <= 0) return 'Expired';
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.floor((ms % 3_600_000) / 60_000);
+    return h > 0 ? `Expires in ${h}h ${m}m` : `Expires in ${m}m`;
+  };
+  const copyDocLink = () => {
+    if (!docRequest) return;
+    const link = `${window.location.origin}/onboarding-docs/${docRequest.id}`;
+    navigator.clipboard?.writeText(link).then(
+      () => toast.success('Upload link copied.'),
+      () => toast.error('Could not copy the link.'),
+    );
+  };
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
   const toEmail = candidate?.email || checklist.candidateEmail || '';
 
@@ -564,7 +619,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   };
 
   return (
-    <div className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5">
+    <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
       <OnboardingEmailComposer
         open={!!composer}
         seed={composer}
@@ -608,173 +663,270 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           onClose={() => setStartBgvOpen(false)}
         />
       )}
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
-          Onboarding progress <span className="text-gray-400">· tap ⓘ on a stage for details</span>
-        </p>
+      {/* Header — title + step count, matching the candidate Recruitment
+          Progress flow. */}
+      <div className="flex items-center gap-2.5 border-b border-[#ECEDF0] px-5 py-4">
+        <h3 className="text-sm font-bold text-gray-900">Onboarding Progress</h3>
+        <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
+          {stages.length} Steps
+        </span>
         {/* Pull fresh uploads / statuses without a full page reload. No explicit
             keys: refetch every active query so documents (per-entity keys) and the
             checklist/doc-requests/BGV all come back current. */}
-        <RefreshButton title="Check for new uploads & status changes" className="h-7 w-7" />
+        <RefreshButton title="Check for new uploads & status changes" className="ml-auto h-7 w-7" />
       </div>
 
-      <ol className="relative px-1 py-3">
+      <div className="space-y-2.5 p-4">
         {stages.map((stage, i) => {
           const state = stepState(i);
           const StageIcon = stage.Icon;
           const last = i === stages.length - 1;
           const pathDone = i < currentIndex;
           const muted = state === 'todo';
-          const dotCls =
-            state === 'done' ? 'bg-emerald-500' : state === 'current' ? 'bg-accent-500' : 'bg-gray-300';
-          const infoShown = !!openInfo[i];
+          // Icon square colour: the stage's own colour once DONE, else greyscale.
+          const doneColor = STAGE_ICON_COLOR[stage.label] ?? 'bg-accent-50 text-accent-600';
+          const iconCls = state === 'done' ? doneColor : 'bg-[#F1F3F5] text-gray-400';
+          const pillCls =
+            state === 'done'
+              ? 'bg-emerald-50 text-emerald-700'
+              : state === 'current'
+                ? 'bg-accent-50 text-accent-700'
+                : 'bg-[#F1F3F5] text-gray-500';
+          // Default (openStep === null) opens whichever step is current.
+          const activeStep = openStep ?? currentIndex;
+          const infoShown = activeStep === i;
+          const toggleInfo = () => setOpenStep(activeStep === i ? -1 : i);
           const showAction = showActionFor(i);
           const gateMet = gateMetFor(i);
           const pending = pendingFor(i);
           const { label: actionLabel, Icon: ActionIcon } = actionMetaFor(i);
           const isJoining = stage.action.kind === 'confirm-joining';
+          // Simple one-click actions get a quick icon button in the collapsed
+          // header; joining-date needs its date picker, so it's expanded-only.
+          const showHeaderAction = showAction && !isJoining;
 
           return (
-            <li key={stage.label} className="relative flex gap-4">
-              {/* Rail: stage avatar + status badge + connecting thread */}
-              <div className="relative flex w-9 shrink-0 flex-col items-center">
-                <div className={`relative z-10 ${muted ? 'opacity-60' : ''}`}>
-                  <span
-                    className={`grid size-9 place-items-center rounded-full ring-2 ring-white ${
-                      state === 'done'
-                        ? 'bg-emerald-50 text-emerald-600'
-                        : state === 'current'
-                          ? 'bg-accent-50 text-accent-600'
-                          : 'bg-[#F1F3F5] text-gray-400'
-                    }`}
-                  >
-                    {state === 'done' ? <Check size={16} /> : <StageIcon size={15} />}
-                  </span>
-                  {state === 'done' && (
-                    <span className="absolute -bottom-0.5 -right-0.5 grid size-3.5 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
-                      <Check size={9} strokeWidth={3} />
+            <div key={stage.label} className="relative flex gap-3">
+              {/* Rail: status node + connecting thread (process flow) */}
+              <div className="relative flex w-6 shrink-0 flex-col items-center">
+                <span className="mt-4">
+                  {state === 'done' ? (
+                    <span className="grid size-6 place-items-center rounded-full bg-emerald-500 text-white">
+                      <Check size={13} strokeWidth={3} />
                     </span>
+                  ) : state === 'current' ? (
+                    <span className="grid size-6 place-items-center rounded-full bg-[#C21C51] ring-4 ring-[#C21C51]/15">
+                      <span className="size-2 rounded-full bg-white" />
+                    </span>
+                  ) : (
+                    <span className="size-6 rounded-full border-2 border-[#D8DAE0] bg-white" />
                   )}
-                  {state === 'current' && (
-                    <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-accent-500 ring-2 ring-white" />
-                  )}
-                </div>
+                </span>
                 {!last && (
-                  <span className={`mt-1.5 w-px flex-1 ${pathDone ? 'bg-emerald-300' : 'bg-[#E4E6EA]'}`} />
+                  <span className={`mt-1 w-0.5 flex-1 ${pathDone ? 'bg-emerald-400' : 'bg-[#E4E6EA]'}`} />
                 )}
               </div>
 
-              {/* Content — feed entry */}
-              <div className={`min-w-0 flex-1 ${last ? 'pb-1' : 'pb-7'}`}>
-                <div className="flex items-start gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
+              {/* Step card */}
+              <div
+                className={`min-w-0 flex-1 rounded-2xl border transition-colors ${
+                  infoShown
+                    ? 'border-[#C21C51] bg-[#C21C51]/[0.06]'
+                    : state === 'current'
+                      ? 'border-[#C21C51]/30 bg-[#C21C51]/[0.05]'
+                      : 'border-[#E9EAEE] bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-3 px-3.5 py-3">
+                  {/* Clickable identity region (icon + number + name/desc) */}
+                  <button
+                    type="button"
+                    onClick={toggleInfo}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    <span
+                      className={`grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
+                    >
+                      <StageIcon size={16} />
+                    </span>
+                    <span className="hidden shrink-0 font-mono text-[11px] font-semibold text-gray-400 sm:inline">
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0">
                       <span
-                        className={`grid size-5 shrink-0 place-items-center rounded-md ${
-                          muted ? 'bg-[#F1F3F5] text-gray-400' : 'bg-accent-50 text-accent-600'
-                        }`}
+                        className={`block truncate text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}
                       >
-                        <StageIcon size={12} />
-                      </span>
-                      <span className={`text-sm font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
                         {stage.label}
                       </span>
-                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600">
-                        <span className={`size-1.5 rounded-full ${dotCls}`} />
-                        {stage.desc}
-                      </span>
-                    </div>
-                  </div>
+                      {STAGE_NOTES[stage.label] && (
+                        <span className="block truncate text-[12px] text-gray-500">
+                          {STAGE_NOTES[stage.label]}
+                        </span>
+                      )}
+                    </span>
+                  </button>
 
-                  <div className="flex shrink-0 items-center gap-2.5">
-                    {/* Signed-copy upload link status on the Offer letter step: how
-                        long the 72h link is live, plus a re-activate button once it
-                        has lapsed (hidden once the signed copy is settled). */}
-                    {stage.action.kind === 'email' &&
-                      stage.action.emailKind === 'offer_letter' &&
-                      signOfferReq &&
-                      !signedOfferDone && (
-                        <>
-                          {signOfferExpired && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                reactivateDocRequest.mutate(
-                                  { id: signOfferReq.id, hours: SIGN_OFFER_TTL_HOURS },
-                                  {
-                                    onSuccess: () =>
-                                      toast.success(
-                                        `Upload link re-activated for ${SIGN_OFFER_TTL_HOURS} hours.`,
-                                      ),
-                                    onError: () =>
-                                      toast.error('Could not activate the link — try again.'),
-                                  },
-                                )
-                              }
-                              disabled={reactivateDocRequest.isPending}
-                              title="Re-activate the signed-offer upload link"
-                              className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                            >
-                              {reactivateDocRequest.isPending ? (
-                                <Loader2 size={11} className="animate-spin" />
-                              ) : (
-                                <Send size={11} />
-                              )}
-                              Activate link
-                            </button>
-                          )}
-                          <span
-                            className={`hidden items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
-                              signOfferExpired
-                                ? 'border-red-200 bg-red-50 text-red-600'
-                                : 'border-amber-200 bg-amber-50 text-amber-700'
-                            }`}
+                  {/* Right group — signed-offer link status, date, status pill,
+                      quick action, chevron */}
+                  {stage.action.kind === 'email' &&
+                    stage.action.emailKind === 'offer_letter' &&
+                    signOfferReq &&
+                    !signedOfferDone && (
+                      <>
+                        {signOfferExpired && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              reactivateDocRequest.mutate(
+                                { id: signOfferReq.id, hours: SIGN_OFFER_TTL_HOURS },
+                                {
+                                  onSuccess: () =>
+                                    toast.success(
+                                      `Upload link re-activated for ${SIGN_OFFER_TTL_HOURS} hours.`,
+                                    ),
+                                  onError: () =>
+                                    toast.error('Could not activate the link — try again.'),
+                                },
+                              )
+                            }
+                            disabled={reactivateDocRequest.isPending}
+                            title="Re-activate the signed-offer upload link"
+                            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                           >
-                            <Clock4 size={11} /> {fmtLinkExpiry(signOfferReq.expiresAt)}
-                          </span>
+                            {reactivateDocRequest.isPending ? (
+                              <Loader2 size={11} className="animate-spin" />
+                            ) : (
+                              <Send size={11} />
+                            )}
+                            Activate link
+                          </button>
+                        )}
+                        <span
+                          className={`hidden shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
+                            signOfferExpired
+                              ? 'border-red-200 bg-red-50 text-red-600'
+                              : 'border-amber-200 bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          <Clock4 size={11} /> {fmtLinkExpiry(signOfferReq.expiresAt)}
+                        </span>
+                      </>
+                    )}
+                  {/* Joining-documents upload link: expiry + reactivate + copy —
+                      shown until every required document is verified. */}
+                  {stage.action.kind === 'request-docs' && docRequest && !docsVerified && (
+                    <div className="hidden shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-[#F7F8FA] px-2 py-1 sm:flex">
+                      <span
+                        className={`inline-flex items-center gap-1 font-mono text-[10px] font-semibold ${
+                          docReqLive ? 'text-amber-700' : 'text-red-600'
+                        }`}
+                      >
+                        <Clock4 size={11} /> {fmtDocReqExpiry(docRequest)}
+                      </span>
+                      {!docReqLive && (
+                        <>
+                          <Select
+                            value={docReqHours}
+                            onChange={e => setDocReqHours(Number(e.target.value))}
+                            className="rounded-md border border-[#E4E6EA] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-gray-600"
+                          >
+                            <option value={24}>24h</option>
+                            <option value={48}>48h</option>
+                            <option value={72}>72h</option>
+                            <option value={168}>7 days</option>
+                          </Select>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              reactivateDocRequest.mutate(
+                                { id: docRequest.id, hours: docReqHours },
+                                {
+                                  onSuccess: () => toast.success('Upload link reactivated.'),
+                                  onError: () => toast.error('Could not reactivate the link — try again.'),
+                                },
+                              )
+                            }
+                            disabled={reactivateDocRequest.isPending}
+                            className="inline-flex items-center gap-1 rounded-md border border-accent-300 bg-accent-50 px-2 py-0.5 text-[10px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
+                          >
+                            {reactivateDocRequest.isPending ? (
+                              <Loader2 size={11} className="animate-spin" />
+                            ) : (
+                              <RefreshCw size={11} />
+                            )}
+                            Reactivate
+                          </button>
                         </>
                       )}
-                    {stage.at && (
-                      <span className="hidden font-mono text-[10px] text-gray-400 sm:inline">
-                        {fmtDate(stage.at)}
-                      </span>
-                    )}
+                      <button
+                        type="button"
+                        onClick={copyDocLink}
+                        className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
+                      >
+                        <Copy size={11} /> Copy link
+                      </button>
+                    </div>
+                  )}
+                  {stage.at && (
+                    <span className="hidden shrink-0 font-mono text-[10px] text-gray-400 md:inline">
+                      {fmtDate(stage.at)}
+                    </span>
+                  )}
+                  <span
+                    className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline ${pillCls}`}
+                  >
+                    {stage.desc}
+                  </span>
+                  {showHeaderAction && (
                     <button
                       type="button"
-                      onClick={() => setOpenInfo(prev => ({ ...prev, [i]: !infoShown }))}
-                      aria-label={infoShown ? 'Hide details' : 'View details'}
-                      aria-expanded={infoShown}
-                      title="View details"
+                      onClick={() => onActionClickFor(i)}
+                      disabled={!gateMet || pending}
+                      title={!gateMet ? 'Complete the previous step first' : actionLabel}
                       className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
-                        infoShown
-                          ? 'border-accent-200 bg-accent-50 text-accent-600'
-                          : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
+                        !gateMet
+                          ? 'cursor-not-allowed border-[#E4E6EA] bg-white text-gray-300'
+                          : 'border-[#E4E6EA] bg-white text-accent-600 hover:border-accent-300 hover:bg-accent-50'
                       }`}
                     >
-                      <ChevronDown
-                        size={15}
-                        className={`transition-transform duration-200 ${infoShown ? 'rotate-180' : ''}`}
-                      />
+                      {pending ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : !gateMet ? (
+                        <Lock size={14} />
+                      ) : (
+                        <ActionIcon size={14} />
+                      )}
                     </button>
-                  </div>
-                </div>
-
-                {/* Detail — revealed by the info "i" button */}
-                {infoShown && (
-                  <div
-                    className={`mt-3 rounded-xl bg-[#F7F8FA] p-3.5 ${
-                      state === 'current'
-                        ? 'border border-[#ECEDF0] border-l-2 border-l-accent-400'
-                        : 'border border-[#ECEDF0]'
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleInfo}
+                    aria-label={infoShown ? 'Hide details' : 'View details'}
+                    aria-expanded={infoShown}
+                    title="View details"
+                    className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
+                      infoShown
+                        ? 'border-[#C21C51]/30 bg-white text-[#C21C51]'
+                        : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
                     }`}
                   >
+                    <ChevronDown
+                      size={15}
+                      className={`transition-transform duration-200 ${infoShown ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                </div>
+
+                {/* Expanded section — details + every action for this step */}
+                {infoShown && (
+                  <div className="space-y-3 rounded-b-2xl border-t border-[#C21C51]/15 bg-white px-3.5 py-3">
                     <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
 
                     {/* Joining date: once confirmed, the action row is gone. Re-send an
                         UPDATED joining date from here — pick a new date and it re-opens
                         the confirmation email pre-filled with that date. */}
                     {stage.action.kind === 'confirm-joining' && stage.done && (
-                      <div className="mt-3 border-t border-[#ECEDF0] pt-3">
+                      <div className="border-t border-[#ECEDF0] pt-3">
                         <p className="text-[12px] font-semibold text-gray-800">Re-send joining date</p>
                         <p className="mb-2 text-[11px] text-gray-500">
                           Confirmed for {fmtDate(checklist.joiningDate)}. Pick a new date to share an
@@ -808,7 +960,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     {(stage.action.kind === 'start-bgv' || stage.action.kind === 'verify-bgv') &&
                       !bgv?.ongridIndividualId &&
                       !!bgv?.services?.length && (
-                        <div className="mt-2.5">
+                        <div>
                           <p className="mb-1.5 font-mono text-[9.5px] font-bold uppercase tracking-wider text-gray-400">
                             Verifications selected ({bgv.services.length})
                           </p>
@@ -834,7 +986,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
                     {/* BGV: send the candidate + documents to OnGrid for verification. */}
                     {(stage.action.kind === 'start-bgv' || stage.action.kind === 'verify-bgv') && (
-                      <div className="mt-3 border-t border-[#ECEDF0] pt-3">
+                      <div className="border-t border-[#ECEDF0] pt-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-[12px] font-semibold text-gray-800">OnGrid verification</p>
@@ -922,140 +1074,141 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     )}
 
                     {stage.at && (
-                      <p className="mt-2 text-[11px] text-gray-400">Recorded on {fmtDate(stage.at)}</p>
+                      <p className="text-[11px] text-gray-400">Recorded on {fmtDate(stage.at)}</p>
                     )}
-                  </div>
-                )}
 
-                {/* Action row */}
-                {showAction && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {isJoining && (
-                      <DatePicker
-                        value={joiningInput}
-                        onChange={setJoiningInput}
-                        disabled={!gateMet}
-                        placeholder="Pick a date"
-                        className="h-8 w-[168px]"
-                      />
-                    )}
-                    <button
-                      onClick={() => onActionClickFor(i)}
-                      disabled={!gateMet || pending}
-                      title={!gateMet ? 'Complete the previous step first' : undefined}
-                      className="inline-flex h-6 items-center gap-1 rounded-md bg-accent-600 px-2 text-[10px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {pending ? (
-                        <Loader2 size={11} className="animate-spin" />
-                      ) : !gateMet ? (
-                        <Lock size={11} />
-                      ) : (
-                        <ActionIcon size={11} />
-                      )}
-                      {actionLabel}
-                    </button>
-                  </div>
-                )}
-
-                {/* BGV decision — shown once the candidate is on OnGrid: HR reviews
-                    and either passes them (green) or rejects with an email (red). */}
-                {stage.action.kind === 'verify-bgv' &&
-                  !!bgv?.ongridIndividualId &&
-                  !bgvVerified && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <button
-                        onClick={verifyBgvNow}
-                        disabled={updateBgv.isPending}
-                        className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-600 px-2.5 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                      >
-                        {updateBgv.isPending ? (
-                          <Loader2 size={11} className="animate-spin" />
-                        ) : (
-                          <Check size={11} />
+                    {/* Action row */}
+                    {showAction && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isJoining && (
+                          <DatePicker
+                            value={joiningInput}
+                            onChange={setJoiningInput}
+                            disabled={!gateMet}
+                            placeholder="Pick a date"
+                            className="h-8 w-[168px]"
+                          />
                         )}
-                        Verified
-                      </button>
-                      <button
-                        onClick={openInvalidEmail}
-                        className="inline-flex h-6 items-center gap-1 rounded-md bg-red-600 px-2.5 text-[10px] font-semibold text-white transition hover:bg-red-700"
-                      >
-                        <XCircle size={11} /> Invalid
-                      </button>
-                      <span className="text-[11px] text-gray-400">
-                        Review the candidate in OnGrid, then pass or reject.
-                      </span>
-                    </div>
-                  )}
-
-                {/* Signed offer letter the candidate uploaded — preview / download. */}
-                {stage.action.kind === 'mark-signed' && signedOfferDoc && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() =>
-                        window.open(documentPreviewUrl(signedOfferDoc.id), '_blank', 'noopener,noreferrer')
-                      }
-                      className="inline-flex h-6 items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 text-[10px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
-                    >
-                      <Eye size={11} /> Preview signed offer
-                    </button>
-                    <button
-                      onClick={() => downloadDocument(signedOfferDoc.id, signedOfferDoc.fileName)}
-                      className="inline-flex h-6 items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 text-[10px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
-                    >
-                      <Download size={11} /> Download
-                    </button>
-                    {/* HR confirms the uploaded copy is properly signed → completes the step. */}
-                    {!checklist.offerSignedReceivedAt && (
-                      <button
-                        onClick={markSigned}
-                        disabled={markOfferSigned.isPending}
-                        className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                        title="Confirm the signed offer letter is valid"
-                      >
-                        {markOfferSigned.isPending ? (
-                          <Loader2 size={11} className="animate-spin" />
-                        ) : (
-                          <Check size={11} />
-                        )}
-                        Confirm valid &amp; received
-                      </button>
+                        <button
+                          onClick={() => onActionClickFor(i)}
+                          disabled={!gateMet || pending}
+                          title={!gateMet ? 'Complete the previous step first' : undefined}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {pending ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : !gateMet ? (
+                            <Lock size={13} />
+                          ) : (
+                            <ActionIcon size={13} />
+                          )}
+                          {actionLabel}
+                        </button>
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Signed-copy upload link expired (nothing uploaded, not yet marked
-                    received) — one button to re-open it (72h) so the candidate can
-                    upload again. */}
-                {stage.action.kind === 'mark-signed' && !signedOfferDone && signOfferReq && signOfferExpired && (
-                  <div className="mt-3">
-                    <button
-                      onClick={() =>
-                        reactivateDocRequest.mutate(
-                          { id: signOfferReq.id, hours: SIGN_OFFER_TTL_HOURS },
-                          {
-                            onSuccess: () =>
-                              toast.success(`Upload link re-activated for ${SIGN_OFFER_TTL_HOURS} hours.`),
-                            onError: () => toast.error('Could not activate the link — try again.'),
-                          },
-                        )
-                      }
-                      disabled={reactivateDocRequest.isPending}
-                      className="inline-flex h-6 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                    >
-                      {reactivateDocRequest.isPending ? (
-                        <Loader2 size={11} className="animate-spin" />
-                      ) : (
-                        <Send size={11} />
+                    {/* BGV decision — shown once the candidate is on OnGrid: HR reviews
+                        and either passes them (green) or rejects with an email (red). */}
+                    {stage.action.kind === 'verify-bgv' &&
+                      !!bgv?.ongridIndividualId &&
+                      !bgvVerified && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={verifyBgvNow}
+                            disabled={updateBgv.isPending}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {updateBgv.isPending ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Check size={13} />
+                            )}
+                            Verified
+                          </button>
+                          <button
+                            onClick={openInvalidEmail}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700"
+                          >
+                            <XCircle size={13} /> Invalid
+                          </button>
+                          <span className="text-[11px] text-gray-400">
+                            Review the candidate in OnGrid, then pass or reject.
+                          </span>
+                        </div>
                       )}
-                      Activate link again
-                    </button>
+
+                    {/* Signed offer letter the candidate uploaded — preview / download. */}
+                    {stage.action.kind === 'mark-signed' && signedOfferDoc && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            window.open(documentPreviewUrl(signedOfferDoc.id), '_blank', 'noopener,noreferrer')
+                          }
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                        >
+                          <Eye size={13} /> Preview signed offer
+                        </button>
+                        <button
+                          onClick={() => downloadDocument(signedOfferDoc.id, signedOfferDoc.fileName)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                        >
+                          <Download size={13} /> Download
+                        </button>
+                        {/* HR confirms the uploaded copy is properly signed → completes the step. */}
+                        {!checklist.offerSignedReceivedAt && (
+                          <button
+                            onClick={markSigned}
+                            disabled={markOfferSigned.isPending}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            title="Confirm the signed offer letter is valid"
+                          >
+                            {markOfferSigned.isPending ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Check size={13} />
+                            )}
+                            Confirm valid &amp; received
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Signed-copy upload link expired (nothing uploaded, not yet marked
+                        received) — one button to re-open it (72h) so the candidate can
+                        upload again. */}
+                    {stage.action.kind === 'mark-signed' &&
+                      !signedOfferDone &&
+                      signOfferReq &&
+                      signOfferExpired && (
+                        <button
+                          onClick={() =>
+                            reactivateDocRequest.mutate(
+                              { id: signOfferReq.id, hours: SIGN_OFFER_TTL_HOURS },
+                              {
+                                onSuccess: () =>
+                                  toast.success(`Upload link re-activated for ${SIGN_OFFER_TTL_HOURS} hours.`),
+                                onError: () => toast.error('Could not activate the link — try again.'),
+                              },
+                            )
+                          }
+                          disabled={reactivateDocRequest.isPending}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          {reactivateDocRequest.isPending ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Send size={13} />
+                          )}
+                          Activate link again
+                        </button>
+                      )}
                   </div>
                 )}
               </div>
-            </li>
+            </div>
           );
         })}
-      </ol>
+      </div>
     </div>
   );
 }

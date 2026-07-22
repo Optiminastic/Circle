@@ -55,11 +55,11 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
   const hr = candidate?.hrCall;
 
   return (
-    <div className="grid grid-cols-1 gap-5 text-xs lg:grid-cols-12 lg:items-start">
+    <div className="grid grid-cols-1 gap-2 text-xs lg:grid-cols-12 lg:items-start">
       {/* Left column: candidate snapshot + offer-letter builder */}
       <div className="space-y-4 lg:col-span-3">
       {/* Candidate snapshot */}
-      <div className="space-y-4 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-5">
+      <div className="space-y-3.5 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
         <div className="space-y-1">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             Candidate Snapshot

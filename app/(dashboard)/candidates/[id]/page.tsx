@@ -2415,7 +2415,10 @@ export default function CandidateDetailPage() {
                     return asgInvite?.passed
                       ? { label: 'Passed', cls: 'bg-emerald-50 text-emerald-700' }
                       : { label: 'Failed', cls: 'bg-red-50 text-red-600' };
-                  if (state === 'rejected') return { label: 'Rejected', cls: 'bg-red-50 text-red-600' };
+                  // Steps crossed out (rejected) carry no tag at all — just the
+                  // crossed rail icon. The step that actually failed a test already
+                  // returned its own Failed pill above, before reaching this check.
+                  if (state === 'rejected') return { label: '', cls: '' };
                   if (stage.label === 'Decision') {
                     if (selected) return { label: 'Selected for role', cls: 'bg-emerald-50 text-emerald-700' };
                     if (offerShortlisted) return { label: 'Shortlisted', cls: 'bg-emerald-50 text-emerald-700' };
@@ -2529,11 +2532,13 @@ export default function CandidateDetailPage() {
                             {fmtDateTime(stage.when)}
                           </span>
                         )}
-                        <span
-                          className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline ${pill.cls}`}
-                        >
-                          {pill.label}
-                        </span>
+                        {pill.label && (
+                          <span
+                            className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline ${pill.cls}`}
+                          >
+                            {pill.label}
+                          </span>
+                        )}
                         {stage.label !== 'Decision' && actions}
                         <button
                           type="button"

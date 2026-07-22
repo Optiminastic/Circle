@@ -57,7 +57,7 @@ export function CandidateHandoffCard({
   const inFeed = !!record?.arrivedAt;
 
   return (
-    <div className="rounded-xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
+    <div className="rounded-2xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
       <div className="mb-1.5 flex items-center gap-1.5">
         <Rss size={13} className="text-accent-600" />
         <h4 className="text-xs font-bold text-gray-900">Onboarding feed</h4>

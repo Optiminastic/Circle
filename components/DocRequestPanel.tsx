@@ -139,7 +139,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
   const references = request?.references ?? [];
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4 md:col-span-3">
+    <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-2xl p-4 shadow-2xs space-y-4 md:col-span-3">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EDEEF1] pb-2.5">
         <div>
           <h4 className="flex items-center gap-1.5 font-bold text-gray-900">
