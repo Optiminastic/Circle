@@ -1163,6 +1163,8 @@ export default function CandidateDetailPage() {
       });
     setOpenForm(null);
     setDecisionKind(null);
+    // Resolved — close the Decision step's accordion too.
+    setOpenStep(-1);
     if (!candidate.email) {
       toast.info(`Candidate ${isAccept ? 'selected' : 'rejected'} — no email on file, so none was sent.`);
       return;
@@ -1210,6 +1212,9 @@ export default function CandidateDetailPage() {
       ...(status ? { status } : {}),
       ...(terminal ? { decidedAt: nowISO() } : {}),
     });
+    // Accept / On Hold / Reject / Next all resolve the step that was open —
+    // close its accordion automatically instead of leaving it expanded.
+    setOpenStep(-1);
   };
 
   const acceptStage = (label: string) => {

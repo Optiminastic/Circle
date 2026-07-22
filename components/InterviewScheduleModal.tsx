@@ -138,20 +138,16 @@ export function InterviewScheduleModal({
     isReschedule ? 'interview_reschedule_candidate' : 'interview_schedule_candidate',
   );
 
-  // The candidate's job posting → its description, so the invite can carry the
-  // JD (a reminder of the role + what's expected). Matched by jobId, else title.
+  // The candidate's job posting → just the position applied for + a link to
+  // the public posting (not the full JD text). Matched by jobId, else title.
   const { data: jobs = [] } = useJobs();
   const jd = useMemo(() => {
     const job =
       jobs.find(j => j.id === candidate.jobId) ??
       jobs.find(j => j.title.trim().toLowerCase() === (candidate.appliedRole || '').trim().toLowerCase());
     if (!job) return '';
-    const parts = [
-      job.description?.trim(),
-      job.keyResponsibilities?.trim() && `Key responsibilities:\n${job.keyResponsibilities.trim()}`,
-      job.requirements?.trim() && `What we’re looking for:\n${job.requirements.trim()}`,
-    ].filter(Boolean);
-    return parts.length ? `About the ${position} role:\n\n${parts.join('\n\n')}` : '';
+    const jobUrl = `${window.location.origin}/jobs/${job.id}`;
+    return `Position applied for: ${position}\n[[View job posting|${jobUrl}]]`;
   }, [jobs, candidate.jobId, candidate.appliedRole, position]);
 
   const templateVars = useMemo(
