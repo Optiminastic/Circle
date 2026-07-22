@@ -61,8 +61,6 @@ import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { effectiveFit, fitStyle, FIT_THRESHOLD } from '@/lib/screening';
 import { sendTestEmail, sendCustomEmail } from '@/lib/api/notifications';
-import { pushCalendarEvent } from '@/lib/api/calendar';
-import { HR_EMAIL } from '@/lib/config';
 import { BRAND } from '@/lib/brand';
 import {
   ASSIGNMENT_MAX_MARKS,
@@ -109,10 +107,6 @@ const fmtDate = (iso?: string) => {
     ? iso
     : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
-// Flatten `[[label|url]]` tokens to "label: url" for plain-text contexts (a
-// Google Calendar event description isn't HTML).
-const plainText = (body: string): string =>
-  (body || '').replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, (_m, label, url) => `${label.trim()}: ${url.trim()}`);
 const fmtDateTime = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -1568,49 +1562,12 @@ export default function CandidateDetailPage() {
 
     setOpenForm(null);
 
-    // Online: share a meeting link with BOTH the candidate and interviewer. A link
-    // pasted by HR wins; otherwise we auto-create a Google Meet on the interview's
-    // calendar event (needs Google Calendar connected). Offline: interviewer pack only.
-    let meetLink: string | null | undefined = manualMeetLink || undefined;
-    // Did Google create the event? Its invite (from hr@) reaches BOTH candidate and
-    // interviewer with the content + Meet link, so we skip the app's own emails and
-    // only fall back to them when Google isn't connected.
-    let pushed = false;
+    // This modal sends the app's own emails directly to the interviewer (and,
+    // for an online round, the candidate) — it never creates a Google Calendar
+    // event. The meeting link is whatever HR pasted in manually, if anything.
+    const meetLink: string | null | undefined = manualMeetLink || undefined;
     if (isOnline) {
-      // The Google invite is the single email — carry the composed subject + body,
-      // plus the resume + interview-questions links so the interviewer (an
-      // attendee) still gets them.
-      const eventDescription = [
-        ivpackBody ? plainText(ivpackBody) : `Online interview for ${candidate.fullName} (${position}).`,
-        '',
-        resumeUrl ? `Candidate resume: ${resumeUrl}` : '',
-        `Interview questions: ${sheetUrl}`,
-      ]
-        .filter(Boolean)
-        .join('\n');
-      try {
-        const attendees = [candidate.email, latestInterview.interviewerEmail, HR_EMAIL].filter(
-          (e): e is string => !!e && e.trim().length > 0,
-        );
-        const res = await pushCalendarEvent({
-          appEventId: latestInterview.id,
-          type: 'Interview',
-          title: ivpackSubject || `Interview - ${candidate.fullName} - ${position}`,
-          dateTimeIso: latestInterview.dateTime,
-          durationMin: latestInterview.durationMinutes ?? 45,
-          attendees,
-          // Only ask Google to mint a Meet when HR hasn't supplied one; when they
-          // have, carry theirs on the event instead.
-          online: !manualMeetLink,
-          location: manualMeetLink || undefined,
-          notes: eventDescription,
-        });
-        pushed = res.pushed;
-        if (!manualMeetLink) meetLink = res.meetLink;
-      } catch {
-        /* calendar sync is best-effort — handled by the no-link warning below */
-      }
-      // Reflect the mode + link on the interview record.
+      // Reflect the mode + any manually-pasted link on the interview record.
       repositories.interviews
         .patch(latestInterview.id, {
           interviewType: 'Online',
@@ -1622,41 +1579,6 @@ export default function CandidateDetailPage() {
         .catch(() => {});
     }
 
-    // Online + event created on Google → its invite from hr@ already reached both
-    // the candidate and interviewer (content + resume/questions links + Meet link).
-    // Don't send the app's own emails; just record that they went out.
-    const sentViaCalendar = isOnline && pushed;
-    const logSent = (name: string, email: string, title: string, subject: string) =>
-      repositories.sentEmails
-        .create({
-          id: randomId('EML'),
-          recipientName: name,
-          recipientEmail: email,
-          templateTitle: title,
-          subject,
-          dateSent: nowISO(),
-          status: 'Sent',
-          relatedEntity: candidate.fullName,
-        })
-        .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
-        .catch(() => {});
-
-    if (sentViaCalendar) {
-      logSent(
-        latestInterview.interviewerName || 'Interviewer',
-        latestInterview.interviewerEmail,
-        'Interview pack (Google Calendar)',
-        ivpackSubject,
-      );
-      if (candidate.email)
-        logSent(candidate.fullName, candidate.email, 'Interview invite (Google Calendar)', ivpackSubject);
-      toast.success('Online interview invite sent to the candidate and interviewer via Google Calendar.');
-      return;
-    }
-
-    // Fallback: no Google event (offline round, or Calendar not connected) — send
-    // the app emails. No Meet button here: online rounds carry the link via the
-    // calendar invite; this path only runs when there's no event.
     const interviewerLinks = [
       ...(resumeUrl ? [{ label: 'View candidate resume', url: resumeUrl }] : []),
       { label: 'Open interview questions', url: sheetUrl },
@@ -1682,19 +1604,17 @@ export default function CandidateDetailPage() {
         .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
         .catch(() => {});
 
-      // Online: also email the candidate the joining link.
-      if (isOnline && candidate.email) {
-        const joinLine = meetLink
-          ? `[[Join the Google Meet|${meetLink}]]`
-          : 'Your meeting link will be shared with you shortly.';
+      // Online: also email the candidate — ONLY the Google Meet link, nothing
+      // else (no resume, no interview-kit links — those are interviewer-only).
+      // Skipped entirely when there's no real link, so a broken/empty "Join the
+      // Google Meet" href never goes out.
+      if (isOnline && candidate.email && meetLink) {
         // Copy comes from Settings → Email templates ("Physical interview —
         // candidate (online)"); the template embeds the Meet link itself.
         const tpl = await fetchRenderedTemplate('physical_interview_candidate', {
           candidate_name: candidate.fullName,
           role: position,
-          date_time: fmtDateTime(latestInterview.dateTime),
-          interviewer_name: latestInterview.interviewerName || 'The Hiring Team',
-          meet_link: meetLink || '',
+          meet_link: meetLink,
           hr_signoff: hr.signoff,
         });
         sendCustomEmail({
@@ -1719,21 +1639,17 @@ export default function CandidateDetailPage() {
           .catch(() => {});
       }
 
-      toast.success(
-        isOnline
-          ? res.sent
-            ? 'Online interview details sent to the candidate and interviewer.'
-            : 'Created — but the interviewer email could not be sent.'
-          : res.sent
-            ? 'Interview pack sent to the interviewer.'
-            : 'Pack created — email could not be sent.',
-      );
-      // Online but still no link → Google Calendar isn't connected, so no Meet
-      // could be auto-created.
-      if (isOnline && !meetLink) {
-        toast.info(
-          'No meeting link was sent — connect Google Calendar in Global Settings to auto-create a Google Meet.',
-        );
+      if (!res.sent) {
+        toast.error('Pack created — the interviewer email could not be sent.');
+      } else if (isOnline && meetLink) {
+        toast.success('Interview pack sent to the interviewer, and the Google Meet link sent to the candidate.');
+      } else {
+        toast.success('Interview pack sent to the interviewer.');
+        if (isOnline) {
+          // No meeting link on the interview record — nothing to send the
+          // candidate, so that email is skipped rather than going out broken.
+          toast.info('No meeting link on file — the candidate was not emailed.');
+        }
       }
     } catch {
       toast.error('Could not send the interview pack — try again.');
