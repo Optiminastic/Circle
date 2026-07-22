@@ -32,6 +32,7 @@ import {
   Star,
   Download,
   Pencil,
+  Link2,
   Linkedin,
   ExternalLink,
 } from 'lucide-react';
@@ -39,6 +40,7 @@ import {
   CandidateStatus,
   HRCallRecord,
   Interview,
+  InterviewQuestionResponse,
   ScheduleType,
   ScreeningReview,
   StageDecision,
@@ -74,7 +76,7 @@ import { useToast } from '@/components/Toaster';
 import { openDocument, useDocuments } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
 import { INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
-import { useInterviewBanks } from '@/features/question-banks/hooks';
+import { useInterviewBanks, useInterviewKitSends } from '@/features/question-banks/hooks';
 import { saveInterviewSheet } from '@/lib/interview-sheet';
 import { PageLoading } from '@/components/PageLoading';
 import { Select } from '@/components/Select';
@@ -188,6 +190,7 @@ export default function CandidateDetailPage() {
   const { data: interviews = [] } = useInterviews();
   const { data: iqTests = [] } = useIqTests();
   const { data: interviewBanks = [] } = useInterviewBanks();
+  const { data: kitSends = [] } = useInterviewKitSends();
   const { data: invites = [] } = useQuery({
     queryKey: qk.testInvites.all,
     queryFn: () => repositories.testInvites.list(),
@@ -202,6 +205,14 @@ export default function CandidateDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   // Read-only candidate details modal, opened by clicking the header name/avatar.
   const [profileOpen, setProfileOpen] = useState(false);
+  // Header quick-mail composer (Reject / Reminder-JD) — a simple to/subject/body
+  // form that sends via the notification sender.
+  const [mail, setMail] = useState<{
+    kind: 'reject' | 'reminder';
+    subject: string;
+    body: string;
+  } | null>(null);
+  const [mailSending, setMailSending] = useState(false);
   const toast = useToast();
   const qc = useQueryClient();
 
@@ -226,6 +237,12 @@ export default function CandidateDetailPage() {
   // over the auto-created Google Meet link — the fallback when Google Calendar
   // isn't connected in this environment.
   const [ivpackMeetLink, setIvpackMeetLink] = useState('');
+  // The interview-questions sheet is generated up front (like the IQ/Assessment
+  // link) so its URL — plus the résumé URL — can be shown in the modal before
+  // sending. Regenerated when the selected bank changes; reused on submit.
+  const [ivpackSheet, setIvpackSheet] = useState<{ token: string; url: string; bankId: string } | null>(
+    null,
+  );
   const [sr, setSr] = useState<ScreeningReview>(blankScreening());
   const [hc, setHc] = useState<HRCallRecord>(blankHrCall());
   const [gradeScore, setGradeScore] = useState('');
@@ -236,6 +253,9 @@ export default function CandidateDetailPage() {
   // yet, so it defaults to the candidate's current step; `-1` = explicitly none.
   const [openStep, setOpenStep] = useState<number | null>(null);
   const [fbInterview, setFbInterview] = useState<Interview | null>(null);
+  // The responses shown in the feedback modal — from the interview record, or
+  // from a Settings interview-kit that the interviewer answered externally.
+  const [fbResponses, setFbResponses] = useState<InterviewQuestionResponse[] | null>(null);
   const [fbRec, setFbRec] = useState('Hire');
   const [fbComments, setFbComments] = useState('');
   // Optional HR-written summary of the physical interview.
@@ -343,10 +363,83 @@ export default function CandidateDetailPage() {
     // Stream inline via the preview endpoint so it opens in a tab, not a download.
     window.open(documentPreviewUrl(resumeDoc.id), '_blank', 'noopener,noreferrer');
   };
+
+  // --- Header quick-mail composers (Reject / Reminder-JD) ---
+  const mailRole = candidate.appliedRole || candidate.department || 'the role';
+  const openRejectMail = () => {
+    if (!candidate.email) {
+      toast.error('No email on file for this candidate.');
+      return;
+    }
+    setMail({
+      kind: 'reject',
+      subject: `Update on your application — ${mailRole}`,
+      body: [
+        `Dear ${candidate.fullName},`,
+        '',
+        `Thank you for taking the time to apply for the ${mailRole} role at ${BRAND.company} and for sharing your background with us.`,
+        '',
+        `After careful consideration, we have decided not to move forward with your application at this stage, as the profile is not the right fit for the requirements of this particular role.`,
+        '',
+        `This is not a reflection of your abilities, and we encourage you to apply for future openings that match your experience. We wish you the very best in your job search.`,
+        '',
+        'Warm regards,',
+        hr.signoff,
+      ].join('\n'),
+    });
+  };
+  const openReminderMail = () => {
+    if (!candidate.email) {
+      toast.error('No email on file for this candidate.');
+      return;
+    }
+    const jobUrl = candidate.jobId
+      ? `${window.location.origin}/jobs/${candidate.jobId}`
+      : '';
+    setMail({
+      kind: 'reminder',
+      subject: `A quick reminder about the ${mailRole} role at ${BRAND.company}`,
+      body: [
+        `Dear ${candidate.fullName},`,
+        '',
+        `This is a friendly reminder about the ${mailRole} position you applied for at ${BRAND.company}. So the role stays fresh in your mind, here is the original job description:`,
+        '',
+        jobUrl ? `[[View the job description|${jobUrl}]]` : '(Job posting link unavailable.)',
+        '',
+        `Please review it ahead of the next steps. If you have any questions, just reply to this email.`,
+        '',
+        'Warm regards,',
+        hr.signoff,
+      ].join('\n'),
+    });
+  };
+  const sendHeaderMail = async () => {
+    if (!mail || !candidate.email || mailSending) return;
+    setMailSending(true);
+    try {
+      const res = await sendCustomEmail({ to: candidate.email, subject: mail.subject, body: mail.body });
+      if (res.sent) {
+        toast.success(mail.kind === 'reject' ? 'Rejection email sent.' : 'Reminder email sent.');
+        setMail(null);
+      } else {
+        toast.error('Email not sent — please try again.');
+      }
+    } catch {
+      toast.error('Email failed to send.');
+    } finally {
+      setMailSending(false);
+    }
+  };
   const mySchedules = schedules.filter(s => s.candidateId === id && s.status !== 'Cancelled');
   const myIq = iqTests.filter(t => t.candidateId === id);
   const myInterviews = interviews.filter(iv => iv.candidateId === id);
   const myInvites = (invites as TestInvite[]).filter(i => i.candidateId === id);
+  // Interview kits sent from Settings for this candidate (independent of the
+  // pipeline). A 'Completed' one carries the interviewer's answers.
+  const myKitSends = kitSends.filter(k => k.candidateId === id);
+  const answeredKit = [...myKitSends]
+    .filter(k => k.status === 'Completed' && (k.questionResponses?.length ?? 0) > 0)
+    .sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''))[0];
 
   // ---- pipeline stage states (shared with the dashboard Kanban) ----
   const hrCallDone = Boolean(candidate.hrCall?.completed);
@@ -494,12 +587,19 @@ export default function CandidateDetailPage() {
   stages.forEach((s, i) => {
     if (s.reached) currentIndex = i;
   });
+  // The step where the pipeline HALTS: a failed test (IQ / Assessment) or a
+  // rejection. That step and every step after it are crossed out — they must
+  // never render as green "done" just because a later step was reached.
+  const failIdx = stages.findIndex(
+    s => (s.label === 'IQ Test' && iqFailed) || (s.label === 'Assessment' && asgFailed),
+  );
+  const stopIdx = failIdx >= 0 ? failIdx : rejected ? currentIndex : -1;
   const stepState = (i: number): StepState => {
+    // The halt step and everything after it are crossed out.
+    if (stopIdx >= 0 && i >= stopIdx) return 'rejected';
     if (i < currentIndex) return 'done';
-    if (i === currentIndex) return rejected ? 'rejected' : stages[i].done ? 'done' : 'current';
-    // Once the candidate is rejected (incl. an auto-reject in the IQ test), every
-    // remaining step is crossed out — the pipeline stops here.
-    return rejected ? 'rejected' : 'todo';
+    if (i === currentIndex) return stages[i].done ? 'done' : 'current';
+    return 'todo';
   };
 
   // ---- activity timeline (line flow) ----
@@ -848,9 +948,10 @@ export default function CandidateDetailPage() {
     }
 
     if (label === 'Physical Interview') {
-      if (!interviewReached) return empty('Schedule the interview first.');
       const anyResponses = myInterviews.some(iv => iv.questionResponses?.length);
-      if (!interviewConducted && !anyResponses)
+      if (!interviewReached && myKitSends.length === 0)
+        return empty('Schedule the interview first — or send an interview kit from Settings.');
+      if (interviewReached && !interviewConducted && !anyResponses && myKitSends.length === 0)
         return empty('Interview scheduled — feedback not recorded yet.');
       return (
         <div className="space-y-2.5">
@@ -874,10 +975,71 @@ export default function CandidateDetailPage() {
                   {iv.grading.summary}
                 </p>
               )}
-              {/* The interviewer's per-question responses are reviewed in the
-                  "Review feedback" modal, so they're intentionally not repeated here. */}
             </div>
           ))}
+
+          {/* Interview kits sent from Settings — the questions and, once the
+              interviewer has answered, their per-question responses. */}
+          {myKitSends.map(kit => {
+            const responses = (kit.questionResponses ?? []) as {
+              text: string;
+              selected?: string;
+              note?: string;
+            }[];
+            return (
+              <div key={kit.id} className="rounded-lg border border-[#ECEDF0] bg-white p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[12px] font-semibold text-gray-800">
+                    Interview kit · {kit.roleName}
+                  </p>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                      kit.status === 'Completed'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-[#F1F3F5] text-gray-500'
+                    }`}
+                  >
+                    {kit.status === 'Completed' ? 'Answered' : 'Awaiting'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Sent to {kit.interviewerEmail} · {fmtDateTime(kit.sentAt)}
+                </p>
+                {kit.grading?.recommendation && (
+                  <p className="mt-1 text-[11px] text-gray-600">
+                    <span className="font-semibold">{kit.grading.recommendation}</span>
+                    {kit.grading.interviewerComments ? ` — “${kit.grading.interviewerComments}”` : ''}
+                  </p>
+                )}
+                {/* Questions are only listed once the interviewer has answered —
+                    the bare question list before that is just noise here. */}
+                {responses.length === 0 ? (
+                  <p className="mt-1.5 text-[11px] text-gray-400">
+                    {kit.questionCount} questions sent — awaiting the interviewer's responses.
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-1.5">
+                    {kit.questions.map((q, i) => {
+                      const resp = responses.find(r => r.text === q.text) ?? responses[i];
+                      return (
+                        <div key={i} className="border-b border-[#F1F3F5] pb-1.5 last:border-0">
+                          <p className="text-[11px] font-medium text-gray-700">
+                            {i + 1}. {q.text}
+                          </p>
+                          {resp?.selected != null && (
+                            <p className="text-[11px] text-emerald-700">
+                              Rated: {resp.selected}
+                              {resp.note ? ` · ${resp.note}` : ''}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       );
     }
@@ -1227,10 +1389,14 @@ export default function CandidateDetailPage() {
     gradeAssignment.mutate({ invite: asgInvite, value, notes: gradeComments });
   };
 
-  const openFeedback = (iv: Interview) => {
+  const openFeedback = (
+    iv: Interview,
+    override?: { responses?: InterviewQuestionResponse[]; recommendation?: string; comments?: string },
+  ) => {
     setFbInterview(iv);
-    setFbRec(iv.grading?.recommendation ?? 'Hire');
-    setFbComments(iv.grading?.interviewerComments ?? '');
+    setFbResponses(override?.responses ?? iv.questionResponses ?? null);
+    setFbRec(override?.recommendation ?? iv.grading?.recommendation ?? 'Hire');
+    setFbComments(override?.comments ?? iv.grading?.interviewerComments ?? '');
     setFbSummary(iv.grading?.summary ?? '');
     setOpenForm('feedback');
   };
@@ -1249,6 +1415,7 @@ export default function CandidateDetailPage() {
           );
           setOpenForm(null);
           setFbInterview(null);
+          setFbResponses(null);
         },
         onError: () => toast.error('Could not save feedback — try again.'),
       },
@@ -1266,12 +1433,64 @@ export default function CandidateDetailPage() {
       .find(iv => iv.status !== 'Cancelled') ?? myInterviews[myInterviews.length - 1];
 
   // ---- Physical Interview: send the resume + question pack to the interviewer ----
+  const buildIvpackQuestions = (bank: InterviewBank) =>
+    INTERVIEW_MODULES.flatMap(m =>
+      (bank.modules[m] ?? [])
+        .filter(it => it.text.trim())
+        .map(it => ({ text: it.text.trim(), options: [] as string[], module: m })),
+    );
+
+  // Create (or re-create) the interview-questions sheet for the selected bank, so
+  // its link can be shown in the modal up front and reused on send.
+  const regenIvpackSheet = async (bankId: string) => {
+    const bank = interviewBanks.find(b => b.id === bankId);
+    if (!bank || !latestInterview) {
+      setIvpackSheet(null);
+      return;
+    }
+    const position = candidate.appliedRole || candidate.department || 'the role';
+    try {
+      const token = await saveInterviewSheet({
+        interviewId: latestInterview.id,
+        candidateName: candidate.fullName,
+        role: position,
+        department: candidate.department,
+        experienceYears: candidate.totalExperienceYears,
+        relevantExperienceYears: candidate.relevantExperienceYears,
+        email: candidate.email,
+        phone: candidate.phone,
+        currentCompany: candidate.currentCompany,
+        currentDesignation: candidate.currentDesignation,
+        resumeUrl: resumeDoc ? documentPreviewUrl(resumeDoc.id) : '',
+        interviewerName: latestInterview.interviewerName,
+        whenIso: latestInterview.dateTime,
+        mode: ivpackMode,
+        roleLabel: bank.roleName,
+        questions: buildIvpackQuestions(bank),
+      });
+      setIvpackSheet({ token, url: `${window.location.origin}/interview-sheet?id=${token}`, bankId });
+    } catch {
+      setIvpackSheet(null);
+    }
+  };
+
   const openIvPack = () => {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const banks = interviewBanks;
     setIvpackBanks(banks);
-    const match = banks.find(b => b.roleName.trim().toLowerCase() === position.trim().toLowerCase());
+    // Auto-pick the kit for the candidate's applied role: exact role-name match
+    // first, then a partial match (either contains the other), else fall back to
+    // the first available kit so a default is always selected. The link for the
+    // chosen kit is generated up front.
+    const norm = (s: string) => s.trim().toLowerCase();
+    const pos = norm(position);
+    const match =
+      banks.find(b => norm(b.roleName) === pos) ??
+      banks.find(b => norm(b.roleName).includes(pos) || pos.includes(norm(b.roleName))) ??
+      banks[0];
     setIvpackBankId(match?.id ?? '');
+    setIvpackSheet(null);
+    if (match?.id) void regenIvpackSheet(match.id);
     setIvpackMode((latestInterview?.interviewType as 'Online' | 'Offline') || 'Offline');
     // Pre-fill with any link already on the interview so re-sending keeps it.
     setIvpackMeetLink(latestInterview?.meetingLink ?? '');
@@ -1311,37 +1530,34 @@ export default function CandidateDetailPage() {
       toast.error('Enter a valid meeting link (starting with https://), or leave it blank.');
       return;
     }
-    const questions = INTERVIEW_MODULES.flatMap(m =>
-      (bank.modules[m] ?? [])
-        .filter(it => it.text.trim())
-        .map(it => ({ text: it.text.trim(), options: [] as string[], module: m })),
-    );
     const resumeUrl = resumeDoc ? documentPreviewUrl(resumeDoc.id) : '';
-    // Persist the sheet payload server-side and link to it by a short token, so
-    // the emailed URL stays short (the old base64 `?d=` blob was multiple KB).
-    let sheetToken: string;
-    try {
-      sheetToken = await saveInterviewSheet({
-        interviewId: latestInterview.id,
-        candidateName: candidate.fullName,
-        role: position,
-        department: candidate.department,
-        experienceYears: candidate.totalExperienceYears,
-        relevantExperienceYears: candidate.relevantExperienceYears,
-        email: candidate.email,
-        phone: candidate.phone,
-        currentCompany: candidate.currentCompany,
-        currentDesignation: candidate.currentDesignation,
-        resumeUrl,
-        interviewerName: latestInterview.interviewerName,
-        whenIso: latestInterview.dateTime,
-        mode: ivpackMode,
-        roleLabel: bank.roleName,
-        questions,
-      });
-    } catch {
-      toast.error('Could not create the interview sheet link. Please try again.');
-      return;
+    // Reuse the sheet already generated for this bank (shown in the modal); only
+    // create one here if it's missing or the bank changed after generation.
+    let sheetToken = ivpackSheet?.bankId === ivpackBankId ? ivpackSheet.token : '';
+    if (!sheetToken) {
+      try {
+        sheetToken = await saveInterviewSheet({
+          interviewId: latestInterview.id,
+          candidateName: candidate.fullName,
+          role: position,
+          department: candidate.department,
+          experienceYears: candidate.totalExperienceYears,
+          relevantExperienceYears: candidate.relevantExperienceYears,
+          email: candidate.email,
+          phone: candidate.phone,
+          currentCompany: candidate.currentCompany,
+          currentDesignation: candidate.currentDesignation,
+          resumeUrl,
+          interviewerName: latestInterview.interviewerName,
+          whenIso: latestInterview.dateTime,
+          mode: ivpackMode,
+          roleLabel: bank.roleName,
+          questions: buildIvpackQuestions(bank),
+        });
+      } catch {
+        toast.error('Could not create the interview sheet link. Please try again.');
+        return;
+      }
     }
     const sheetUrl = `${window.location.origin}/interview-sheet?id=${sheetToken}`;
 
@@ -1577,37 +1793,42 @@ export default function CandidateDetailPage() {
         ),
       );
 
+    // IQ test, Assessment and Physical Interview are all INDEPENDENT once the
+    // interview schedule mail has gone out — HR can send any of them in any
+    // order (no "IQ must pass before Assessment" gating).
     if (label === 'IQ Test') {
       const iqPassed = myIq[0]?.qualificationStatus === 'Passed';
-      if (!iqReached)
-        btns.push(iconBtn('sendiq', <Send size={15} />, 'Send IQ test', () => openSendTest('iq')));
-      // Failed, disqualified, or any other issue — re-assign a fresh link.
-      else if (!iqPassed)
-        btns.push(iconBtn('resendiq', <Send size={15} />, 'Re-assign IQ test', () => openSendTest('iq')));
+      // Active once the interview is scheduled; Send until it's sent, then
+      // Re-assign for a retry, hidden only once the candidate has passed.
+      if (interviewReached && !iqPassed)
+        btns.push(
+          iconBtn(
+            iqReached ? 'resendiq' : 'sendiq',
+            <Send size={15} />,
+            iqReached ? 'Re-assign IQ test' : 'Send IQ test',
+            () => openSendTest('iq'),
+          ),
+        );
     }
 
     if (label === 'Assessment') {
-      // Once the interview is scheduled, HR can run the remaining rounds (IQ test,
-      // assessment, physical interview) in any order — the assessment is no longer
-      // gated behind first accepting the IQ result.
-      if (!asgReached && interviewReached)
+      const asgPassed = asgInvite?.status === 'Graded' && asgInvite.passed;
+      // Active once the interview is scheduled — independent of the IQ result.
+      // Send until it's sent, then Re-assign; hidden while awaiting grading
+      // (Submitted) or once passed.
+      if (interviewReached && !asgPassed && asgInvite?.status !== 'Submitted')
         btns.push(
-          iconBtn('sendasm', <Send size={15} />, 'Send Assessment', () => openSendTest('assignment')),
+          iconBtn(
+            asgReached ? 'resendasm' : 'sendasm',
+            <Send size={15} />,
+            asgReached ? 'Re-assign Assessment' : 'Send Assessment',
+            () => openSendTest('assignment'),
+          ),
         );
       if (asgInvite?.status === 'Submitted')
         btns.push(iconBtn('grade', <Star size={15} />, 'Grade submission', openGrade));
       if (asgInvite?.status === 'Graded')
         btns.push(iconBtn('review', <CheckCircle2 size={15} />, 'Review grade', openGrade));
-      // Failed or hasn't completed it (any issue) — re-assign a fresh link.
-      if (
-        asgReached &&
-        asgInvite &&
-        asgInvite.status !== 'Submitted' &&
-        !(asgInvite.status === 'Graded' && asgInvite.passed)
-      )
-        btns.push(
-          iconBtn('resendasm', <Send size={15} />, 'Re-assign Assessment', () => openSendTest('assignment')),
-        );
     }
 
     if (label === 'Interview Schedule') {
@@ -1642,24 +1863,41 @@ export default function CandidateDetailPage() {
     }
 
     if (label === 'Physical Interview') {
-      // The interviewer has answered once their question responses come back.
-      // Responses can only arrive after the pack was emailed, so this single
-      // flag gates both buttons: send is open until then, review opens after.
+      // Feedback is "in" once the interviewer's responses arrive — either on the
+      // interview record, or on a Settings interview-kit answered externally.
       const ivResponded = !!latestInterview?.questionResponses?.length;
-      // Send the resume + interview-question pack to the interviewer. Available
-      // as soon as an interview is scheduled; locked once responses are in.
+      const feedbackReceived = ivResponded || !!answeredKit;
+      // Send the interviewer pack — DISABLED once feedback has been received (no
+      // point re-sending an already-answered kit / interview).
       if (interviewReached)
-        btns.push(iconBtn('ivpack', <Send size={15} />, 'Send to interviewer', openIvPack, ivResponded));
-      // Reviewing feedback stays disabled until the interviewer has submitted
-      // their responses; then it opens the feedback modal (which shows them).
+        btns.push(
+          iconBtn(
+            'ivpack',
+            <Send size={15} />,
+            feedbackReceived ? 'Feedback already received' : 'Send to interviewer',
+            openIvPack,
+            feedbackReceived,
+          ),
+        );
+      // Review feedback — opens the modal showing the interviewer's responses,
+      // from the interview or (for an externally-answered Settings kit) the kit.
       if (latestInterview)
         btns.push(
           iconBtn(
             'fb',
             <MessageSquarePlus size={15} />,
             'Review feedback',
-            () => openFeedback(latestInterview),
-            !ivResponded,
+            () =>
+              ivResponded
+                ? openFeedback(latestInterview)
+                : answeredKit
+                  ? openFeedback(latestInterview, {
+                      responses: (answeredKit.questionResponses ?? []) as InterviewQuestionResponse[],
+                      recommendation: answeredKit.grading?.recommendation,
+                      comments: answeredKit.grading?.interviewerComments,
+                    })
+                  : undefined,
+            !feedbackReceived,
           ),
         );
       // The pass/hold/reject decision is taken via the header gate (below), then
@@ -1889,6 +2127,64 @@ export default function CandidateDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Header quick-mail composer (Reject / Reminder-JD). */}
+      <Dialog open={!!mail} onOpenChange={open => !open && setMail(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {mail?.kind === 'reject' ? (
+                <ThumbsDown size={15} className="text-red-500" />
+              ) : (
+                <Mail size={15} className="text-accent-600" />
+              )}
+              {mail?.kind === 'reject' ? 'Send rejection email' : 'Send JD reminder email'}
+            </DialogTitle>
+            <DialogDescription className="sr-only">Compose email to the candidate</DialogDescription>
+          </DialogHeader>
+          {mail && (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-[11px] font-medium text-gray-600">To</Label>
+                <div className="mt-1 flex items-center gap-1.5 rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-gray-700">
+                  <Mail size={13} className="text-gray-400" /> {candidate.email}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="mail-subject" className="text-[11px] font-medium text-gray-600">
+                  Subject
+                </Label>
+                <Input
+                  id="mail-subject"
+                  value={mail.subject}
+                  onChange={e => setMail(m => (m ? { ...m, subject: e.target.value } : m))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="mail-body" className="text-[11px] font-medium text-gray-600">
+                  Message
+                </Label>
+                <Textarea
+                  id="mail-body"
+                  value={mail.body}
+                  onChange={e => setMail(m => (m ? { ...m, body: e.target.value } : m))}
+                  rows={12}
+                  className="mt-1 font-mono text-[12px] leading-relaxed"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" onClick={() => setMail(null)} disabled={mailSending}>
+                  Cancel
+                </Button>
+                <Button onClick={sendHeaderMail} disabled={mailSending || !mail.subject.trim()}>
+                  <Send size={14} /> {mailSending ? 'Sending…' : 'Send email'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Full-width candidate header: avatar + name/role on the left, résumé
           preview + "View candidate profile" on the right. */}
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-3 shadow-2xs">
@@ -1970,6 +2266,20 @@ export default function CandidateDetailPage() {
             className="grid size-9 place-items-center rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] text-gray-500 transition hover:border-accent-400 hover:text-accent-600"
           >
             <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={openRejectMail}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+          >
+            <ThumbsDown size={14} /> Reject
+          </button>
+          <button
+            type="button"
+            onClick={openReminderMail}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600"
+          >
+            <Mail size={14} /> Reminder JD
           </button>
           <button
             type="button"
@@ -2070,8 +2380,13 @@ export default function CandidateDetailPage() {
                 const state = stepState(i);
                 const StageIcon = stage.Icon;
                 const last = i === stages.length - 1;
-                const pathDone = i < currentIndex; // the thread below this node is travelled
-                const muted = state === 'todo' || (state === 'rejected' && i > currentIndex);
+                // The thread below this node is "travelled" (green) only up to the
+                // halt point — after a failure/rejection it stays grey.
+                const pathDone = i < currentIndex && (stopIdx < 0 || i < stopIdx);
+                // Steps beyond the halt point are greyed; the halt step itself
+                // (the failed/rejected one) stays visible.
+                const muted =
+                  state === 'todo' || (stopIdx >= 0 ? i > stopIdx : state === 'rejected' && i > currentIndex);
                 // Icon square colour: the stage's own colour once DONE, else
                 // greyscale while pending / not started. Decision reflects the outcome.
                 const doneColor =
@@ -2085,12 +2400,8 @@ export default function CandidateDetailPage() {
                 const iconCls = stage.done ? doneColor : 'bg-[#F1F3F5] text-gray-400';
                 // Status pill (Completed / Passed / Scheduled / Pending / …).
                 const pill: { label: string; cls: string } = (() => {
-                  if (state === 'rejected') return { label: 'Rejected', cls: 'bg-red-50 text-red-600' };
-                  if (stage.label === 'Decision') {
-                    if (selected) return { label: 'Selected for role', cls: 'bg-emerald-50 text-emerald-700' };
-                    if (offerShortlisted) return { label: 'Shortlisted', cls: 'bg-emerald-50 text-emerald-700' };
-                    return { label: 'Pending', cls: 'bg-[#F1F3F5] text-gray-500' };
-                  }
+                  // A completed test shows Passed/Failed even when the step is
+                  // crossed out (the failure is what stopped the pipeline).
                   if (stage.label === 'IQ Test' && stage.done)
                     return myIq[0]?.qualificationStatus === 'Passed'
                       ? { label: 'Passed', cls: 'bg-emerald-50 text-emerald-700' }
@@ -2099,6 +2410,23 @@ export default function CandidateDetailPage() {
                     return asgInvite?.passed
                       ? { label: 'Passed', cls: 'bg-emerald-50 text-emerald-700' }
                       : { label: 'Failed', cls: 'bg-red-50 text-red-600' };
+                  if (state === 'rejected') return { label: 'Rejected', cls: 'bg-red-50 text-red-600' };
+                  if (stage.label === 'Decision') {
+                    if (selected) return { label: 'Selected for role', cls: 'bg-emerald-50 text-emerald-700' };
+                    if (offerShortlisted) return { label: 'Shortlisted', cls: 'bg-emerald-50 text-emerald-700' };
+                    return { label: 'Pending', cls: 'bg-[#F1F3F5] text-gray-500' };
+                  }
+                  // Physical Interview shows the interviewer's recommendation
+                  // (Strong Hire / Hire / Hold / Re-Interview Required / Reject).
+                  if (stage.label === 'Physical Interview' && interviewRecommendation) {
+                    const rec = interviewRecommendation;
+                    const cls = /reject/i.test(rec)
+                      ? 'bg-red-50 text-red-600'
+                      : /hold|re-?interview/i.test(rec)
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-emerald-50 text-emerald-700';
+                    return { label: rec, cls };
+                  }
                   if (stage.done) return { label: 'Completed', cls: 'bg-emerald-50 text-emerald-700' };
                   if (state === 'current') {
                     if (stage.label === 'Interview Schedule')
@@ -2662,11 +2990,11 @@ export default function CandidateDetailPage() {
             {/* Interview feedback form */}
             {openForm === 'feedback' && (
               <>
-                {fbInterview?.questionResponses && fbInterview.questionResponses.length > 0 && (
+                {fbResponses && fbResponses.length > 0 && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Interviewer&apos;s responses</Label>
                     <div className="space-y-2.5">
-                      {fbInterview.questionResponses.map((r, i) => {
+                      {fbResponses.map((r, i) => {
                         // Star-rated questions have no options; selected is "1".."5" or "NA".
                         // MCQ questions carry options; selected is the chosen option text.
                         const isRating = (r.options?.length ?? 0) === 0;
@@ -2833,7 +3161,11 @@ export default function CandidateDetailPage() {
                     <Select
                       id="ivp-bank"
                       value={ivpackBankId}
-                      onChange={e => setIvpackBankId(e.target.value)}
+                      onChange={e => {
+                        setIvpackBankId(e.target.value);
+                        setIvpackSheet(null);
+                        if (e.target.value) void regenIvpackSheet(e.target.value);
+                      }}
                       className={SELECT_CLS}
                     >
                       <option value="">Select a set…</option>
@@ -2847,6 +3179,49 @@ export default function CandidateDetailPage() {
                       })}
                     </Select>
                   )}
+                </div>
+
+                {/* The links that go to the interviewer — shown up front like the
+                    IQ/Assessment link, so HR can preview or copy them. */}
+                <div className="space-y-2">
+                  <div>
+                    <Label className="flex items-center gap-1 text-[11px] font-medium text-gray-600">
+                      <Link2 size={12} /> Interview kit link
+                    </Label>
+                    {ivpackSheet ? (
+                      <a
+                        href={ivpackSheet.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 block truncate rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
+                      >
+                        {ivpackSheet.url}
+                      </a>
+                    ) : (
+                      <p className="mt-1 rounded-md border border-dashed border-input bg-secondary/20 px-3 py-2 text-[12px] text-gray-400">
+                        Select an interview question set to generate the link.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1 text-[11px] font-medium text-gray-600">
+                      <FileText size={12} /> Candidate résumé link
+                    </Label>
+                    {resumeDoc ? (
+                      <a
+                        href={documentPreviewUrl(resumeDoc.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 block truncate rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
+                      >
+                        {documentPreviewUrl(resumeDoc.id)}
+                      </a>
+                    ) : (
+                      <p className="mt-1 rounded-md border border-dashed border-input bg-secondary/20 px-3 py-2 text-[12px] text-gray-400">
+                        No résumé uploaded for this candidate.
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="ivp-subject" className="text-sm font-medium">

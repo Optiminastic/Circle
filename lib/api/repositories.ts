@@ -21,6 +21,7 @@ import {
 import type {
   RoleQuestionBank,
   InterviewBank,
+  InterviewKitSend,
   ScreeningBank,
   IqBank,
 } from '@/lib/question-banks';
@@ -49,6 +50,7 @@ export const repositories = {
   candidateHandoffs: new ResourceRepository<CandidateHandoff>(RESOURCES.candidateHandoffs.slug),
   assessmentBanks: new ResourceRepository<RoleQuestionBank>(RESOURCES.assessmentBanks.slug),
   interviewBanks: new ResourceRepository<InterviewBank>(RESOURCES.interviewBanks.slug),
+  interviewKitSends: new ResourceRepository<InterviewKitSend>(RESOURCES.interviewKitSends.slug),
   screeningBanks: new ResourceRepository<ScreeningBank>(RESOURCES.screeningBanks.slug),
   iqBank: new ResourceRepository<IqBank>(RESOURCES.iqBank.slug),
 } as const;

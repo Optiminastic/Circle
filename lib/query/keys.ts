@@ -26,6 +26,7 @@ export const qk = {
     all: ['assessment-banks'] as const,
     detail: (id: string) => ['assessment-banks', id] as const,
   },
+  interviewKitSends: { all: ['interview-kit-sends'] as const },
   interviewBanks: {
     all: ['interview-banks'] as const,
     detail: (id: string) => ['interview-banks', id] as const,

@@ -28,6 +28,7 @@ export const RESOURCES = {
   // Question Library banks (shared across devices via the backend, not localStorage).
   assessmentBanks: { slug: 'assessment-banks', idField: 'id' },
   interviewBanks: { slug: 'interview-banks', idField: 'id' },
+  interviewKitSends: { slug: 'interview-kit-sends', idField: 'id' },
   screeningBanks: { slug: 'screening-banks', idField: 'id' },
   iqBank: { slug: 'iq-bank', idField: 'id' },
 } as const;

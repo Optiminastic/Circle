@@ -59,6 +59,14 @@ export function useInterviewBanks() {
   });
 }
 
+/** History of interview kits sent to interviewers manually from Settings. */
+export function useInterviewKitSends() {
+  return useQuery({
+    queryKey: qk.interviewKitSends.all,
+    queryFn: () => repositories.interviewKitSends.list(),
+  });
+}
+
 export function useInterviewBankMutations() {
   const qc = useQueryClient();
   const create = useMutation({

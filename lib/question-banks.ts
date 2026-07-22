@@ -92,6 +92,28 @@ export interface InterviewBank {
   modules: Record<InterviewModule, InterviewItem[]>;
 }
 
+/** A record of an interview kit sent to an interviewer manually from Settings.
+ *  Independent of the candidate's interview pipeline — the interviewer's answers
+ *  are written back onto this record (via the sheet token) and surfaced on the
+ *  candidate's Physical Interview step. */
+export interface InterviewKitSend {
+  id: string;
+  candidateId: string;
+  candidateName: string;
+  interviewerEmail: string;
+  bankId: string;
+  roleName: string;
+  questionCount: number;
+  questions: { text: string; module?: string }[];
+  sheetToken: string;
+  sheetUrl: string;
+  sentAt: string;
+  /** Filled once the interviewer submits their feedback via the sheet. */
+  questionResponses?: unknown[];
+  grading?: { recommendation?: string; interviewerComments?: string; summary?: string };
+  status?: string;
+}
+
 export function emptyInterviewModules(): Record<InterviewModule, InterviewItem[]> {
   return {
     'Problem Solving': [],
