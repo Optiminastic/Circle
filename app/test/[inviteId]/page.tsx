@@ -405,8 +405,9 @@ function TestFlow({ invite }: { invite: TestInvite }) {
       );
     }
 
-    // Candidate-facing completion — deliberately shows NO score / pass-fail.
-    // The result is evaluated server-side and communicated to them by email.
+    // Candidate-facing completion. IQ tests show the score immediately (it's an
+    // objective aptitude number, not a hire/reject verdict); Assessments still
+    // show NO score — that outcome is HR's call, communicated by email.
     return (
       <Shell>
         <Card>
@@ -422,6 +423,14 @@ function TestFlow({ invite }: { invite: TestInvite }) {
                 Thank you, {invite.candidateName.split(' ')[0]} — your responses have been recorded.
               </p>
             </div>
+            {isIq && (
+              <div className="w-full max-w-sm rounded-2xl border border-accent-100 bg-accent-50/50 px-5 py-4">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
+                  Your IQ Score
+                </p>
+                <p className="mt-1 text-3xl font-bold text-gray-900">{result.score}</p>
+              </div>
+            )}
             <div className="w-full max-w-sm rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-3.5 text-sm text-gray-600">
               📧 Our HR team will review your submission and email you about the next steps.
             </div>
