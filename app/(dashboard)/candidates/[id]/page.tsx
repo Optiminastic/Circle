@@ -61,6 +61,7 @@ import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { effectiveFit, fitStyle, FIT_THRESHOLD } from '@/lib/screening';
 import { sendTestEmail, sendCustomEmail } from '@/lib/api/notifications';
+import { pushCalendarEvent } from '@/lib/api/calendar';
 import { BRAND } from '@/lib/brand';
 import {
   ASSIGNMENT_MAX_MARKS,
@@ -221,16 +222,15 @@ export default function CandidateDetailPage() {
   // "Send to interviewer" pack (Physical Interview): question bank + email.
   const [ivpackBanks, setIvpackBanks] = useState<InterviewBank[]>([]);
   const [ivpackBankId, setIvpackBankId] = useState('');
+  // Interviewer's email — editable, pre-filled from the interview record, so HR
+  // can fix/override it right here instead of the send failing silently.
+  const [ivpackToEmail, setIvpackToEmail] = useState('');
   const [ivpackSubject, setIvpackSubject] = useState('');
   const [ivpackBody, setIvpackBody] = useState('');
-  // Physical Interview mode: Offline emails only the interviewer; Online
-  // auto-creates a Google Meet link (via the connected Google Calendar) and
-  // emails it to both the candidate and the interviewer — no manual link.
+  // Physical Interview mode: Offline emails only the interviewer; Online also
+  // auto-creates a Google Meet link (behind the scenes, no Google invite emails
+  // to anyone) and emails it to both the candidate and the interviewer.
   const [ivpackMode, setIvpackMode] = useState<'Online' | 'Offline'>('Offline');
-  // Optional manually-pasted meeting link for an online round. Takes priority
-  // over the auto-created Google Meet link — the fallback when Google Calendar
-  // isn't connected in this environment.
-  const [ivpackMeetLink, setIvpackMeetLink] = useState('');
   // The interview-questions sheet is generated up front (like the IQ/Assessment
   // link) so its URL — plus the résumé URL — can be shown in the modal before
   // sending. Regenerated when the selected bank changes; reused on submit.
@@ -1491,8 +1491,7 @@ export default function CandidateDetailPage() {
     setIvpackSheet(null);
     if (match?.id) void regenIvpackSheet(match.id);
     setIvpackMode((latestInterview?.interviewType as 'Online' | 'Offline') || 'Offline');
-    // Pre-fill with any link already on the interview so re-sending keeps it.
-    setIvpackMeetLink(latestInterview?.meetingLink ?? '');
+    setIvpackToEmail(latestInterview?.interviewerEmail ?? '');
     // Copy comes from Settings → Email templates ("Physical interview —
     // interviewer pack").
     fetchRenderedTemplate('physical_interview_interviewer', {
@@ -1513,8 +1512,13 @@ export default function CandidateDetailPage() {
   };
 
   const submitIvPack = async () => {
-    if (!latestInterview?.interviewerEmail) {
-      toast.error('No interviewer email on file for this interview.');
+    if (!latestInterview) {
+      toast.error('No interview found for this candidate.');
+      return;
+    }
+    const toEmail = ivpackToEmail.trim();
+    if (!toEmail) {
+      toast.error('Enter the interviewer’s email.');
       return;
     }
     const position = candidate.appliedRole || candidate.department || 'the role';
@@ -1524,11 +1528,6 @@ export default function CandidateDetailPage() {
       return;
     }
     const isOnline = ivpackMode === 'Online';
-    const manualMeetLink = ivpackMeetLink.trim();
-    if (isOnline && manualMeetLink && !/^https?:\/\/\S+$/i.test(manualMeetLink)) {
-      toast.error('Enter a valid meeting link (starting with https://), or leave it blank.');
-      return;
-    }
     const resumeUrl = resumeDoc ? documentPreviewUrl(resumeDoc.id) : '';
     // Reuse the sheet already generated for this bank (shown in the modal); only
     // create one here if it's missing or the bank changed after generation.
@@ -1562,30 +1561,55 @@ export default function CandidateDetailPage() {
 
     setOpenForm(null);
 
-    // This modal sends the app's own emails directly to the interviewer (and,
-    // for an online round, the candidate) — it never creates a Google Calendar
-    // event. The meeting link is whatever HR pasted in manually, if anything.
-    const meetLink: string | null | undefined = manualMeetLink || undefined;
+    // Online: mint a Google Meet link behind the scenes — a private, no-attendee
+    // calendar event on the shared HR account purely to generate the link. With
+    // no attendees, Google notifies no one (no "Where/Who/RSVP" invite chrome);
+    // WE deliver the link ourselves via the composed emails below. A separate
+    // appEventId (not the interview's own) keeps this from touching — and
+    // re-notifying whoever's on — the original schedule-time calendar event.
+    let meetLink: string | null | undefined;
     if (isOnline) {
-      // Reflect the mode + any manually-pasted link on the interview record.
-      repositories.interviews
-        .patch(latestInterview.id, {
-          interviewType: 'Online',
-          interviewRound: 'Online',
-          meetingMode: 'Google Meet',
-          ...(meetLink ? { meetingLink: meetLink } : {}),
-        })
-        .then(() => qc.invalidateQueries({ queryKey: qk.interviews.all }))
-        .catch(() => {});
+      try {
+        const res = await pushCalendarEvent({
+          appEventId: `${latestInterview.id}-ivpack-meet`,
+          type: 'Interview',
+          title: ivpackSubject || `Interview - ${candidate.fullName} - ${position}`,
+          dateTimeIso: latestInterview.dateTime,
+          durationMin: latestInterview.durationMinutes ?? 45,
+          online: true,
+        });
+        meetLink = res.meetLink;
+      } catch {
+        /* handled below via the no-link toast */
+      }
+    }
+    {
+      // Reflect the mode + the auto-created link + a corrected interviewer
+      // email on the interview record, so the next open/re-send starts from it.
+      const patch: Record<string, unknown> = {};
+      if (toEmail !== (latestInterview.interviewerEmail ?? '')) patch.interviewerEmail = toEmail;
+      if (isOnline) {
+        patch.interviewType = 'Online';
+        patch.interviewRound = 'Online';
+        patch.meetingMode = 'Google Meet';
+        if (meetLink) patch.meetingLink = meetLink;
+      }
+      if (Object.keys(patch).length > 0) {
+        repositories.interviews
+          .patch(latestInterview.id, patch)
+          .then(() => qc.invalidateQueries({ queryKey: qk.interviews.all }))
+          .catch(() => {});
+      }
     }
 
     const interviewerLinks = [
       ...(resumeUrl ? [{ label: 'View candidate resume', url: resumeUrl }] : []),
       { label: 'Open interview questions', url: sheetUrl },
+      ...(isOnline && meetLink ? [{ label: 'Join with Google Meet', url: meetLink }] : []),
     ];
     try {
       const res = await sendCustomEmail({
-        to: latestInterview.interviewerEmail,
+        to: toEmail,
         subject: ivpackSubject,
         body: ivpackBody,
         links: interviewerLinks,
@@ -1594,7 +1618,7 @@ export default function CandidateDetailPage() {
         .create({
           id: randomId('EML'),
           recipientName: latestInterview.interviewerName || 'Interviewer',
-          recipientEmail: latestInterview.interviewerEmail,
+          recipientEmail: toEmail,
           templateTitle: 'Interview pack',
           subject: ivpackSubject,
           dateSent: nowISO(),
@@ -1642,13 +1666,15 @@ export default function CandidateDetailPage() {
       if (!res.sent) {
         toast.error('Pack created — the interviewer email could not be sent.');
       } else if (isOnline && meetLink) {
-        toast.success('Interview pack sent to the interviewer, and the Google Meet link sent to the candidate.');
+        toast.success('Sent the Google Meet link to both the interviewer and the candidate.');
       } else {
         toast.success('Interview pack sent to the interviewer.');
         if (isOnline) {
-          // No meeting link on the interview record — nothing to send the
-          // candidate, so that email is skipped rather than going out broken.
-          toast.info('No meeting link on file — the candidate was not emailed.');
+          // Couldn't auto-create a Meet link — nothing to send the candidate,
+          // so that email is skipped rather than going out broken.
+          toast.info(
+            'Could not create a Google Meet link — connect Google Calendar in Global Settings, then try again. The candidate was not emailed.',
+          );
         }
       }
     } catch {
@@ -3044,23 +3070,19 @@ export default function CandidateDetailPage() {
             {/* Send resume + interview questions to the interviewer */}
             {openForm === 'ivpack' && (
               <>
-                <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
-                  {ivpackMode === 'Online' ? (
-                    <>
-                      Emails the meeting link to both the candidate
-                      {candidate.email ? ` (${candidate.email})` : ''} and{' '}
-                      {latestInterview?.interviewerName || 'the interviewer'}, along with the resume and
-                      questions. A Google Meet link is auto-created (requires Google Calendar connected
-                      in Global Settings).
-                    </>
-                  ) : (
-                    <>
-                      Sends to {latestInterview?.interviewerName || 'the interviewer'}
-                      {latestInterview?.interviewerEmail ? ` (${latestInterview.interviewerEmail})` : ''} with
-                      the candidate&apos;s resume and the selected interview questions attached as links.
-                    </>
-                  )}
-                </p>
+                <div>
+                  <Label htmlFor="ivp-to" className="text-sm font-medium">
+                    To (interviewer email)
+                  </Label>
+                  <Input
+                    id="ivp-to"
+                    type="email"
+                    value={ivpackToEmail}
+                    onChange={e => setIvpackToEmail(e.target.value)}
+                    placeholder="interviewer@example.com"
+                    className="mt-2"
+                  />
+                </div>
                 <div>
                   <Label htmlFor="ivp-mode" className="text-sm font-medium">
                     Interview mode
@@ -3075,6 +3097,12 @@ export default function CandidateDetailPage() {
                     <option value="Online">Online (Google Meet)</option>
                   </Select>
                 </div>
+                {ivpackMode === 'Online' && (
+                  <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
+                    A Google Meet link is created automatically and emailed to both the candidate and the
+                    interviewer (requires Google Calendar connected in Global Settings).
+                  </p>
+                )}
                 <div>
                   <Label htmlFor="ivp-bank" className="text-sm font-medium">
                     Interview question set
