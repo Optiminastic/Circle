@@ -3,7 +3,7 @@ import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
 import { fetchJobs } from '@/lib/api/server';
 import { CareersOpenings } from '@/components/careers/CareersOpenings';
-import { ArrowUpRight, ArrowDown, AlertTriangle } from 'lucide-react';
+import { ArrowUpRight, ArrowDown, AlertTriangle, CheckCircle2, Users, Briefcase, TrendingUp } from 'lucide-react';
 import type { Job } from '@/types';
 
 /**
@@ -93,16 +93,66 @@ export default async function CareersPage() {
         </section>
       </div>
 
-      <main id="openings" className="mx-auto max-w-3xl px-5 pb-20">
-        {failed ? (
-          <div className="flex flex-col items-center gap-3 py-24 text-center text-gray-500">
-            <AlertTriangle className="text-amber-500" size={28} />
-            <p className="font-semibold text-gray-800">Could not load openings</p>
-            <p className="text-sm">Please refresh the page in a moment.</p>
+      <main className="mx-auto max-w-3xl px-5 pb-20">
+        {/* Trust & Experience Section */}
+        <div className="mb-12 rounded-2xl border border-accent-200/60 bg-gradient-to-br from-accent-50/80 to-white p-6 shadow-sm backdrop-blur-sm sm:p-8">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-600 text-white">
+              <CheckCircle2 size={20} />
+            </div>
+            <h2 className="font-display text-xl font-bold text-gray-900">
+              Why join {BRAND.company}?
+            </h2>
           </div>
-        ) : (
-          <CareersOpenings jobs={open} />
-        )}
+          <p className="mb-6 text-sm leading-relaxed text-gray-700">
+            Our HR platform is built from hands-on experience managing real hiring pipelines and employee lifecycles. We've processed hundreds of applications, conducted countless interviews, and refined every workflow based on what actually works in practice.
+          </p>
+          
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-white bg-white/60 p-4 backdrop-blur-sm">
+              <div className="mb-2 flex items-center gap-2 text-accent-600">
+                <Users size={18} />
+                <span className="font-display text-2xl font-bold">Real-world</span>
+              </div>
+              <p className="text-xs text-gray-600">
+                Built by HR practitioners who understand the daily challenges of talent management
+              </p>
+            </div>
+            
+            <div className="rounded-xl border border-white bg-white/60 p-4 backdrop-blur-sm">
+              <div className="mb-2 flex items-center gap-2 text-accent-600">
+                <Briefcase size={18} />
+                <span className="font-display text-2xl font-bold">Battle-tested</span>
+              </div>
+              <p className="text-xs text-gray-600">
+                Every feature refined through actual hiring cycles and employee onboarding processes
+              </p>
+            </div>
+            
+            <div className="rounded-xl border border-white bg-white/60 p-4 backdrop-blur-sm">
+              <div className="mb-2 flex items-center gap-2 text-accent-600">
+                <TrendingUp size={18} />
+                <span className="font-display text-2xl font-bold">Proven</span>
+              </div>
+              <p className="text-xs text-gray-600">
+                Workflows optimized based on direct feedback from HR teams managing live operations
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Job Openings */}
+        <div id="openings">
+          {failed ? (
+            <div className="flex flex-col items-center gap-3 py-24 text-center text-gray-500">
+              <AlertTriangle className="text-amber-500" size={28} />
+              <p className="font-semibold text-gray-800">Could not load openings</p>
+              <p className="text-sm">Please refresh the page in a moment.</p>
+            </div>
+          ) : (
+            <CareersOpenings jobs={open} />
+          )}
+        </div>
       </main>
 
       <footer className="mx-auto max-w-3xl border-t border-[#EDEEF1] px-5 py-10 text-[11px] text-gray-400">
