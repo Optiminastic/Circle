@@ -319,7 +319,24 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
               organizerName: `${BRAND.company} HR`,
               attendees: interviewerAttendees,
               eventUid: `${existing.id}-interviewer`,
-            }).catch(() => {});
+            })
+              .then(r => {
+                if (!r.sent) return;
+                repositories.sentEmails
+                  .create({
+                    id: randomId('EML'),
+                    recipientName: input.interviewerName || 'Interviewer',
+                    recipientEmail: input.interviewerEmail,
+                    templateTitle: 'Interview — interviewer notified of reschedule',
+                    subject: tpl.subject,
+                    dateSent: nowISO(),
+                    status: 'Sent',
+                    relatedEntity: c.fullName,
+                  })
+                  .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+                  .catch(() => {});
+              })
+              .catch(() => {});
           })
           .catch(() => {});
       }
@@ -587,7 +604,24 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             subject: tpl.subject,
             body: tpl.body,
             ...interviewerEventFields,
-          }).catch(() => {});
+          })
+            .then(r => {
+              if (!r.sent) return;
+              repositories.sentEmails
+                .create({
+                  id: randomId('EML'),
+                  recipientName: input.interviewerName || 'Interviewer',
+                  recipientEmail: input.interviewerEmail,
+                  templateTitle: 'Interview — interviewer notified',
+                  subject: tpl.subject,
+                  dateSent: nowISO(),
+                  status: 'Sent',
+                  relatedEntity: c.fullName,
+                })
+                .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+                .catch(() => {});
+            })
+            .catch(() => {});
         })
         .catch(() => {});
     }

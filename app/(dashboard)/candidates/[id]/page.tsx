@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -43,6 +43,7 @@ import {
   InterviewQuestionResponse,
   ScheduleType,
   ScreeningReview,
+  SentEmailLog,
   StageDecision,
   TestInvite,
 } from '@/types';
@@ -53,6 +54,7 @@ import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews, useInterviewMutations } from '@/features/interviews/hooks';
 import { useHrIdentity } from '@/features/employees/hooks';
 import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
+import { useSentEmails } from '@/features/email/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
 import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { useScheduler } from '@/store/schedule-store';
@@ -186,6 +188,7 @@ export default function CandidateDetailPage() {
   const { data: iqTests = [] } = useIqTests();
   const { data: interviewBanks = [] } = useInterviewBanks();
   const { data: kitSends = [] } = useInterviewKitSends();
+  const { data: sentEmails = [] } = useSentEmails();
   const { data: invites = [] } = useQuery({
     queryKey: qk.testInvites.all,
     queryFn: () => repositories.testInvites.list(),
@@ -255,8 +258,11 @@ export default function CandidateDetailPage() {
   // Optional HR-written summary of the physical interview.
   const [fbSummary, setFbSummary] = useState('');
   // Final decision (Decision step): the HR summary + the editable outcome email.
+  // Also reused by Physical Interview's "Reject" recommendation — decisionStage
+  // says which stageDecisions key submitDecision actually writes to.
   const [decisionSummary, setDecisionSummary] = useState('');
   const [decisionKind, setDecisionKind] = useState<'accept' | 'reject' | null>(null);
+  const [decisionStage, setDecisionStage] = useState<string>('Decision');
   const [decisionSubject, setDecisionSubject] = useState('');
   const [decisionBody, setDecisionBody] = useState('');
   // "Send IQ test" / "Send Assessment" modal — the invite id/link is generated up front.
@@ -413,7 +419,24 @@ export default function CandidateDetailPage() {
     try {
       const res = await sendCustomEmail({ to: candidate.email, subject: mail.subject, body: mail.body });
       if (res.sent) {
-        toast.success(mail.kind === 'reject' ? 'Rejection email sent.' : 'Reminder email sent.');
+        // The header Reject also marks the candidate rejected at whatever stage
+        // they're currently on — matching every other reject path, and required
+        // for later steps to render crossed-out instead of staying green.
+        if (mail.kind === 'reject') setStageDecision(stages[currentIndex].label, 'Rejected', 'Rejected');
+        repositories.sentEmails
+          .create({
+            id: randomId('EML'),
+            recipientName: candidate.fullName,
+            recipientEmail: candidate.email,
+            templateTitle: mail.kind === 'reject' ? `${stages[currentIndex].label} — Rejected` : 'Reminder — JD',
+            subject: mail.subject,
+            dateSent: nowISO(),
+            status: 'Sent',
+            relatedEntity: candidate.fullName,
+          })
+          .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+          .catch(() => {});
+        toast.success(mail.kind === 'reject' ? 'Candidate rejected — email sent.' : 'Reminder email sent.');
         setMail(null);
       } else {
         toast.error('Email not sent — please try again.');
@@ -587,7 +610,14 @@ export default function CandidateDetailPage() {
   const failIdx = stages.findIndex(
     s => (s.label === 'IQ Test' && iqFailed) || (s.label === 'Assessment' && asgFailed),
   );
-  const stopIdx = failIdx >= 0 ? failIdx : rejected ? currentIndex : -1;
+  // The stage whose OWN decision was actually set to 'Rejected' — e.g. Screening,
+  // HR Call, Physical Interview, or Decision. Rejecting there also flips
+  // Decision.reached (via `decided`), which alone would walk currentIndex all the
+  // way to the end and wrongly paint every step in between as done/green — so the
+  // halt point must come from where the rejection was actually recorded, not from
+  // currentIndex.
+  const rejectedStageIdx = stages.findIndex(s => candidate.stageDecisions?.[s.label] === 'Rejected');
+  const stopIdx = failIdx >= 0 ? failIdx : rejectedStageIdx >= 0 ? rejectedStageIdx : rejected ? currentIndex : -1;
   const stepState = (i: number): StepState => {
     // The halt step and everything after it are crossed out.
     if (stopIdx >= 0 && i >= stopIdx) return 'rejected';
@@ -680,6 +710,35 @@ export default function CandidateDetailPage() {
     red: 'bg-red-500',
     gray: 'bg-gray-400',
   };
+
+  // ---- email log — every email actually sent to (or, for the interviewer
+  // pack, about) this candidate, one line each ----
+  // `templateTitle` strings that need a friendlier one-liner; anything else
+  // (incl. the dynamic "{stage} — Rejected" titles) is shown as-is.
+  const EMAIL_LOG_LABELS: Record<string, string> = {
+    'Application received': 'Application received',
+    'IQ test invite': 'IQ Test — invite sent',
+    'Assessment invite': 'Assessment — invite sent',
+    'Interview Invitation': 'Interview scheduled',
+    'Interview scheduled email': 'Interview scheduled',
+    'Interview Rescheduled': 'Interview rescheduled',
+    'Interview — interviewer notified': 'Interview — interviewer notified',
+    'Interview — interviewer notified of reschedule': 'Interview reschedule — interviewer notified',
+    'Interview pack': 'Physical Interview — pack sent to interviewer',
+    'Interview — online link': 'Physical Interview — online (Google Meet) link sent',
+    'Reminder — JD': 'Reminder — JD sent',
+    'Offer / Congratulations': 'Hired — congratulations email sent',
+    'Shortlisted for offer': 'Shortlisted for the offer — confirmation email sent',
+  };
+  const emailLog = useMemo(
+    () =>
+      sentEmails
+        .filter((m: SentEmailLog) => m.relatedEntity === candidate.fullName)
+        .sort((a, b) => new Date(a.dateSent).getTime() - new Date(b.dateSent).getTime()),
+    [sentEmails, candidate.fullName],
+  );
+  // Simple two-tone read: any rejection mail is red, everything else is green.
+  const emailLogTone = (m: SentEmailLog): 'red' | 'green' => (/reject/i.test(m.templateTitle) ? 'red' : 'green');
 
   const mustHaves = (candidate.screeningAnswers ?? []).filter(a => a.importance === 'Must Have');
   const goodToHaves = (candidate.screeningAnswers ?? []).filter(a => a.importance === 'Good to Have');
@@ -1066,15 +1125,32 @@ export default function CandidateDetailPage() {
       toast.info('Selected & moved to onboarding, but no email on file — candidate not notified.');
       return;
     }
+    const position = candidate.appliedRole || candidate.department;
     sendTestEmail({
       to: candidate.email,
       candidateName: candidate.fullName,
       template: 'offer_selected',
-      position: candidate.appliedRole || candidate.department,
+      position,
     })
       .then(res => {
-        if (res.sent) toast.success('Selected — onboarding started, availability email sent.');
-        else if (res.reason === 'not_configured')
+        if (res.sent) {
+          toast.success('Selected — onboarding started, availability email sent.');
+          repositories.sentEmails
+            .create({
+              id: randomId('EML'),
+              recipientName: candidate.fullName,
+              recipientEmail: candidate.email!,
+              templateTitle: 'Offer / Congratulations',
+              subject: position
+                ? `You're selected for ${position} at Optiminastic — confirm your availability`
+                : "You're selected at Optiminastic — confirm your availability",
+              dateSent: nowISO(),
+              status: 'Sent',
+              relatedEntity: candidate.fullName,
+            })
+            .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+            .catch(() => {});
+        } else if (res.reason === 'not_configured')
           toast.info('Selected & moved to onboarding. Email not sent — SMTP is not configured yet.');
         else toast.info('Selected & moved to onboarding, but the candidate was not emailed.');
       })
@@ -1089,31 +1165,44 @@ export default function CandidateDetailPage() {
       toast.info('Shortlisted, but no email on file — candidate not notified.');
       return;
     }
+    const position = candidate.appliedRole || candidate.department;
     sendTestEmail({
       to: candidate.email,
       candidateName: candidate.fullName,
       template: 'offer_shortlisted',
-      position: candidate.appliedRole || candidate.department,
+      position,
     })
       .then(res => {
-        if (res.sent) toast.success('Shortlisted — confirmation email sent.');
-        else if (res.reason === 'not_configured')
+        if (res.sent) {
+          toast.success('Shortlisted — confirmation email sent.');
+          repositories.sentEmails
+            .create({
+              id: randomId('EML'),
+              recipientName: candidate.fullName,
+              recipientEmail: candidate.email!,
+              templateTitle: 'Shortlisted for offer',
+              subject: position
+                ? `You're shortlisted for ${position} at Optiminastic — confirm your availability`
+                : "You're shortlisted at Optiminastic — confirm your availability",
+              dateSent: nowISO(),
+              status: 'Sent',
+              relatedEntity: candidate.fullName,
+            })
+            .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+            .catch(() => {});
+        } else if (res.reason === 'not_configured')
           toast.info('Shortlisted. Email not sent — SMTP is not configured yet.');
         else toast.info('Shortlisted, but the candidate was not emailed.');
       })
       .catch(() => toast.error('Shortlisted, but sending the email failed.'));
   };
 
-  const rejectCandidate = () => {
-    update.mutate({ ...candidate, status: 'Rejected', decidedAt: nowISO() });
-    toast.info('Candidate marked as rejected.');
-  };
-
   // ---- Final decision (Decision step): open the outcome-email composer ----
-  const openDecision = (kind: 'accept' | 'reject') => {
+  const openDecision = (kind: 'accept' | 'reject', stage: string = 'Decision') => {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const summary = decisionSummary.trim();
     setDecisionKind(kind);
+    setDecisionStage(stage);
     // Copy comes from Settings → Email templates ("Hired — congratulations" /
     // "Rejected — after interview"), so HR's saved edits seed this composer.
     const iqText = myIq[0]
@@ -1146,7 +1235,7 @@ export default function CandidateDetailPage() {
       status,
       stageDecisions: {
         ...(candidate.stageDecisions ?? {}),
-        Decision: isAccept ? 'Accepted' : 'Rejected',
+        [decisionStage]: isAccept ? 'Accepted' : 'Rejected',
       },
       hrRemarks: decisionSummary.trim() || candidate.hrRemarks,
       decidedAt: nowISO(),
@@ -1157,6 +1246,7 @@ export default function CandidateDetailPage() {
       });
     setOpenForm(null);
     setDecisionKind(null);
+    setDecisionStage('Decision');
     // Resolved — close the Decision step's accordion too.
     setOpenStep(-1);
     if (!candidate.email) {
@@ -1174,7 +1264,7 @@ export default function CandidateDetailPage() {
           id: randomId('EML'),
           recipientName: candidate.fullName,
           recipientEmail: candidate.email,
-          templateTitle: isAccept ? 'Offer / Congratulations' : 'Rejection',
+          templateTitle: isAccept ? 'Offer / Congratulations' : `${decisionStage} — Rejected`,
           subject: decisionSubject,
           dateSent: nowISO(),
           status: res.sent ? 'Sent' : 'Failed',
@@ -1331,6 +1421,7 @@ export default function CandidateDetailPage() {
     }
     // Copy comes from Settings → Email templates ("Rejected — IQ test" /
     // "Rejected — assessment"), so HR's saved edits are what goes out.
+    let sentSubject = '';
     fetchRenderedTemplate(stage === 'IQ Test' ? 'rejection_iq' : 'rejection_assessment', {
       candidate_name: candidate.fullName,
       role: position,
@@ -1340,11 +1431,26 @@ export default function CandidateDetailPage() {
     })
       .then(tpl => {
         if (!tpl) throw new Error('missing template');
+        sentSubject = tpl.subject;
         return sendCustomEmail({ to: candidate.email, subject: tpl.subject, body: tpl.body });
       })
       .then(res => {
-        if (res.sent) toast.success(`Candidate rejected — ${stage} result email sent.`);
-        else if (res.reason === 'not_configured')
+        if (res.sent) {
+          toast.success(`Candidate rejected — ${stage} result email sent.`);
+          repositories.sentEmails
+            .create({
+              id: randomId('EML'),
+              recipientName: candidate.fullName,
+              recipientEmail: candidate.email,
+              templateTitle: `${stage} — Rejected`,
+              subject: sentSubject,
+              dateSent: nowISO(),
+              status: 'Sent',
+              relatedEntity: candidate.fullName,
+            })
+            .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+            .catch(() => {});
+        } else if (res.reason === 'not_configured')
           toast.info('Candidate rejected. Email not sent — SMTP is not configured.');
         else toast.info('Candidate rejected — the result email could not be sent.');
       })
@@ -1402,19 +1508,28 @@ export default function CandidateDetailPage() {
   const submitFeedback = () => {
     if (!fbInterview) return;
     // A hire recommendation (Hire / Strong Hire) opens the final Decision step;
-    // anything else keeps it closed. HR's saved choice is the gate.
+    // Reject opens the same editable subject/body composer as the terminal
+    // Decision step, but targets the Physical Interview stage; anything else
+    // (Hold / Re-Interview Required) just keeps it closed. HR's saved choice is
+    // the gate.
     const positive = fbRec === 'Hire' || fbRec === 'Strong Hire';
+    const rejected = fbRec === 'Reject';
     gradeInterview.mutate(
       { interviewId: fbInterview.id, recommendation: fbRec, comments: fbComments, summary: fbSummary },
       {
         onSuccess: () => {
+          setFbInterview(null);
+          setFbResponses(null);
+          if (rejected) {
+            setDecisionSummary(fbSummary || fbComments || '');
+            openDecision('reject', 'Physical Interview');
+            return;
+          }
           setStageDecision('Physical Interview', positive ? 'Accepted' : 'On Hold');
           toast.success(
             positive ? 'Feedback saved — proceed to the final decision.' : 'Feedback saved.',
           );
           setOpenForm(null);
-          setFbInterview(null);
-          setFbResponses(null);
         },
         onError: () => toast.error('Could not save feedback — try again.'),
       },
@@ -1720,7 +1835,7 @@ export default function CandidateDetailPage() {
     const label = stages[idx].label;
     const btns: React.ReactNode[] = [];
 
-    if (label === 'Screening')
+    if (label === 'Screening' && !decided)
       btns.push(
         iconBtn(
           'screen',
@@ -1743,7 +1858,7 @@ export default function CandidateDetailPage() {
     // IQ test, Assessment and Physical Interview are all INDEPENDENT once the
     // interview schedule mail has gone out — HR can send any of them in any
     // order (no "IQ must pass before Assessment" gating).
-    if (label === 'IQ Test') {
+    if (label === 'IQ Test' && !decided) {
       const iqPassed = myIq[0]?.qualificationStatus === 'Passed';
       // Active once the interview is scheduled; Send until it's sent, then
       // Re-assign for a retry, hidden only once the candidate has passed.
@@ -1758,7 +1873,7 @@ export default function CandidateDetailPage() {
         );
     }
 
-    if (label === 'Assessment') {
+    if (label === 'Assessment' && !decided) {
       const asgPassed = asgInvite?.status === 'Graded' && asgInvite.passed;
       // Active once the interview is scheduled — independent of the IQ result.
       // Send until it's sent, then Re-assign; hidden while awaiting grading
@@ -1778,7 +1893,7 @@ export default function CandidateDetailPage() {
         btns.push(iconBtn('review', <CheckCircle2 size={15} />, 'Review grade', openGrade));
     }
 
-    if (label === 'Interview Schedule') {
+    if (label === 'Interview Schedule' && !decided) {
       // A cancelled interview frees the slot — treat the candidate as unbooked so
       // HR can schedule a fresh one instead of a dead reschedule/cancel.
       const hasActiveInterview = myInterviews.some(iv => iv.status !== 'Cancelled');
@@ -1809,7 +1924,7 @@ export default function CandidateDetailPage() {
       }
     }
 
-    if (label === 'Physical Interview') {
+    if (label === 'Physical Interview' && !decided) {
       // Feedback is "in" once the interviewer's responses arrive — either on the
       // interview record, or on a Settings interview-kit answered externally.
       const ivResponded = !!latestInterview?.questionResponses?.length;
@@ -2217,7 +2332,9 @@ export default function CandidateDetailPage() {
           <button
             type="button"
             onClick={openRejectMail}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+            disabled={iqReached || decided}
+            title={iqReached && !decided ? 'IQ Test has started — use the Reject button on the current stage instead' : undefined}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
           >
             <ThumbsDown size={14} /> Reject
           </button>
@@ -2537,6 +2654,38 @@ export default function CandidateDetailPage() {
                 </li>
               ))}
             </ol>
+          </div>
+
+          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+            <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-gray-900">
+              <Mail size={14} className="text-accent-600" /> Email Log
+            </h3>
+            {emailLog.length === 0 ? (
+              <p className="text-[11px] text-gray-400">No emails sent to this candidate yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {emailLog.map(m => {
+                  const tone = emailLogTone(m);
+                  const cls = tone === 'red' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100';
+                  const textCls = tone === 'red' ? 'text-red-700' : 'text-emerald-700';
+                  return (
+                    <div key={m.id} className={`rounded-lg border px-3 py-2 ${cls}`}>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className={`text-[12px] font-semibold ${textCls}`}>
+                          {EMAIL_LOG_LABELS[m.templateTitle] ?? m.templateTitle}
+                          {m.status === 'Failed' && (
+                            <span className="ml-1.5 font-normal text-red-500">(not sent)</span>
+                          )}
+                        </p>
+                        <span className="shrink-0 font-mono text-[10px] text-gray-400">
+                          {fmtDateTime(m.dateSent)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {upcomingInterviews.length > 0 && (
