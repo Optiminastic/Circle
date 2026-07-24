@@ -1893,22 +1893,31 @@ export default function CandidateDetailPage() {
         btns.push(iconBtn('review', <CheckCircle2 size={15} />, 'Review grade', openGrade));
     }
 
-    if (label === 'Interview Schedule' && !decided) {
+    if (label === 'Interview Schedule') {
       // A cancelled interview frees the slot — treat the candidate as unbooked so
-      // HR can schedule a fresh one instead of a dead reschedule/cancel.
+      // HR can schedule a fresh one instead of a dead reschedule/cancel. Only
+      // offered while nothing's been decided yet — there's nothing to schedule
+      // for a candidate who's already been accepted/rejected.
       const hasActiveInterview = myInterviews.some(iv => iv.status !== 'Cancelled');
-      if (!hasActiveInterview) btns.push(scheduleBtn('Interview', 'Schedule Interview'));
-      // Once booked, allow rescheduling (re-opens the modal and re-emails the
-      // candidate) or cancelling (removes the calendar events + frees the slot).
-      else {
+      if (!hasActiveInterview) {
+        if (!decided) btns.push(scheduleBtn('Interview', 'Schedule Interview'));
+      } else {
+        // Once booked, reschedule/cancel stay VISIBLE for as long as the
+        // interview exists (so HR can always see + clean up a leftover booking)
+        // but are DISABLED — never hidden — once the candidate has moved past
+        // this step or been decided at any stage, so it's clear why they're locked.
         btns.push(
-          iconBtn('reschedule', <CalendarClock size={15} />, 'Reschedule interview', () =>
-            rescheduleInterview(candidate),
+          iconBtn(
+            'reschedule',
+            <CalendarClock size={15} />,
+            decided ? 'Reschedule unavailable — the candidate has already been decided' : 'Reschedule interview',
+            () => rescheduleInterview(candidate),
+            decided,
           ),
         );
-        // Cancel is only allowed while Interview Schedule is the CURRENT step —
-        // i.e. the interview is booked but the candidate hasn't moved forward to
-        // the IQ test yet (and isn't already decided). Disabled otherwise.
+        // Cancel is only enabled while Interview Schedule is still the CURRENT
+        // step — i.e. later steps haven't started — and the candidate hasn't
+        // been decided at any stage. Disabled (not hidden) otherwise.
         const canCancel = idx === currentIndex && !decided;
         btns.push(
           iconBtn(
@@ -1916,7 +1925,9 @@ export default function CandidateDetailPage() {
             <CalendarX size={15} />,
             canCancel
               ? 'Cancel interview'
-              : 'Cancel unavailable — the candidate has already moved to the next step',
+              : decided
+                ? 'Cancel unavailable — the candidate has already been decided'
+                : 'Cancel unavailable — the candidate has already moved to the next step',
             () => cancelInterview(candidate),
             !canCancel,
           ),
