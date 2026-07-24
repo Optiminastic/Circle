@@ -3,7 +3,7 @@ import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
 import { fetchJobs } from '@/lib/api/server';
 import { CareersOpenings } from '@/components/careers/CareersOpenings';
-import { ArrowUpRight, ArrowDown, AlertTriangle } from 'lucide-react';
+import { ArrowUpRight, ArrowDown, AlertTriangle, ExternalLink } from 'lucide-react';
 import type { Job } from '@/types';
 
 /**
@@ -92,6 +92,90 @@ export default async function CareersPage() {
           </div>
         </section>
       </div>
+
+      {/* ---- Why Join Us section with authoritative links ---- */}
+      <section className="mx-auto max-w-3xl px-5 pb-12 pt-8">
+        <div className="rounded-2xl border border-[#E4E6EA] bg-white/80 p-6 backdrop-blur-sm sm:p-8">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-gray-900">
+            Why Join {BRAND.company}?
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-gray-600">
+            We believe in creating a workplace that supports professional growth, work-life balance,
+            and continuous learning. Research shows that these factors are critical to employee
+            satisfaction and long-term career success.
+          </p>
+          
+          <div className="mt-6 space-y-4">
+            <div className="rounded-lg border border-[#EDEEF1] bg-[#F8F9FB] p-4">
+              <h3 className="text-sm font-semibold text-gray-900">Professional Development</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-gray-600">
+                We invest in continuous learning and skill development. According to the{' '}
+                <a
+                  href="https://www.bls.gov/careeroutlook/2022/article/career-planning.htm"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-medium text-accent-600 hover:text-accent-700 hover:underline"
+                >
+                  U.S. Bureau of Labor Statistics
+                  <ExternalLink size={11} className="shrink-0" />
+                </a>
+                , ongoing professional development is essential for career advancement and job satisfaction.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-[#EDEEF1] bg-[#F8F9FB] p-4">
+              <h3 className="text-sm font-semibold text-gray-900">Work-Life Balance</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-gray-600">
+                We support flexible work arrangements and prioritize employee well-being. The{' '}
+                <a
+                  href="https://www.who.int/news-room/fact-sheets/detail/mental-health-at-work"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-medium text-accent-600 hover:text-accent-700 hover:underline"
+                >
+                  World Health Organization
+                  <ExternalLink size={11} className="shrink-0" />
+                </a>
+                {' '}emphasizes that healthy work environments are fundamental to mental health and productivity.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-[#EDEEF1] bg-[#F8F9FB] p-4">
+              <h3 className="text-sm font-semibold text-gray-900">Diversity & Inclusion</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-gray-600">
+                We're committed to building diverse teams. Research from{' '}
+                <a
+                  href="https://www.eeoc.gov/employers/small-business/3-best-practices-recruiting-and-hiring"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-medium text-accent-600 hover:text-accent-700 hover:underline"
+                >
+                  U.S. Equal Employment Opportunity Commission
+                  <ExternalLink size={11} className="shrink-0" />
+                </a>
+                {' '}shows that diverse workplaces foster innovation and better decision-making.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-[#EDEEF1] bg-[#F8F9FB] p-4">
+              <h3 className="text-sm font-semibold text-gray-900">Career Growth</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-gray-600">
+                We provide clear career pathways and mentorship opportunities. According to{' '}
+                <a
+                  href="https://en.wikipedia.org/wiki/Career_development"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-medium text-accent-600 hover:text-accent-700 hover:underline"
+                >
+                  career development research
+                  <ExternalLink size={11} className="shrink-0" />
+                </a>
+                , structured career development programs significantly improve employee retention and engagement.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <main id="openings" className="mx-auto max-w-3xl px-5 pb-20">
         {failed ? (
