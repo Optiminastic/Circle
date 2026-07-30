@@ -48,6 +48,7 @@ import {
   Flag,
   Gauge,
   Radio,
+  RotateCcw,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
@@ -124,7 +125,7 @@ export function CandidateListView({
   const { data: jobs = [] } = useJobs();
   // "Hire" shortcut: mark Selected + spin up the onboarding checklist, so a
   // candidate can be pushed straight into the onboarding flow.
-  const { move } = useCandidateMutations();
+  const { move, update } = useCandidateMutations();
   const ensureOnboarding = useEnsureOnboarding();
   const hireCandidate = (cand: Candidate) => {
     move.mutate({ id: cand.id, status: 'Selected' });
@@ -132,6 +133,25 @@ export function CandidateListView({
       onSuccess: () => toast.success(`${cand.fullName} moved to the onboarding checklist.`),
       onError: () => toast.error('Could not start onboarding — try again.'),
     });
+  };
+
+  // Bring a rejected candidate back into the active pipeline — clears whichever
+  // stage decision was set to 'Rejected' + decidedAt, and restores a
+  // non-terminal status so the pipeline stage badge re-derives from their other
+  // (untouched) stageDecisions/schedules instead of showing them as decided.
+  const revertRejection = (cand: Candidate) => {
+    const rejectedLabel = Object.entries(cand.stageDecisions ?? {}).find(
+      ([, decision]) => decision === 'Rejected',
+    )?.[0];
+    const stageDecisions = { ...(cand.stageDecisions ?? {}) };
+    if (rejectedLabel) delete stageDecisions[rejectedLabel];
+    update.mutate({
+      ...cand,
+      status: 'Under Review',
+      decidedAt: undefined,
+      stageDecisions,
+    });
+    toast.success(`${cand.fullName} reverted — back in the active pipeline.`);
   };
 
   // Cross-entity data needed to derive each candidate's current pipeline stage
@@ -628,6 +648,23 @@ export function CandidateListView({
                                         'Marks them Selected and creates their onboarding checklist, skipping the remaining pipeline steps.',
                                       confirmLabel: 'Hire',
                                       onConfirm: () => hireCandidate(cand),
+                                    }),
+                                },
+                              ] as const)
+                            : []),
+                          ...(cand.status === 'Rejected'
+                            ? ([
+                                {
+                                  key: 'revert-reject',
+                                  label: 'Revert rejection',
+                                  icon: <RotateCcw size={13} />,
+                                  onClick: () =>
+                                    toast.confirm({
+                                      title: `Revert ${cand.fullName}'s rejection?`,
+                                      description:
+                                        'Brings the candidate back into the active pipeline for this role, at the stage they were rejected from.',
+                                      confirmLabel: 'Revert',
+                                      onConfirm: () => revertRejection(cand),
                                     }),
                                 },
                               ] as const)
