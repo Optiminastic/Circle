@@ -33,7 +33,6 @@ import {
   BadgeCheck,
   FileText,
   ChevronRight,
-  SlidersHorizontal,
   Trash2,
   UserSearch,
   X,
@@ -89,6 +88,14 @@ const DEPT_COLOR: Record<string, DotColor> = {
   Marketing: 'pink',
 };
 const deptColor = (d: string): DotColor => DEPT_COLOR[d] ?? 'gray';
+
+// CTC is stored as a bare number string ("2", "2.3") — append "LPA" for
+// display unless it's already there (some older/manual entries include it).
+const formatCtc = (value: string): string => {
+  const v = (value ?? '').trim();
+  if (!v) return '—';
+  return /lpa/i.test(v) ? v : `${v} LPA`;
+};
 
 interface CandidateListViewProps {
   candidates: Candidate[];
@@ -414,105 +421,78 @@ export function CandidateListView({
         </div>
       )}
 
-      {/* Advanced Filter Bars */}
+      {/* Advanced Filter Bars — a flat inline toolbar, no card/background around it. */}
       {showFilters && (
-      <div className="bg-[#FFFFFF] border border-[#E4E6EA] p-4 rounded-xl shadow-2xs space-y-3">
-        <div className="flex items-center gap-2 text-gray-700 font-semibold mb-1">
-          <SlidersHorizontal size={13} className="text-accent-600" />
-          <span>Evaluation Filters</span>
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#E4E6EA] pb-3 text-xs">
+        <div className="relative">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
+            <Search size={12} />
+          </span>
+          <input
+            type="text"
+            placeholder="Search name, applied role..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8 w-48 rounded-md border border-[#E4E6EA] bg-white pl-7 pr-3 text-xs focus:border-accent-400"
+          />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto] gap-3.5 text-xs">
-          {/* Text filters — narrower on wide screens so all six filters (incl.
-              Rejected) sit on one row. */}
-          <div className="space-y-1 col-span-1 sm:col-span-2 lg:col-span-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Candidate search</span>
-            <div className="relative">
-              <span className="absolute left-2.5 top-2.5 text-gray-500">
-                <Search size={12} />
-              </span>
-              <input
-                type="text"
-                placeholder="Search name, applied role..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-7 pr-3 py-1.5 bg-[#EDEEF1] border border-[#E4E6EA] rounded text-xs focus:bg-[#FFFFFF]"
-              />
-            </div>
-          </div>
+        <Select
+          value={selectedDept}
+          onChange={e => setSelectedDept(e.target.value)}
+          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+        >
+          {departments.map(d => (
+            <option key={d} value={d}>
+              {d === 'All' ? 'All Departments' : d}
+            </option>
+          ))}
+        </Select>
 
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Department</span>
-            <Select
-              value={selectedDept}
-              onChange={e => setSelectedDept(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#EDEEF1] border border-[#E4E6EA] rounded"
-            >
-              {departments.map(d => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </Select>
-          </div>
+        <Select
+          value={maxNoticePeriod}
+          onChange={e => setMaxNoticePeriod(Number(e.target.value))}
+          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 font-mono text-gray-700"
+        >
+          <option value={9999}>Any Notice</option>
+          <option value={30}>≤ 30 Days</option>
+          <option value={15}>≤ 15 Days</option>
+          <option value={0}>Immediate</option>
+        </Select>
 
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Notice period</span>
-            <Select
-              value={maxNoticePeriod}
-              onChange={e => setMaxNoticePeriod(Number(e.target.value))}
-              className="w-full px-2 py-1.5 bg-[#EDEEF1] border border-[#E4E6EA] rounded font-mono"
-            >
-              <option value={9999}>Any Notice</option>
-              <option value={30}>≤ 30 Days</option>
-              <option value={15}>≤ 15 Days</option>
-              <option value={0}>Immediate</option>
-            </Select>
-          </div>
+        <Select
+          value={selectedStatus}
+          onChange={e => setSelectedStatus(e.target.value)}
+          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+        >
+          {statuses.map(s => (
+            <option key={s} value={s}>
+              {s === 'All' ? 'All Stages' : s}
+            </option>
+          ))}
+        </Select>
 
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Stage status</span>
-            <Select
-              value={selectedStatus}
-              onChange={e => setSelectedStatus(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#EDEEF1] border border-[#E4E6EA] rounded"
-            >
-              {statuses.map(s => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
-          </div>
+        <Select
+          value={selectedSource}
+          onChange={e => setSelectedSource(e.target.value)}
+          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+        >
+          {sources.map(sc => (
+            <option key={sc} value={sc}>
+              {sc === 'All' ? 'All Sources' : sc}
+            </option>
+          ))}
+        </Select>
 
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Medium Source</span>
-            <Select
-              value={selectedSource}
-              onChange={e => setSelectedSource(e.target.value)}
-              className="w-full px-2 py-1.5 bg-[#EDEEF1] border border-[#E4E6EA] rounded"
-            >
-              {sources.map(sc => (
-                <option key={sc} value={sc}>
-                  {sc}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          {/* Rejected toggle — off: hide rejected; on: show only rejected. */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-gray-500 uppercase font-mono">Rejected</span>
-            <label className="flex h-[30px] cursor-pointer items-center gap-2 text-gray-700">
-              <Checkbox
-                checked={showRejected}
-                onCheckedChange={v => setShowRejected(v === true)}
-                aria-label="Show only rejected candidates"
-              />
-              <span className="text-xs font-medium">Show rejected</span>
-            </label>
-          </div>
-        </div>
+        {/* Rejected toggle — off: hide rejected; on: show only rejected. */}
+        <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2.5 text-gray-700">
+          <Checkbox
+            checked={showRejected}
+            onCheckedChange={v => setShowRejected(v === true)}
+            aria-label="Show only rejected candidates"
+          />
+          <span className="text-xs font-medium">Show rejected</span>
+        </label>
       </div>
       )}
 
@@ -577,8 +557,8 @@ export function CandidateListView({
                   <TagPill color={deptColor(cand.department)}>{cand.department}</TagPill>
                 </Td>
                 <Td align="center" className="font-mono text-gray-600">{cand.totalExperienceYears} Yrs</Td>
-                <Td align="center" className="font-mono text-gray-500">{cand.currentCtc}</Td>
-                <Td align="center" className="font-mono font-semibold text-accent-600">{cand.expectedCtc}</Td>
+                <Td align="center" className="font-mono text-gray-500">{formatCtc(cand.currentCtc)}</Td>
+                <Td align="center" className="font-mono font-semibold text-accent-600">{formatCtc(cand.expectedCtc)}</Td>
                 <Td align="center" className="font-mono text-gray-700">{cand.noticePeriodDays} Days</Td>
                 <Td>
                   {(() => {

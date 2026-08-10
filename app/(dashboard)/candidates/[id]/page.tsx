@@ -35,6 +35,7 @@ import {
   Link2,
   Linkedin,
   ExternalLink,
+  BadgeCheck,
 } from 'lucide-react';
 import {
   CandidateStatus,
@@ -263,6 +264,7 @@ export default function CandidateDetailPage() {
   const [decisionSummary, setDecisionSummary] = useState('');
   const [decisionKind, setDecisionKind] = useState<'accept' | 'reject' | null>(null);
   const [decisionStage, setDecisionStage] = useState<string>('Decision');
+  const [decisionTo, setDecisionTo] = useState('');
   const [decisionSubject, setDecisionSubject] = useState('');
   const [decisionBody, setDecisionBody] = useState('');
   // "Send IQ test" / "Send Assessment" modal — the invite id/link is generated up front.
@@ -1203,6 +1205,7 @@ export default function CandidateDetailPage() {
     const summary = decisionSummary.trim();
     setDecisionKind(kind);
     setDecisionStage(stage);
+    setDecisionTo(candidate.email || '');
     // Copy comes from Settings → Email templates ("Hired — congratulations" /
     // "Rejected — after interview"), so HR's saved edits seed this composer.
     const iqText = myIq[0]
@@ -1249,13 +1252,14 @@ export default function CandidateDetailPage() {
     setDecisionStage('Decision');
     // Resolved — close the Decision step's accordion too.
     setOpenStep(-1);
-    if (!candidate.email) {
-      toast.info(`Candidate ${isAccept ? 'selected' : 'rejected'} — no email on file, so none was sent.`);
+    const to = decisionTo.trim();
+    if (!to) {
+      toast.info(`Candidate ${isAccept ? 'selected' : 'rejected'} — no recipient email, so none was sent.`);
       return;
     }
     try {
       const res = await sendCustomEmail({
-        to: candidate.email,
+        to,
         subject: decisionSubject,
         body: decisionBody,
       });
@@ -1263,7 +1267,7 @@ export default function CandidateDetailPage() {
         .create({
           id: randomId('EML'),
           recipientName: candidate.fullName,
-          recipientEmail: candidate.email,
+          recipientEmail: to,
           templateTitle: isAccept ? 'Offer / Congratulations' : `${decisionStage} — Rejected`,
           subject: decisionSubject,
           dateSent: nowISO(),
@@ -2358,6 +2362,15 @@ export default function CandidateDetailPage() {
           </button>
           <button
             type="button"
+            onClick={() => openDecision('accept')}
+            disabled={decided}
+            title={decided ? 'Already decided' : 'Skip the remaining pipeline and hire this candidate directly'}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
+          >
+            <BadgeCheck size={14} /> Direct Hire
+          </button>
+          <button
+            type="button"
             onClick={() => setEditOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
           >
@@ -3201,6 +3214,19 @@ export default function CandidateDetailPage() {
                     ? 'Accepting marks the candidate Selected and emails this congratulations note.'
                     : 'Rejecting marks the candidate Rejected and emails this note (with their IQ & assessment scores).'}
                 </p>
+                <div>
+                  <Label htmlFor="dec-to" className="text-sm font-medium">
+                    To
+                  </Label>
+                  <Input
+                    id="dec-to"
+                    type="email"
+                    value={decisionTo}
+                    onChange={e => setDecisionTo(e.target.value)}
+                    placeholder="candidate@email.com"
+                    className="mt-2"
+                  />
+                </div>
                 <div>
                   <Label htmlFor="dec-subject" className="text-sm font-medium">
                     Subject

@@ -8,7 +8,8 @@ import { EmailTemplatesManager } from './EmailTemplatesManager';
 import { useToast } from './Toaster';
 import { useUiStore } from '@/store/ui-store';
 import { useSchedules } from '@/features/schedule/hooks';
-import { useCandidates } from '@/features/candidates/hooks';
+import { useCandidates, useBgvs } from '@/features/candidates/hooks';
+import { useDocRequests } from '@/features/doc-requests/hooks';
 import { useScheduler } from '@/store/schedule-store';
 import {
   getCalendarStatus,
@@ -92,6 +93,8 @@ import {
   OffboardingWorkflow,
   EmailTemplate,
   SentEmailLog,
+  BGVRequirement,
+  DocRequest,
 } from '../types';
 import {
   Table,
@@ -819,8 +822,36 @@ interface OnboardingViewProps {
   onboarding: OnboardingChecklist[];
 }
 
+/** One tag per onboarding milestone actually reached — in journey order — so
+ *  the table shows exactly which steps are done for that candidate without
+ *  opening their page. */
+function onboardingTags(
+  o: OnboardingChecklist,
+  bgv: BGVRequirement | undefined,
+  docRequests: DocRequest[],
+): { label: string; color: DotColor }[] {
+  const tags: { label: string; color: DotColor }[] = [];
+  if (o.offerLetterSentAt) tags.push({ label: 'Offer Letter Sent', color: 'blue' });
+  const signedOffer = docRequests.find(d => d.candidateId === o.candidateId && d.kind === 'signed-offer');
+  if (o.offerSignedReceivedAt || signedOffer?.status === 'Submitted' || signedOffer?.status === 'Verified') {
+    tags.push({ label: 'Signed Offer Received', color: 'green' });
+  }
+  const joiningDocs = docRequests.find(d => d.candidateId === o.candidateId && !d.kind);
+  if (joiningDocs?.status === 'Submitted' || joiningDocs?.status === 'Verified') {
+    tags.push({ label: 'Joining Docs Received', color: 'green' });
+  }
+  if (bgv?.overallStatus === 'Verified') tags.push({ label: 'BGV Verified', color: 'green' });
+  else if (bgv && bgv.overallStatus !== 'Pending') tags.push({ label: 'BGV In Progress', color: 'amber' });
+  if (o.appointmentLetterSentAt) tags.push({ label: 'Appointment Letter Sent', color: 'blue' });
+  if (o.joiningDateConfirmedAt) tags.push({ label: 'Joining Day Confirmed', color: 'purple' });
+  if (o.firstDayArrivedAt) tags.push({ label: 'First Day Arrived', color: 'green' });
+  return tags;
+}
+
 export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
   const router = useRouter();
+  const { data: bgvs = [] } = useBgvs();
+  const { data: docRequests = [] } = useDocRequests();
 
   return (
     <div className="space-y-4 text-xs select-none">
@@ -844,33 +875,50 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
             <Th icon={<UserCheck size={11} />}>Candidate</Th>
             <Th icon={<Boxes size={11} />}>Status</Th>
             <Th icon={<CheckCircle size={11} />}>Progress</Th>
-            <Th align="right">Open</Th>
+            <Th>Tags</Th>
           </THead>
           <TBody>
-            {onboarding.map(o => (
-              <Tr key={o.candidateId} onClick={() => router.push(`/onboarding/${o.candidateId}`)}>
-                <Td className="font-semibold text-gray-900">{o.candidateName}</Td>
-                <Td>
-                  <TagPill color={o.progressPercentage === 100 ? 'green' : 'blue'}>
-                    {o.onboardingStatus}
-                  </TagPill>
-                </Td>
-                <Td>
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EDEEF1]">
-                      <div
-                        className="h-full rounded-full bg-accent-600"
-                        style={{ width: `${o.progressPercentage}%` }}
-                      />
+            {onboarding.map(o => {
+              const tags = onboardingTags(
+                o,
+                bgvs.find(b => b.candidateId === o.candidateId),
+                docRequests,
+              );
+              return (
+                <Tr key={o.candidateId} onClick={() => router.push(`/onboarding/${o.candidateId}`)}>
+                  <Td className="font-semibold text-gray-900">{o.candidateName}</Td>
+                  <Td>
+                    <TagPill color={o.progressPercentage === 100 ? 'green' : 'blue'}>
+                      {o.onboardingStatus}
+                    </TagPill>
+                  </Td>
+                  <Td>
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EDEEF1]">
+                        <div
+                          className="h-full rounded-full bg-accent-600"
+                          style={{ width: `${o.progressPercentage}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-[11px] text-gray-600">{o.progressPercentage}%</span>
                     </div>
-                    <span className="font-mono text-[11px] text-gray-600">{o.progressPercentage}%</span>
-                  </div>
-                </Td>
-                <Td align="right">
-                  <ChevronRight size={14} className="inline text-gray-400" />
-                </Td>
-              </Tr>
-            ))}
+                  </Td>
+                  <Td>
+                    {tags.length === 0 ? (
+                      <span className="text-[11px] text-gray-400">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {tags.map(t => (
+                          <TagPill key={t.label} color={t.color}>
+                            {t.label}
+                          </TagPill>
+                        ))}
+                      </div>
+                    )}
+                  </Td>
+                </Tr>
+              );
+            })}
           </TBody>
         </Table>
       )}

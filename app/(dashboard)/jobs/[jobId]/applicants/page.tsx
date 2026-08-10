@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { CandidateListView } from '@/components/CandidateListView';
+import { JobApplicantsOverview } from '@/components/JobApplicantsOverview';
 import { PageLoading } from '@/components/PageLoading';
 import { useScheduler } from '@/store/schedule-store';
 import { useJob } from '@/features/jobs/hooks';
@@ -59,6 +60,10 @@ export default function JobApplicantsPage() {
           </span>
         </div>
       </div>
+
+      {/* Overview: Applied/Rejected/Interviewed chart + job details */}
+      <JobApplicantsOverview job={job} applicants={applicants} />
+      <hr className="border-t border-[#E4E6EA]" />
 
       {/* Same candidates experience, scoped to this job's applicants */}
       <CandidateListView
