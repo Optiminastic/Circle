@@ -59,8 +59,23 @@ export function AppointmentLetterCard({
     setDraft(d => (d ? { ...d, [key]: value } : d));
   const setNum = (key: keyof AppointmentLetterData, v: string) => set(key, (Number(v) || 0) as never);
 
+  // Every field is required — a letter with a gap (e.g. no CTC, no joining date)
+  // must not be savable.
+  const missingField = (d: AppointmentLetterData | null): boolean =>
+    !d ||
+    !d.candidateName.trim() ||
+    !d.address.trim() ||
+    !d.role.trim() ||
+    !d.location.trim() ||
+    !d.ctcAnnual ||
+    !d.joiningDate;
+
   const save = () => {
     if (!draft) return;
+    if (missingField(draft)) {
+      toast.error('Fill in every field before saving — nothing can be left blank.');
+      return;
+    }
     saveAppointmentLetter.mutate(
       { candidateId, appointmentLetter: { ...draft, updatedAt: nowISO() } },
       {
@@ -212,19 +227,19 @@ export function AppointmentLetterCard({
 
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Candidate name">
+                <Field label="Candidate name *">
                   <input className={inputCls} value={draft.candidateName} onChange={e => set('candidateName', e.target.value)} />
                 </Field>
-                <Field label="Address">
+                <Field label="Address *">
                   <input className={inputCls} value={draft.address} onChange={e => set('address', e.target.value)} placeholder="Candidate's postal address" />
                 </Field>
-                <Field label="Role">
+                <Field label="Role *">
                   <input className={inputCls} value={draft.role} onChange={e => set('role', e.target.value)} />
                 </Field>
-                <Field label="Location">
+                <Field label="Location *">
                   <input className={inputCls} value={draft.location} onChange={e => set('location', e.target.value)} />
                 </Field>
-                <Field label="Annual CTC (INR)">
+                <Field label="Annual CTC (INR) *">
                   {/* Capped at ₹1 crore — a higher value is clamped, not accepted. */}
                   <input
                     className={inputCls}
@@ -236,10 +251,11 @@ export function AppointmentLetterCard({
                     placeholder="e.g. 180000"
                   />
                 </Field>
-                <Field label="Date of joining">
+                <Field label="Date of joining *">
                   <DatePicker value={draft.joiningDate} onChange={v => set('joiningDate', v)} />
                 </Field>
               </div>
+              <p className="text-[11px] text-gray-400">* All fields are required.</p>
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-2">
@@ -251,7 +267,8 @@ export function AppointmentLetterCard({
               </button>
               <button
                 onClick={save}
-                disabled={saveAppointmentLetter.isPending}
+                disabled={saveAppointmentLetter.isPending || missingField(draft)}
+                title={missingField(draft) ? 'Fill in every field before saving' : undefined}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 {saveAppointmentLetter.isPending && <Loader2 size={14} className="animate-spin" />}
