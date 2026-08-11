@@ -1,6 +1,5 @@
 'use client';
 import { Select } from './Select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ActionMenu } from './ActionMenu';
 import { EditCandidateModal } from './EditCandidateModal';
 import { useToast } from './Toaster';
@@ -189,9 +188,13 @@ export function CandidateListView({
   const [selectedSource, setSelectedSource] = usePersistentState(fk('source'), 'All');
   const [maxNoticePeriod, setMaxNoticePeriod] = usePersistentState<number>(fk('maxNotice'), 9999);
   const [minExperience, setMinExperience] = usePersistentState<number>(fk('minExp'), 0);
-  // Rejected toggle: OFF (default) hides rejected candidates; ON shows ONLY the
-  // rejected ones (rejected at IQ, assessment, physical interview, or any step).
-  const [showRejected, setShowRejected] = usePersistentState<boolean>(fk('rejected'), false);
+  // Rejected filter: 'all' (default) shows every candidate, rejected included;
+  // 'rejected' narrows down to only the rejected ones (at IQ, assessment,
+  // physical interview, or any other step).
+  const [rejectedFilter, setRejectedFilter] = usePersistentState<'all' | 'rejected'>(
+    fk('rejectedFilter'),
+    'all',
+  );
 
   // New Candidate Modal Form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -236,12 +239,14 @@ export function CandidateListView({
         cand.fullName.toLowerCase().includes(search.toLowerCase()) ||
         cand.appliedRole.toLowerCase().includes(search.toLowerCase());
       const matchesDept = selectedDept === 'All' || cand.department === selectedDept;
-      // Rejected toggle owns the rejected/not-rejected split. ON → only rejected;
-      // OFF → everyone except rejected. The stage-status dropdown applies only to
-      // the not-rejected view.
+      // Rejected filter owns the rejected/not-rejected split. 'all' → everyone,
+      // rejected included. 'rejected' → only rejected. The stage-status dropdown
+      // only meaningfully applies to the 'all' view (a rejected candidate's derived
+      // stage is 'Rejected', which only matches when Stage Status = 'All' too).
       const isRejected = cand.status === 'Rejected';
-      const matchesRejected = showRejected ? isRejected : !isRejected;
-      const matchesStatus = showRejected || selectedStatus === 'All' || stageOf(cand.id) === selectedStatus;
+      const matchesRejected = rejectedFilter === 'rejected' ? isRejected : true;
+      const matchesStatus =
+        rejectedFilter === 'rejected' || selectedStatus === 'All' || stageOf(cand.id) === selectedStatus;
       const matchesSource = selectedSource === 'All' || cand.sourceOfApplication === selectedSource;
       const matchesNotice = cand.noticePeriodDays <= maxNoticePeriod;
       const matchesExp = cand.totalExperienceYears >= minExperience;
@@ -484,15 +489,16 @@ export function CandidateListView({
           ))}
         </Select>
 
-        {/* Rejected toggle — off: hide rejected; on: show only rejected. */}
-        <label className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-2.5 text-gray-700">
-          <Checkbox
-            checked={showRejected}
-            onCheckedChange={v => setShowRejected(v === true)}
-            aria-label="Show only rejected candidates"
-          />
-          <span className="text-xs font-medium">Show rejected</span>
-        </label>
+        {/* Rejected filter — 'all' (default) shows everyone, rejected included;
+            'rejected' narrows down to only the rejected candidates. */}
+        <Select
+          value={rejectedFilter}
+          onChange={e => setRejectedFilter(e.target.value as 'all' | 'rejected')}
+          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+        >
+          <option value="all">All Candidates</option>
+          <option value="rejected">Rejected</option>
+        </Select>
       </div>
       )}
 
