@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Candidate, OfferLetterData, OnboardingChecklist } from '@/types';
+import { AppointmentLetterData, Candidate, OfferLetterData, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { optimisticOptions } from '@/lib/query/mutations';
@@ -147,6 +147,12 @@ export function useOnboardingEmails() {
     onSuccess: invalidate,
   });
 
+  const markAppointmentSigned = useMutation({
+    mutationFn: (candidateId: string) =>
+      repositories.onboarding.patch(candidateId, { appointmentSignedReceivedAt: nowISO() }),
+    onSuccess: invalidate,
+  });
+
   // Record the joining date HR picked (stamped before the confirmation email is
   // composed/sent; the send then stamps joiningDateConfirmedAt via stampByKind).
   const setJoiningDate = useMutation({
@@ -184,14 +190,39 @@ export function useOnboardingEmails() {
     onSuccess: invalidate,
   });
 
+  // Save the HR-built appointment letter (values) onto the onboarding record.
+  const saveAppointmentLetter = useMutation({
+    mutationFn: ({
+      candidateId,
+      appointmentLetter,
+    }: {
+      candidateId: string;
+      appointmentLetter: AppointmentLetterData;
+    }) => repositories.onboarding.patch(candidateId, { appointmentLetter }),
+    onSuccess: invalidate,
+  });
+
+  // Remove the appointment letter from the onboarding record. null clears the
+  // JSONB field.
+  const deleteAppointmentLetter = useMutation({
+    mutationFn: (candidateId: string) =>
+      repositories.onboarding.patch(candidateId, {
+        appointmentLetter: null,
+      } as unknown as Partial<OnboardingChecklist>),
+    onSuccess: invalidate,
+  });
+
   return {
     send,
     sendComposed,
     markOfferSigned,
+    markAppointmentSigned,
     setJoiningDate,
     markFirstDayArrived,
     saveOfferLetter,
     deleteOfferLetter,
+    saveAppointmentLetter,
+    deleteAppointmentLetter,
   };
 }
 

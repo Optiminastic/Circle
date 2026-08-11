@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Loader2, Upload, FileText, Link2 } from 'lucide-react';
+import { X, Loader2, Upload, FileText, Link2, Copy } from 'lucide-react';
 import { format, parse, isValid } from 'date-fns';
 import type { Candidate, OfferLetterData } from '@/types';
 import { useOnboardingEmails } from '@/features/onboarding/hooks';
@@ -122,6 +122,14 @@ export function SendOfferLetterModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidateId]);
 
+  const copyLink = () => {
+    if (!link) return;
+    navigator.clipboard?.writeText(link).then(
+      () => toast.success('Upload link copied.'),
+      () => toast.error('Could not copy the link.'),
+    );
+  };
+
   const buildAttachment = async (): Promise<{ name: string; base64: string; type: string } | undefined> => {
     if (attachMode === 'upload') {
       if (!uploadFile) return undefined;
@@ -228,13 +236,34 @@ export function SendOfferLetterModal({
             <div>
               <label className="mb-1 block text-[11px] font-semibold text-gray-500">Message</label>
               <textarea className={`${inputCls} min-h-[220px] font-mono text-[12px]`} value={body} onChange={e => setBody(e.target.value)} />
-              {link && (
+            </div>
+
+            {link && (
+              <div>
+                <label className="mb-1 block text-[11px] font-semibold text-gray-500">
+                  Signed-copy upload link
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={link}
+                    onFocus={e => e.target.select()}
+                    className={`${inputCls} cursor-default bg-[#F7F8FA] text-gray-600`}
+                  />
+                  <button
+                    type="button"
+                    onClick={copyLink}
+                    className="inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                  >
+                    <Copy size={13} /> Copy
+                  </button>
+                </div>
                 <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
                   <Link2 size={11} /> An “Upload signed offer letter” button (valid {SIGN_OFFER_TTL_HOURS}h) is
-                  added to the email automatically.
+                  also added to the email automatically.
                 </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Attachment choice */}
             <div>

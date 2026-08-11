@@ -7,6 +7,7 @@ import { OnboardingStepper } from './OnboardingStepper';
 import { DocRequestPanel } from './DocRequestPanel';
 import { CandidateHandoffCard } from './CandidateHandoffCard';
 import { OfferLetterCard } from './OfferLetterCard';
+import { AppointmentLetterCard } from './AppointmentLetterCard';
 import { useToast } from './Toaster';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
@@ -189,6 +190,14 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
         <OfferLetterCard
           candidateId={checklist.candidateId}
           candidateName={checklist.candidateName}
+          offerLetter={checklist.offerLetter}
+        />
+
+        {/* Appointment-letter builder */}
+        <AppointmentLetterCard
+          candidateId={checklist.candidateId}
+          candidateName={checklist.candidateName}
+          appointmentLetter={checklist.appointmentLetter}
           offerLetter={checklist.offerLetter}
         />
       </div>

@@ -409,9 +409,10 @@ export interface DocRequest {
   candidateName: string;
   email: string;
   role?: string;
-  /** 'signed-offer' = a 72h link for the candidate's signed offer letter (kept
-   *  separate from the joining-documents request). undefined = joining docs. */
-  kind?: 'signed-offer';
+  /** 'signed-offer' / 'signed-appointment' = a 72h link for the candidate's
+   *  signed offer/appointment letter (kept separate from the joining-documents
+   *  request). undefined = joining docs. */
+  kind?: 'signed-offer' | 'signed-appointment';
   /** What HR asked for — drives which cards the portal shows. May include the
    *  non-file items 'Bank details' and 'Reference contacts'. */
   requiredDocs: string[];
@@ -565,6 +566,18 @@ export interface OfferLetterData {
   updatedAt?: string;
 }
 
+/** HR-built appointment letter values (rendered into the fixed Optiminastic format). */
+export interface AppointmentLetterData {
+  candidateName: string;
+  address: string;
+  role: string;
+  location: string;
+  ctcAnnual: number;
+  joiningDate: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface OnboardingChecklist {
   candidateId: string;
   candidateName: string;
@@ -597,8 +610,12 @@ export interface OnboardingChecklist {
   firstDayArrivedAt?: string;
   /** Letter of appointment email sent. */
   appointmentLetterSentAt?: string;
+  /** HR confirmed the candidate's signed appointment letter as received/valid. */
+  appointmentSignedReceivedAt?: string;
   /** HR-built offer letter (values + fixed Optiminastic format). */
   offerLetter?: OfferLetterData;
+  /** HR-built appointment letter (values + fixed Optiminastic format). */
+  appointmentLetter?: AppointmentLetterData;
 }
 
 export type OnboardingStatus =

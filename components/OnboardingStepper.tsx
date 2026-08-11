@@ -36,6 +36,7 @@ import {
   isDocRequestLive,
 } from '@/features/doc-requests/hooks';
 import { SIGN_OFFER_TTL_HOURS } from '@/lib/sign-offer';
+import { SIGN_APPOINTMENT_TTL_HOURS } from '@/lib/sign-appointment';
 import { useDocuments, downloadDocument } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
 import {
@@ -47,6 +48,7 @@ import { nowISO } from '@/lib/utils';
 import { useToast } from '@/components/Toaster';
 import { OnboardingEmailComposer, type ComposerSeed } from '@/components/OnboardingEmailComposer';
 import { SendOfferLetterModal } from '@/components/SendOfferLetterModal';
+import { SendAppointmentLetterModal } from '@/components/SendAppointmentLetterModal';
 import { RequestDocumentsModal } from '@/components/RequestDocumentsModal';
 import { StartBgvModal } from '@/components/StartBgvModal';
 import { RefreshButton } from '@/components/RefreshButton';
@@ -62,6 +64,7 @@ interface OnboardingStepperProps {
 type StageAction =
   | { kind: 'email'; emailKind: OnboardingEmailKind; cta: string }
   | { kind: 'mark-signed'; cta: string }
+  | { kind: 'mark-signed-appointment'; cta: string }
   | { kind: 'request-docs'; cta: string }
   | { kind: 'start-bgv'; cta: string }
   | { kind: 'verify-bgv'; cta: string }
@@ -82,6 +85,7 @@ const STAGE_ICON_COLOR: Record<string, string> = {
   'Joining date confirmation': 'bg-pink-50 text-pink-600',
   'First day': 'bg-green-50 text-green-600',
   'Appointment letter': 'bg-indigo-50 text-indigo-600',
+  'Signed appointment letter': 'bg-violet-50 text-violet-600',
   Employee: 'bg-emerald-50 text-emerald-600',
 };
 
@@ -95,6 +99,7 @@ const STAGE_NOTES: Record<string, string> = {
   'Joining date confirmation': 'Confirm & share the first working day',
   'First day': "Candidate's first day at the office",
   'Appointment letter': 'Confirm full terms of employment',
+  'Signed appointment letter': 'Candidate returns their signed copy',
   Employee: 'Convert into the employee directory',
 };
 
@@ -118,7 +123,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const { data: candidates = [] } = useCandidates();
   const { data: requests = [] } = useDocRequests();
   const { data: bgvs = [] } = useBgvs();
-  const { sendComposed, markOfferSigned, setJoiningDate, markFirstDayArrived } = useOnboardingEmails();
+  const { sendComposed, markOfferSigned, markAppointmentSigned, setJoiningDate, markFirstDayArrived } =
+    useOnboardingEmails();
   const { create: createDocRequest, reactivate: reactivateDocRequest } = useDocRequestMutations();
   const updateBgv = useUpdateBgv();
   const startBgv = useStartBgv();
@@ -136,6 +142,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const [sendingInvalid, setSendingInvalid] = useState(false);
   // The offer letter uses a richer modal (attachment + signed-copy upload link).
   const [sendOfferOpen, setSendOfferOpen] = useState(false);
+  const [sendAppointmentOpen, setSendAppointmentOpen] = useState(false);
   // Editable request-documents email modal (To / Subject / Message).
   const [requestDocsOpen, setRequestDocsOpen] = useState(false);
   // "Start verification" check-picker (which BGV services to run).
@@ -193,6 +200,20 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // Signed offer confirmed received (uploaded or HR-marked). Once true, the offer
   // is settled: no more resending the offer letter or reactivating the link.
   const signedOfferDone = Boolean(checklist.offerSignedReceivedAt) || Boolean(signedOfferDoc);
+
+  // Signed appointment letter the candidate uploaded via the 72h public link —
+  // mirrors the signed-offer block above exactly.
+  const signedAppointmentDoc = candidateDocs
+    .filter(d => d.category === 'Signed Appointment Letter')
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
+  const signAppointmentReq = requests
+    .filter(r => r.candidateId === checklist.candidateId && r.kind === 'signed-appointment')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  const signAppointmentExpired = signAppointmentReq
+    ? new Date(signAppointmentReq.expiresAt).getTime() <= Date.now()
+    : false;
+  const signedAppointmentDone =
+    Boolean(checklist.appointmentSignedReceivedAt) || Boolean(signedAppointmentDoc);
 
 
   const verifiedCount = docRequest?.submissions?.filter(s => s.status === 'Verified').length ?? 0;
@@ -311,6 +332,23 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       action: { kind: 'email', emailKind: 'appointment_letter', cta: 'appointment letter' },
     },
     {
+      Icon: PenLine,
+      label: 'Signed appointment letter',
+      // Completes only when HR confirms the signed copy is valid — an upload alone
+      // does NOT auto-complete it.
+      done: Boolean(checklist.appointmentSignedReceivedAt),
+      desc: checklist.appointmentSignedReceivedAt
+        ? 'Received'
+        : signedAppointmentDoc
+          ? 'Uploaded — review'
+          : 'Awaiting',
+      at: checklist.appointmentSignedReceivedAt,
+      detail: signedAppointmentDoc
+        ? 'The candidate uploaded their signed appointment letter. Preview/download it below, then confirm it is properly signed to complete this step.'
+        : 'The candidate can upload their signed copy via the 72-hour link in the appointment letter email, or mark it received here manually.',
+      action: { kind: 'mark-signed-appointment', cta: 'Mark received' },
+    },
+    {
       Icon: BadgeCheck,
       label: 'Employee',
       done: joined,
@@ -377,6 +415,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     markOfferSigned.mutate(checklist.candidateId, {
       onSuccess: () => toast.success('Signed offer recorded.'),
       onError: () => toast.error('Could not record the signed offer — try again.'),
+    });
+
+  const markAppointmentSignedNow = () =>
+    markAppointmentSigned.mutate(checklist.candidateId, {
+      onSuccess: () => toast.success('Signed appointment letter recorded.'),
+      onError: () => toast.error('Could not record the signed appointment letter — try again.'),
     });
 
   // Opens the editable request-documents email modal (To / Subject / Message).
@@ -534,6 +578,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     const done = stages[i].done;
     // Once the signed offer is received, stop offering to (re)send the offer letter.
     if (a.kind === 'email' && a.emailKind === 'offer_letter') return !signedOfferDone;
+    // Once the signed appointment letter is received, stop offering to (re)send it.
+    if (a.kind === 'email' && a.emailKind === 'appointment_letter') return !signedAppointmentDone;
     return (
       a.kind === 'email' ||
       a.kind === 'request-docs' ||
@@ -544,6 +590,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       // Hide the generic "Mark received" once a copy is uploaded — HR confirms it
       // via the "Confirm valid" button next to Preview/Download instead.
       (a.kind === 'mark-signed' && !done && !signedOfferDoc) ||
+      (a.kind === 'mark-signed-appointment' && !done && !signedAppointmentDoc) ||
       a.kind === 'start-bgv' ||
       // Once onboarded to OnGrid, HR decides via the green "Verified" / red
       // "Invalid" buttons instead of this generic action.
@@ -557,6 +604,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     return (
       (sendComposed.isPending && a.kind === 'email' && sendComposed.variables?.kind === a.emailKind) ||
       (markOfferSigned.isPending && a.kind === 'mark-signed') ||
+      (markAppointmentSigned.isPending && a.kind === 'mark-signed-appointment') ||
       (createDocRequest.isPending && a.kind === 'request-docs') ||
       (setJoiningDate.isPending && a.kind === 'confirm-joining') ||
       (markFirstDayArrived.isPending && a.kind === 'mark-arrived') ||
@@ -574,9 +622,16 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           setSendOfferOpen(true);
           return;
         }
+        // The appointment letter opens its own send modal (attach + upload option).
+        if (a.emailKind === 'appointment_letter') {
+          setSendAppointmentOpen(true);
+          return;
+        }
         return openComposer(a.emailKind, a.cta);
       case 'mark-signed':
         return markSigned();
+      case 'mark-signed-appointment':
+        return markAppointmentSignedNow();
       case 'request-docs':
         return requestDocs();
       case 'confirm-joining':
@@ -643,6 +698,16 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           email={toEmail}
           offerLetter={checklist.offerLetter}
           onClose={() => setSendOfferOpen(false)}
+        />
+      )}
+      {sendAppointmentOpen && (
+        <SendAppointmentLetterModal
+          candidate={candidate}
+          candidateId={checklist.candidateId}
+          candidateName={checklist.candidateName}
+          email={toEmail}
+          appointmentLetter={checklist.appointmentLetter}
+          onClose={() => setSendAppointmentOpen(false)}
         />
       )}
       {requestDocsOpen && (
@@ -809,6 +874,51 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           }`}
                         >
                           <Clock4 size={11} /> {fmtLinkExpiry(signOfferReq.expiresAt)}
+                        </span>
+                      </>
+                    )}
+                  {/* Same link-status pill for the appointment letter's signed-copy link. */}
+                  {stage.action.kind === 'email' &&
+                    stage.action.emailKind === 'appointment_letter' &&
+                    signAppointmentReq &&
+                    !signedAppointmentDone && (
+                      <>
+                        {signAppointmentExpired && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              reactivateDocRequest.mutate(
+                                { id: signAppointmentReq.id, hours: SIGN_APPOINTMENT_TTL_HOURS },
+                                {
+                                  onSuccess: () =>
+                                    toast.success(
+                                      `Upload link re-activated for ${SIGN_APPOINTMENT_TTL_HOURS} hours.`,
+                                    ),
+                                  onError: () =>
+                                    toast.error('Could not activate the link — try again.'),
+                                },
+                              )
+                            }
+                            disabled={reactivateDocRequest.isPending}
+                            title="Re-activate the signed-appointment upload link"
+                            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {reactivateDocRequest.isPending ? (
+                              <Loader2 size={11} className="animate-spin" />
+                            ) : (
+                              <Send size={11} />
+                            )}
+                            Activate link
+                          </button>
+                        )}
+                        <span
+                          className={`hidden shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
+                            signAppointmentExpired
+                              ? 'border-red-200 bg-red-50 text-red-600'
+                              : 'border-amber-200 bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          <Clock4 size={11} /> {fmtLinkExpiry(signAppointmentReq.expiresAt)}
                         </span>
                       </>
                     )}
@@ -1187,6 +1297,78 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               {
                                 onSuccess: () =>
                                   toast.success(`Upload link re-activated for ${SIGN_OFFER_TTL_HOURS} hours.`),
+                                onError: () => toast.error('Could not activate the link — try again.'),
+                              },
+                            )
+                          }
+                          disabled={reactivateDocRequest.isPending}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          {reactivateDocRequest.isPending ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Send size={13} />
+                          )}
+                          Activate link again
+                        </button>
+                      )}
+
+                    {/* Signed appointment letter the candidate uploaded — preview / download. */}
+                    {stage.action.kind === 'mark-signed-appointment' && signedAppointmentDoc && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            window.open(
+                              documentPreviewUrl(signedAppointmentDoc.id),
+                              '_blank',
+                              'noopener,noreferrer',
+                            )
+                          }
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                        >
+                          <Eye size={13} /> Preview signed appointment letter
+                        </button>
+                        <button
+                          onClick={() => downloadDocument(signedAppointmentDoc.id, signedAppointmentDoc.fileName)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                        >
+                          <Download size={13} /> Download
+                        </button>
+                        {/* HR confirms the uploaded copy is properly signed → completes the step. */}
+                        {!checklist.appointmentSignedReceivedAt && (
+                          <button
+                            onClick={markAppointmentSignedNow}
+                            disabled={markAppointmentSigned.isPending}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            title="Confirm the signed appointment letter is valid"
+                          >
+                            {markAppointmentSigned.isPending ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Check size={13} />
+                            )}
+                            Confirm valid &amp; received
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Signed-copy upload link expired (nothing uploaded, not yet marked
+                        received) — one button to re-open it (72h) so the candidate can
+                        upload again. */}
+                    {stage.action.kind === 'mark-signed-appointment' &&
+                      !signedAppointmentDone &&
+                      signAppointmentReq &&
+                      signAppointmentExpired && (
+                        <button
+                          onClick={() =>
+                            reactivateDocRequest.mutate(
+                              { id: signAppointmentReq.id, hours: SIGN_APPOINTMENT_TTL_HOURS },
+                              {
+                                onSuccess: () =>
+                                  toast.success(
+                                    `Upload link re-activated for ${SIGN_APPOINTMENT_TTL_HOURS} hours.`,
+                                  ),
                                 onError: () => toast.error('Could not activate the link — try again.'),
                               },
                             )
