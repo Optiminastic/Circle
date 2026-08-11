@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EditableSelect } from '@/components/ui/editable-select';
+import { Select } from './Select';
 import { useOrgSettings } from '@/store/org-settings';
 import { Candidate } from '@/types';
 
@@ -63,6 +64,22 @@ export function EditCandidateDialog({ open, candidate, onClose, onSave }: EditCa
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-gray-600">Phone</Label>
               <Input value={form.phone} onChange={e => set('phone', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] font-medium text-gray-600">Gender</Label>
+              <Select
+                value={form.gender ?? ''}
+                onChange={e => set('gender', (e.target.value || undefined) as Candidate['gender'])}
+                placeholder="Select gender"
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              >
+                <option value="" disabled>
+                  Select gender
+                </option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-gray-600">Location</Label>
