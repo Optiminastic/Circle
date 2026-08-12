@@ -593,6 +593,11 @@ export interface OnboardingChecklist {
     category: 'Documentation' | 'IT Setup' | 'Admin & Assets' | 'HR & Induction' | 'Manager & Team';
   }[];
 
+  /** HR chose to proceed past Joining Documents without every required doc
+   *  being verified (e.g. one is stuck/optional) — an explicit manual override,
+   *  not an auto-complete. */
+  joiningDocsSkippedAt?: string;
+
   // Post-verification email sequence (ISO timestamps; undefined = not yet done).
   /** Job-offer email (offer details) sent to the candidate. */
   jobOfferSentAt?: string;
@@ -616,6 +621,13 @@ export interface OnboardingChecklist {
   offerLetter?: OfferLetterData;
   /** HR-built appointment letter (values + fixed Optiminastic format). */
   appointmentLetter?: AppointmentLetterData;
+  /** Set once this candidate is converted into an employee. The onboarding
+   *  record is kept (not deleted) so its full history stays visible — this
+   *  timestamp + the linked employee id are what tag it "Employee" instead
+   *  of "Pending" in the onboarding list. */
+  convertedToEmployeeAt?: string;
+  /** The employee record this onboarding was converted into, e.g. "EMP-1362". */
+  employeeId?: string;
 }
 
 export type OnboardingStatus =

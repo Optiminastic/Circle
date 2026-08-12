@@ -123,8 +123,14 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const { data: candidates = [] } = useCandidates();
   const { data: requests = [] } = useDocRequests();
   const { data: bgvs = [] } = useBgvs();
-  const { sendComposed, markOfferSigned, markAppointmentSigned, setJoiningDate, markFirstDayArrived } =
-    useOnboardingEmails();
+  const {
+    sendComposed,
+    markOfferSigned,
+    markAppointmentSigned,
+    markJoiningDocsSkipped,
+    setJoiningDate,
+    markFirstDayArrived,
+  } = useOnboardingEmails();
   const { create: createDocRequest, reactivate: reactivateDocRequest } = useDocRequestMutations();
   const updateBgv = useUpdateBgv();
   const startBgv = useStartBgv();
@@ -220,6 +226,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const requiredCount = docRequest?.requiredDocs?.length ?? 0;
   const docsRequested = Boolean(docRequest);
   const docsVerified = docRequest?.status === 'Verified';
+  // HR can explicitly proceed past this step without every doc verified — an
+  // override, not a hardcoded "all docs or nothing" gate.
+  const docsSkipped = Boolean(checklist.joiningDocsSkippedAt);
   const bgvVerified = bgv?.overallStatus === 'Verified';
   // Once the candidate's data is sent to OnGrid, HR's part of this step is done —
   // the external check runs for ~20 days and must NOT block the rest of onboarding.
@@ -266,21 +275,25 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     {
       Icon: FileText,
       label: 'Joining Documents',
-      // Completes only when every uploaded joining document has been VERIFIED —
-      // not merely when the upload link was sent.
-      done: docsVerified,
+      // Completes when every required doc is verified, OR HR explicitly chose
+      // to proceed anyway (e.g. one doc is stuck) via the Next override below.
+      done: docsVerified || docsSkipped,
       desc: docsVerified
         ? 'Verified'
-        : docRequest
-          ? `${verifiedCount}/${requiredCount} verified`
-          : docsRequested
-            ? 'Requested'
-            : 'Pending',
+        : docsSkipped
+          ? `Proceeded · ${verifiedCount}/${requiredCount} verified`
+          : docRequest
+            ? `${verifiedCount}/${requiredCount} verified`
+            : docsRequested
+              ? 'Requested'
+              : 'Pending',
       detail: docsVerified
         ? 'All joining documents have been received and verified.'
-        : docRequest
-          ? `${verifiedCount} of ${requiredCount} documents verified. Verify each upload in the Joining documents panel on the right; preview/download them below.`
-          : 'Email the candidate a secure link to upload their joining documents, then verify each upload in the Joining documents panel.',
+        : docsSkipped
+          ? `HR proceeded past this step with ${verifiedCount} of ${requiredCount} documents verified.`
+          : docRequest
+            ? `${verifiedCount} of ${requiredCount} documents verified. Verify each upload in the Joining documents panel on the right; preview/download them below.`
+            : 'Email the candidate a secure link to upload their joining documents, then verify each upload in the Joining documents panel.',
       action: { kind: 'request-docs', cta: docsRequested ? 'Resend link' : 'Request documents' },
     },
     {
@@ -1094,24 +1107,32 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                         </div>
                       )}
 
-                    {/* BGV: send the candidate + documents to OnGrid for verification. */}
+                    {/* BGV: send the candidate + documents to OnGrid for verification.
+                        The button only appears until OnGrid actually confirms the
+                        individual was created (a real individualId in the API
+                        response) — once that's true, HR never sees a resend option
+                        for it; the button only reappears if the send failed. */}
                     {(stage.action.kind === 'start-bgv' || stage.action.kind === 'verify-bgv') && (
                       <div className="border-t border-[#ECEDF0] pt-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-[12px] font-semibold text-gray-800">OnGrid verification</p>
                             <p className="text-[11px] text-gray-500">
-                              Select the verifications and send the candidate’s details &amp; documents to OnGrid.
+                              {bgv?.ongridIndividualId
+                                ? 'Successfully created on OnGrid — nothing further to send.'
+                                : 'Select the verifications and send the candidate’s details & documents to OnGrid.'}
                             </p>
                           </div>
-                          <button
-                            onClick={beginBgv}
-                            disabled={ongridOnboard.isPending}
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
-                          >
-                            {ongridOnboard.isPending && <Loader2 size={13} className="animate-spin" />}
-                            {bgv?.ongridIndividualId ? 'Re-send for verification' : 'Send for verification'}
-                          </button>
+                          {!bgv?.ongridIndividualId && (
+                            <button
+                              onClick={beginBgv}
+                              disabled={ongridOnboard.isPending}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                            >
+                              {ongridOnboard.isPending && <Loader2 size={13} className="animate-spin" />}
+                              Send for verification
+                            </button>
+                          )}
                         </div>
 
                         {bgv?.ongridIndividualId && (
@@ -1213,6 +1234,38 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             <ActionIcon size={13} />
                           )}
                           {actionLabel}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Joining Documents: not every doc has to be verified before HR
+                        can move on — this is a manual, explicit override (not an
+                        auto-skip), so it's a separate secondary action from the
+                        primary "Resend link" button above. */}
+                    {stage.action.kind === 'request-docs' && docRequest && !docsVerified && !docsSkipped && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            toast.confirm({
+                              title: 'Proceed without every document verified?',
+                              description: `${verifiedCount} of ${requiredCount} documents are verified so far. You can still come back and verify the rest later.`,
+                              confirmLabel: 'Proceed',
+                              onConfirm: () =>
+                                markJoiningDocsSkipped.mutate(checklist.candidateId, {
+                                  onSuccess: () => toast.success('Moved on — you can still verify the remaining documents later.'),
+                                  onError: () => toast.error('Could not proceed — try again.'),
+                                }),
+                            })
+                          }
+                          disabled={markJoiningDocsSkipped.isPending}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5] disabled:opacity-60"
+                        >
+                          {markJoiningDocsSkipped.isPending ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <ChevronDown size={13} className="-rotate-90" />
+                          )}
+                          Next — proceed without all docs
                         </button>
                       </div>
                     )}

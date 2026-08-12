@@ -876,6 +876,7 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
             <Th icon={<Boxes size={11} />}>Status</Th>
             <Th icon={<CheckCircle size={11} />}>Progress</Th>
             <Th>Tags</Th>
+            <Th icon={<Users size={11} />}>Employment</Th>
           </THead>
           <TBody>
             {onboarding.map(o => {
@@ -914,6 +915,13 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
                           </TagPill>
                         ))}
                       </div>
+                    )}
+                  </Td>
+                  <Td>
+                    {o.convertedToEmployeeAt ? (
+                      <TagPill color="green">Employee{o.employeeId ? ` · ${o.employeeId}` : ''}</TagPill>
+                    ) : (
+                      <TagPill color="gray">Pending</TagPill>
                     )}
                   </Td>
                 </Tr>
@@ -1175,7 +1183,10 @@ export function EmployeeDirectoryView({
                     </div>
                   </div>
                 </Td>
-                <Td className="font-mono text-[11px] text-gray-500">{emp.id}</Td>
+                <Td className="font-mono text-[11px] text-gray-500">
+                  <div>{emp.id}</div>
+                  {emp.candidateId && <div className="text-[10px] text-gray-400">{emp.candidateId}</div>}
+                </Td>
                 <Td className="font-semibold text-gray-700">{emp.role}</Td>
                 <Td>
                   <TagPill color={deptDot(emp.department)}>{emp.department}</TagPill>

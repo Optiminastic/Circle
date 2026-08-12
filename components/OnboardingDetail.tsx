@@ -165,8 +165,17 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
           </div>
         )}
 
-        {/* Conclude onboarding */}
-        {checklist.progressPercentage === 100 ? (
+        {/* Conclude onboarding — once converted, this candidate already has an
+            employee record; converting again would create a duplicate, so the
+            action is replaced with a link to the employee they became. */}
+        {checklist.convertedToEmployeeAt ? (
+          <a
+            href={checklist.employeeId ? `/employees/${checklist.employeeId}` : undefined}
+            className="block w-full cursor-pointer rounded-lg bg-emerald-50 py-2 text-center font-semibold text-emerald-700 transition hover:bg-emerald-100"
+          >
+            Converted to Employee{checklist.employeeId ? ` (${checklist.employeeId})` : ''}
+          </a>
+        ) : checklist.progressPercentage === 100 ? (
           <button
             onClick={() => {
               onAddEmployeeTrigger(checklist);

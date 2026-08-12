@@ -153,6 +153,26 @@ export function useOnboardingEmails() {
     onSuccess: invalidate,
   });
 
+  // HR manually proceeds past Joining Documents despite one or more required
+  // docs still being unverified — an explicit override, not an auto-complete.
+  const markJoiningDocsSkipped = useMutation({
+    mutationFn: (candidateId: string) =>
+      repositories.onboarding.patch(candidateId, { joiningDocsSkippedAt: nowISO() }),
+    onSuccess: invalidate,
+  });
+
+  // Undo an employee conversion tag on the onboarding record — used when the
+  // employee record it points to gets deleted (e.g. a mistaken conversion), so
+  // the candidate reverts to "Pending" and stays visible in onboarding.
+  const revertEmployeeConversion = useMutation({
+    mutationFn: (candidateId: string) =>
+      repositories.onboarding.patch(candidateId, {
+        convertedToEmployeeAt: null,
+        employeeId: null,
+      } as unknown as Partial<OnboardingChecklist>),
+    onSuccess: invalidate,
+  });
+
   // Record the joining date HR picked (stamped before the confirmation email is
   // composed/sent; the send then stamps joiningDateConfirmedAt via stampByKind).
   const setJoiningDate = useMutation({
@@ -217,6 +237,8 @@ export function useOnboardingEmails() {
     sendComposed,
     markOfferSigned,
     markAppointmentSigned,
+    markJoiningDocsSkipped,
+    revertEmployeeConversion,
     setJoiningDate,
     markFirstDayArrived,
     saveOfferLetter,
@@ -234,8 +256,7 @@ export function usePromoteFromOnboarding() {
       const candidates = qc.getQueryData<Candidate[]>(qk.candidates.all) ?? [];
       const candidate = candidates.find(c => c.id === checklist.candidateId);
       if (!candidate) return;
-      // Snapshot the onboarding email milestones onto the employee — the
-      // onboarding record itself is removed below.
+      // Snapshot the onboarding email milestones onto the employee.
       const employee = {
         ...buildEmployeeFromCandidate(candidate),
         joining: {
@@ -246,7 +267,14 @@ export function usePromoteFromOnboarding() {
         },
       };
       await repositories.employees.create(employee);
-      await repositories.onboarding.remove(checklist.candidateId);
+      // The onboarding record is KEPT (not deleted) so its full step history
+      // stays visible — it's just tagged as converted, linking to the new
+      // employee id. The onboarding list shows it as "Employee" instead of
+      // "Pending".
+      await repositories.onboarding.patch(checklist.candidateId, {
+        convertedToEmployeeAt: nowISO(),
+        employeeId: employee.id,
+      });
       await repositories.candidates.patch(checklist.candidateId, { status: 'Shortlisted' });
     },
     onSettled: () => {

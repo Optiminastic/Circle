@@ -27,9 +27,12 @@ import {
   ShieldAlert,
   ShieldCheck,
   LogOut,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 import { useEmployees, useEmployeeMutations } from '@/features/employees/hooks';
 import { useOffboarding, useInitiateOffboarding } from '@/features/offboarding/hooks';
+import { useOnboarding, useOnboardingEmails } from '@/features/onboarding/hooks';
 import { useToast } from '@/components/Toaster';
 import type { OffboardingWorkflow } from '@/types';
 import { useBgvs } from '@/features/candidates/hooks';
@@ -67,7 +70,9 @@ export default function EmployeeDetailPage() {
   const { data: bgvs = [] } = useBgvs();
   const { data: docRequests = [] } = useDocRequests();
   const { data: offboarding = [] } = useOffboarding();
-  const { update } = useEmployeeMutations();
+  const { data: onboarding = [] } = useOnboarding();
+  const { update, remove } = useEmployeeMutations();
+  const { revertEmployeeConversion } = useOnboardingEmails();
   const initiateOffboarding = useInitiateOffboarding();
   const toast = useToast();
   const [tab, setTab] = useState<TabKey>('overview');
@@ -168,6 +173,33 @@ export default function EmployeeDetailPage() {
   };
   const openExitCase = () => router.push(`/offboarding/${employee.id}`);
 
+  // If this employee was converted from an onboarding candidate, deleting them
+  // must not leave that candidate's onboarding record dangling on a deleted
+  // employee id — revert its conversion tag so it shows back as "Pending" and
+  // stays visible in onboarding.
+  const linkedOnboarding = onboarding.find(o => o.employeeId === employee.id);
+  const del = () => {
+    toast.confirm({
+      title: `Delete ${employee.fullName}?`,
+      description: linkedOnboarding
+        ? 'This permanently removes the employee record. Their onboarding record is kept and reverted to "Pending" so they stay visible there. This cannot be undone.'
+        : 'This permanently removes the employee record. This cannot be undone.',
+      confirmLabel: 'Delete employee',
+      onConfirm: async () => {
+        try {
+          if (linkedOnboarding) {
+            await revertEmployeeConversion.mutateAsync(linkedOnboarding.candidateId);
+          }
+          await remove.mutateAsync(employee.id);
+          toast.success(`${employee.fullName} deleted.`);
+          router.push('/directory');
+        } catch {
+          toast.error('Could not delete the employee — try again.');
+        }
+      },
+    });
+  };
+
   const statusTone =
     employee.status === 'Active'
       ? 'bg-emerald-50 text-emerald-600'
@@ -242,6 +274,18 @@ export default function EmployeeDetailPage() {
                         <LogOut size={14} /> Start offboarding
                       </button>
                     ))}
+                  <button
+                    onClick={del}
+                    disabled={remove.isPending || revertEmployeeConversion.isPending}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                  >
+                    {remove.isPending || revertEmployeeConversion.isPending ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={14} />
+                    )}
+                    Delete employee
+                  </button>
                 </div>
               </div>
 
@@ -298,7 +342,8 @@ export default function EmployeeDetailPage() {
                     </span>
                   )}
                   <span className="font-mono text-[10px] text-gray-400">
-                    {employee.id} · joined {fmtDate(employee.joiningDate)}
+                    {employee.id}
+                    {cid ? ` · from ${cid}` : ''} · joined {fmtDate(employee.joiningDate)}
                   </span>
                 </div>
               </div>
@@ -569,6 +614,7 @@ export default function EmployeeDetailPage() {
               <InfoRow icon={<LogOut size={13} />} label="Notice period" value={noticePolicyLabel} />
               <InfoRow icon={<Wallet size={13} />} label="Annual CTC" value={employee.annualCtc || '—'} />
               <InfoRow icon={<Hash size={13} />} label="Employee ID" value={employee.id} />
+              <InfoRow icon={<Hash size={13} />} label="Candidate ID" value={cid || '—'} />
             </div>
           </Card>
         </aside>

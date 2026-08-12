@@ -21,9 +21,6 @@ interface OfferLetterCardProps {
   offerLetter?: OfferLetterData;
 }
 
-const fmtDate = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-
 const inputCls =
   'w-full rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1.5 text-[12px] text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
@@ -138,55 +135,46 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
     setTimeout(fire, 2500);
   };
 
-  return (
-    <div className="rounded-2xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
-      <div className="mb-1.5 flex items-center gap-1.5">
-        <FileText size={13} className="text-accent-600" />
-        <h4 className="text-xs font-bold text-gray-900">Offer letter</h4>
-      </div>
+  const iconBtnCls =
+    'inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#E4E6EA] bg-white text-gray-600 transition hover:bg-[#F1F3F5]';
 
-      {offerLetter ? (
-        <>
-          <p className="mb-3 text-[11px] text-gray-500">
-            Saved {fmtDate(offerLetter.updatedAt || offerLetter.createdAt)}
-            {offerLetter.ctcAnnual ? ` · CTC ₹${formatINRNumber(offerLetter.ctcAnnual)}` : ''}.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={openPreview}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
-            >
-              <Eye size={12} /> Preview
-            </button>
+  return (
+    <div className="rounded-2xl border border-[#E4E6EA] bg-white px-3 py-2 shadow-2xs">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <FileText size={13} className="shrink-0 text-accent-600" />
+          <h4 className="truncate text-xs font-bold text-gray-900">Offer letter</h4>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          {offerLetter ? (
+            <>
+              <button onClick={openPreview} title="Preview" aria-label="Preview" className={iconBtnCls}>
+                <Eye size={13} />
+              </button>
+              <button onClick={openCreate} title="Edit" aria-label="Edit" className={iconBtnCls}>
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={del}
+                disabled={deleting}
+                title="Delete"
+                aria-label="Delete"
+                className={`${iconBtnCls} border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60`}
+              >
+                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              </button>
+            </>
+          ) : (
             <button
               onClick={openCreate}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-accent-700"
             >
-              <Pencil size={12} /> Edit
+              <Plus size={13} /> Create letter
             </button>
-            <button
-              onClick={del}
-              disabled={deleting}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-            >
-              {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className="mb-3 text-[11px] leading-relaxed text-gray-500">
-            Build the candidate&apos;s offer letter in the Optiminastic format — fill the details and CTC
-            breakup, then preview and edit anytime.
-          </p>
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-accent-700"
-          >
-            <Plus size={12} /> Create offer letter
-          </button>
-        </>
-      )}
+          )}
+        </div>
+      </div>
 
       {/* Form modal */}
       {mode === 'form' && draft && (
