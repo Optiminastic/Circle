@@ -9,7 +9,15 @@ import { optimisticOptions } from '@/lib/query/mutations';
 import { buildBgvForCandidate, buildOnboardingForCandidate } from '@/services/candidate.service';
 
 export function useCandidates() {
-  return useQuery({ queryKey: qk.candidates.all, queryFn: () => repositories.candidates.list() });
+  return useQuery({
+    queryKey: qk.candidates.all,
+    queryFn: () => repositories.candidates.list(),
+    // Public applications land outside this session's own mutations (a
+    // candidate applying doesn't invalidate anyone's cache) — poll so the
+    // dashboard's New Candidates panel (and everywhere else) picks up fresh
+    // applicants on its own, no manual reload needed.
+    refetchInterval: 30_000,
+  });
 }
 
 export function useBgvs() {

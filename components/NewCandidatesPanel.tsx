@@ -7,56 +7,42 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, UserPlus } from 'lucide-react';
-import { Candidate, TestInvite } from '../types';
-import { pipelineColumn, PipelineContext } from '@/lib/pipeline';
-import { useSchedules } from '@/features/schedule/hooks';
-import { useInterviews } from '@/features/interviews/hooks';
-import { useIqTests } from '@/features/assessments/hooks';
+import { Candidate } from '../types';
 import { useCandidateMutations } from '@/features/candidates/hooks';
 import { useScheduler } from '@/store/schedule-store';
-import { repositories } from '@/lib/api/repositories';
-import { qk } from '@/lib/query/keys';
 import { CandidateListView } from '@/components/CandidateListView';
 
 interface NewCandidatesPanelProps {
   candidates: Candidate[];
 }
 
-/** Newest applications first. */
+const TOP_N = 10;
+
+/** Newest applications first — falls back to appliedDate when appliedAt (the
+ *  finer-grained timestamp) isn't set. */
 function sortByRecency(list: Candidate[]) {
   return [...list].sort(
-    (a, b) => new Date(b.appliedDate).getTime() - new Date(a.appliedDate).getTime(),
+    (a, b) =>
+      new Date(b.appliedAt || b.appliedDate).getTime() - new Date(a.appliedAt || a.appliedDate).getTime(),
   );
 }
 
 /**
- * Dashboard panel showing only candidates still in the "New" stage — fresh
- * applications that haven't been actioned yet. Reuses the full ATS candidate
- * table (header-less, filter-less) so the dashboard matches the Candidates page.
+ * Dashboard panel showing the most recently applied candidates overall (not
+ * filtered by pipeline stage), so it always reflects who just applied. Reuses
+ * the full ATS candidate table (header-less, filter-less) so the dashboard
+ * matches the Candidates page. `candidates` is refetched on an interval (see
+ * `useCandidates`), so this panel picks up new applicants without a reload.
  */
 export function NewCandidatesPanel({ candidates }: NewCandidatesPanelProps) {
   const router = useRouter();
   const { openSchedule } = useScheduler();
   const { create, remove, setFit } = useCandidateMutations();
 
-  const { data: schedules = [] } = useSchedules();
-  const { data: interviews = [] } = useInterviews();
-  const { data: iqTests = [] } = useIqTests();
-  const { data: invites = [] } = useQuery({
-    queryKey: qk.testInvites.all,
-    queryFn: () => repositories.testInvites.list(),
-  });
-
-  const ctx: PipelineContext = useMemo(
-    () => ({ schedules, interviews, iqTests, invites: invites as TestInvite[] }),
-    [schedules, interviews, iqTests, invites],
-  );
-
   const newCandidates = useMemo(
-    () => sortByRecency(candidates.filter(c => pipelineColumn(c, ctx) === 'New')),
-    [candidates, ctx],
+    () => sortByRecency(candidates).slice(0, TOP_N),
+    [candidates],
   );
 
   return (
@@ -67,7 +53,7 @@ export function NewCandidatesPanel({ candidates }: NewCandidatesPanelProps) {
             New Candidates ({newCandidates.length})
           </h3>
           <p className="mt-0.5 text-[11px] text-gray-500">
-            Fresh applications waiting to be reviewed.
+            The {TOP_N} most recently applied candidates.
           </p>
         </div>
         <Link
