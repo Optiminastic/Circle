@@ -259,12 +259,17 @@ export function usePromoteFromOnboarding() {
       if (!candidate) return;
 
       // Default the new employee's profile photo to the passport photo they
-      // uploaded as a joining document, if one was submitted.
+      // uploaded as a joining document, if one was submitted AND it's actually
+      // an image file — candidates sometimes upload a scanned PDF instead of a
+      // photo, which an <img> tag can't render, so that case falls back to the
+      // initials avatar instead of a broken image.
       const docRequests = await repositories.docRequests.list();
       const joiningDocs = docRequests
         .filter(r => r.candidateId === checklist.candidateId && !r.kind)
         .sort((a, b) => (b.submissions?.length ?? 0) - (a.submissions?.length ?? 0))[0];
-      const passportPhoto = joiningDocs?.submissions?.find(s => s.docType === 'Passport photo');
+      const passportPhoto = joiningDocs?.submissions?.find(
+        s => s.docType === 'Passport photo' && /\.(jpe?g|png|gif|webp)$/i.test(s.fileName || ''),
+      );
 
       // Snapshot the onboarding email milestones onto the employee.
       const employee = {
