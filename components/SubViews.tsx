@@ -953,7 +953,7 @@ const EMPTY_EMPLOYEE_FORM = {
   department: 'Engineering',
   role: '',
   employmentType: 'Full-time' as NonNullable<Employee['employmentType']>,
-  reportingManager: '',
+  reportingManager: 'Akshae Golekar',
   joiningDate: new Date().toISOString().split('T')[0],
   workLocation: 'Mumbai, India',
   status: 'Active' as Employee['status'],

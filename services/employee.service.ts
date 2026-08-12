@@ -11,7 +11,7 @@ export function buildEmployeeFromCandidate(candidate: Candidate): Employee {
     phone: candidate.phone,
     department: candidate.department,
     role: candidate.appliedRole,
-    reportingManager: 'Richard Feynman (CEO)',
+    reportingManager: 'Akshae Golekar',
     joiningDate: todayISO(),
     workLocation: candidate.location || 'Mumbai, India',
     status: 'Active',

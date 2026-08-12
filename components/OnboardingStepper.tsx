@@ -1270,8 +1270,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       </div>
                     )}
 
-                    {/* BGV decision — shown once the candidate is on OnGrid: HR reviews
-                        and either passes them (green) or rejects with an email (red). */}
+                    {/* BGV decision — shown once the candidate is on OnGrid: HR checks the
+                        candidate on the OnGrid portal, then confirms Done (verified true)
+                        or rejects with an email (Invalid). */}
                     {stage.action.kind === 'verify-bgv' &&
                       !!bgv?.ongridIndividualId &&
                       !bgvVerified && (
@@ -1279,6 +1280,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           <button
                             onClick={verifyBgvNow}
                             disabled={updateBgv.isPending}
+                            title="Confirm you've checked OnGrid and the candidate is verified"
                             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                           >
                             {updateBgv.isPending ? (
@@ -1286,7 +1288,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             ) : (
                               <Check size={13} />
                             )}
-                            Verified
+                            Done
                           </button>
                           <button
                             onClick={openInvalidEmail}
@@ -1295,7 +1297,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             <XCircle size={13} /> Invalid
                           </button>
                           <span className="text-[11px] text-gray-400">
-                            Review the candidate in OnGrid, then pass or reject.
+                            Check the candidate on OnGrid, then confirm Done (verified) or Invalid.
                           </span>
                         </div>
                       )}

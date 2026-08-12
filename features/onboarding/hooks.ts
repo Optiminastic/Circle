@@ -10,6 +10,7 @@ import { buildEmployeeFromCandidate } from '@/services/employee.service';
 import { buildOnboardingForCandidate } from '@/services/candidate.service';
 import { sendTestEmail, sendCustomEmail, type TestEmailTemplate } from '@/lib/api/notifications';
 import { markCandidateArrived } from '@/lib/api/handoff';
+import { documentPreviewUrl } from '@/lib/api/documents';
 import { nowISO } from '@/lib/utils';
 
 export function useOnboarding() {
@@ -256,9 +257,19 @@ export function usePromoteFromOnboarding() {
       const candidates = qc.getQueryData<Candidate[]>(qk.candidates.all) ?? [];
       const candidate = candidates.find(c => c.id === checklist.candidateId);
       if (!candidate) return;
+
+      // Default the new employee's profile photo to the passport photo they
+      // uploaded as a joining document, if one was submitted.
+      const docRequests = await repositories.docRequests.list();
+      const joiningDocs = docRequests
+        .filter(r => r.candidateId === checklist.candidateId && !r.kind)
+        .sort((a, b) => (b.submissions?.length ?? 0) - (a.submissions?.length ?? 0))[0];
+      const passportPhoto = joiningDocs?.submissions?.find(s => s.docType === 'Passport photo');
+
       // Snapshot the onboarding email milestones onto the employee.
       const employee = {
         ...buildEmployeeFromCandidate(candidate),
+        ...(passportPhoto ? { avatarUrl: documentPreviewUrl(passportPhoto.documentId) } : {}),
         joining: {
           offerLetterSentAt: checklist.offerLetterSentAt,
           offerSignedReceivedAt: checklist.offerSignedReceivedAt,
