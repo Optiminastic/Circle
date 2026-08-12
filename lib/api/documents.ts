@@ -100,3 +100,17 @@ export async function deleteDocument(id: string): Promise<void> {
   });
   if (!res.ok && res.status !== 204) throw new Error('Delete failed');
 }
+
+/** Move a candidate's resume + joining documents into the employee's own S3
+ *  folder/entity (called once, right after converting them into an employee). */
+export async function promoteCandidateDocuments(
+  candidateId: string,
+  employeeId: string,
+): Promise<{ migrated: number }> {
+  const res = await fetch(
+    `${apiBase()}/api/candidates/${candidateId}/promote-documents/${employeeId}`,
+    { method: 'POST', credentials: 'include' },
+  );
+  if (!res.ok) throw new Error('Failed to move candidate documents to the employee record');
+  return res.json();
+}

@@ -10,7 +10,7 @@ import { buildEmployeeFromCandidate } from '@/services/employee.service';
 import { buildOnboardingForCandidate } from '@/services/candidate.service';
 import { sendTestEmail, sendCustomEmail, type TestEmailTemplate } from '@/lib/api/notifications';
 import { markCandidateArrived } from '@/lib/api/handoff';
-import { documentPreviewUrl } from '@/lib/api/documents';
+import { documentPreviewUrl, promoteCandidateDocuments } from '@/lib/api/documents';
 import { nowISO } from '@/lib/utils';
 
 export function useOnboarding() {
@@ -283,6 +283,14 @@ export function usePromoteFromOnboarding() {
         },
       };
       await repositories.employees.create(employee);
+      // Move their resume + joining documents into the employee's own S3
+      // folder/entity so the new Documents tab shows them. Best-effort: a
+      // failure here must not block the conversion itself.
+      try {
+        await promoteCandidateDocuments(checklist.candidateId, employee.id);
+      } catch {
+        // swallowed — logged server-side; conversion proceeds regardless
+      }
       // The onboarding record is KEPT (not deleted) so its full step history
       // stays visible — it's just tagged as converted, linking to the new
       // employee id. The onboarding list shows it as "Employee" instead of
