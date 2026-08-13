@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased" suppressHydrationWarning>
         {/* Applies the saved color palette before first paint (next-themes does
             the equivalent for dark/light on its own) — avoids a flash back to
-            the default "raspberry" palette on load. */}
+            the default "sage" palette on load. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
