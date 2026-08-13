@@ -15,20 +15,20 @@
     var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-  /* Active palette — default theme: Sage green. Swap the values below to
-     re-theme; component classes use accent-* tokens. */
-  --color-brand: #3d7f6f;
+  /* Active palette — Primary brand accent: Raspberry pink #D11453.
+     Swap the values below to re-theme; component classes use accent-* tokens. */
+  --color-brand: #d11453;
 
-  /* Custom "accent" palette — Sage (default) */
-  --color-accent-50: #deedd8;
-  --color-accent-100: #cee4cd;
-  --color-accent-200: #b6d6bd;
-  --color-accent-300: #a3cbb2;
-  --color-accent-400: #90c1a8;
-  --color-accent-500: #82b69f;
-  --color-accent-600: #3d7f6f;
-  --color-accent-700: #32675a;
-  --color-accent-800: #285348;
+  /* Custom "accent" palette — Raspberry pink (600 = brand) */
+  --color-accent-50: #fdeef3;
+  --color-accent-100: #fbd8e3;
+  --color-accent-200: #f7b1c8;
+  --color-accent-300: #f181a7;
+  --color-accent-400: #eb5183;
+  --color-accent-500: #e42a63;
+  --color-accent-600: #d11453;
+  --color-accent-700: #a91044;
+  --color-accent-800: #7d0c33;
 }
 
 /* shadcn/ui token layer — maps shadcn's semantic tokens to the live
@@ -62,34 +62,30 @@
 
 :root {
   --radius: 0.875rem; /* softer, more modern SaaS corners (was 0.625rem) */
-  /* Page chrome (background/secondary/muted/accent/border/input) all derive
-     from the active palette's lightest shades — so switching themes visibly
-     retints the app's surfaces, not just its buttons/icons. Cards/popovers
-     stay pure white for content-area readability. */
-  --background: var(--color-accent-50);
+  --background: #F6F7F9; /* soft off-white page */
   --foreground: #1a1a1a;
   --card: #FFFFFF;
   --card-foreground: #1a1a1a;
   --popover: #FFFFFF;
   --popover-foreground: #1a1a1a;
-  --primary: var(--color-accent-600);
+  --primary: #d11453; /* raspberry brand */
   --primary-foreground: #ffffff;
-  --secondary: var(--color-accent-50);
+  --secondary: #F1F3F5;
   --secondary-foreground: #1a1a1a;
-  --muted: var(--color-accent-50);
+  --muted: #F1F3F5;
   --muted-foreground: #6b7280;
-  --accent: var(--color-accent-100); /* subtle hover fill */
+  --accent: #EDEEF1; /* subtle hover fill */
   --accent-foreground: #1a1a1a;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: var(--color-accent-100);
-  --input: var(--color-accent-100);
-  --ring: var(--color-accent-500); /* palette focus ring */
+  --border: #E4E6EA;
+  --input: #E4E6EA;
+  --ring: #e42a63; /* raspberry focus ring */
 
   /* Stronger/deeper accent used for "current stage"/emphasis highlights
      (e.g. the active pipeline-stage stripe) — was hardcoded #C21C51 inline
      across components; now themeable alongside the accent-* scale below. */
-  --color-strong: #285348;
+  --color-strong: #c21c51;
 }
 
 @layer base {
@@ -98,78 +94,101 @@
   }
 }
 
-/* Color themes: pick one of these on html data-palette="...". Each swaps the
-   accent-* scale (already a live CSS var per Tailwind v4, referenced by every
-   bg-accent/text-accent/border-accent utility AND by the semantic tokens
-   above — background/secondary/muted/accent/border/input/primary/ring all
-   derive from accent-*) so switching palettes retints the whole app's chrome,
-   not just isolated buttons/icons. Each palette's darkest, contrast-checked
-   shade (600-800) drives buttons/icons; its lightest (50) is what backgrounds/
-   borders/hover fills pick up. "sage" is the default and needs no override
-   block; its values live in the base theme above. */
-[data-palette='sage'] {
-  --color-accent-50: #deedd8;
-  --color-accent-100: #cee4cd;
-  --color-accent-200: #b6d6bd;
-  --color-accent-300: #a3cbb2;
-  --color-accent-400: #90c1a8;
-  --color-accent-500: #82b69f;
-  --color-accent-600: #3d7f6f;
-  --color-accent-700: #32675a;
-  --color-accent-800: #285348;
-  --color-strong: #285348;
+/* Color themes: pick one of these on html data-palette="...". Each swaps
+   the accent-* scale (already a live CSS var per Tailwind v4, referenced by
+   every bg-accent, text-accent, and border-accent utility app-wide) so
+   switching palettes recolors the whole app without touching component code.
+   "raspberry" is the original brand look and needs no override block; its
+   values live in the base theme above. */
+[data-palette='sunset'] {
+  --color-accent-50: #fff7ed;
+  --color-accent-100: #ffedd5;
+  --color-accent-200: #fed7aa;
+  --color-accent-300: #fdba74;
+  --color-accent-400: #fb923c;
+  --color-accent-500: #f97316;
+  --color-accent-600: #ea580c;
+  --color-accent-700: #c2410c;
+  --color-accent-800: #9a3412;
+  --color-strong: #c2410c;
 }
 
-[data-palette='sky'] {
-  --color-accent-50: #d7ecfc;
-  --color-accent-100: #bee0fb;
-  --color-accent-200: #98cef9;
-  --color-accent-300: #69b8f7;
-  --color-accent-400: #37a0f4;
-  --color-accent-500: #1e89e6;
-  --color-accent-600: #166bc6;
-  --color-accent-700: #1053ad;
-  --color-accent-800: #0d47a1;
-  --color-strong: #0d47a1;
+[data-palette='ocean'] {
+  --color-accent-50: #f0f9ff;
+  --color-accent-100: #e0f2fe;
+  --color-accent-200: #bae6fd;
+  --color-accent-300: #7dd3fc;
+  --color-accent-400: #38bdf8;
+  --color-accent-500: #0ea5e9;
+  --color-accent-600: #0284c7;
+  --color-accent-700: #0369a1;
+  --color-accent-800: #075985;
+  --color-strong: #0369a1;
 }
 
-[data-palette='latte'] {
-  --color-accent-50: #f8f6f3;
-  --color-accent-100: #f5f1ed;
-  --color-accent-200: #f0ebe5;
-  --color-accent-300: #e7e0d9;
-  --color-accent-400: #ddd4cd;
-  --color-accent-500: #d6cbc0;
-  --color-accent-600: #9b703b;
-  --color-accent-700: #7e5b30;
-  --color-accent-800: #604624;
-  --color-strong: #604624;
+[data-palette='emerald'] {
+  --color-accent-50: #ecfdf5;
+  --color-accent-100: #d1fae5;
+  --color-accent-200: #a7f3d0;
+  --color-accent-300: #6ee7b7;
+  --color-accent-400: #34d399;
+  --color-accent-500: #10b981;
+  --color-accent-600: #059669;
+  --color-accent-700: #047857;
+  --color-accent-800: #065f46;
+  --color-strong: #047857;
 }
 
-[data-palette='olive'] {
-  --color-accent-50: #eff2a2;
-  --color-accent-100: #eced97;
-  --color-accent-200: #e6e687;
-  --color-accent-300: #dedd82;
-  --color-accent-400: #d6d581;
-  --color-accent-500: #cdcc7f;
-  --color-accent-600: #707128;
-  --color-accent-700: #5a5b20;
-  --color-accent-800: #434418;
-  --color-strong: #434418;
+[data-palette='indigo'] {
+  --color-accent-50: #eef2ff;
+  --color-accent-100: #e0e7ff;
+  --color-accent-200: #c7d2fe;
+  --color-accent-300: #a5b4fc;
+  --color-accent-400: #818cf8;
+  --color-accent-500: #6366f1;
+  --color-accent-600: #4f46e5;
+  --color-accent-700: #4338ca;
+  --color-accent-800: #3730a3;
+  --color-strong: #4338ca;
 }
 
-[data-palette='lavender'] {
-  --color-accent-50: #f3ecfd;
-  --color-accent-100: #eee5f9;
-  --color-accent-200: #e7dbf3;
-  --color-accent-300: #ddd1f7;
-  --color-accent-400: #d2c6fc;
-  --color-accent-500: #c6bafe;
-  --color-accent-600: #2a0cde;
-  --color-accent-700: #1f09a4;
-  --color-accent-800: #160674;
-  --color-strong: #160674;
+[data-palette='amethyst'] {
+  --color-accent-50: #faf5ff;
+  --color-accent-100: #f3e8ff;
+  --color-accent-200: #e9d5ff;
+  --color-accent-300: #d8b4fe;
+  --color-accent-400: #c084fc;
+  --color-accent-500: #a855f7;
+  --color-accent-600: #9333ea;
+  --color-accent-700: #7e22ce;
+  --color-accent-800: #6b21a8;
+  --color-strong: #7e22ce;
+}
+
+[data-palette='slate'] {
+  --color-accent-50: #f8fafc;
+  --color-accent-100: #f1f5f9;
+  --color-accent-200: #e2e8f0;
+  --color-accent-300: #cbd5e1;
+  --color-accent-400: #94a3b8;
+  --color-accent-500: #64748b;
+  --color-accent-600: #475569;
+  --color-accent-700: #334155;
+  --color-accent-800: #1e293b;
+  --color-strong: #334155;
+}
+
+[data-palette='copper'] {
+  --color-accent-50: #fffbeb;
+  --color-accent-100: #fef3c7;
+  --color-accent-200: #fde68a;
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+  --color-accent-700: #b45309;
+  --color-accent-800: #92400e;
+  --color-strong: #b45309;
 }
 
 /* Apply --color-strong wherever the old hardcoded "#C21C51" strong-accent
@@ -231,57 +250,6 @@
   --color-gray-800: oklch(92.8% 0.006 264.531);
   --color-gray-900: oklch(96.7% 0.003 264.542);
   --color-gray-950: oklch(98.5% 0.001 264.542);
-}
-
-/* Palette retinting (light mode) — the app's neutral chrome (sidebar, page
-   background, table headers, hover fills, borders) derives from the active
-   palette's lightest shades instead of staying flat gray, so switching themes
-   visibly changes more than just buttons/icons. Cards/popovers/inputs stay
-   pure white so text-dense content keeps full contrast — only the
-   surrounding chrome shifts. Dark mode's own overrides below still win when
-   active (higher specificity via the .dark prefix). One selector per rule for
-   the same minifier-safety reason as the dark-mode section below. */
-.bg-\[\#F1F3F5\] {
-  background-color: var(--color-accent-50);
-}
-.hover\:bg-\[\#F1F3F5\]:hover {
-  background-color: var(--color-accent-50);
-}
-.bg-\[\#FBFBFC\] {
-  background-color: var(--color-accent-50);
-}
-.bg-\[\#F7F8FA\] {
-  background-color: var(--color-accent-50);
-}
-.hover\:bg-\[\#F7F8FA\]:hover {
-  background-color: var(--color-accent-50);
-}
-.bg-\[\#F6F7F9\] {
-  background-color: var(--color-accent-50);
-}
-.bg-\[\#EDEEF1\] {
-  background-color: var(--color-accent-100);
-}
-.hover\:bg-\[\#EDEEF1\]:hover {
-  background-color: var(--color-accent-100);
-}
-.border-\[\#E4E6EA\] {
-  border-color: var(--color-accent-100);
-}
-.border-\[\#ECEDF0\] {
-  border-color: var(--color-accent-100);
-}
-.border-\[\#EDEEF1\] {
-  border-color: var(--color-accent-100);
-}
-.border-\[\#D7DAE0\] {
-  border-color: var(--color-accent-200);
-}
-.ring-\[\#ECEDF0\] {
-  --tw-ring-color: var(--color-accent-100);
-}
-.ring-\[\#E4E6EA\] {
-  --tw-ring-color: var(--color-accent-100);
 }
 
 /* Highest-frequency hardcoded hex utilities, remapped to the dark tokens
@@ -401,7 +369,7 @@
 }
 
 body {
-  background-color: var(--color-accent-50); /* palette-tinted page surface */
+  background-color: #F6F7F9; /* warm greige page surface */
   color: #1a1a1a; /* near-black text */
   font-family: var(--font-sans);
   letter-spacing: -0.011em;
