@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
 import { createQueryClient } from '@/lib/query/query-client';
 import { UiStateProvider } from '@/store/ui-store';
 import { OrgSettingsProvider } from '@/store/org-settings';
 import { AuthProvider } from '@/store/auth-store';
+import { PaletteProvider } from '@/store/theme-store';
 import { ToastProvider } from '@/components/Toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -21,16 +23,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => setMounted(true), []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <UiStateProvider>
-          <OrgSettingsProvider>
-            <ToastProvider>
-              <TooltipProvider>{mounted ? children : null}</TooltipProvider>
-            </ToastProvider>
-          </OrgSettingsProvider>
-        </UiStateProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+      <PaletteProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <UiStateProvider>
+              <OrgSettingsProvider>
+                <ToastProvider>
+                  <TooltipProvider>{mounted ? children : null}</TooltipProvider>
+                </ToastProvider>
+              </OrgSettingsProvider>
+            </UiStateProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </PaletteProvider>
+    </ThemeProvider>
   );
 }

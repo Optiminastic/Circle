@@ -29,6 +29,7 @@ import { qk } from '@/lib/query/keys';
 import { cn } from '@/lib/utils';
 import { ui } from '@/components/ui/styles';
 import { AccessControlModal } from './AccessControlModal';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 /** "5 Jun 2026" -> "2h ago" style relative label (falls back to the raw date). */
 function relativeTime(iso: string): string {
@@ -216,6 +217,9 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
+
+        {/* Color theme + light/dark mode */}
+        <ThemeSwitcher />
 
         {/* Active Profile */}
         <div className="border-l border-[#E4E6EA] pl-4">

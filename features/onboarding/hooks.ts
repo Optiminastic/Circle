@@ -11,7 +11,7 @@ import { buildOnboardingForCandidate } from '@/services/candidate.service';
 import { sendTestEmail, sendCustomEmail, type TestEmailTemplate } from '@/lib/api/notifications';
 import { markCandidateArrived } from '@/lib/api/handoff';
 import { documentPreviewUrl, promoteCandidateDocuments } from '@/lib/api/documents';
-import { nowISO } from '@/lib/utils';
+import { nowISO, randomId } from '@/lib/utils';
 
 export function useOnboarding() {
   return useQuery({ queryKey: qk.onboarding.all, queryFn: () => repositories.onboarding.list() });
@@ -75,9 +75,46 @@ const stampByKind: Record<OnboardingEmailKind, () => Partial<OnboardingChecklist
  * advances regardless of mail delivery. `markOfferSigned` records that HR
  * received the signed offer back.
  */
+// Labels for the onboarding-stage "times emailed" count badge — only the
+// stages the badge is shown on need an entry here.
+const EMAIL_LOG_LABEL: Partial<Record<OnboardingEmailKind, string>> = {
+  offer_letter: 'Offer letter sent',
+  joining_date: 'Joining date confirmation',
+  appointment_letter: 'Appointment letter sent',
+};
+
 export function useOnboardingEmails() {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.onboarding.all });
+
+  // Record a send in the shared email log so pipeline-step "times emailed"
+  // badges can count it. Best-effort — never blocks the onboarding flow.
+  const logSentEmail = (params: {
+    candidateId: string;
+    candidateName?: string;
+    email: string;
+    kind: OnboardingEmailKind;
+    subject: string;
+  }) => {
+    const label = EMAIL_LOG_LABEL[params.kind];
+    if (!label || !params.email) return;
+    const list = qc.getQueryData<OnboardingChecklist[]>(qk.onboarding.all) ?? [];
+    const candidateName =
+      params.candidateName || list.find(o => o.candidateId === params.candidateId)?.candidateName || '';
+    repositories.sentEmails
+      .create({
+        id: randomId('EML'),
+        recipientName: candidateName,
+        recipientEmail: params.email,
+        templateTitle: label,
+        subject: params.subject,
+        dateSent: nowISO(),
+        status: 'Sent',
+        relatedEntity: candidateName,
+      })
+      .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+      .catch(() => {});
+  };
 
   const send = useMutation({
     mutationFn: async (input: {
@@ -102,6 +139,25 @@ export function useOnboardingEmails() {
         }).catch(() => ({ sent: false, reason: undefined } as { sent: boolean; reason?: string }));
         emailed = res.sent;
         emailReason = res.reason;
+        if (emailed) {
+          const subject =
+            input.kind === 'offer_letter'
+              ? input.role
+                ? `Your offer letter for ${input.role} at Optiminastic — please review & sign`
+                : 'Your offer letter from Optiminastic — please review & sign'
+              : input.kind === 'appointment_letter'
+                ? input.role
+                  ? `Letter of appointment — ${input.role} at Optiminastic`
+                  : 'Your letter of appointment — Optiminastic'
+                : '';
+          logSentEmail({
+            candidateId: input.candidateId,
+            candidateName: input.candidateName,
+            email: input.email,
+            kind: input.kind,
+            subject,
+          });
+        }
       }
       await repositories.onboarding.patch(input.candidateId, stampByKind[input.kind]());
       return { emailed, emailReason };
@@ -135,6 +191,14 @@ export function useOnboardingEmails() {
         }).catch(() => ({ sent: false, reason: undefined } as { sent: boolean; reason?: string }));
         emailed = res.sent;
         emailReason = res.reason;
+        if (emailed) {
+          logSentEmail({
+            candidateId: input.candidateId,
+            email: input.to,
+            kind: input.kind,
+            subject: input.subject,
+          });
+        }
       }
       await repositories.onboarding.patch(input.candidateId, stampByKind[input.kind]());
       return { emailed, emailReason };

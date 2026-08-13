@@ -32,6 +32,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
+        {/* Applies the saved color palette before first paint (next-themes does
+            the equivalent for dark/light on its own) — avoids a flash back to
+            the default "raspberry" palette on load. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var p=localStorage.getItem('curcle-palette');if(p)document.documentElement.setAttribute('data-palette',p);}catch(e){}",
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: '{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://circle.optiminastic.com/#organization","name":"Optiminastic","url":"https://circle.optiminastic.com/"},{"@type":"WebSite","@id":"https://circle.optiminastic.com/#website","name":"Optiminastic","url":"https://circle.optiminastic.com/","publisher":{"@id":"https://circle.optiminastic.com/#organization"}}]}' }}

@@ -1,10 +1,14 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { X, Loader2, Link2, Mail, FileText } from 'lucide-react';
 import type { DocRequest } from '@/types';
 import { useDocRequestMutations } from '@/features/doc-requests/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
+import { repositories } from '@/lib/api/repositories';
+import { qk } from '@/lib/query/keys';
+import { randomId, nowISO } from '@/lib/utils';
 import {
   REQUIRED_DOCS,
   DEFAULT_REQUIRED_DOC_TYPES,
@@ -40,6 +44,7 @@ interface Props {
 
 export function RequestDocumentsModal({ candidateId, candidateName, email, role, prior, onClose }: Props) {
   const toast = useToast();
+  const qc = useQueryClient();
   const { create } = useDocRequestMutations();
 
   const [to, setTo] = useState(email);
@@ -138,8 +143,23 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
         links: [{ label: 'Upload your documents here', url: res.link }],
       });
 
-      if (mail.sent) toast.success(`Upload link sent to ${recipient}.`);
-      else if (mail.reason === 'not_configured')
+      if (mail.sent) {
+        toast.success(`Upload link sent to ${recipient}.`);
+        // Log the send so the Joining Documents step's "times emailed" badge counts it.
+        repositories.sentEmails
+          .create({
+            id: randomId('EML'),
+            recipientName: candidateName,
+            recipientEmail: recipient,
+            templateTitle: 'Joining documents requested',
+            subject,
+            dateSent: nowISO(),
+            status: 'Sent',
+            relatedEntity: candidateName,
+          })
+          .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+          .catch(() => {});
+      } else if (mail.reason === 'not_configured')
         toast.info('Link created — email not sent (SMTP not configured).');
       else toast.info('Link created, but the email could not be sent.');
       onClose();

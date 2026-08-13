@@ -146,6 +146,16 @@ const STAGE_ICON_COLOR: Record<string, string> = {
   Decision: 'bg-red-50 text-red-600',
 };
 
+// "Times emailed" badge (top corner of the step icon) — every templateTitle
+// variant that stage's send(s) can log the sentEmails row under.
+const STAGE_EMAIL_TITLES: Record<string, string[]> = {
+  'Interview Schedule': ['Interview Invitation', 'Interview scheduled email', 'Interview Rescheduled'],
+  'IQ Test': ['IQ test invite'],
+  Assessment: ['Assessment invite'],
+  'Physical Interview': ['Interview pack', 'Interview — online link'],
+  Decision: ['Offer / Congratulations', 'Shortlisted for offer'],
+};
+
 const blankScreening = (): ScreeningReview => ({
   resumeRelevance: 3,
   experienceMatch: 3,
@@ -739,6 +749,13 @@ export default function CandidateDetailPage() {
         .sort((a, b) => new Date(a.dateSent).getTime() - new Date(b.dateSent).getTime()),
     [sentEmails, candidate.fullName],
   );
+  const stageEmailCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const [label, titles] of Object.entries(STAGE_EMAIL_TITLES)) {
+      counts[label] = emailLog.filter(m => titles.includes(m.templateTitle)).length;
+    }
+    return counts;
+  }, [emailLog]);
   // Simple two-tone read: any rejection mail is red, everything else is green.
   const emailLogTone = (m: SentEmailLog): 'red' | 'green' => (/reject/i.test(m.templateTitle) ? 'red' : 'green');
 
@@ -2588,9 +2605,17 @@ export default function CandidateDetailPage() {
                           className="flex min-w-0 flex-1 items-center gap-3 text-left"
                         >
                           <span
-                            className={`grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
+                            className={`relative grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
                           >
                             <StageIcon size={16} />
+                            {stageEmailCount[stage.label] > 0 && (
+                              <span
+                                title={`${stageEmailCount[stage.label]} email${stageEmailCount[stage.label] === 1 ? '' : 's'} sent`}
+                                className="absolute -right-1.5 -top-1.5 grid min-w-[16px] place-items-center rounded-full bg-accent-600 px-1 py-px text-[9px] font-bold leading-[14px] text-white ring-2 ring-white"
+                              >
+                                {stageEmailCount[stage.label]}
+                              </span>
+                            )}
                           </span>
                           <span className="hidden shrink-0 font-mono text-[11px] font-semibold text-gray-400 sm:inline">
                             {i + 1}

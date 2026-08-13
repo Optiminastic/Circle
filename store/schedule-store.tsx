@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Candidate, CandidateStatus, ScheduleEvent, ScheduleType, TestInvite } from '@/types';
 import { useSchedules, useScheduleMutations } from '@/features/schedule/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
@@ -10,6 +11,7 @@ import { useToast } from '@/components/Toaster';
 import { sendScheduleEmail, sendTestEmail } from '@/lib/api/notifications';
 import { pushCalendarEvent } from '@/lib/api/calendar';
 import { repositories } from '@/lib/api/repositories';
+import { qk } from '@/lib/query/keys';
 import { IQ_DURATION_MIN, ASSESSMENT_DURATION_MIN } from '@/data/test-banks';
 import { randomId, randomToken, nowISO } from '@/lib/utils';
 
@@ -30,6 +32,7 @@ const SLOT_MIN = 45;
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const toast = useToast();
+  const qc = useQueryClient();
   const [pending, setPending] = useState<Pending | null>(null);
   const { data: schedules = [] } = useSchedules();
   const { data: interviews = [] } = useInterviews();
@@ -134,6 +137,23 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       else toast.info('Scheduled, but the candidate was not emailed.');
     };
 
+    // Log every send so the pipeline step badges can count "times emailed".
+    const logSentEmail = (templateTitle: string, subject: string) => {
+      repositories.sentEmails
+        .create({
+          id: randomId('EML'),
+          recipientName: p.candidateName,
+          recipientEmail: email,
+          templateTitle,
+          subject,
+          dateSent: nowISO(),
+          status: 'Sent',
+          relatedEntity: p.candidateName,
+        })
+        .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+        .catch(() => {});
+    };
+
     const position = candidate?.appliedRole || candidate?.department || 'the role';
     const department = candidate?.department || 'General';
 
@@ -181,7 +201,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         durationMin: IQ_DURATION_MIN,
         dateTimeIso: dateTime,
       })
-        .then(res => emailToast(res, `Test link emailed to ${p.candidateName}.`))
+        .then(res => {
+          emailToast(res, `Test link emailed to ${p.candidateName}.`);
+          if (res.sent) logSentEmail('IQ test invite', 'Your Optiminastic IQ Test — secure test link inside');
+        })
         .catch(() => toast.error('Scheduled, but sending the test link failed.'));
     }
 
@@ -217,7 +240,11 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         durationMin: ASSESSMENT_DURATION_MIN,
         dateTimeIso: dateTime,
       })
-        .then(res => emailToast(res, `Assessment link emailed to ${p.candidateName}.`))
+        .then(res => {
+          emailToast(res, `Assessment link emailed to ${p.candidateName}.`);
+          if (res.sent)
+            logSentEmail('Assessment invite', 'Your Optiminastic assessment — secure test link inside');
+        })
         .catch(() => toast.error('Scheduled, but sending the assessment failed.'));
     }
   };

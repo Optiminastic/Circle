@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FileSignature,
   PenLine,
@@ -24,8 +24,9 @@ import {
   Copy,
   RefreshCw,
 } from 'lucide-react';
-import { BGVRequirement, OnboardingChecklist } from '@/types';
+import { BGVRequirement, OnboardingChecklist, SentEmailLog } from '@/types';
 import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
+import { useSentEmails } from '@/features/email/hooks';
 import { useOngridOnboard } from '@/features/bgv/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -103,6 +104,16 @@ const STAGE_NOTES: Record<string, string> = {
   Employee: 'Convert into the employee directory',
 };
 
+// "Times emailed" badge (top corner of the step icon) — the sentEmails
+// templateTitle(s) each stage's send is logged under (see useOnboardingEmails
+// / RequestDocumentsModal).
+const STAGE_EMAIL_TITLES: Record<string, string[]> = {
+  'Offer letter': ['Offer letter sent'],
+  'Joining Documents': ['Joining documents requested'],
+  'Joining date confirmation': ['Joining date confirmation'],
+  'Appointment letter': ['Appointment letter sent'],
+};
+
 const fmtDate = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
@@ -123,6 +134,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const { data: candidates = [] } = useCandidates();
   const { data: requests = [] } = useDocRequests();
   const { data: bgvs = [] } = useBgvs();
+  const { data: sentEmails = [] } = useSentEmails();
   const {
     sendComposed,
     markOfferSigned,
@@ -239,6 +251,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     checklist.progressPercentage === 100 ||
     checklist.onboardingStatus === 'Joined' ||
     checklist.onboardingStatus === 'Onboarding Completed';
+
+  const stageEmailCount = useMemo(() => {
+    const mine = sentEmails.filter((m: SentEmailLog) => m.relatedEntity === checklist.candidateName);
+    const counts: Record<string, number> = {};
+    for (const [label, titles] of Object.entries(STAGE_EMAIL_TITLES)) {
+      counts[label] = mine.filter(m => titles.includes(m.templateTitle)).length;
+    }
+    return counts;
+  }, [sentEmails, checklist.candidateName]);
 
   const stages: {
     Icon: typeof ShieldCheck;
@@ -823,9 +844,17 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
                     <span
-                      className={`grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
+                      className={`relative grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
                     >
                       <StageIcon size={16} />
+                      {stageEmailCount[stage.label] > 0 && (
+                        <span
+                          title={`${stageEmailCount[stage.label]} email${stageEmailCount[stage.label] === 1 ? '' : 's'} sent`}
+                          className="absolute -right-1.5 -top-1.5 grid min-w-[16px] place-items-center rounded-full bg-accent-600 px-1 py-px text-[9px] font-bold leading-[14px] text-white ring-2 ring-white"
+                        >
+                          {stageEmailCount[stage.label]}
+                        </span>
+                      )}
                     </span>
                     <span className="hidden shrink-0 font-mono text-[11px] font-semibold text-gray-400 sm:inline">
                       {i + 1}
