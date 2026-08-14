@@ -293,7 +293,7 @@ export default function EmployeeDetailPage() {
               aria-label="Optiminastic"
             />
             <div className="px-5">
-              {/* Avatar overlaps the banner; quick actions on the right */}
+              {/* Avatar overlaps the banner */}
               <div className="-mt-12 flex items-end justify-between gap-3">
                 <AvatarUploader
                   employeeId={employee.id}
@@ -302,12 +302,6 @@ export default function EmployeeDetailPage() {
                   size={96}
                   onChange={url => update.mutate({ ...employee, avatarUrl: url })}
                 />
-                <div className="flex items-center gap-2 pb-2">
-                  <ActionMenu
-                    items={actionItems}
-                    className="size-9 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] hover:bg-[#F7F8FA]"
-                  />
-                </div>
               </div>
 
               {/* Identity — on white, below the banner */}
@@ -366,6 +360,7 @@ export default function EmployeeDetailPage() {
                     {employee.id}
                     {cid ? ` · from ${cid}` : ''} · joined {fmtDate(employee.joiningDate)}
                   </span>
+                  <ActionMenu items={actionItems} />
                 </div>
               </div>
 
