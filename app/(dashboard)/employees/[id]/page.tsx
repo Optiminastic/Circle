@@ -29,6 +29,7 @@ import {
   LogOut,
   Trash2,
   Loader2,
+  FileText,
 } from 'lucide-react';
 import { useEmployees, useEmployeeMutations } from '@/features/employees/hooks';
 import { useOffboarding, useInitiateOffboarding } from '@/features/offboarding/hooks';
@@ -42,6 +43,8 @@ import { DocumentsPanel } from '@/components/DocumentsPanel';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AvatarUploader } from '@/components/AvatarUploader';
 import { EditEmployeeDialog } from '@/components/EditEmployeeDialog';
+import { RequestEmployeeDocsModal } from '@/components/RequestEmployeeDocsModal';
+import { ActionMenu, type ActionItem } from '@/components/ActionMenu';
 
 const PROBATION_MONTHS = 6;
 
@@ -77,6 +80,7 @@ export default function EmployeeDetailPage() {
   const toast = useToast();
   const [tab, setTab] = useState<TabKey>('overview');
   const [editOpen, setEditOpen] = useState(false);
+  const [requestDocsOpen, setRequestDocsOpen] = useState(false);
 
   // HR-triggered resignation / notice period
   const [resignOpen, setResignOpen] = useState(false);
@@ -207,6 +211,59 @@ export default function EmployeeDetailPage() {
         ? 'bg-red-50 text-red-600'
         : 'bg-yellow-50 text-yellow-600';
 
+  const actionItems: ActionItem[] = [
+    { key: 'edit', label: 'Edit', icon: <PenLine size={14} />, onClick: () => setEditOpen(true) },
+    {
+      key: 'email',
+      label: 'Email',
+      icon: <Mail size={14} />,
+      disabled: !employee.email,
+      onClick: () => {
+        if (employee.email) window.location.href = `mailto:${employee.email}`;
+      },
+    },
+    {
+      key: 'call',
+      label: 'Call',
+      icon: <Phone size={14} />,
+      disabled: !employee.phone,
+      onClick: () => {
+        if (employee.phone) window.location.href = `tel:${employee.phone}`;
+      },
+    },
+    {
+      key: 'request-docs',
+      label: 'Request docs',
+      icon: <FileText size={14} />,
+      onClick: () => setRequestDocsOpen(true),
+    },
+    ...(employee.status !== 'Offboarded'
+      ? [
+          onNotice
+            ? { key: 'exit-case', label: 'View exit case', icon: <LogOut size={14} />, onClick: openExitCase }
+            : {
+                key: 'start-offboarding',
+                label: 'Start offboarding',
+                icon: <LogOut size={14} />,
+                onClick: startResign,
+              },
+        ]
+      : []),
+    {
+      key: 'delete',
+      label: 'Delete employee',
+      icon:
+        remove.isPending || revertEmployeeConversion.isPending ? (
+          <Loader2 size={14} className="animate-spin" />
+        ) : (
+          <Trash2 size={14} />
+        ),
+      danger: true,
+      disabled: remove.isPending || revertEmployeeConversion.isPending,
+      onClick: del,
+    },
+  ];
+
   return (
     <div className="space-y-5 text-xs">
       <EditEmployeeDialog
@@ -215,6 +272,15 @@ export default function EmployeeDetailPage() {
         onClose={() => setEditOpen(false)}
         onSave={updated => update.mutate(updated)}
       />
+      {requestDocsOpen && (
+        <RequestEmployeeDocsModal
+          employeeId={employee.id}
+          employeeName={employee.fullName}
+          email={employee.email || ''}
+          role={employee.role}
+          onClose={() => setRequestDocsOpen(false)}
+        />
+      )}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* MAIN */}
         <div className="space-y-5">
@@ -237,55 +303,10 @@ export default function EmployeeDetailPage() {
                   onChange={url => update.mutate({ ...employee, avatarUrl: url })}
                 />
                 <div className="flex items-center gap-2 pb-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditOpen(true)}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-[12px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600"
-                  >
-                    <PenLine size={14} /> Edit
-                  </button>
-                  <a
-                    href={employee.email ? `mailto:${employee.email}` : undefined}
-                    aria-label="Email"
-                    className="grid size-9 place-items-center rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 transition hover:bg-[#F7F8FA] hover:text-accent-600"
-                  >
-                    <Mail size={15} />
-                  </a>
-                  <a
-                    href={employee.phone ? `tel:${employee.phone}` : undefined}
-                    aria-label="Call"
-                    className="grid size-9 place-items-center rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 transition hover:bg-[#F7F8FA] hover:text-accent-600"
-                  >
-                    <Phone size={15} />
-                  </a>
-                  {employee.status !== 'Offboarded' &&
-                    (onNotice ? (
-                      <button
-                        onClick={openExitCase}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-100"
-                      >
-                        <LogOut size={14} /> View exit case
-                      </button>
-                    ) : (
-                      <button
-                        onClick={startResign}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F7F8FA] hover:text-accent-600"
-                      >
-                        <LogOut size={14} /> Start offboarding
-                      </button>
-                    ))}
-                  <button
-                    onClick={del}
-                    disabled={remove.isPending || revertEmployeeConversion.isPending}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                  >
-                    {remove.isPending || revertEmployeeConversion.isPending ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={14} />
-                    )}
-                    Delete employee
-                  </button>
+                  <ActionMenu
+                    items={actionItems}
+                    className="size-9 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] hover:bg-[#F7F8FA]"
+                  />
                 </div>
               </div>
 

@@ -52,6 +52,8 @@ export function useDocRequestMutations() {
       // When true, only create/reuse the request + return the link — the caller
       // sends its own (editable) email instead of the built-in template.
       skipEmail?: boolean;
+      /** Who candidateId/candidateName refer to. Defaults to 'candidate'. */
+      entityType?: 'candidate' | 'employee';
     }) => {
       const requiredDocs = input.requiredDocs?.length ? input.requiredDocs : DEFAULT_REQUIRED_DOC_TYPES;
       const expiresAt = new Date(Date.now() + DOC_REQUEST_TTL_HOURS * 3600 * 1000).toISOString();
@@ -83,6 +85,21 @@ export function useDocRequestMutations() {
           requiredDocs,
           expiresAt,
         });
+      } else if (input.entityType === 'employee') {
+        request = {
+          id: randomToken('DOC'),
+          candidateId: input.candidateId,
+          candidateName: input.candidateName,
+          email: input.email,
+          role: input.role,
+          entityType: 'employee',
+          requiredDocs,
+          submissions: [],
+          status: 'Pending',
+          createdAt: nowISO(),
+          expiresAt,
+        };
+        await repositories.docRequests.create(request);
       } else {
         // New link: carry over already-verified (locked) documents + bank details
         // from the previous request so the candidate isn't asked to re-upload what

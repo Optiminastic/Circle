@@ -252,7 +252,10 @@ export default function OnboardingDocsPortal() {
         <div>
           <p className="text-sm font-bold text-gray-900">Welcome, {request.candidateName}</p>
           <p className="text-[12px] text-gray-500">
-            {request.role ? `${request.role} · ` : ''}Upload your joining documents below.
+            {request.role ? `${request.role} · ` : ''}
+            {request.entityType === 'employee'
+              ? 'Upload your requested documents below.'
+              : 'Upload your joining documents below.'}
           </p>
         </div>
         {allDone ? (
@@ -550,40 +553,44 @@ export default function OnboardingDocsPortal() {
       </Tabs>
 
       {/* Consent — required before we can share anything with our verification
-          partner. The full text is collapsed behind the arrow on the right. */}
-      <section className="mt-6">
-        <h2 className="mb-2 flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
-          <ShieldCheck size={13} /> Consent
-        </h2>
-        <div className="flex items-center gap-2.5 rounded-xl border border-[#E4E6EA] bg-white px-3.5">
-          <Checkbox
-            checked={consentChecked}
-            disabled={saveConsent.isPending}
-            onCheckedChange={v => {
-              const agreed = v === true;
-              setConsentChecked(agreed);
-              saveConsent.mutate(agreed);
-            }}
-          />
-          <Accordion type="single" collapsible className="min-w-0 flex-1">
-            <AccordionItem value="consent" className="rounded-none border-0 bg-transparent">
-              <AccordionTrigger className="px-0 py-2.5 text-[12.5px]">
-                <span className="flex items-center gap-1.5">
-                  I consent to background verification
-                  {consentSaved && !saveConsent.isPending && (
-                    <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8.5px] font-bold uppercase tracking-wide text-emerald-700">
-                      <CheckCircle2 size={9} /> Saved
-                    </span>
-                  )}
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="border-0 bg-transparent px-0 pb-3 pt-0">
-                <span className="block text-[11px] leading-relaxed text-gray-500">{ONGRID_CONSENT_TEXT}</span>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </div>
-      </section>
+          partner. Only shown for candidate joining-doc requests — an employee
+          request is for an already-hired, already-verified person, so there's
+          nothing to consent to background verification for. */}
+      {request.entityType !== 'employee' && (
+        <section className="mt-6">
+          <h2 className="mb-2 flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
+            <ShieldCheck size={13} /> Consent
+          </h2>
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#E4E6EA] bg-white px-3.5">
+            <Checkbox
+              checked={consentChecked}
+              disabled={saveConsent.isPending}
+              onCheckedChange={v => {
+                const agreed = v === true;
+                setConsentChecked(agreed);
+                saveConsent.mutate(agreed);
+              }}
+            />
+            <Accordion type="single" collapsible className="min-w-0 flex-1">
+              <AccordionItem value="consent" className="rounded-none border-0 bg-transparent">
+                <AccordionTrigger className="px-0 py-2.5 text-[12.5px]">
+                  <span className="flex items-center gap-1.5">
+                    I consent to background verification
+                    {consentSaved && !saveConsent.isPending && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8.5px] font-bold uppercase tracking-wide text-emerald-700">
+                        <CheckCircle2 size={9} /> Saved
+                      </span>
+                    )}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="border-0 bg-transparent px-0 pb-3 pt-0">
+                  <span className="block text-[11px] leading-relaxed text-gray-500">{ONGRID_CONSENT_TEXT}</span>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        </section>
+      )}
 
       <p className="mt-6 text-center text-[11px] text-gray-400">
         Your information is encrypted in transit and used only for employment verification.

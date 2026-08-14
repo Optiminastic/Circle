@@ -361,7 +361,11 @@ export type RequiredDocType =
   | 'Resignation letter'
   | 'Current offer letter'
   | 'Bank details'
-  | 'Reference contacts';
+  | 'Reference contacts'
+  /** Employee-directory "Request docs" only (distinct from the 72h
+   *  kind:'signed-offer'/'signed-appointment' single-link flow). */
+  | 'Offer letter'
+  | 'Appointment letter';
 
 /**
  * A past-employer reference the candidate supplies through the portal. Only
@@ -405,10 +409,19 @@ export interface DocSubmission {
  */
 export interface DocRequest {
   id: string;
+  /** The person the docs are requested from — a candidate id, or (when
+   *  entityType is 'employee') an employee id. Field name kept for backward
+   *  compatibility with existing candidate requests. */
   candidateId: string;
   candidateName: string;
   email: string;
   role?: string;
+  /** Who candidateId/candidateName actually refer to. Undefined = 'candidate'
+   *  (every request created before this field existed). Drives where uploaded
+   *  documents are filed (entityType on the documents table row) and which
+   *  copy the public portal shows (e.g. employee requests skip the BGV
+   *  consent section — they're already hired and verified). */
+  entityType?: 'candidate' | 'employee';
   /** 'signed-offer' / 'signed-appointment' = a 72h link for the candidate's
    *  signed offer/appointment letter (kept separate from the joining-documents
    *  request). undefined = joining docs. */

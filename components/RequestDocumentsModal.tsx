@@ -257,7 +257,7 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
               </AccordionTrigger>
               <AccordionContent>
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                  {REQUIRED_DOCS.map(d => (
+                  {REQUIRED_DOCS.filter(d => d.scope !== 'employee').map(d => (
                     <DocRow key={d.type} type={d.type} label={d.label} />
                   ))}
                 </div>

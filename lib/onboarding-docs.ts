@@ -22,6 +22,12 @@ export interface RequiredDocDef {
   defaultSelected: boolean;
   /** Nice-to-have: the candidate may skip it without blocking completion. */
   optional?: boolean;
+  /** Restricts which picker shows this item. Undefined = the candidate
+   *  "Request joining documents" picker (the default/original audience). The
+   *  employee "Request docs" picker (EmployeeDocsModal) always uses its own
+   *  fixed list regardless of this flag — it exists so employee-only items
+   *  don't clutter the candidate picker. */
+  scope?: 'employee';
 }
 
 /** The non-file items, referenced by both the picker and the portal. */
@@ -52,10 +58,27 @@ export const REQUIRED_DOCS: RequiredDocDef[] = [
     kind: 'references',
     defaultSelected: false,
   },
+
+  // Employee-directory "Request docs" only — not shown in the candidate
+  // "Request joining documents" picker (see `scope`).
+  { type: 'Offer letter', label: 'Offer letter', hint: 'Signed copy of your offer letter', kind: 'file', defaultSelected: false, scope: 'employee' },
+  { type: 'Appointment letter', label: 'Appointment letter', hint: 'Signed copy of your appointment letter', kind: 'file', defaultSelected: false, scope: 'employee' },
 ];
 
 /** Every item HR can request. */
 export const REQUIRED_DOC_TYPES: string[] = REQUIRED_DOCS.map(d => d.type);
+
+/** The fixed picker list for the employee-directory "Request docs" action —
+ *  all unchecked by default regardless of each item's own `defaultSelected`. */
+export const EMPLOYEE_DOC_TYPES: RequiredDocType[] = [
+  'Offer letter',
+  'Appointment letter',
+  'Cancelled cheque',
+  'Bank details',
+  'Aadhaar card',
+  'PAN card',
+  'Education certificates',
+];
 
 /** Ticked when the "Request documents" modal opens. */
 export const DEFAULT_REQUIRED_DOC_TYPES: string[] = REQUIRED_DOCS.filter(d => d.defaultSelected).map(
