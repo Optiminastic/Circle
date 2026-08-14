@@ -69,7 +69,7 @@ export default function JobApplicantsPage() {
       <CandidateListView
         showHeader={false}
         candidates={applicants}
-        onSelectCandidate={id => router.push(`/candidates/${id}`)}
+        onSelectCandidate={id => router.push(`/jobs/${jobId}/applicants/${id}`)}
         onAddCandidate={candidate =>
           create.mutate({
             ...candidate,

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Check,
@@ -190,8 +190,15 @@ const blankHrCall = (): HRCallRecord => ({
 });
 
 export default function CandidateDetailPage() {
-  const params = useParams<{ id: string }>();
-  const id = params?.id ?? '';
+  // Rendered at two routes: /candidates/[id] and, so the applicants list's
+  // back button/browser-back naturally returns there instead of the generic
+  // candidates list, nested under a job at /jobs/[jobId]/applicants/[candidateId].
+  const params = useParams<{ id?: string; candidateId?: string }>();
+  const id = params?.id ?? params?.candidateId ?? '';
+  const pathname = usePathname();
+  // Parent list route — the current path minus its last segment. Works for
+  // both routes above without hardcoding either one.
+  const backHref = pathname.replace(/\/[^/]+$/, '') || '/candidates';
 
   const { data: candidates = [], isLoading } = useCandidates();
   const { data: schedules = [] } = useSchedules();
@@ -354,10 +361,10 @@ export default function CandidateDetailPage() {
       <div className="mx-auto max-w-md py-20 text-center">
         <p className="text-sm font-semibold text-gray-700">Candidate not found</p>
         <Link
-          href="/candidates"
+          href={backHref}
           className="mt-3 inline-block text-xs font-semibold text-accent-600 hover:underline"
         >
-          ← Back to candidates
+          ← Back
         </Link>
       </div>
     );

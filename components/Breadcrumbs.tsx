@@ -79,7 +79,9 @@ export function Breadcrumbs() {
 
     // Dynamic entity id (anything not in the label map, under a known parent).
     if (!known) {
-      if (parent === 'candidates') {
+      // 'applicants' = a candidate opened from a job's applicants list
+      // (/jobs/[jobId]/applicants/[candidateId]) — same candidate lookup.
+      if (parent === 'candidates' || parent === 'applicants') {
         crumbs.push({ label: candidates.find(c => c.id === seg)?.fullName ?? seg, href: null });
         return;
       }

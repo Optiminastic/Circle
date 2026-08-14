@@ -45,7 +45,10 @@ export function Sidebar({
   };
 
   const navItem = (href: string, label: string, icon: React.ReactNode) => {
-    const isActive = pathname === href;
+    // Exact match for the root Dashboard link (every path "starts with" /),
+    // prefix match for everything else so a nested route (e.g. a candidate
+    // opened from a job's applicants list) keeps its section highlighted.
+    const isActive = href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/');
     return (
       <Link
         href={href}
