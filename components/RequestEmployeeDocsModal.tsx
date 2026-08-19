@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { X, Loader2, Link2, Mail, FileText } from 'lucide-react';
-import { useDocRequestMutations } from '@/features/doc-requests/hooks';
+import { useDocRequestMutations, useDocRequests } from '@/features/doc-requests/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
@@ -39,6 +39,16 @@ export function RequestEmployeeDocsModal({ employeeId, employeeName, email, role
   const toast = useToast();
   const qc = useQueryClient();
   const { create } = useDocRequestMutations();
+  const { data: docRequests = [] } = useDocRequests();
+  // The employee flow always reuses one link per person (see create.mutate's
+  // employeeReuseTarget) — show what's already on it so ticking new items
+  // here reads as "add to", not "replace".
+  const existingRequest = docRequests
+    .filter(r => r.candidateId === employeeId && r.entityType === 'employee')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  const alreadyRequestedLabels = (existingRequest?.requiredDocs ?? [])
+    .map(t => docDefByType(t)?.label ?? t)
+    .join(', ');
 
   const [to, setTo] = useState(email);
   const [subject, setSubject] = useState('Action needed — please upload your requested documents');
@@ -173,6 +183,14 @@ export function RequestEmployeeDocsModal({ employeeId, employeeName, email, role
             <X size={18} />
           </button>
         </div>
+
+        {existingRequest && (
+          <p className="mb-3 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-[11.5px] text-accent-700">
+            {employeeName} already has an active upload link requesting: {alreadyRequestedLabels || 'nothing yet'}.
+            Anything you tick below is <strong>added</strong> to that same link — nothing already requested is
+            removed.
+          </p>
+        )}
 
         <Accordion type="multiple" defaultValue={['docs']} className="space-y-2">
           <AccordionItem value="email">

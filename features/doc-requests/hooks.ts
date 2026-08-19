@@ -68,8 +68,45 @@ export function useDocRequestMutations() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const live = existing.find(r => new Date(r.expiresAt).getTime() > Date.now());
 
+      // Employee requests always reuse the SAME link — even after it's
+      // expired — so HR never has to send a new URL for the same person; a
+      // later "Request docs" (e.g. asking for Bank details after Aadhaar/PAN
+      // were already requested) just ADDS to what's already on that link
+      // rather than replacing it, so nothing already asked for gets dropped.
+      const employeeReuseTarget = input.entityType === 'employee' ? (live ?? existing[0]) : undefined;
+
       let request: DocRequest;
-      if (live) {
+      if (employeeReuseTarget) {
+        const mergedDocs = Array.from(new Set([...(employeeReuseTarget.requiredDocs ?? []), ...requiredDocs]));
+        const fileDocs = requiredFileDocTypes(mergedDocs);
+        const submissions = employeeReuseTarget.submissions ?? [];
+        const allVerified =
+          fileDocs.length > 0 && fileDocs.every(rt => submissions.some(s => s.docType === rt && s.status === 'Verified'));
+        const bankOk = !mergedDocs.includes(BANK_DOC_TYPE) || employeeReuseTarget.bankDetails?.status === 'Verified';
+        // Only downgrade a previously-Verified request when the merge adds
+        // something not yet covered — never clobber an in-progress Submitted.
+        const status =
+          employeeReuseTarget.status === 'Verified' && !(allVerified && bankOk)
+            ? 'Pending'
+            : employeeReuseTarget.status;
+        request = {
+          ...employeeReuseTarget,
+          email: input.email || employeeReuseTarget.email,
+          role: input.role ?? employeeReuseTarget.role,
+          entityType: 'employee',
+          requiredDocs: mergedDocs,
+          status,
+          expiresAt,
+        };
+        await repositories.docRequests.patch(employeeReuseTarget.id, {
+          email: request.email,
+          role: request.role,
+          entityType: 'employee',
+          requiredDocs: mergedDocs,
+          status,
+          expiresAt,
+        });
+      } else if (live) {
         // Re-requesting also updates what's asked for, so HR can add or drop
         // items on an existing link.
         request = {
