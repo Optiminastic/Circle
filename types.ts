@@ -51,6 +51,16 @@ export interface Candidate {
   /** HR's screening review recorded before/while reaching out to the candidate. */
   screeningReview?: ScreeningReview;
 
+  /** Full resume text extracted at apply time (best-effort; empty if the PDF
+   *  had no extractable text layer, e.g. a scanned image). Kept for a
+   *  possible future re-scan without re-fetching/re-parsing the S3 file. */
+  resumeText?: string;
+  /** The subset of the job's `keywords` (as they were AT APPLY TIME) found in
+   *  the resume text. Always an array once computed — undefined only for
+   *  candidates who applied before this feature existed; an empty array is a
+   *  real "matched none" result, not "not computed". */
+  keywordMatches?: string[];
+
   // HR introductory call info (if completed or moved to HR Call)
   hrCall?: HRCallRecord;
 
@@ -217,6 +227,10 @@ export interface Job {
   postedDate: string;
   /** Yes/No screening questions candidates answer when applying. */
   screeningQuestions?: ScreeningQuestion[];
+  /** Skill/tech terms an applicant's resume is checked against on apply (see
+   *  Candidate.keywordMatches). HR-entered, optionally seeded by scanning
+   *  description/requirements via lib/keyword-extraction.ts. */
+  keywords?: string[];
 }
 
 export type EmploymentType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship' | 'Temporary';

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Select } from './Select';
 import { bankToQuestions, computeSyncedScreeningBank } from '@/lib/screening-bridge';
+import { suggestKeywords } from '@/lib/keyword-extraction';
 import {
   useScreeningBanks,
   useScreeningBankMutations,
@@ -48,6 +49,8 @@ import {
   Pause,
   PauseCircle,
   Pencil,
+  Sparkles,
+  Tag,
 } from 'lucide-react';
 import { ActionMenu } from '@/components/ActionMenu';
 import { EditableSelect } from '@/components/ui/editable-select';
@@ -111,6 +114,7 @@ const EMPTY_FORM = {
   keyResponsibilities: '',
   requirements: '',
   screeningQuestions: [] as ScreeningQuestion[],
+  keywords: [] as string[],
 };
 
 function statusBadge(status: JobStatus): string {
@@ -164,6 +168,7 @@ export function JobListView({
       keyResponsibilities: job.keyResponsibilities ?? '',
       requirements: job.requirements,
       screeningQuestions: job.screeningQuestions ?? [],
+      keywords: job.keywords ?? [],
     });
     setShowAddForm(true);
   };
@@ -176,7 +181,10 @@ export function JobListView({
 
   // Reset the chosen set each time the create form opens.
   useEffect(() => {
-    if (showAddForm) setScreeningSetId('');
+    if (showAddForm) {
+      setScreeningSetId('');
+      setKeywordInput('');
+    }
   }, [showAddForm]);
 
   // Apply a saved set: replace the form's screening questions with its questions.
@@ -185,6 +193,35 @@ export function JobListView({
     const bank = screeningBanks.find(b => b.id === id);
     setForm(f => ({ ...f, screeningQuestions: bank ? bankToQuestions(bank) : [] }));
   };
+  // Keywords picker — an applicant's resume is checked against this list on
+  // apply (see circle-be/app/services/resume_keywords.py). "Auto-detect"
+  // just seeds suggestions from the JD text; HR adds/removes freely.
+  const [keywordInput, setKeywordInput] = useState('');
+  const addKeyword = (raw: string) => {
+    const term = raw.trim();
+    if (!term) return;
+    setForm(f => (f.keywords.some(k => k.toLowerCase() === term.toLowerCase()) ? f : { ...f, keywords: [...f.keywords, term] }));
+    setKeywordInput('');
+  };
+  const removeKeyword = (term: string) =>
+    setForm(f => ({ ...f, keywords: f.keywords.filter(k => k !== term) }));
+  const autoDetectKeywords = () => {
+    const suggested = suggestKeywords({
+      requirements: form.requirements,
+      description: form.description,
+      keyResponsibilities: form.keyResponsibilities,
+    });
+    if (suggested.length === 0) {
+      toast.info('Add a job description/requirements first, then auto-detect.');
+      return;
+    }
+    setForm(f => {
+      const existingLower = new Set(f.keywords.map(k => k.toLowerCase()));
+      const merged = [...f.keywords, ...suggested.filter(k => !existingLower.has(k.toLowerCase()))];
+      return { ...f, keywords: merged };
+    });
+  };
+
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
     key: 'title',
     dir: 'asc',
@@ -246,6 +283,7 @@ export function JobListView({
       screeningQuestions: form.screeningQuestions
         .map(q => ({ ...q, text: q.text.trim() }))
         .filter(q => q.text),
+      keywords: form.keywords,
     };
 
     if (editingJob) {
@@ -881,6 +919,65 @@ export function JobListView({
                       required
                     />
                   </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Keywords — an applicant's resume is checked against these on apply */}
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                  <h2 className="font-semibold text-foreground">Keywords</h2>
+                  <p className="mt-1 text-xs leading-6 text-muted-foreground">
+                    Skills/tech terms an applicant&apos;s resume is checked against on apply — shown as
+                    a match count (e.g. &quot;10/12&quot;) in the candidate list.
+                  </p>
+                </div>
+                <div className="space-y-2.5 md:col-span-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={keywordInput}
+                      onChange={e => setKeywordInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addKeyword(keywordInput);
+                        }
+                      }}
+                      placeholder="Type a keyword and press Enter — e.g. React, Roblox, Lua"
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => addKeyword(keywordInput)}>
+                      <Plus size={13} /> Add
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={autoDetectKeywords}>
+                      <Sparkles size={13} /> Auto-detect from JD
+                    </Button>
+                  </div>
+                  {form.keywords.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {form.keywords.map(k => (
+                        <span
+                          key={k}
+                          className="inline-flex items-center gap-1 rounded-full border border-accent-200 bg-accent-50 py-1 pl-2.5 pr-1.5 text-[11.5px] font-medium text-accent-700"
+                        >
+                          <Tag size={10} /> {k}
+                          <button
+                            type="button"
+                            onClick={() => removeKeyword(k)}
+                            aria-label={`Remove ${k}`}
+                            className="ml-0.5 rounded-full p-0.5 hover:bg-accent-100"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11.5px] text-muted-foreground">
+                      No keywords yet — optional, but lets the candidate list show a resume match score.
+                    </p>
+                  )}
                 </div>
               </div>
 

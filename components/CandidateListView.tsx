@@ -47,6 +47,7 @@ import {
   Gauge,
   Radio,
   RotateCcw,
+  Tag,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
@@ -525,13 +526,14 @@ export function CandidateListView({
           <Th icon={<Clock4 size={11} />} align="center">Notice period</Th>
           <Th icon={<Flag size={11} />}>Stage status</Th>
           <Th icon={<Check size={11} />} align="center">Fit</Th>
+          <Th icon={<Tag size={11} />} align="center">Keywords</Th>
           <Th icon={<Radio size={11} />}>Source</Th>
           <Th align="right">Actions</Th>
         </THead>
         <TBody>
           {filtered.length === 0 ? (
             <tr>
-              <Td colSpan={12}>
+              <Td colSpan={13}>
                 <EmptyState
                   icon={UserSearch}
                   title={candidates.length === 0 ? 'No candidates yet' : 'No matches'}
@@ -583,6 +585,31 @@ export function CandidateListView({
                       >
                         {fit}
                         {cand.fitRatingOverride && <span className="ml-0.5 opacity-60">*</span>}
+                      </span>
+                    );
+                  })()}
+                </Td>
+                <Td align="center">
+                  {(() => {
+                    const job = jobs.find(j => j.id === cand.jobId);
+                    const total = job?.keywords?.length ?? 0;
+                    // No keywords configured on the job, or this candidate applied
+                    // before the feature existed (matches never computed) — both
+                    // render a dash rather than a misleading "0/0"/"0/N".
+                    if (total === 0 || cand.keywordMatches === undefined) {
+                      return <span className="text-[10px] text-gray-400">—</span>;
+                    }
+                    const matched = cand.keywordMatches.length;
+                    const ratio = matched / total;
+                    const tone =
+                      ratio >= 0.7 ? 'bg-green-50 text-green-600' : ratio >= 0.4 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600';
+                    const missing = (job?.keywords ?? []).filter(k => !cand.keywordMatches!.includes(k));
+                    const tooltip =
+                      `Matched: ${cand.keywordMatches.join(', ') || 'none'}` +
+                      (missing.length ? `\nMissing: ${missing.join(', ')}` : '');
+                    return (
+                      <span title={tooltip} className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-bold ${tone}`}>
+                        {matched}/{total}
                       </span>
                     );
                   })()}
