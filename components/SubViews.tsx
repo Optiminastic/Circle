@@ -1,5 +1,6 @@
 'use client';
 import { Select } from './Select';
+import { SendInterviewKitTab } from './SendInterviewKitTab';
 import { DocumentsPanel } from './DocumentsPanel';
 import { DocRequestPanel } from './DocRequestPanel';
 import { OnboardingStepper } from './OnboardingStepper';
@@ -848,6 +849,41 @@ function onboardingTags(
   return tags;
 }
 
+/** Live progress + status label across the real 9 onboarding steps (see
+ *  OnboardingStepper.tsx — same done-conditions). `checklist.progressPercentage`
+ *  /`onboardingStatus` are separate, legacy fields (driven by a "tasks"
+ *  checklist nobody uses from this flow) hardcoded at creation
+ *  ("Offer Accepted" / 40%) and never recomputed — they do NOT reflect the
+ *  candidate's real progress, so neither must ever be shown/trusted here. */
+function onboardingProgress(
+  o: OnboardingChecklist,
+  bgv: BGVRequirement | undefined,
+  docRequests: DocRequest[],
+): { percentage: number; status: string } {
+  const signedOffer = docRequests.find(d => d.candidateId === o.candidateId && d.kind === 'signed-offer');
+  const joiningDocs = docRequests.find(d => d.candidateId === o.candidateId && !d.kind);
+  const signedAppointment = docRequests.find(
+    d => d.candidateId === o.candidateId && d.kind === 'signed-appointment',
+  );
+  const done = [
+    Boolean(o.offerLetterSentAt),
+    Boolean(o.offerSignedReceivedAt) || signedOffer?.status === 'Submitted' || signedOffer?.status === 'Verified',
+    joiningDocs?.status === 'Verified' || Boolean(o.joiningDocsSkippedAt),
+    bgv?.overallStatus === 'Verified', // sent-but-not-yet-verified does NOT count
+    Boolean(o.joiningDateConfirmedAt),
+    Boolean(o.firstDayArrivedAt),
+    Boolean(o.appointmentLetterSentAt),
+    Boolean(o.appointmentSignedReceivedAt) ||
+      signedAppointment?.status === 'Submitted' ||
+      signedAppointment?.status === 'Verified',
+    Boolean(o.convertedToEmployeeAt) || Boolean(o.employeeId),
+  ];
+  const percentage = Math.round((done.filter(Boolean).length / done.length) * 100);
+  const status =
+    percentage === 100 ? 'Onboarding Completed' : percentage >= 60 ? 'Ready to Join' : percentage >= 40 ? 'Documentation Completed' : 'Offer Accepted';
+  return { percentage, status };
+}
+
 export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
   const router = useRouter();
   const { data: bgvs = [] } = useBgvs();
@@ -880,28 +916,21 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
           </THead>
           <TBody>
             {onboarding.map(o => {
-              const tags = onboardingTags(
-                o,
-                bgvs.find(b => b.candidateId === o.candidateId),
-                docRequests,
-              );
+              const bgv = bgvs.find(b => b.candidateId === o.candidateId);
+              const tags = onboardingTags(o, bgv, docRequests);
+              const { percentage, status } = onboardingProgress(o, bgv, docRequests);
               return (
                 <Tr key={o.candidateId} onClick={() => router.push(`/onboarding/${o.candidateId}`)}>
                   <Td className="font-semibold text-gray-900">{o.candidateName}</Td>
                   <Td>
-                    <TagPill color={o.progressPercentage === 100 ? 'green' : 'blue'}>
-                      {o.onboardingStatus}
-                    </TagPill>
+                    <TagPill color={percentage === 100 ? 'green' : 'blue'}>{status}</TagPill>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EDEEF1]">
-                        <div
-                          className="h-full rounded-full bg-accent-600"
-                          style={{ width: `${o.progressPercentage}%` }}
-                        />
+                        <div className="h-full rounded-full bg-accent-600" style={{ width: `${percentage}%` }} />
                       </div>
-                      <span className="font-mono text-[11px] text-gray-600">{o.progressPercentage}%</span>
+                      <span className="font-mono text-[11px] text-gray-600">{percentage}%</span>
                     </div>
                   </Td>
                   <Td>
@@ -2189,7 +2218,7 @@ function GoogleCalendarCard() {
 export function SettingsView() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    'general' | 'email' | 'lists' | 'questions' | 'roles' | 'rules'
+    'general' | 'email' | 'lists' | 'questions' | 'interviewKit' | 'roles' | 'rules'
   >('general');
 
   return (
@@ -2206,7 +2235,9 @@ export function SettingsView() {
       <Tabs
         value={activeTab}
         onValueChange={v =>
-          setActiveTab(v as 'general' | 'email' | 'lists' | 'questions' | 'roles' | 'rules')
+          setActiveTab(
+            v as 'general' | 'email' | 'lists' | 'questions' | 'interviewKit' | 'roles' | 'rules',
+          )
         }
       >
         <TabsList>
@@ -2214,6 +2245,7 @@ export function SettingsView() {
           <TabsTrigger value="email">Email Templates</TabsTrigger>
           <TabsTrigger value="lists">Custom Lists</TabsTrigger>
           <TabsTrigger value="questions">Question Bank</TabsTrigger>
+          <TabsTrigger value="interviewKit">Interview Kit</TabsTrigger>
           <TabsTrigger value="roles">Roles &amp; Cryptography</TabsTrigger>
           <TabsTrigger value="rules">Automated Rules Rules</TabsTrigger>
         </TabsList>
@@ -2305,6 +2337,10 @@ export function SettingsView() {
               })}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="interviewKit">
+          <SendInterviewKitTab />
         </TabsContent>
 
         <TabsContent value="roles">

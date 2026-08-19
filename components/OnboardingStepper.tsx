@@ -242,8 +242,11 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // override, not a hardcoded "all docs or nothing" gate.
   const docsSkipped = Boolean(checklist.joiningDocsSkippedAt);
   const bgvVerified = bgv?.overallStatus === 'Verified';
-  // Once the candidate's data is sent to OnGrid, HR's part of this step is done —
-  // the external check runs for ~20 days and must NOT block the rest of onboarding.
+  // Sending to OnGrid does NOT complete this step on its own — HR must click
+  // "Mark BGV verified" once the external check (~20 days) actually comes
+  // back clean. Until then the step stays Pending (and onboarding progress
+  // stays below 100%), even though HR can freely continue the other steps
+  // in the meantime — "sent" only affects which CTA/copy shows, not `done`.
   const bgvSent = Boolean(bgv?.ongridIndividualId);
   const joiningConfirmed = Boolean(checklist.joiningDateConfirmedAt);
   const firstDayArrived = Boolean(checklist.firstDayArrivedAt);
@@ -328,9 +331,11 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     {
       Icon: Fingerprint,
       label: 'Background verification',
-      // Sending to OnGrid completes this step for onboarding purposes — the actual
-      // verification runs externally (~20 days) and never blocks the next steps.
-      done: bgvVerified || bgvSent,
+      // Only a real "Verified" counts as done — see the bgvVerified/bgvSent
+      // comment above. HR can still work through later steps while this one
+      // is pending; it just won't show as complete (or count toward 100%
+      // progress) until confirmed.
+      done: bgvVerified,
       desc: bgvVerified ? 'Verified' : bgvSent ? 'Sent · verifying' : bgv ? bgv.overallStatus : 'Not started',
       detail: bgvVerified
         ? 'Background verification is cleared.'
