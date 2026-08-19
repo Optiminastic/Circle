@@ -13,6 +13,9 @@ import { randomToken } from '@/lib/utils';
 export interface InterviewSheetPayload {
   /** Interview record id — lets the interviewer submit answers back to it. */
   interviewId?: string;
+  /** Interview-kit-send record id — used instead of `interviewId` for kits sent
+   *  manually from Settings, so feedback writes back to the kit record. */
+  kitSendId?: string;
   candidateName: string;
   role: string;
   department?: string;
