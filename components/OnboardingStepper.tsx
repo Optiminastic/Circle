@@ -247,7 +247,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const bgvSent = Boolean(bgv?.ongridIndividualId);
   const joiningConfirmed = Boolean(checklist.joiningDateConfirmedAt);
   const firstDayArrived = Boolean(checklist.firstDayArrivedAt);
+  // usePromoteFromOnboarding only ever sets convertedToEmployeeAt/employeeId
+  // (see features/onboarding/hooks.ts) — progressPercentage/onboardingStatus
+  // are never touched by it, so checking those alone left this step stuck on
+  // "Pending" (and its "Convert to employee" button live) forever after a
+  // real conversion, letting HR convert the same candidate again and create
+  // a duplicate employee record.
   const joined =
+    Boolean(checklist.convertedToEmployeeAt) ||
+    Boolean(checklist.employeeId) ||
     checklist.progressPercentage === 100 ||
     checklist.onboardingStatus === 'Joined' ||
     checklist.onboardingStatus === 'Onboarding Completed';
@@ -386,9 +394,11 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       Icon: BadgeCheck,
       label: 'Employee',
       done: joined,
-      desc: joined ? 'Onboarded' : 'Pending',
+      desc: joined ? (checklist.employeeId ? `Onboarded · ${checklist.employeeId}` : 'Onboarded') : 'Pending',
       detail: joined
-        ? 'The candidate has been onboarded into the employee directory.'
+        ? checklist.employeeId
+          ? `Converted to employee ${checklist.employeeId} — see them in the Employee Directory.`
+          : 'The candidate has been onboarded into the employee directory.'
         : 'The final step — convert the candidate into an employee once the appointment letter is out.',
       action: { kind: 'convert-employee', cta: 'Convert to employee' },
     },
