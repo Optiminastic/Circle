@@ -557,6 +557,25 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     });
   };
 
+  // Undo an accidental "Done" click — reopens verification without touching the
+  // OnGrid send/documents, so HR can re-check and click Done again for real.
+  const undoBgvVerification = () => {
+    if (!bgv) return;
+    toast.confirm({
+      title: 'Undo BGV verification?',
+      description: 'Moves this back to "under verification". Use this only if Done was clicked by mistake.',
+      confirmLabel: 'Undo',
+      onConfirm: () =>
+        updateBgv.mutate(
+          { ...bgv, overallStatus: 'Under Verification' },
+          {
+            onSuccess: () => toast.success('Background verification reopened.'),
+            onError: () => toast.error('Could not update BGV — try again.'),
+          },
+        ),
+    });
+  };
+
   // Reject a BGV: open an editable email telling the candidate their documents /
   // details are invalid. Records the rejection on the BGV once the email is sent.
   const openInvalidEmail = () => {
@@ -1345,6 +1364,20 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           </span>
                         </div>
                       )}
+
+                    {stage.action.kind === 'verify-bgv' && bgvVerified && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={undoBgvVerification}
+                          disabled={updateBgv.isPending}
+                          title="Reopen this — moves it back to under verification"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-500 transition hover:bg-[#F1F3F5] disabled:opacity-60"
+                        >
+                          {updateBgv.isPending ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+                          Undo verification
+                        </button>
+                      </div>
+                    )}
 
                     {/* Signed offer letter the candidate uploaded — preview / download. */}
                     {stage.action.kind === 'mark-signed' && signedOfferDoc && (
