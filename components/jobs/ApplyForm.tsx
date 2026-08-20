@@ -50,37 +50,6 @@ const formatSize = (bytes: number): string =>
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
-// Pull a number out of a salary string like "12 LPA" / "₹12" / "12".
-const parseLpa = (value: string): number | null => {
-  const m = String(value ?? '').match(/[\d.]+/);
-  const n = m ? parseFloat(m[0]) : NaN;
-  return Number.isFinite(n) ? n : null;
-};
-const fmtLpa = (n: number): string => (Number.isInteger(n) ? `${n}` : n.toFixed(1));
-// Build LPA options from `lo` to `hi` in 0.5 steps (capped).
-const lpaRange = (lo: number, hi: number): string[] => {
-  const out: string[] = [];
-  for (let v = lo; v <= hi + 1e-9 && out.length < 200; v = Math.round((v + 0.5) * 10) / 10) {
-    out.push(fmtLpa(v));
-  }
-  return out;
-};
-// Current CTC is the candidate's existing salary (not tied to the role): a
-// general 1–10 LPA dropdown.
-const currentCtcOptions = (): string[] => lpaRange(1, 10);
-// Expected CTC must sit inside the role's offered salary band (min–max). Falls
-// back to a sensible range when the role has no usable salary, so it's always a
-// dropdown (never a free-text input).
-const expectedCtcOptions = (min: string, max: string): string[] => {
-  let lo = parseLpa(min);
-  let hi = parseLpa(max);
-  if (lo == null || hi == null || hi < lo) {
-    lo = 1;
-    hi = 50;
-  }
-  return lpaRange(lo, hi);
-};
-
 /**
  * The public job application form. The job is fetched on the server and passed
  * in; this component owns only the interactive apply flow (validation, resume
@@ -131,10 +100,6 @@ export function ApplyForm({ job }: { job: Job }) {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // Current CTC = general 1–10 LPA; Expected CTC = the role's salary band.
-  const currentCtcChoices = currentCtcOptions();
-  const expectedCtcChoices = expectedCtcOptions(job.salaryMin, job.salaryMax);
 
   const set = (patch: Partial<typeof EMPTY>) => setForm(prev => ({ ...prev, ...patch }));
 
@@ -523,38 +488,28 @@ export function ApplyForm({ job }: { job: Job }) {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Current CTC (LPA) *">
-                  <Select
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
                     className={inputCls}
                     value={form.currentCtc}
                     onChange={e => set({ currentCtc: e.target.value })}
-                    placeholder="Select CTC"
-                  >
-                    <option value="" disabled>
-                      Select CTC
-                    </option>
-                    {currentCtcChoices.map(n => (
-                      <option key={n} value={n}>
-                        {n} LPA
-                      </option>
-                    ))}
-                  </Select>
+                    placeholder="e.g. 6"
+                    required
+                  />
                 </Field>
                 <Field label="Expected CTC (LPA) *">
-                  <Select
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
                     className={inputCls}
                     value={form.expectedCtc}
                     onChange={e => set({ expectedCtc: e.target.value })}
-                    placeholder="Select CTC"
-                  >
-                    <option value="" disabled>
-                      Select CTC
-                    </option>
-                    {expectedCtcChoices.map(n => (
-                      <option key={n} value={n}>
-                        {n} LPA
-                      </option>
-                    ))}
-                  </Select>
+                    placeholder="e.g. 8"
+                    required
+                  />
                 </Field>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
