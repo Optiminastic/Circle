@@ -39,7 +39,8 @@ import {
 import { SIGN_OFFER_TTL_HOURS } from '@/lib/sign-offer';
 import { SIGN_APPOINTMENT_TTL_HOURS } from '@/lib/sign-appointment';
 import { useDocuments, downloadDocument } from '@/features/documents/hooks';
-import { documentPreviewUrl } from '@/lib/api/documents';
+import { documentPreviewUrl, uploadDocument, importDriveDocument } from '@/lib/api/documents';
+import { PickedFile } from '@/components/ui/file-dropzone';
 import {
   useOnboardingEmails,
   usePromoteFromOnboarding,
@@ -52,6 +53,7 @@ import { SendOfferLetterModal } from '@/components/SendOfferLetterModal';
 import { SendAppointmentLetterModal } from '@/components/SendAppointmentLetterModal';
 import { RequestDocumentsModal } from '@/components/RequestDocumentsModal';
 import { StartBgvModal } from '@/components/StartBgvModal';
+import { VerifyBgvReportModal } from '@/components/VerifyBgvReportModal';
 import { RefreshButton } from '@/components/RefreshButton';
 import { bgvCheckByCode } from '@/lib/bgv-services';
 import { buildOnboardingEmailDraft } from '@/lib/onboarding-email-templates';
@@ -165,6 +167,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const [requestDocsOpen, setRequestDocsOpen] = useState(false);
   // "Start verification" check-picker (which BGV services to run).
   const [startBgvOpen, setStartBgvOpen] = useState(false);
+  // "Mark BGV verified" report-upload modal.
+  const [bgvReportModalOpen, setBgvReportModalOpen] = useState(false);
   // Joining-date picker value for the "Joining date confirmation" step.
   const [joiningInput, setJoiningInput] = useState(checklist.joiningDate ?? '');
   // Re-activation duration picker for the joining-documents upload link.
@@ -205,7 +209,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
   // Signed offer letter the candidate uploaded via the 72h public link (stored in
   // S3 + the documents table as category "Signed Offer Letter").
-  const { data: candidateDocs = [] } = useDocuments('candidate', checklist.candidateId);
+  const { data: candidateDocs = [], refetch: refetchCandidateDocs } = useDocuments(
+    'candidate',
+    checklist.candidateId,
+  );
   const signedOfferDoc = candidateDocs
     .filter(d => d.category === 'Signed Offer Letter')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
@@ -540,19 +547,54 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     });
   };
 
-  const verifyBgvNow = () => {
+  // Uploads the OnGrid report HR attached in the "Mark BGV verified" modal,
+  // then flips the status — the upload is mandatory evidence, not optional.
+  const submitBgvReport = async (picked: PickedFile) => {
     if (!bgv) return;
+    let reportDocId: string;
+    try {
+      const meta =
+        picked.kind === 'local'
+          ? await uploadDocument({
+              entityType: 'candidate',
+              entityId: checklist.candidateId,
+              category: 'bgv-report',
+              file: picked.file,
+            })
+          : await importDriveDocument({
+              entityType: 'candidate',
+              entityId: checklist.candidateId,
+              category: 'bgv-report',
+              fileId: picked.ref.id,
+              fileName: picked.ref.name,
+              mimeType: picked.ref.mimeType,
+              accessToken: picked.ref.accessToken,
+            });
+      reportDocId = meta.id;
+    } catch {
+      toast.error('Could not upload the BGV report — try again.');
+      return;
+    }
     const cleared: BGVRequirement = {
       ...bgv,
       overallStatus: 'Verified',
       documents: bgv.documents.map(d => ({ ...d, status: 'Verified' })),
+      reportDocId,
       verificationTimeline: [
         ...bgv.verificationTimeline,
-        { date: nowISO(), action: 'Background verification cleared from onboarding', performedBy: 'HR' },
+        {
+          date: nowISO(),
+          action: 'Background verification cleared from onboarding (report attached)',
+          performedBy: 'HR',
+        },
       ],
     };
     updateBgv.mutate(cleared, {
-      onSuccess: () => toast.success('Background verification marked as cleared.'),
+      onSuccess: () => {
+        toast.success('Background verification marked as cleared.');
+        setBgvReportModalOpen(false);
+        refetchCandidateDocs();
+      },
       onError: () => toast.error('Could not update BGV — try again.'),
     });
   };
@@ -640,7 +682,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   };
 
   // --- per-stage action helpers (each entry drives its own button) ---
-  const gateMetFor = (i: number) => (i === 0 ? true : stages[i - 1].done);
+  // Background verification (stage index 3) hard-blocks every stage after it,
+  // regardless of position — not just its immediate successor — so a BGV that
+  // gets reopened (Undo verification) re-locks the rest of the checklist too.
+  const gateReasonFor = (i: number): string | null => {
+    if (i > 3 && !bgvVerified) return 'Complete Background Verification first';
+    if (i > 0 && !stages[i - 1].done) return 'Complete the previous step first';
+    return null;
+  };
+  const gateMetFor = (i: number) => gateReasonFor(i) === null;
   const showActionFor = (i: number) => {
     const a = stages[i].action;
     const done = stages[i].done;
@@ -709,7 +759,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       case 'start-bgv':
         return beginBgv();
       case 'verify-bgv':
-        return verifyBgvNow();
+        return setBgvReportModalOpen(true);
       case 'convert-employee':
         return convertToEmployee();
     }
@@ -794,6 +844,14 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           pending={startBgv.isPending || updateBgv.isPending || ongridOnboard.isPending}
           onStart={confirmBgv}
           onClose={() => setStartBgvOpen(false)}
+        />
+      )}
+      {bgvReportModalOpen && (
+        <VerifyBgvReportModal
+          candidateName={checklist.candidateName}
+          pending={updateBgv.isPending}
+          onSubmit={submitBgvReport}
+          onClose={() => setBgvReportModalOpen(false)}
         />
       )}
       {/* Header — title + step count, matching the candidate Recruitment
@@ -1068,7 +1126,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       type="button"
                       onClick={() => onActionClickFor(i)}
                       disabled={!gateMet || pending}
-                      title={!gateMet ? 'Complete the previous step first' : actionLabel}
+                      title={!gateMet ? (gateReasonFor(i) ?? undefined) : actionLabel}
                       className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
                         !gateMet
                           ? 'cursor-not-allowed border-[#E4E6EA] bg-white text-gray-300'
@@ -1127,7 +1185,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           />
                           <button
                             onClick={confirmJoining}
-                            disabled={setJoiningDate.isPending || !joiningInput}
+                            disabled={setJoiningDate.isPending || !joiningInput || !bgvVerified}
+                            title={!bgvVerified ? 'Complete Background Verification first' : undefined}
                             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {setJoiningDate.isPending ? (
@@ -1286,7 +1345,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                         <button
                           onClick={() => onActionClickFor(i)}
                           disabled={!gateMet || pending}
-                          title={!gateMet ? 'Complete the previous step first' : undefined}
+                          title={!gateMet ? (gateReasonFor(i) ?? undefined) : undefined}
                           className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {pending ? (
@@ -1341,7 +1400,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       !bgvVerified && (
                         <div className="flex flex-wrap items-center gap-2">
                           <button
-                            onClick={verifyBgvNow}
+                            onClick={() => setBgvReportModalOpen(true)}
                             disabled={updateBgv.isPending}
                             title="Confirm you've checked OnGrid and the candidate is verified"
                             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
@@ -1367,6 +1426,16 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
                     {stage.action.kind === 'verify-bgv' && bgvVerified && (
                       <div className="flex flex-wrap items-center gap-2">
+                        {bgv?.reportDocId && (
+                          <button
+                            onClick={() =>
+                              window.open(documentPreviewUrl(bgv.reportDocId!), '_blank', 'noopener,noreferrer')
+                            }
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                          >
+                            <Eye size={13} /> Preview BGV report
+                          </button>
+                        )}
                         <button
                           onClick={undoBgvVerification}
                           disabled={updateBgv.isPending}
@@ -1470,9 +1539,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                         {!checklist.appointmentSignedReceivedAt && (
                           <button
                             onClick={markAppointmentSignedNow}
-                            disabled={markAppointmentSigned.isPending}
+                            disabled={markAppointmentSigned.isPending || !bgvVerified}
                             className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                            title="Confirm the signed appointment letter is valid"
+                            title={
+                              !bgvVerified
+                                ? 'Complete Background Verification first'
+                                : 'Confirm the signed appointment letter is valid'
+                            }
                           >
                             {markAppointmentSigned.isPending ? (
                               <Loader2 size={13} className="animate-spin" />

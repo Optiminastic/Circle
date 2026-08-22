@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AssetRecord, Employee, OffboardingWorkflow } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
+import { listOps } from '@/lib/query/optimistic';
 import { optimisticOptions } from '@/lib/query/mutations';
 import { buildOffboardingWorkflow, toggleDeliverable, toggleExitTask } from '@/services/offboarding.service';
 import { suspendAllCredentials } from '@/services/employee.service';
@@ -75,6 +76,43 @@ export function useInitiateOffboarding() {
       qc.invalidateQueries({ queryKey: qk.offboarding.all });
       qc.invalidateQueries({ queryKey: qk.employees.all });
     },
+  });
+}
+
+/** Edit a live case's reason / last working day (the two editable list columns). */
+export function useUpdateOffboardingCase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ employeeId, changes }: { employeeId: string; changes: Partial<OffboardingWorkflow> }) =>
+      repositories.offboarding.patch(employeeId, changes),
+    ...optimisticOptions<{ employeeId: string; changes: Partial<OffboardingWorkflow> }, OffboardingWorkflow>(
+      qc,
+      qk.offboarding.all,
+      ({ employeeId, changes }) =>
+        listOps.mergeBy<OffboardingWorkflow>(o => o.employeeId === employeeId, changes),
+    ),
+  });
+}
+
+/** Delete an exit case outright (e.g. opened by mistake) — reverts the employee
+ *  back to Active if the case had put them "On Leave" and never completed. */
+export function useDeleteOffboarding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (employeeId: string) => {
+      await repositories.offboarding.remove(employeeId);
+      const employees = qc.getQueryData<Employee[]>(qk.employees.all) ?? [];
+      const emp = employees.find(e => e.id === employeeId);
+      if (emp?.status === 'On Leave') {
+        await repositories.employees.patch(employeeId, { status: 'Active' });
+      }
+    },
+    ...optimisticOptions<string, OffboardingWorkflow>(
+      qc,
+      qk.offboarding.all,
+      employeeId => listOps.removeBy(o => o.employeeId === employeeId),
+      [qk.offboarding.all, qk.employees.all],
+    ),
   });
 }
 

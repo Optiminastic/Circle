@@ -540,6 +540,9 @@ export interface BGVRequirement {
     currentAddress?: string;
   };
   ongridDocuments?: { docType: string; route?: string; status: string }[];
+  /** Document id of the OnGrid PDF report HR uploaded as evidence when marking
+   *  BGV verified (see documents.id) — set by the "Mark BGV verified" modal. */
+  reportDocId?: string;
 }
 
 export type BGVDocumentType =

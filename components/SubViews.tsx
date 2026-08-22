@@ -11,6 +11,14 @@ import { useUiStore } from '@/store/ui-store';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useCandidates, useBgvs } from '@/features/candidates/hooks';
 import { useDocRequests } from '@/features/doc-requests/hooks';
+import { useEmployees } from '@/features/employees/hooks';
+import {
+  useInitiateOffboarding,
+  useUpdateOffboardingCase,
+  useDeleteOffboarding,
+} from '@/features/offboarding/hooks';
+import { AddExitCaseModal } from '@/components/AddExitCaseModal';
+import { EditExitCaseDialog } from '@/components/EditExitCaseDialog';
 import { useScheduler } from '@/store/schedule-store';
 import {
   getCalendarStatus,
@@ -69,6 +77,7 @@ import {
   X,
   Eye,
   Trash2,
+  Pencil,
   ShieldCheck,
   KeyRound,
   Laptop,
@@ -1871,16 +1880,82 @@ interface OffboardingViewProps {
 
 export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) {
   const router = useRouter();
+  const toast = useToast();
+  const { data: employees = [] } = useEmployees();
+  const initiateOffboarding = useInitiateOffboarding();
+  const updateCase = useUpdateOffboardingCase();
+  const deleteCase = useDeleteOffboarding();
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<OffboardingWorkflow | null>(null);
+
+  // Eligible for a new exit case: active, and not already mid-way through one.
+  const eligibleEmployees = employees.filter(
+    e => e.status === 'Active' && !offboarding.some(o => o.employeeId === e.id && o.status !== 'Completed'),
+  );
+
+  const addCase = (vars: {
+    empId: string;
+    reason: OffboardingWorkflow['triggerReason'];
+    initiatedDate: string;
+    noticeDays: number;
+  }) => {
+    initiateOffboarding.mutate(
+      { empId: vars.empId, reason: vars.reason, initiatedDate: vars.initiatedDate, noticeDays: vars.noticeDays },
+      {
+        onSuccess: () => {
+          toast.success('Exit case opened.');
+          setAddOpen(false);
+        },
+        onError: () => toast.error('Could not open the exit case — try again.'),
+      },
+    );
+  };
+
+  const saveCase = (changes: { triggerReason: OffboardingWorkflow['triggerReason']; lastWorkingDay: string }) => {
+    if (!editTarget) return;
+    updateCase.mutate(
+      { employeeId: editTarget.employeeId, changes },
+      {
+        onSuccess: () => {
+          toast.success('Exit case updated.');
+          setEditTarget(null);
+        },
+        onError: () => toast.error('Could not update the exit case — try again.'),
+      },
+    );
+  };
+
+  const removeCase = (o: OffboardingWorkflow) => {
+    toast.confirm({
+      title: `Delete ${o.employeeName}'s exit case?`,
+      description: 'This permanently removes the exit case and its checklist. This cannot be undone.',
+      confirmLabel: 'Delete',
+      onConfirm: () =>
+        deleteCase.mutate(o.employeeId, {
+          onSuccess: () => toast.success('Exit case deleted.'),
+          onError: () => toast.error('Could not delete the exit case — try again.'),
+        }),
+    });
+  };
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div>
-        <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
-          Offboarding & exit Workflows
-        </h2>
-        <p className="text-gray-500 text-[11px]">
-          Open an exit case to manage notice clearances, deliverables, and handover documents.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
+            Offboarding & exit Workflows
+          </h2>
+          <p className="text-gray-500 text-[11px]">
+            Open an exit case to manage notice clearances, deliverables, and handover documents.
+          </p>
+        </div>
+        <button
+          onClick={() => setAddOpen(true)}
+          className="bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition font-medium shrink-0 shadow-2xs"
+        >
+          <Plus size={15} /> Open exit case
+        </button>
       </div>
 
       {/* Exit cases table — click a row to open the full workflow page */}
@@ -1896,6 +1971,7 @@ export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) 
             <Th icon={<CalendarDays size={11} />}>Last working day</Th>
             <Th icon={<ShieldCheck size={11} />}>Status</Th>
             <Th align="right">Open</Th>
+            <Th align="right"></Th>
           </THead>
           <TBody>
             {offboarding.map(o => (
@@ -1911,10 +1987,44 @@ export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) 
                 <Td align="right">
                   <ChevronRight size={14} className="inline text-gray-400" />
                 </Td>
+                <Td align="right">
+                  <div className="flex justify-end" onClick={e => e.stopPropagation()}>
+                    <ActionMenu
+                      items={[
+                        { key: 'edit', label: 'Edit', icon: <Pencil size={14} />, onClick: () => setEditTarget(o) },
+                        {
+                          key: 'delete',
+                          label: 'Delete',
+                          icon: <Trash2 size={14} />,
+                          danger: true,
+                          onClick: () => removeCase(o),
+                        },
+                      ]}
+                    />
+                  </div>
+                </Td>
               </Tr>
             ))}
           </TBody>
         </Table>
+      )}
+
+      {addOpen && (
+        <AddExitCaseModal
+          employees={eligibleEmployees}
+          pending={initiateOffboarding.isPending}
+          onSubmit={addCase}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
+      {editTarget && (
+        <EditExitCaseDialog
+          open
+          workflow={editTarget}
+          pending={updateCase.isPending}
+          onSave={saveCase}
+          onClose={() => setEditTarget(null)}
+        />
       )}
     </div>
   );
