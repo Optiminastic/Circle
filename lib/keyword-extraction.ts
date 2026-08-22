@@ -22,6 +22,11 @@ const STOPWORDS = new Set([
   'etc', 'such', 'other', 'related', 'various', 'multiple', 'across',
   'high', 'level', 'levels', 'looking', 'seeking', 'ideal', 'about',
   'understanding', 'communication', 'environment', 'opportunity', 'new',
+  'minimum', 'highly', 'optiminastic', 'prepare', 'key', 'willingness',
+  'prior', 'stay', 'follow', 'operate', 'fast', 'basic', 'genuine',
+  'master', 'exposure', 'haves', 'confidence', 'draft', 'identify',
+  'negotiate', 'track', 'participate', 'engage', 'release', 'integrate',
+  'fix', 'comfortable', 'passion', 'interest', 'eagerness', 'am', 'pm',
   // Generic sentence-starter verbs that open almost every JD bullet line —
   // capitalized (start-of-line) but never a real skill/tool name.
   'design', 'build', 'implement', 'manage', 'own', 'lead', 'drive',

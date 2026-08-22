@@ -1396,7 +1396,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     )}
 
                     {/* BGV decision — shown once the candidate is on OnGrid: HR checks the
-                        candidate on the OnGrid portal, then confirms Done (verified true)
+                        candidate on the OnGrid portal, then confirms Verify (verified true)
                         or rejects with an email (Invalid). */}
                     {stage.action.kind === 'verify-bgv' &&
                       !!bgv?.ongridIndividualId &&
@@ -1413,7 +1413,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             ) : (
                               <Check size={13} />
                             )}
-                            Done
+                            Verify
                           </button>
                           <button
                             onClick={openInvalidEmail}
@@ -1422,7 +1422,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             <XCircle size={13} /> Invalid
                           </button>
                           <span className="text-[11px] text-gray-400">
-                            Check the candidate on OnGrid, then confirm Done (verified) or Invalid.
+                            Check the candidate on OnGrid, then confirm Verify (verified) or Invalid.
                           </span>
                         </div>
                       )}
