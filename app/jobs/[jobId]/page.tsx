@@ -34,13 +34,17 @@ export default async function PublicJobPage({ params }: { params: Promise<{ jobI
   }
 
   const closed = job.status === 'Closed' || job.status === 'On Hold';
+  // Requirements/responsibilities are often pasted in from Word/Docs with their
+  // own bullet characters already in the text — strip a leading one so it
+  // doesn't double up with the CheckCircle2 icon this page renders per line.
+  const stripBullet = (line: string) => line.replace(/^[•●◦▪‣∙·*\-–—]+\s*/, '');
   const requirements = job.requirements
     .split('\n')
-    .map(r => r.trim())
+    .map(r => stripBullet(r.trim()))
     .filter(Boolean);
   const responsibilities = (job.keyResponsibilities ?? '')
     .split('\n')
-    .map(r => r.trim())
+    .map(r => stripBullet(r.trim()))
     .filter(Boolean);
 
   return (

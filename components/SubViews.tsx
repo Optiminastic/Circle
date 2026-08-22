@@ -44,6 +44,7 @@ import { EditableSelect } from '@/components/ui/editable-select';
 import { TaxonomyManager } from '@/components/TaxonomyManager';
 import { useOrgSettings } from '@/store/org-settings';
 import { useRouter } from 'next/navigation';
+import { formatCtc } from '@/lib/utils';
 import { QUESTION_CATEGORIES } from '@/lib/question-library';
 /**
  * @license
@@ -206,7 +207,7 @@ export function IntroductoryCallsView({
                 <Td align="center" className="font-bold">
                   {c.hrCall?.completed ? `⭐ ${c.hrCall.communicationRating}/5` : 'Pending Call'}
                 </Td>
-                <Td className="font-mono">{c.hrCall?.completed ? c.hrCall.expectedCtc : c.expectedCtc}</Td>
+                <Td className="font-mono">{formatCtc(c.hrCall?.completed ? c.hrCall.expectedCtc : c.expectedCtc)}</Td>
                 <Td>
                   <StatusPill
                     tone={c.hrCall?.completed ? 'green' : 'amber'}

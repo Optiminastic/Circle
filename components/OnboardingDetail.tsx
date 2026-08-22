@@ -12,6 +12,7 @@ import { useToast } from './Toaster';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
 import { effectiveFit, fitStyle } from '@/lib/screening';
+import { formatCtc } from '@/lib/utils';
 
 interface OnboardingDetailProps {
   checklist: OnboardingChecklist;
@@ -97,7 +98,7 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
             {candidate?.totalExperienceYears ?? 0} yrs exp · {candidate?.noticePeriodDays ?? 0}d notice
           </Row>
           <Row icon={<Wallet size={12} />}>
-            Current {candidate?.currentCtc || '—'} → Expected {candidate?.expectedCtc || '—'}
+            Current {formatCtc(candidate?.currentCtc)} → Expected {formatCtc(candidate?.expectedCtc)}
           </Row>
           {fit && (
             <div className="pt-0.5">

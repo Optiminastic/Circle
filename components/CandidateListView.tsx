@@ -10,6 +10,7 @@ import { useToast } from './Toaster';
 
 import React, { useMemo, useState } from 'react';
 import { usePersistentState } from '@/lib/use-persistent-state';
+import { formatCtc } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { Candidate } from '../types';
 import { useUiStore } from '@/store/ui-store';
@@ -89,13 +90,6 @@ const DEPT_COLOR: Record<string, DotColor> = {
 };
 const deptColor = (d: string): DotColor => DEPT_COLOR[d] ?? 'gray';
 
-// CTC is stored as a bare number string ("2", "2.3") — append "LPA" for
-// display unless it's already there (some older/manual entries include it).
-const formatCtc = (value: string): string => {
-  const v = (value ?? '').trim();
-  if (!v) return '—';
-  return /lpa/i.test(v) ? v : `${v} LPA`;
-};
 
 interface CandidateListViewProps {
   candidates: Candidate[];

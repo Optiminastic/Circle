@@ -72,7 +72,7 @@ import {
   IQ_DURATION_MIN,
   ASSESSMENT_DURATION_MIN,
 } from '@/data/test-banks';
-import { randomId, randomToken, nowISO } from '@/lib/utils';
+import { randomId, randomToken, nowISO, formatCtc } from '@/lib/utils';
 import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
 import { useToast } from '@/components/Toaster';
 import { openDocument, useDocuments } from '@/features/documents/hooks';
@@ -2176,8 +2176,8 @@ export default function CandidateDetailPage() {
             </ProfileSection>
 
             <ProfileSection title="Compensation">
-              <ProfileRow label="Current CTC" value={candidate.currentCtc} />
-              <ProfileRow label="Expected CTC" value={candidate.expectedCtc} />
+              <ProfileRow label="Current CTC" value={formatCtc(candidate.currentCtc)} />
+              <ProfileRow label="Expected CTC" value={formatCtc(candidate.expectedCtc)} />
             </ProfileSection>
 
             <ProfileSection title="Application">

@@ -269,6 +269,19 @@ export function JobListView({
       return;
     }
 
+    // Safety net: a job HR never clicked "Auto-detect" on would otherwise save
+    // with zero keywords, silently disabling resume matching for every future
+    // applicant. Auto-fill from the JD if the list is still empty at submit —
+    // HR's own picks (if any) are never touched.
+    const keywords =
+      form.keywords.length > 0
+        ? form.keywords
+        : suggestKeywords({
+            requirements: form.requirements,
+            description: form.description,
+            keyResponsibilities: form.keyResponsibilities,
+          });
+
     const fields = {
       title: capitalizeFirst(form.title.trim()),
       department: form.department,
@@ -283,7 +296,7 @@ export function JobListView({
       screeningQuestions: form.screeningQuestions
         .map(q => ({ ...q, text: q.text.trim() }))
         .filter(q => q.text),
-      keywords: form.keywords,
+      keywords,
     };
 
     if (editingJob) {
