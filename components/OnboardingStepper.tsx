@@ -416,12 +416,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     },
   ];
 
-  // First not-yet-done stage is "current"; everything before it is done.
+  // First not-yet-done stage is "current" (the one HR should act on next).
   const firstOpen = stages.findIndex(s => !s.done);
   const currentIndex = firstOpen === -1 ? stages.length - 1 : firstOpen;
 
+  // Each stage's own `done` flag wins — a later stage can stay done even after
+  // an earlier one (e.g. BGV) gets reopened via "Undo verification", since
+  // reopening BGV doesn't erase the real joining-date/appointment/employee data.
   const stepState = (i: number): StepState =>
-    i < currentIndex ? 'done' : i === currentIndex ? (stages[i].done ? 'done' : 'current') : 'todo';
+    stages[i].done ? 'done' : i === currentIndex ? 'current' : 'todo';
 
   // Open the editable composer pre-filled from the template for this email kind.
   // The offer letter is editable in Settings → Email templates, so it reads from
@@ -872,7 +875,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           const state = stepState(i);
           const StageIcon = stage.Icon;
           const last = i === stages.length - 1;
-          const pathDone = i < currentIndex;
+          const pathDone = stages[i].done;
           const muted = state === 'todo';
           // Icon square colour: the stage's own colour once DONE, else greyscale.
           const doneColor = STAGE_ICON_COLOR[stage.label] ?? 'bg-accent-50 text-accent-600';
