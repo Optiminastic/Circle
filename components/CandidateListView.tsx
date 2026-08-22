@@ -10,7 +10,9 @@ import { useToast } from './Toaster';
 
 import React, { useMemo, useState } from 'react';
 import { usePersistentState } from '@/lib/use-persistent-state';
-import { formatCtc } from '@/lib/utils';
+import { formatCtc, parseCtcLpa } from '@/lib/utils';
+import { usePagination } from '@/lib/use-pagination';
+import { Pagination } from '@/components/ui/pagination';
 import { useQueryClient } from '@tanstack/react-query';
 import { Candidate } from '../types';
 import { useUiStore } from '@/store/ui-store';
@@ -190,6 +192,18 @@ export function CandidateListView({
     fk('rejectedFilter'),
     'all',
   );
+  // Expected CTC band — preset ranges (LPA), same UX as the Notice Period filter.
+  const [ctcBand, setCtcBand] = usePersistentState<'all' | 'lt5' | '5to10' | '10to20' | 'gte20'>(
+    fk('ctcBand'),
+    'all',
+  );
+  // Keyword-match tier — mirrors the Keywords column's own pill thresholds
+  // (>=0.7 high, >=0.4 medium, else low), plus a bucket for "—" rows (job has
+  // no keywords configured, or this candidate applied before matches existed).
+  const [keywordBand, setKeywordBand] = usePersistentState<'all' | 'high' | 'medium' | 'low' | 'none'>(
+    fk('keywordBand'),
+    'all',
+  );
 
   // New Candidate Modal Form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -245,6 +259,26 @@ export function CandidateListView({
       const matchesSource = selectedSource === 'All' || cand.sourceOfApplication === selectedSource;
       const matchesNotice = cand.noticePeriodDays <= maxNoticePeriod;
       const matchesExp = cand.totalExperienceYears >= minExperience;
+      const matchesCtc = (() => {
+        if (ctcBand === 'all') return true;
+        const lpa = parseCtcLpa(cand.expectedCtc);
+        if (lpa === null) return false;
+        if (ctcBand === 'lt5') return lpa < 5;
+        if (ctcBand === '5to10') return lpa >= 5 && lpa < 10;
+        if (ctcBand === '10to20') return lpa >= 10 && lpa < 20;
+        return lpa >= 20; // gte20
+      })();
+      const matchesKeywords = (() => {
+        if (keywordBand === 'all') return true;
+        const job = jobs.find(j => j.id === cand.jobId);
+        const total = job?.keywords?.length ?? 0;
+        if (total === 0 || cand.keywordMatches === undefined) return keywordBand === 'none';
+        const ratio = cand.keywordMatches.length / total;
+        if (keywordBand === 'high') return ratio >= 0.7;
+        if (keywordBand === 'medium') return ratio >= 0.4 && ratio < 0.7;
+        if (keywordBand === 'low') return ratio < 0.4;
+        return false;
+      })();
       return (
         matchesRejected &&
         matchesSearch &&
@@ -252,12 +286,15 @@ export function CandidateListView({
         matchesStatus &&
         matchesSource &&
         matchesNotice &&
-        matchesExp
+        matchesExp &&
+        matchesCtc &&
+        matchesKeywords
       );
     })
     .sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)));
 
   const sel = useTableSelection(filtered.map(c => c.id));
+  const pg = usePagination(filtered.length);
 
   // Bulk-delete every currently-selected candidate (confirmed once).
   const deleteSelected = () => {
@@ -494,6 +531,30 @@ export function CandidateListView({
           <option value="all">All Candidates</option>
           <option value="rejected">Rejected</option>
         </Select>
+
+        <Select
+          value={ctcBand}
+          onChange={e => setCtcBand(e.target.value as typeof ctcBand)}
+          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 font-mono text-gray-700"
+        >
+          <option value="all">Any Expected CTC</option>
+          <option value="lt5">{'≤'} 5 LPA</option>
+          <option value="5to10">5{'–'}10 LPA</option>
+          <option value="10to20">10{'–'}20 LPA</option>
+          <option value="gte20">20+ LPA</option>
+        </Select>
+
+        <Select
+          value={keywordBand}
+          onChange={e => setKeywordBand(e.target.value as typeof keywordBand)}
+          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+        >
+          <option value="all">All Keywords</option>
+          <option value="high">High match ({'≥'}70%)</option>
+          <option value="medium">Medium match (40{'–'}70%)</option>
+          <option value="low">Low match (&lt;40%)</option>
+          <option value="none">Not available</option>
+        </Select>
       </div>
       )}
 
@@ -541,7 +602,7 @@ export function CandidateListView({
               </Td>
             </tr>
           ) : (
-            filtered.map(cand => (
+            filtered.slice(pg.start, pg.end).map(cand => (
               <Tr
                 key={cand.id}
                 selected={sel.isSelected(cand.id)}
@@ -699,6 +760,14 @@ export function CandidateListView({
             )}
         </TBody>
       </Table>
+      <Pagination
+        totalItems={filtered.length}
+        pageSize={pg.pageSize}
+        page={pg.page}
+        onPageChange={pg.setPage}
+        onPageSizeChange={pg.setPageSize}
+        itemLabel="candidates"
+      />
 
       {/* Slide overlay Adding Form Model */}
       <Dialog

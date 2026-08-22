@@ -28,6 +28,8 @@ import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { randomId, nowISO } from '@/lib/utils';
+import { usePagination } from '@/lib/use-pagination';
+import { Pagination } from '@/components/ui/pagination';
 import { useHrIdentity } from '@/features/employees/hooks';
 
 const FIELD =
@@ -70,6 +72,7 @@ export function SendInterviewKitTab() {
     () => [...history].sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? '')),
     [history],
   );
+  const pg = usePagination(sortedHistory.length);
 
   // Once an interviewer has submitted a kit's answers (status 'Completed'), that
   // candidate is done — hide them from the picker so a finished kit isn't re-sent.
@@ -283,7 +286,7 @@ export function SendInterviewKitTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#ECEDF0]">
-                {sortedHistory.map(h => (
+                {sortedHistory.slice(pg.start, pg.end).map(h => (
                   <tr key={h.id} className="text-gray-700">
                     <td className="px-3 py-2 font-medium text-gray-900">{h.candidateName}</td>
                     <td className="px-3 py-2">{h.interviewerEmail}</td>
@@ -315,6 +318,14 @@ export function SendInterviewKitTab() {
                 ))}
               </tbody>
             </table>
+            <Pagination
+              totalItems={sortedHistory.length}
+              pageSize={pg.pageSize}
+              page={pg.page}
+              onPageChange={pg.setPage}
+              onPageSizeChange={pg.setPageSize}
+              itemLabel="sends"
+            />
           </div>
         )}
       </div>

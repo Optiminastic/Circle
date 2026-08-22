@@ -45,6 +45,8 @@ import { TaxonomyManager } from '@/components/TaxonomyManager';
 import { useOrgSettings } from '@/store/org-settings';
 import { useRouter } from 'next/navigation';
 import { formatCtc } from '@/lib/utils';
+import { usePagination } from '@/lib/use-pagination';
+import { Pagination } from '@/components/ui/pagination';
 import { QUESTION_CATEGORIES } from '@/lib/question-library';
 /**
  * @license
@@ -165,6 +167,7 @@ export function IntroductoryCallsView({
     c => c.status === 'Moved to HR Call' || c.hrCall?.completed || scheduledForHrCall.has(c.id),
   );
   const sel = useTableSelection(hrCallCandidates.map(c => c.id));
+  const pg = usePagination(hrCallCandidates.length);
 
   return (
     <div className="space-y-4 text-xs select-none">
@@ -197,7 +200,7 @@ export function IntroductoryCallsView({
               </Td>
             </tr>
           ) : (
-            hrCallCandidates.map(c => (
+            hrCallCandidates.slice(pg.start, pg.end).map(c => (
               <Tr key={c.id} selected={sel.isSelected(c.id)} onClick={() => onSelectCandidate(c.id)}>
                 <Td select checked={sel.isSelected(c.id)} onToggle={() => sel.toggle(c.id)} />
                 <Td className="font-semibold text-gray-900">{c.fullName}</Td>
@@ -254,6 +257,14 @@ export function IntroductoryCallsView({
             )}
         </TBody>
       </Table>
+      <Pagination
+        totalItems={hrCallCandidates.length}
+        pageSize={pg.pageSize}
+        page={pg.page}
+        onPageChange={pg.setPage}
+        onPageSizeChange={pg.setPageSize}
+        itemLabel="candidates"
+      />
     </div>
   );
 }
@@ -342,6 +353,7 @@ export function InterviewsView({
     });
   const allInterviews = [...interviews, ...scheduledInterviews];
   const sel = useTableSelection(allInterviews.map(i => i.id));
+  const pg = usePagination(allInterviews.length);
 
   return (
     <div className="space-y-4 text-xs select-none">
@@ -465,7 +477,7 @@ export function InterviewsView({
               </Td>
             </tr>
           ) : (
-            allInterviews.map(i => (
+            allInterviews.slice(pg.start, pg.end).map(i => (
               <Tr
                 key={i.id}
                 selected={sel.isSelected(i.id)}
@@ -549,6 +561,14 @@ export function InterviewsView({
             )}
         </TBody>
       </Table>
+      <Pagination
+        totalItems={allInterviews.length}
+        pageSize={pg.pageSize}
+        page={pg.page}
+        onPageChange={pg.setPage}
+        onPageSizeChange={pg.setPageSize}
+        itemLabel="interviews"
+      />
     </div>
   );
 }
@@ -592,6 +612,8 @@ export function IQTestAssignmentsView({
   );
   const selAwait = useTableSelection(awaitingIq.map(c => c.id));
   const selIq = useTableSelection(iqTests.map(t => t.id));
+  const pgAwait = usePagination(awaitingIq.length);
+  const pgIq = usePagination(iqTests.length);
 
   return (
     <div className="space-y-4 text-xs select-none">
@@ -641,7 +663,7 @@ export function IQTestAssignmentsView({
                   <Th align="right">Actions</Th>
                 </THead>
                 <TBody>
-                  {awaitingIq.map(c => {
+                  {awaitingIq.slice(pgAwait.start, pgAwait.end).map(c => {
                     const sched = scheduledIq.get(c.id);
                     return (
                       <Tr
@@ -686,6 +708,14 @@ export function IQTestAssignmentsView({
                 </TBody>
               </table>
               </div>
+              <Pagination
+                totalItems={awaitingIq.length}
+                pageSize={pgAwait.pageSize}
+                page={pgAwait.page}
+                onPageChange={pgAwait.setPage}
+                onPageSizeChange={pgAwait.setPageSize}
+                itemLabel="candidates"
+              />
             </div>
           )}
 
@@ -702,7 +732,7 @@ export function IQTestAssignmentsView({
               <Th align="right">Actions</Th>
             </THead>
             <TBody>
-              {iqTests.map(idx => (
+              {iqTests.slice(pgIq.start, pgIq.end).map(idx => (
                 <Tr
                   key={idx.id}
                   selected={selIq.isSelected(idx.id)}
@@ -762,6 +792,14 @@ export function IQTestAssignmentsView({
               ))}
             </TBody>
           </Table>
+          <Pagination
+            totalItems={iqTests.length}
+            pageSize={pgIq.pageSize}
+            page={pgIq.page}
+            onPageChange={pgIq.setPage}
+            onPageSizeChange={pgIq.setPageSize}
+            itemLabel="results"
+          />
         </div>
       ) : (
         <div className="space-y-4">
@@ -898,6 +936,7 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
   const router = useRouter();
   const { data: bgvs = [] } = useBgvs();
   const { data: docRequests = [] } = useDocRequests();
+  const pg = usePagination(onboarding.length);
 
   return (
     <div className="space-y-4 text-xs select-none">
@@ -925,7 +964,7 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
             <Th icon={<Users size={11} />}>Employment</Th>
           </THead>
           <TBody>
-            {onboarding.map(o => {
+            {onboarding.slice(pg.start, pg.end).map(o => {
               const bgv = bgvs.find(b => b.candidateId === o.candidateId);
               const tags = onboardingTags(o, bgv, docRequests);
               const { percentage, status } = onboardingProgress(o, bgv, docRequests);
@@ -969,6 +1008,14 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
           </TBody>
         </Table>
       )}
+      <Pagination
+        totalItems={onboarding.length}
+        pageSize={pg.pageSize}
+        page={pg.page}
+        onPageChange={pg.setPage}
+        onPageSizeChange={pg.setPageSize}
+        itemLabel="joiners"
+      />
     </div>
   );
 }
@@ -1077,6 +1124,7 @@ export function EmployeeDirectoryView({
   });
 
   const sel = useTableSelection(filtered.map(e => e.id));
+  const pg = usePagination(filtered.length);
   const empStatusTone = (s: Employee['status']): 'green' | 'amber' | 'gray' | 'red' =>
     s === 'Active' ? 'green' : s === 'On Leave' ? 'amber' : s === 'Offboarded' ? 'gray' : 'red';
 
@@ -1194,7 +1242,7 @@ export function EmployeeDirectoryView({
               </Td>
             </tr>
           ) : (
-            filtered.map(emp => (
+            filtered.slice(pg.start, pg.end).map(emp => (
               <Tr key={emp.id} selected={sel.isSelected(emp.id)} onClick={() => onSelectEmployee(emp.id)}>
                 <Td select checked={sel.isSelected(emp.id)} onToggle={() => sel.toggle(emp.id)} />
                 <Td>
@@ -1240,6 +1288,14 @@ export function EmployeeDirectoryView({
           )}
         </TBody>
       </Table>
+      <Pagination
+        totalItems={filtered.length}
+        pageSize={pg.pageSize}
+        page={pg.page}
+        onPageChange={pg.setPage}
+        onPageSizeChange={pg.setPageSize}
+        itemLabel="employees"
+      />
 
       {/* Add Employee modal — register existing staff with full details */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
@@ -1539,8 +1595,11 @@ export function CredentialsAssetsView({
     toast.success(`Asset status updated to "${value}".`);
   };
 
-  const selCreds = useTableSelection(employees.flatMap(emp => (emp.credentials || []).map(c => c.id)));
+  const credRows = employees.flatMap(emp => (emp.credentials || []).map(cred => ({ emp, cred })));
+  const selCreds = useTableSelection(credRows.map(r => r.cred.id));
   const selAssets = useTableSelection(assets.map(a => a.id));
+  const pgCreds = usePagination(credRows.length);
+  const pgAssets = usePagination(assets.length);
   const credTone = (s: string): 'green' | 'red' | 'gray' =>
     s === 'Active' ? 'green' : s === 'Suspended' ? 'red' : 'gray';
   const assetTone = (s: string): 'green' | 'blue' | 'red' =>
@@ -1589,8 +1648,8 @@ export function CredentialsAssetsView({
               <Th align="right">Moderator Control</Th>
             </THead>
             <TBody>
-              {employees.flatMap(emp =>
-                (emp.credentials || []).map(cred => (
+              {credRows.slice(pgCreds.start, pgCreds.end).map(
+                ({ emp, cred }) => (
                   <Tr key={cred.id} selected={selCreds.isSelected(cred.id)}>
                     <Td select checked={selCreds.isSelected(cred.id)} onToggle={() => selCreds.toggle(cred.id)} />
                     <Td className="font-semibold text-gray-900">{emp.fullName}</Td>
@@ -1613,10 +1672,18 @@ export function CredentialsAssetsView({
                       </Select>
                     </Td>
                   </Tr>
-                )),
+                ),
               )}
             </TBody>
           </Table>
+          <Pagination
+            totalItems={credRows.length}
+            pageSize={pgCreds.pageSize}
+            page={pgCreds.page}
+            onPageChange={pgCreds.setPage}
+            onPageSizeChange={pgCreds.setPageSize}
+            itemLabel="credentials"
+          />
         </>
       ) : (
         <>
@@ -1632,7 +1699,7 @@ export function CredentialsAssetsView({
               <Th align="right">Condition / Modification</Th>
             </THead>
             <TBody>
-              {assets.map(ast => (
+              {assets.slice(pgAssets.start, pgAssets.end).map(ast => (
                 <Tr key={ast.id} selected={selAssets.isSelected(ast.id)}>
                   <Td select checked={selAssets.isSelected(ast.id)} onToggle={() => selAssets.toggle(ast.id)} />
                   <Td className="font-mono font-bold text-gray-700">{ast.id}</Td>
@@ -1666,6 +1733,14 @@ export function CredentialsAssetsView({
               ))}
             </TBody>
           </Table>
+          <Pagination
+            totalItems={assets.length}
+            pageSize={pgAssets.pageSize}
+            page={pgAssets.page}
+            onPageChange={pgAssets.setPage}
+            onPageSizeChange={pgAssets.setPageSize}
+            itemLabel="assets"
+          />
         </>
       )}
     </div>
@@ -1889,6 +1964,7 @@ export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) 
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<OffboardingWorkflow | null>(null);
+  const pg = usePagination(offboarding.length);
 
   // Eligible for a new exit case: active, and not already mid-way through one.
   const eligibleEmployees = employees.filter(
@@ -1975,7 +2051,7 @@ export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) 
             <Th align="right"></Th>
           </THead>
           <TBody>
-            {offboarding.map(o => (
+            {offboarding.slice(pg.start, pg.end).map(o => (
               <Tr key={o.employeeId} onClick={() => router.push(`/offboarding/${o.employeeId}`)}>
                 <Td className="font-semibold text-gray-900">{o.employeeName}</Td>
                 <Td>
@@ -2009,6 +2085,14 @@ export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) 
           </TBody>
         </Table>
       )}
+      <Pagination
+        totalItems={offboarding.length}
+        pageSize={pg.pageSize}
+        page={pg.page}
+        onPageChange={pg.setPage}
+        onPageSizeChange={pg.setPageSize}
+        itemLabel="exit cases"
+      />
 
       {addOpen && (
         <AddExitCaseModal

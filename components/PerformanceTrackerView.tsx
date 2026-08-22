@@ -4,6 +4,8 @@ import React, { useMemo, useState } from 'react';
 import { Gauge, CheckCircle2, TrendingUp, User, ListChecks, Award, Wallet, ClipboardCheck } from 'lucide-react';
 import { Employee } from '@/types';
 import { Table, THead, Th, TBody, Tr, Td, TagPill, StatusPill, SelectionBar, useTableSelection } from '@/components/ui/table';
+import { usePagination } from '@/lib/use-pagination';
+import { Pagination } from '@/components/ui/pagination';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
@@ -65,6 +67,7 @@ export function PerformanceTrackerView({ employees }: { employees: Employee[] })
 
   const ids = useMemo(() => rows.map(r => r.e.id), [rows]);
   const sel = useTableSelection(ids);
+  const pg = usePagination(rows.length);
 
   return (
     <div className="space-y-6 select-none">
@@ -126,7 +129,7 @@ export function PerformanceTrackerView({ employees }: { employees: Employee[] })
           <Th icon={<ClipboardCheck size={11} />}>Review status</Th>
         </THead>
         <TBody>
-          {rows.map(r => (
+          {rows.slice(pg.start, pg.end).map(r => (
             <Tr key={r.e.id} selected={sel.isSelected(r.e.id)} onClick={() => sel.toggle(r.e.id)}>
               <Td select checked={sel.isSelected(r.e.id)} onToggle={() => sel.toggle(r.e.id)} />
               <Td>
@@ -158,6 +161,14 @@ export function PerformanceTrackerView({ employees }: { employees: Employee[] })
           ))}
         </TBody>
       </Table>
+      <Pagination
+        totalItems={rows.length}
+        pageSize={pg.pageSize}
+        page={pg.page}
+        onPageChange={pg.setPage}
+        onPageSizeChange={pg.setPageSize}
+        itemLabel="employees"
+      />
 
       <p className="text-[10px] text-gray-500 font-mono">
         Task data shown is derived for demonstration — wire a real task/PMS feed to drive these numbers live.

@@ -19,6 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from './Toaster';
 import { cn } from '@/lib/utils';
+import { usePagination } from '@/lib/use-pagination';
+import { Pagination } from '@/components/ui/pagination';
 import {
   Job,
   JobStatus,
@@ -507,6 +509,7 @@ export function JobListView({
   });
 
   const sel = useTableSelection(sortedJobs.map(j => j.id));
+  const pg = usePagination(sortedJobs.length);
 
   // Sortable column header.
   const SortTh = ({
@@ -645,7 +648,7 @@ export function JobListView({
               <Th align="right">Actions</Th>
             </THead>
             <TBody>
-              {sortedJobs.map(job => {
+              {sortedJobs.slice(pg.start, pg.end).map(job => {
                 const count = applicantCounts[job.id] ?? 0;
                 return (
                   <Tr key={job.id} selected={sel.isSelected(job.id)} onClick={() => openApplicants(job.id)}>
@@ -741,6 +744,14 @@ export function JobListView({
               })}
             </TBody>
           </Table>
+          <Pagination
+            totalItems={sortedJobs.length}
+            pageSize={pg.pageSize}
+            page={pg.page}
+            onPageChange={pg.setPage}
+            onPageSizeChange={pg.setPageSize}
+            itemLabel="jobs"
+          />
         </>
       )}
 
