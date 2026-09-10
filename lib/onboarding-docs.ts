@@ -102,16 +102,27 @@ export const fileDocTypes = (types: string[] | undefined): string[] =>
     .filter(d => d.kind === 'file')
     .map(d => d.type);
 
+/** The items collected as a form instead of a file upload. */
+const NON_FILE_DOC_TYPES: string[] = [BANK_DOC_TYPE, REFERENCES_DOC_TYPE];
+
 /**
  * File items that MUST be submitted+verified for the request to be complete —
  * i.e. the file items minus the optional ones (e.g. "Current offer letter (if
  * any)"). Use this for completion/gating; use `fileDocTypes` for rendering the
  * upload cards (the optional item still appears, it just doesn't block).
+ *
+ * Filters `requiredDocs` directly rather than intersecting with the catalogue:
+ * a signed offer/appointment letter request (DocRequest.kind) asks for a type
+ * that has no catalogue entry, and the old catalogue-only filter dropped it —
+ * leaving an EMPTY required list, whose `.every(...)` is vacuously true, so
+ * reviewing such a request marked it Verified with nothing verified.
  */
 export const requiredFileDocTypes = (types: string[] | undefined): string[] =>
-  docDefsFor(types)
-    .filter(d => d.kind === 'file' && !d.optional)
-    .map(d => d.type);
+  (types ?? DEFAULT_REQUIRED_DOC_TYPES).filter(type => {
+    if (NON_FILE_DOC_TYPES.includes(type)) return false;
+    const def = docDefByType(type);
+    return def ? !def.optional : true;
+  });
 
 /** Did HR ask for bank details on this request? */
 export const needsBank = (types: string[] | undefined): boolean =>

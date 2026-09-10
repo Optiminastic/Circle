@@ -28,7 +28,7 @@ import {
   UserCheck,
   Pencil,
 } from 'lucide-react';
-import { BGVRequirement, OnboardingChecklist, SentEmailLog } from '@/types';
+import { BGVRequirement, DocRequest, OnboardingChecklist, SentEmailLog } from '@/types';
 import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
 import { useOngridOnboard } from '@/features/bgv/hooks';
@@ -40,8 +40,12 @@ import {
   useDocRequestMutations,
   isDocRequestLive,
 } from '@/features/doc-requests/hooks';
-import { SIGN_OFFER_TTL_HOURS } from '@/lib/sign-offer';
-import { SIGN_APPOINTMENT_TTL_HOURS } from '@/lib/sign-appointment';
+import { SIGN_OFFER_TTL_HOURS, SIGNED_OFFER_DOC, signOfferPath } from '@/lib/sign-offer';
+import {
+  SIGN_APPOINTMENT_TTL_HOURS,
+  SIGNED_APPOINTMENT_DOC,
+  signAppointmentPath,
+} from '@/lib/sign-appointment';
 import { useDocuments, downloadDocument } from '@/features/documents/hooks';
 import { documentPreviewUrl, uploadDocument, importDriveDocument } from '@/lib/api/documents';
 import { PickedFile } from '@/components/ui/file-dropzone';
@@ -60,7 +64,11 @@ import { StartBgvModal } from '@/components/StartBgvModal';
 import { VerifyBgvReportModal } from '@/components/VerifyBgvReportModal';
 import { RefreshButton } from '@/components/RefreshButton';
 import { bgvCheckByCode } from '@/lib/bgv-services';
-import { buildOnboardingEmailDraft, buildBuddyEmailDraft } from '@/lib/onboarding-email-templates';
+import {
+  buildOnboardingEmailDraft,
+  buildBuddyEmailDraft,
+  buildSignedLetterReuploadDraft,
+} from '@/lib/onboarding-email-templates';
 import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { HR_EMAIL } from '@/lib/config';
 import { useEmployees } from '@/features/employees/hooks';
@@ -141,6 +149,28 @@ const fmtLinkExpiry = (iso: string): string => {
   return h > 0 ? `Expires in ${h}h ${m}m` : `Expires in ${m}m`;
 };
 
+/** Which signed letter a re-upload request is about. */
+type SignedLetter = 'offer' | 'appointment';
+
+/**
+ * The signed offer/appointment upload link to act on. Sending the letter mints a
+ * fresh link every time, so the newest request is often an empty one the
+ * candidate never opened — prefer whichever request actually carries their
+ * upload, and fall back to the newest when nothing has been uploaded yet.
+ */
+const pickLetterRequest = (
+  requests: DocRequest[],
+  candidateId: string,
+  kind: NonNullable<DocRequest['kind']>,
+): DocRequest | undefined =>
+  requests
+    .filter(r => r.candidateId === candidateId && r.kind === kind)
+    .sort(
+      (a, b) =>
+        (b.submissions?.length ?? 0) - (a.submissions?.length ?? 0) ||
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0];
+
 export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const toast = useToast();
   const { data: candidates = [] } = useCandidates();
@@ -160,7 +190,11 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     saveSystemDesk,
     sendBuddyAssignment,
   } = useOnboardingEmails();
-  const { create: createDocRequest, reactivate: reactivateDocRequest } = useDocRequestMutations();
+  const {
+    create: createDocRequest,
+    reactivate: reactivateDocRequest,
+    verify: verifyDocRequest,
+  } = useDocRequestMutations();
   const updateBgv = useUpdateBgv();
   const startBgv = useStartBgv();
   const ongridOnboard = useOngridOnboard();
@@ -188,6 +222,14 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const [joiningInput, setJoiningInput] = useState(checklist.joiningDate ?? '');
   // Re-activation duration picker for the joining-documents upload link.
   const [docReqHours, setDocReqHours] = useState(24);
+  // "Request re-upload" on a signed letter: which letter's reason input is
+  // open, what HR typed, and the composed email awaiting review.
+  const [reuploadFor, setReuploadFor] = useState<SignedLetter | null>(null);
+  const [reuploadReason, setReuploadReason] = useState('');
+  const [reuploadSeed, setReuploadSeed] = useState<
+    (ComposerSeed & { letter: SignedLetter; reason: string }) | null
+  >(null);
+  const [sendingReupload, setSendingReupload] = useState(false);
 
   // Allocation of mail, system & desk — local UI state for the 3 sub-steps.
   const [editingEmail, setEditingEmail] = useState(false);
@@ -242,29 +284,37 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const signedOfferDoc = candidateDocs
     .filter(d => d.category === 'Signed Offer Letter')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
-  // The 72h signed-copy upload link (a "signed-offer" doc-request) — used to offer
-  // a reactivate button once it has expired and nothing has been uploaded yet.
-  const signOfferReq = requests
-    .filter(r => r.candidateId === checklist.candidateId && r.kind === 'signed-offer')
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  // The 72h signed-copy upload link (a "signed-offer" doc-request) — used to
+  // reactivate the link and to record HR's review of what was uploaded. Every
+  // "Send offer letter" mints a fresh link, so prefer the one that actually
+  // carries the candidate's upload over the newest empty one.
+  const signOfferReq = pickLetterRequest(requests, checklist.candidateId, 'signed-offer');
   const signOfferExpired = signOfferReq ? new Date(signOfferReq.expiresAt).getTime() <= Date.now() : false;
+  const signedOfferSub = signOfferReq?.submissions?.find(s => s.docType === SIGNED_OFFER_DOC);
+  // HR reviewed the uploaded copy and asked for a correct one — the step reopens
+  // (resend / reactivate come back) until the candidate uploads again.
+  const signedOfferRejected = signedOfferSub?.status === 'Rejected';
   // Signed offer confirmed received (uploaded or HR-marked). Once true, the offer
   // is settled: no more resending the offer letter or reactivating the link.
-  const signedOfferDone = Boolean(checklist.offerSignedReceivedAt) || Boolean(signedOfferDoc);
+  const signedOfferDone =
+    Boolean(checklist.offerSignedReceivedAt) || (Boolean(signedOfferDoc) && !signedOfferRejected);
 
   // Signed appointment letter the candidate uploaded via the 72h public link —
   // mirrors the signed-offer block above exactly.
   const signedAppointmentDoc = candidateDocs
     .filter(d => d.category === 'Signed Appointment Letter')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
-  const signAppointmentReq = requests
-    .filter(r => r.candidateId === checklist.candidateId && r.kind === 'signed-appointment')
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  const signAppointmentReq = pickLetterRequest(requests, checklist.candidateId, 'signed-appointment');
   const signAppointmentExpired = signAppointmentReq
     ? new Date(signAppointmentReq.expiresAt).getTime() <= Date.now()
     : false;
+  const signedAppointmentSub = signAppointmentReq?.submissions?.find(
+    s => s.docType === SIGNED_APPOINTMENT_DOC,
+  );
+  const signedAppointmentRejected = signedAppointmentSub?.status === 'Rejected';
   const signedAppointmentDone =
-    Boolean(checklist.appointmentSignedReceivedAt) || Boolean(signedAppointmentDoc);
+    Boolean(checklist.appointmentSignedReceivedAt) ||
+    (Boolean(signedAppointmentDoc) && !signedAppointmentRejected);
 
 
   const verifiedCount = docRequest?.submissions?.filter(s => s.status === 'Verified').length ?? 0;
@@ -339,11 +389,19 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       // Completes only when HR confirms the signed copy is valid — an upload alone
       // does NOT auto-complete it.
       done: Boolean(checklist.offerSignedReceivedAt),
-      desc: checklist.offerSignedReceivedAt ? 'Received' : signedOfferDoc ? 'Uploaded — review' : 'Awaiting',
+      desc: checklist.offerSignedReceivedAt
+        ? 'Received'
+        : signedOfferRejected
+          ? 'Re-upload requested'
+          : signedOfferDoc
+            ? 'Uploaded — review'
+            : 'Awaiting',
       at: checklist.offerSignedReceivedAt,
-      detail: signedOfferDoc
-        ? 'The candidate uploaded their signed offer letter. Preview/download it below, then confirm it is properly signed to complete this step.'
-        : 'The candidate can upload their signed copy via the 72-hour link in the offer email, or mark it received here manually.',
+      detail: signedOfferRejected
+        ? 'The uploaded copy was rejected and the candidate has been asked to upload the correct signed offer letter. Their upload link is live again — this step completes once the new copy arrives and you confirm it.'
+        : signedOfferDoc
+          ? 'The candidate uploaded their signed offer letter. Preview/download it below, then confirm it is properly signed to complete this step — or ask them to re-upload if it is the wrong file.'
+          : 'The candidate can upload their signed copy via the 72-hour link in the offer email, or mark it received here manually.',
       action: { kind: 'mark-signed', cta: 'Mark received' },
     },
     {
@@ -448,13 +506,17 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       done: Boolean(checklist.appointmentSignedReceivedAt),
       desc: checklist.appointmentSignedReceivedAt
         ? 'Received'
-        : signedAppointmentDoc
-          ? 'Uploaded — review'
-          : 'Awaiting',
+        : signedAppointmentRejected
+          ? 'Re-upload requested'
+          : signedAppointmentDoc
+            ? 'Uploaded — review'
+            : 'Awaiting',
       at: checklist.appointmentSignedReceivedAt,
-      detail: signedAppointmentDoc
-        ? 'The candidate uploaded their signed appointment letter. Preview/download it below, then confirm it is properly signed to complete this step.'
-        : 'The candidate can upload their signed copy via the 72-hour link in the appointment letter email, or mark it received here manually.',
+      detail: signedAppointmentRejected
+        ? 'The uploaded copy was rejected and the candidate has been asked to upload the correct signed appointment letter. Their upload link is live again — this step completes once the new copy arrives and you confirm it.'
+        : signedAppointmentDoc
+          ? 'The candidate uploaded their signed appointment letter. Preview/download it below, then confirm it is properly signed to complete this step — or ask them to re-upload if it is the wrong file.'
+          : 'The candidate can upload their signed copy via the 72-hour link in the appointment letter email, or mark it received here manually.',
       action: { kind: 'mark-signed-appointment', cta: 'Mark received' },
     },
     {
@@ -536,6 +598,157 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       onSuccess: () => toast.success('Signed appointment letter recorded.'),
       onError: () => toast.error('Could not record the signed appointment letter — try again.'),
     });
+
+  // Everything the two signed-letter steps differ by, in one place — the
+  // re-upload flow below is identical for both.
+  const signedLetter = (letter: SignedLetter) =>
+    letter === 'offer'
+      ? {
+          request: signOfferReq,
+          docType: SIGNED_OFFER_DOC,
+          ttlHours: SIGN_OFFER_TTL_HOURS,
+          uploadPath: signOfferPath,
+          linkLabel: 'Upload signed offer letter',
+        }
+      : {
+          request: signAppointmentReq,
+          docType: SIGNED_APPOINTMENT_DOC,
+          ttlHours: SIGN_APPOINTMENT_TTL_HOURS,
+          uploadPath: signAppointmentPath,
+          linkLabel: 'Upload signed appointment letter',
+        };
+
+  // Step 1 of "Request re-upload": turn HR's reason into an editable email.
+  const openReuploadComposer = (letter: SignedLetter) => {
+    const { request, ttlHours } = signedLetter(letter);
+    if (!request) {
+      toast.error('No upload link on record — resend the letter to create one.');
+      return;
+    }
+    if (!toEmail) {
+      toast.error('No candidate email on file to send to.');
+      return;
+    }
+    const reason = reuploadReason.trim();
+    const draft = buildSignedLetterReuploadDraft(
+      letter,
+      candidate?.fullName || checklist.candidateName,
+      reason,
+      ttlHours,
+    );
+    setReuploadSeed({
+      title:
+        letter === 'offer'
+          ? 'Request a correct signed offer letter'
+          : 'Request a correct signed appointment letter',
+      to: toEmail,
+      subject: draft.subject,
+      body: draft.body,
+      letter,
+      reason,
+    });
+    setReuploadFor(null);
+  };
+
+  // Step 2: re-open the candidate's upload link, record the rejection (so the
+  // portal tells them what to fix), then email them the reason + the link.
+  const sendReuploadRequest = async (subject: string, body: string) => {
+    if (!reuploadSeed) return;
+    const { request, docType, ttlHours, uploadPath, linkLabel } = signedLetter(reuploadSeed.letter);
+    if (!request) return;
+    const to = reuploadSeed.to.trim();
+    if (!to) {
+      toast.error('No candidate email on file to send to.');
+      return;
+    }
+    setSendingReupload(true);
+    try {
+      await reactivateDocRequest.mutateAsync({ id: request.id, hours: ttlHours });
+      await verifyDocRequest.mutateAsync({
+        request,
+        docType,
+        status: 'Rejected',
+        reason: reuploadSeed.reason || undefined,
+      });
+      const res = await sendCustomEmail({
+        to,
+        subject,
+        body,
+        links: [{ label: linkLabel, url: `${window.location.origin}${uploadPath(request.id)}` }],
+      });
+      if (res.sent) toast.success(`Re-upload request sent to ${to}.`);
+      else if (res.reason === 'not_configured')
+        toast.info('Recorded — email not sent (SMTP is not configured).');
+      else toast.info('Recorded, but the email could not be sent.');
+      setReuploadSeed(null);
+      setReuploadReason('');
+    } catch {
+      toast.error('Could not send the re-upload request — try again.');
+    } finally {
+      setSendingReupload(false);
+    }
+  };
+
+  // "Request re-upload" affordance shown next to Preview/Download on both
+  // signed-letter steps. A plain render function, not a nested component, so
+  // the reason input keeps focus across the parent's re-renders.
+  const renderReuploadControls = (letter: SignedLetter) => {
+    const rejected = letter === 'offer' ? signedOfferRejected : signedAppointmentRejected;
+    const submission = letter === 'offer' ? signedOfferSub : signedAppointmentSub;
+    const { ttlHours } = signedLetter(letter);
+    const open = reuploadFor === letter;
+    const inputId = `reupload-reason-${letter}`;
+
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setReuploadFor(open ? null : letter)}
+          title="Reject this file and email the candidate a fresh upload link"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-50"
+        >
+          <XCircle size={13} /> {rejected ? 'Ask again' : 'Request re-upload'}
+        </button>
+
+        {rejected && !open && (
+          <p className="w-full text-[12px] text-red-600">
+            Re-upload requested{submission?.reviewReason ? ` — ${submission.reviewReason}` : ''}.
+            Waiting for the corrected copy.
+          </p>
+        )}
+
+        {open && (
+          <div className="w-full space-y-1.5 rounded-lg border border-red-100 bg-red-50/60 p-2.5">
+            <label htmlFor={inputId} className="block text-[11px] font-semibold text-gray-600">
+              What is wrong with the uploaded file?
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                id={inputId}
+                autoFocus
+                value={reuploadReason}
+                onChange={e => setReuploadReason(e.target.value)}
+                placeholder="e.g. This is the unsigned copy — please upload the signed one"
+                className="min-w-[16rem] flex-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1.5 text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              />
+              <button
+                type="button"
+                onClick={() => openReuploadComposer(letter)}
+                disabled={!reuploadReason.trim()}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Mail size={13} /> Review email
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Shown to the candidate on their upload page and included in the email you send next.
+              Sending re-opens their upload link for {ttlHours} hours.
+            </p>
+          </div>
+        )}
+      </>
+    );
+  };
 
   // Opens the editable request-documents email modal (To / Subject / Message).
   const requestDocs = () => setRequestDocsOpen(true);
@@ -956,6 +1169,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         sending={sendingInvalid}
         onClose={() => setInvalidEmail(null)}
         onSend={sendInvalidEmail}
+      />
+      {/* "Please re-upload your signed letter" email, opened by the Request
+          re-upload button on either signed-letter step. */}
+      <OnboardingEmailComposer
+        open={!!reuploadSeed}
+        seed={reuploadSeed}
+        sending={sendingReupload}
+        onClose={() => setReuploadSeed(null)}
+        onSend={sendReuploadRequest}
       />
       {/* Buddy-assignment email, opened from the "Allocation" step's sub-step 3. */}
       <OnboardingEmailComposer
@@ -1872,6 +2094,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             Confirm valid &amp; received
                           </button>
                         )}
+                        {/* Wrong file? Reject it with a reason and email a fresh link. */}
+                        {!checklist.offerSignedReceivedAt && renderReuploadControls('offer')}
                       </div>
                     )}
 
@@ -1942,6 +2166,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             Confirm valid &amp; received
                           </button>
                         )}
+                        {/* Wrong file? Reject it with a reason and email a fresh link. */}
+                        {!checklist.appointmentSignedReceivedAt &&
+                          renderReuploadControls('appointment')}
                       </div>
                     )}
 

@@ -154,6 +154,39 @@ export function buildOnboardingEmailDraft(
 }
 
 /**
+ * Sent when HR reviews the signed offer/appointment letter a candidate uploaded
+ * and it is not acceptable (wrong file, unsigned, unreadable). The candidate's
+ * existing upload link is re-opened and attached to this email as a button by
+ * the caller, so they can replace the file through the same URL.
+ */
+export function buildSignedLetterReuploadDraft(
+  letter: 'offer' | 'appointment',
+  candidateName: string | undefined,
+  reason: string,
+  ttlHours: number,
+): EmailDraft {
+  const name = candidateName || 'Candidate';
+  const doc = letter === 'offer' ? 'offer letter' : 'appointment letter';
+
+  return {
+    subject: `Action needed — please re-upload your signed ${doc} | ${COMPANY}`,
+    body: [
+      `Dear ${name},`,
+      '',
+      `Thank you for uploading your signed ${doc}. On review, we are unable to accept the file you shared.`,
+      '',
+      ...(reason ? [`Reason: ${reason}`, ''] : []),
+      `Please upload the correct signed copy of your ${doc} using the button below. The link stays valid for ${ttlHours} hours, and the file must be a PDF or Word document under 5 MB.`,
+      '',
+      `If you no longer have the ${doc} or need any help, simply reply to this email and we will re-share it.`,
+      '',
+      'Warm regards,',
+      `${COMPANY} HR`,
+    ].join('\n'),
+  };
+}
+
+/**
  * Buddy-assignment email sent to the employee HR picks to buddy a new
  * joinee. Fixed subject/body (not part of the OnboardingEmailKind union —
  * this goes to a chosen employee, not the candidate), with placeholders

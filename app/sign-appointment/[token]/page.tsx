@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckCircle2, UploadCloud, AlertTriangle, Loader2 } from 'lucide-react';
+import { CheckCircle2, UploadCloud, AlertTriangle, Loader2, XCircle } from 'lucide-react';
 import { getDocRequest, uploadRequestDocument } from '@/lib/api/doc-requests';
-import { SIGNED_APPOINTMENT_DOC } from '@/lib/sign-appointment';
+import { SIGNED_APPOINTMENT_DOC, SIGN_APPOINTMENT_TTL_HOURS } from '@/lib/sign-appointment';
 import type { DocRequest } from '@/types';
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
@@ -19,6 +19,8 @@ export default function SignAppointmentPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  // Set when HR reviewed the copy already uploaded and asked for a correct one.
+  const [rejectedReason, setRejectedReason] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -26,8 +28,12 @@ export default function SignAppointmentPage() {
       .then(r => {
         setReq(r);
         const expired = new Date(r.expiresAt).getTime() < Date.now();
-        const uploaded = (r.submissions || []).some(s => s.docType === SIGNED_APPOINTMENT_DOC);
-        setPhase(expired ? 'expired' : uploaded ? 'done' : 'ready');
+        const submission = (r.submissions || []).find(s => s.docType === SIGNED_APPOINTMENT_DOC);
+        // A rejected copy is NOT the end of the road — HR asked for a correct
+        // one, so the form stays open (and says why) instead of locking.
+        const rejected = submission?.status === 'Rejected';
+        setRejectedReason(rejected ? (submission?.reviewReason ?? '') : null);
+        setPhase(expired ? 'expired' : submission && !rejected ? 'done' : 'ready');
       })
       .catch(() => setPhase('error'));
   }, [token]);
@@ -108,7 +114,10 @@ export default function SignAppointmentPage() {
             <div className="mt-6 flex flex-col items-center gap-2 py-6 text-center text-gray-500">
               <AlertTriangle className="text-amber-500" size={28} />
               <p className="font-semibold text-gray-800">This link has expired</p>
-              <p className="text-sm">The upload link was valid for 72 hours. Please ask HR for a new one.</p>
+              <p className="text-sm">
+                The upload link was valid for {SIGN_APPOINTMENT_TTL_HOURS} hours. Please ask HR for a
+                new one.
+              </p>
             </div>
           )}
 
@@ -122,9 +131,19 @@ export default function SignAppointmentPage() {
 
           {phase === 'ready' && (
             <div className="mt-5 space-y-4">
+              {rejectedReason !== null && (
+                <div className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">
+                  <XCircle size={16} className="mt-px shrink-0" />
+                  <p>
+                    The copy you uploaded earlier could not be accepted
+                    {rejectedReason ? ` — ${rejectedReason}` : ''}. Please upload the correct signed
+                    copy below.
+                  </p>
+                </div>
+              )}
               <p className="text-[13px] leading-relaxed text-gray-600">
                 Please attach the signed copy of your appointment letter — <strong>PDF or Word only</strong>,
-                <strong> under 5 MB</strong>. This link is valid for 72 hours.
+                <strong> under 5 MB</strong>. This link is valid for {SIGN_APPOINTMENT_TTL_HOURS} hours.
               </p>
               <input
                 type="file"
