@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2 } from 'lucide-react';
-import type { AppointmentLetterData, Candidate, OfferLetterData } from '@/types';
+import type { AppointmentLetterData, Candidate, LetterCompany, OfferLetterData } from '@/types';
 import {
   appointmentLetterFileBaseName,
   blankAppointmentLetter,
@@ -16,6 +16,8 @@ import { nowISO } from '@/lib/utils';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from './Toaster';
 import { AppointmentLetterPaged } from './AppointmentLetterPaged';
+import { LetterCompanyPicker } from './LetterCompanyPicker';
+import { DEFAULT_LETTER_COMPANY } from '@/lib/letter-company';
 
 /** Upper bound for the annual CTC input: ₹1 crore. */
 const MAX_ANNUAL_CTC = 10_000_000;
@@ -46,11 +48,20 @@ export function AppointmentLetterCard({
   const [mode, setMode] = useState<'form' | 'preview' | null>(null);
   const [draft, setDraft] = useState<AppointmentLetterData | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const pagesRootRef = useRef<HTMLDivElement>(null);
 
-  const openCreate = () => {
+  // "Create letter" (none yet) asks which entity's letterhead to use first.
+  // "Edit" (pencil, on an existing letter) reopens the form directly — the
+  // entity was chosen at creation time and stays fixed on the letter.
+  const openEdit = () => {
     setDraft(appointmentLetter ?? blankAppointmentLetter(candidate, candidateName, nowISO(), offerLetter));
     setMode('form');
+  };
+  const startCreate = (company: LetterCompany) => {
+    setDraft(blankAppointmentLetter(candidate, candidateName, nowISO(), offerLetter, company));
+    setMode('form');
+    setPickerOpen(false);
   };
   const openPreview = () => {
     setDraft(appointmentLetter ?? blankAppointmentLetter(candidate, candidateName, nowISO(), offerLetter));
@@ -178,7 +189,7 @@ export function AppointmentLetterCard({
               <button onClick={openPreview} title="Preview" aria-label="Preview" className={iconBtnCls}>
                 <Eye size={13} />
               </button>
-              <button onClick={openCreate} title="Edit" aria-label="Edit" className={iconBtnCls}>
+              <button onClick={openEdit} title="Edit" aria-label="Edit" className={iconBtnCls}>
                 <Pencil size={13} />
               </button>
               <button
@@ -193,7 +204,7 @@ export function AppointmentLetterCard({
             </>
           ) : (
             <button
-              onClick={openCreate}
+              onClick={() => setPickerOpen(true)}
               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-accent-700"
             >
               <Plus size={13} /> Create letter
@@ -201,6 +212,18 @@ export function AppointmentLetterCard({
           )}
         </div>
       </div>
+
+      {/* Entity picker — which company's letterhead to issue the letter under */}
+      {pickerOpen && (
+        <LetterCompanyPicker
+          // Nudge HR toward the entity that issued the offer letter, so the two
+          // letters for one candidate never come from different companies.
+          suggested={offerLetter ? (offerLetter.company ?? DEFAULT_LETTER_COMPANY) : undefined}
+          suggestedNote="On the offer letter"
+          onPick={startCreate}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
 
       {/* Form modal */}
       {mode === 'form' && draft && (

@@ -577,13 +577,15 @@ export type BGVDocumentStatus =
 
 export type BGVOverallStatus = BGVDocumentStatus;
 
-/** Which legal entity's letterhead an offer letter is issued under. */
-export type OfferLetterCompany = 'optiminastic' | 'alt_opti';
+/** The legal entity a letter is issued under — drives the letterhead, the
+ *  brand names in the wording, and the signature block. Chosen once when the
+ *  letter is created and fixed thereafter. */
+export type LetterCompany = 'optiminastic' | 'alt_opti';
 
 /** HR-built offer letter values (rendered into the selected entity's letterhead format). */
 export interface OfferLetterData {
   /** Defaults to 'optiminastic' when absent (letters created before this field existed). */
-  company?: OfferLetterCompany;
+  company?: LetterCompany;
   candidateName: string;
   salutation: string;
   role: string;
@@ -613,8 +615,10 @@ export interface OfferLetterData {
   updatedAt?: string;
 }
 
-/** HR-built appointment letter values (rendered into the fixed Optiminastic format). */
+/** HR-built appointment letter values (rendered into the selected entity's letterhead format). */
 export interface AppointmentLetterData {
+  /** Defaults to 'optiminastic' when absent (letters created before this field existed). */
+  company?: LetterCompany;
   candidateName: string;
   address: string;
   role: string;

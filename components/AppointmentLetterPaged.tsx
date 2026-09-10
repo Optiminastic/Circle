@@ -4,22 +4,14 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { AppointmentLetterData } from '@/types';
 import { effectiveAppointmentLetterBody } from '@/lib/appointment-letter';
 import { parseLetterBlocks } from '@/lib/letter-body';
+import { letterBrand } from '@/lib/letter-company';
 import { renderLetterBlock } from './letter-body';
+import { LetterFoot, LetterHead, PAGE_H, PAGE_W, letterheadHeights } from './letterhead';
 
-const HEADER_IMG =
-  'https://res.cloudinary.com/dui7h1n3d/image/upload/v1782973075/Screenshot_2026-07-02_114636_vr0bqh.png';
-const FOOTER_IMG =
-  'https://res.cloudinary.com/dui7h1n3d/image/upload/v1782973076/Screenshot_2026-07-02_114609_on3fm3.png';
 const SIGNATURE_IMG = '/signature-sakshi-jain.png';
 
-// A4 at 96dpi — same page geometry as the offer letter.
-const PAGE_W = 794;
-const PAGE_H = 1123;
-const HEADER_H = Math.round((PAGE_W * 171) / 836);
-const FOOTER_H = Math.round((PAGE_W * 229) / 834);
 const PAD_X = 72;
 const PAD_Y = 18;
-const CONTENT_H = PAGE_H - HEADER_H - FOOTER_H - PAD_Y * 2;
 
 /** The letter body as an ordered list of pagination blocks (each stays whole on a page).
  *  Wording comes from `effectiveAppointmentLetterBody` (HR's edited text, or the
@@ -35,7 +27,7 @@ function letterBlocks(d: AppointmentLetterData): React.ReactNode[] {
         <p className="mb-1">Yours truly,</p>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={SIGNATURE_IMG} alt="Signature" style={{ height: 56, display: 'block' }} />
-        <p className="mb-0 font-bold">For, Optiminastic Infomedia</p>
+        <p className="mb-0 font-bold">For, {letterBrand(d.company).legalName}</p>
         <p className="mb-0 font-bold">Sakshi Jain</p>
         <p className="mb-0 font-bold">CFO</p>
       </div>
@@ -62,6 +54,9 @@ export function AppointmentLetterPaged({
   data: AppointmentLetterData;
   rootRef?: React.Ref<HTMLDivElement>;
 }) {
+  const { headerH: HEADER_H, footerH: FOOTER_H } = letterheadHeights(data.company);
+  // Usable content height on each page (between header and footer, minus padding).
+  const CONTENT_H = PAGE_H - HEADER_H - FOOTER_H - PAD_Y * 2;
   const blocks = letterBlocks(data);
   const measureRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<number[][]>([]);
@@ -112,8 +107,7 @@ export function AppointmentLetterPaged({
             className="ol-page"
             style={{ width: PAGE_W, height: PAGE_H, position: 'relative', overflow: 'hidden', background: '#fff' }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={HEADER_IMG} alt="Optiminastic" style={{ display: 'block', width: '100%' }} />
+            <LetterHead company={data.company} />
             <div
               className="text-[12.5px] leading-relaxed text-gray-900"
               style={{
@@ -131,12 +125,7 @@ export function AppointmentLetterPaged({
                 <div key={bi}>{blocks[bi]}</div>
               ))}
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={FOOTER_IMG}
-              alt=""
-              style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', display: 'block' }}
-            />
+            <LetterFoot company={data.company} />
           </div>
         );
       })}

@@ -5,8 +5,8 @@ import { Select } from './Select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Building2, FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2 } from 'lucide-react';
-import type { Candidate, OfferLetterCompany, OfferLetterData } from '@/types';
+import { FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2 } from 'lucide-react';
+import type { Candidate, LetterCompany, OfferLetterData } from '@/types';
 import {
   blankOfferLetter,
   computeBreakup,
@@ -20,6 +20,7 @@ import { nowISO } from '@/lib/utils';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from './Toaster';
 import { OfferLetterPaged } from './OfferLetterPaged';
+import { LetterCompanyPicker } from './LetterCompanyPicker';
 
 /** Upper bound for the annual CTC input: ₹1 crore. */
 const MAX_ANNUAL_CTC = 10_000_000;
@@ -52,7 +53,7 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
     setDraft(offerLetter ?? blankOfferLetter(candidate, candidateName, nowISO()));
     setMode('form');
   };
-  const startCreate = (company: OfferLetterCompany) => {
+  const startCreate = (company: LetterCompany) => {
     setDraft(blankOfferLetter(candidate, candidateName, nowISO(), company));
     setMode('form');
     setPickerOpen(false);
@@ -196,48 +197,7 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
 
       {/* Entity picker — which company's letterhead to issue the letter under */}
       {pickerOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setPickerOpen(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900">Issue letter under which company?</h3>
-              <button
-                onClick={() => setPickerOpen(false)}
-                aria-label="Close"
-                className="rounded p-1 text-gray-400 hover:bg-gray-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="space-y-2.5">
-              <button
-                onClick={() => startCreate('optiminastic')}
-                className="flex w-full items-center gap-3 rounded-xl border border-[#E4E6EA] p-3.5 text-left transition hover:border-accent-400 hover:bg-accent-50"
-              >
-                <Building2 size={18} className="shrink-0 text-accent-600" />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-gray-900">Optiminastic Infomedia</p>
-                  <p className="text-[11px] text-gray-500">The standard letterhead used today.</p>
-                </div>
-              </button>
-              <button
-                onClick={() => startCreate('alt_opti')}
-                className="flex w-full items-center gap-3 rounded-xl border border-[#E4E6EA] p-3.5 text-left transition hover:border-accent-400 hover:bg-accent-50"
-              >
-                <Building2 size={18} className="shrink-0 text-accent-600" />
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-gray-900">ALT OPTI MEDIA PRIVATE LIMITED</p>
-                  <p className="text-[11px] text-gray-500">CIN U62099MH2023PTC410008 — Mumbai.</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
+        <LetterCompanyPicker onPick={startCreate} onClose={() => setPickerOpen(false)} />
       )}
 
       {/* Form modal */}

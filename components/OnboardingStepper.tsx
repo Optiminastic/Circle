@@ -703,7 +703,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       <>
         <button
           type="button"
-          onClick={() => setReuploadFor(open ? null : letter)}
+          onClick={() => {
+            // Opening a box always starts blank — the reason state is shared by
+            // both signed-letter steps, so a leftover reason must not carry over.
+            setReuploadReason('');
+            setReuploadFor(open ? null : letter);
+          }}
           title="Reject this file and email the candidate a fresh upload link"
           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-50"
         >

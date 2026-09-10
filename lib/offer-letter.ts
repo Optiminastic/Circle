@@ -1,7 +1,7 @@
 /**
  * Offer-letter builder data + helpers. HR fills the editable values in a modal;
- * the fixed Optiminastic letter format (header/footer + section copy) is rendered
- * from these values in components/OfferLetterDocument.tsx.
+ * the letter is rendered from these values in components/OfferLetterPaged.tsx,
+ * on the letterhead of the entity chosen at creation (see lib/letter-company.ts).
  *
  * HR enters only the Annual CTC; the whole breakup (Basic/HRA/PF/Special →
  * Gross → CTC → deductions → Net) is derived from it via Finance's Salary
@@ -9,6 +9,7 @@
  */
 import { format, parse, isValid } from 'date-fns';
 import type { Candidate, OfferLetterData } from '@/types';
+import { DEFAULT_LETTER_COMPANY, letterBrand } from '@/lib/letter-company';
 
 export type { OfferLetterData };
 
@@ -185,9 +186,7 @@ export const CTC_TABLE_MARKER = '[[CTC_TABLE]]';
  * a lone line starting with "# " = the centered title heading.
  */
 export function renderOfferLetterBody(d: OfferLetterData): string {
-  const isAlt = (d.company ?? 'optiminastic') === 'alt_opti';
-  const brandName = isAlt ? 'ALT OPTI MEDIA PRIVATE LIMITED' : 'Optiminastic';
-  const brandLegalName = isAlt ? 'ALT OPTI MEDIA PRIVATE LIMITED' : 'Optiminastic Infomedia';
+  const { name: brandName, legalName: brandLegalName } = letterBrand(d.company);
   const name = `${d.salutation} ${d.candidateName}`.trim();
 
   return [
@@ -235,7 +234,7 @@ export function blankOfferLetter(
   candidate: Pick<Candidate, 'fullName' | 'appliedRole' | 'location'> | undefined,
   candidateName: string,
   nowIso: string,
-  company: OfferLetterData['company'] = 'optiminastic',
+  company: OfferLetterData['company'] = DEFAULT_LETTER_COMPANY,
 ): OfferLetterData {
   return {
     company,

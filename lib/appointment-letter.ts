@@ -1,11 +1,13 @@
 /**
  * Appointment-letter builder data + helpers. HR fills the editable values in a
- * modal; the fixed Optiminastic letter format (23-clause legal text) is
- * rendered from these values in components/AppointmentLetterPaged.tsx.
+ * modal; the fixed letter format (23-clause legal text) is rendered from these
+ * values in components/AppointmentLetterPaged.tsx, on the letterhead of the
+ * entity chosen at creation (see lib/letter-company.ts).
  */
 import { format, parse, isValid } from 'date-fns';
-import type { AppointmentLetterData, Candidate, OfferLetterData } from '@/types';
+import type { AppointmentLetterData, Candidate, LetterCompany, OfferLetterData } from '@/types';
 import { formatINRNumber, numberToIndianWords } from '@/lib/offer-letter';
+import { DEFAULT_LETTER_COMPANY, letterBrand } from '@/lib/letter-company';
 
 export type { AppointmentLetterData };
 
@@ -29,12 +31,13 @@ export function formatDMY(value?: string): string {
  */
 export function renderAppointmentLetterBody(d: AppointmentLetterData): string {
   const clause = (n: number, title: string, body: string) => `**${n}. ${title}:** ${body}`;
+  const { name: brandName } = letterBrand(d.company);
   return [
     `**Date: ${formatDMY(d.createdAt)}**`,
     `**${d.address || 'Address'}**`,
     '**Subject: Letter of Appointment**',
     `**Dear ${d.candidateName || '[Candidate]'},**`,
-    'Welcome to Optiminastic!',
+    `Welcome to ${brandName}!`,
     `The Company takes pleasure in appointing you as **${d.role || '[role]'}** for its **${d.location || 'Mumbai'}** office.`,
     'The terms and conditions of Appointment are enumerated below for your consideration and acceptance.',
     clause(
@@ -96,7 +99,7 @@ export function renderAppointmentLetterBody(d: AppointmentLetterData): string {
     clause(
       13,
       'Non Compete',
-      'Upon resignation/retirement or leaving the services of the Company for any reason whatsoever, you will not be permitted to approach, poach any employee or creator and business associates from the present company to any similar/related organisation/business proposition that would affect our business interests. You will not reveal any technological secrets or any information pertaining to creators, commercials of the company for a period of 12 months from the date of your last working day with Optiminastic. The Management of the company reserves the right to, at its own discretion from time to time, specify such Companies that will fall under this category.',
+      `Upon resignation/retirement or leaving the services of the Company for any reason whatsoever, you will not be permitted to approach, poach any employee or creator and business associates from the present company to any similar/related organisation/business proposition that would affect our business interests. You will not reveal any technological secrets or any information pertaining to creators, commercials of the company for a period of 12 months from the date of your last working day with ${brandName}. The Management of the company reserves the right to, at its own discretion from time to time, specify such Companies that will fall under this category.`,
     ),
     clause(
       14,
@@ -154,7 +157,7 @@ export function renderAppointmentLetterBody(d: AppointmentLetterData): string {
     'If the terms and conditions mentioned above are acceptable to you in its entirety, you are requested to accord your acceptance of the same by returning the duplicate copy of this letter duly signed by you.',
     'The validity of this Appointment letter is at all times subject to the positive verification of all references given by the employee about prior employment certificate and CV.',
     'Please sign and return to the undersigned the duplicate copy of this letter signifying your acceptance.',
-    'We are pleased to welcome you to the Optiminastic family and look forward to a fruitful collaboration.',
+    `We are pleased to welcome you to the ${brandName} family and look forward to a fruitful collaboration.`,
   ].join('\n\n');
 }
 
@@ -189,8 +192,10 @@ export function blankAppointmentLetter(
   candidateName: string,
   nowIso: string,
   offerLetter?: Pick<OfferLetterData, 'ctcAnnual' | 'joiningDate'>,
+  company: LetterCompany = DEFAULT_LETTER_COMPANY,
 ): AppointmentLetterData {
   return {
+    company,
     candidateName: candidate?.fullName || candidateName || '',
     address: candidate?.location || '',
     role: candidate?.appliedRole || '',
