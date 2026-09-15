@@ -29,7 +29,13 @@ import {
   Pencil,
 } from 'lucide-react';
 import { BGVRequirement, DocRequest, OnboardingChecklist, SentEmailLog } from '@/types';
-import { useCandidates, useBgvs, useUpdateBgv, useStartBgv } from '@/features/candidates/hooks';
+import {
+  useCandidates,
+  useBgvs,
+  useUpdateBgv,
+  useStartBgv,
+  useJoiningConfirmations,
+} from '@/features/candidates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
 import { useOngridOnboard } from '@/features/bgv/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
@@ -59,6 +65,7 @@ import { useToast } from '@/components/Toaster';
 import { OnboardingEmailComposer, type ComposerSeed } from '@/components/OnboardingEmailComposer';
 import { SendOfferLetterModal } from '@/components/SendOfferLetterModal';
 import { SendAppointmentLetterModal } from '@/components/SendAppointmentLetterModal';
+import { SendJoiningDateModal } from '@/components/SendJoiningDateModal';
 import { RequestDocumentsModal } from '@/components/RequestDocumentsModal';
 import { StartBgvModal } from '@/components/StartBgvModal';
 import { VerifyBgvReportModal } from '@/components/VerifyBgvReportModal';
@@ -176,6 +183,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const { data: candidates = [] } = useCandidates();
   const { data: requests = [] } = useDocRequests();
   const { data: bgvs = [] } = useBgvs();
+  const { data: joiningConfirmations = [] } = useJoiningConfirmations();
   const { data: sentEmails = [] } = useSentEmails();
   const { data: employees = [] } = useEmployees();
   const {
@@ -184,7 +192,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     markAppointmentSigned,
     markJoiningDocsSkipped,
     markBgvSkipped,
-    setJoiningDate,
     markFirstDayArrived,
     saveAllocationEmail,
     saveSystemDesk,
@@ -218,8 +225,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const [startBgvOpen, setStartBgvOpen] = useState(false);
   // "Mark BGV verified" report-upload modal.
   const [bgvReportModalOpen, setBgvReportModalOpen] = useState(false);
-  // Joining-date picker value for the "Joining date confirmation" step.
-  const [joiningInput, setJoiningInput] = useState(checklist.joiningDate ?? '');
+  // "Send joining date" modal (welcome email + public confirmation link).
+  const [sendJoiningDateOpen, setSendJoiningDateOpen] = useState(false);
   // Re-activation duration picker for the joining-documents upload link.
   const [docReqHours, setDocReqHours] = useState(24);
   // "Request re-upload" on a signed letter: which letter's reason input is
@@ -273,6 +280,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     );
   };
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
+  const joiningConfirmation = joiningConfirmations.find(j => j.candidateId === checklist.candidateId);
   const toEmail = candidate?.email || checklist.candidateEmail || '';
 
   // Signed offer letter the candidate uploaded via the 72h public link (stored in
@@ -464,8 +472,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         : 'Pending',
       at: checklist.joiningDateConfirmedAt,
       detail:
-        'Pick the first working day and email the candidate to confirm it (with the office address and what to bring).',
-      action: { kind: 'confirm-joining', cta: 'Confirm & email' },
+        'Send the candidate their joining date, welcome message, and a link to confirm it (or suggest another) plus their meal and welcome-plant preferences.',
+      action: { kind: 'confirm-joining', cta: 'Joining date' },
     },
     {
       Icon: KeyRound,
@@ -757,21 +765,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
   // Opens the editable request-documents email modal (To / Subject / Message).
   const requestDocs = () => setRequestDocsOpen(true);
-
-  // Store the picked joining date, then open the confirmation email pre-filled with it.
-  const confirmJoining = () => {
-    if (!joiningInput) {
-      toast.error('Pick a joining date first.');
-      return;
-    }
-    setJoiningDate.mutate(
-      { candidateId: checklist.candidateId, date: joiningInput },
-      {
-        onSuccess: () => openComposer('joining_date', 'joining date', fmtDate(joiningInput)),
-        onError: () => toast.error('Could not save the joining date — try again.'),
-      },
-    );
-  };
 
   const markArrived = () =>
     markFirstDayArrived.mutate(checklist.candidateId, {
@@ -1091,7 +1084,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       (markOfferSigned.isPending && a.kind === 'mark-signed') ||
       (markAppointmentSigned.isPending && a.kind === 'mark-signed-appointment') ||
       (createDocRequest.isPending && a.kind === 'request-docs') ||
-      (setJoiningDate.isPending && a.kind === 'confirm-joining') ||
       (markFirstDayArrived.isPending && a.kind === 'mark-arrived') ||
       (startBgv.isPending && a.kind === 'start-bgv') ||
       (updateBgv.isPending && a.kind === 'verify-bgv') ||
@@ -1120,7 +1112,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       case 'request-docs':
         return requestDocs();
       case 'confirm-joining':
-        return confirmJoining();
+        return setSendJoiningDateOpen(true);
       case 'mark-arrived':
         return markArrived();
       case 'start-bgv':
@@ -1212,6 +1204,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           onClose={() => setSendAppointmentOpen(false)}
         />
       )}
+      {sendJoiningDateOpen && (
+        <SendJoiningDateModal
+          candidateId={checklist.candidateId}
+          candidateName={checklist.candidateName}
+          email={toEmail}
+          proposedDate={checklist.joiningDate}
+          onClose={() => setSendJoiningDateOpen(false)}
+        />
+      )}
       {requestDocsOpen && (
         <RequestDocumentsModal
           candidateId={checklist.candidateId}
@@ -1275,10 +1276,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           const gateMet = gateMetFor(i);
           const pending = pendingFor(i);
           const { label: actionLabel, Icon: ActionIcon } = actionMetaFor(i);
-          const isJoining = stage.action.kind === 'confirm-joining';
-          // Simple one-click actions get a quick icon button in the collapsed
-          // header; joining-date needs its date picker, so it's expanded-only.
-          const showHeaderAction = showAction && !isJoining;
 
           return (
             <div key={stage.label} className="relative flex gap-3">
@@ -1505,7 +1502,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                   >
                     {stage.desc}
                   </span>
-                  {showHeaderAction && (
+                  {showAction && (
                     <button
                       type="button"
                       onClick={() => onActionClickFor(i)}
@@ -1550,36 +1547,45 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                   <div className="space-y-3 rounded-b-2xl border-t border-[#C21C51]/15 bg-white px-3.5 py-3">
                     <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
 
-                    {/* Joining date: once confirmed, the action row is gone. Re-send an
-                        UPDATED joining date from here — pick a new date and it re-opens
-                        the confirmation email pre-filled with that date. */}
+                    {/* Joining date: once confirmed, the action row is gone. Re-send from
+                        here — opens the same modal, pre-filled with the confirmed date. */}
                     {stage.action.kind === 'confirm-joining' && stage.done && (
                       <div className="border-t border-[#ECEDF0] pt-3">
                         <p className="text-[12px] font-semibold text-gray-800">Re-send joining date</p>
                         <p className="mb-2 text-[11px] text-gray-500">
-                          Confirmed for {fmtDate(checklist.joiningDate)}. Pick a new date to share an
-                          updated joining date with the candidate.
+                          Confirmed for {fmtDate(checklist.joiningDate)}. Send an updated date if it changes.
                         </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <DatePicker
-                            value={joiningInput}
-                            onChange={setJoiningInput}
-                            placeholder="Pick a new date"
-                            className="h-8 w-[168px]"
-                          />
-                          <button
-                            onClick={confirmJoining}
-                            disabled={setJoiningDate.isPending || !joiningInput}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {setJoiningDate.isPending ? (
-                              <Loader2 size={13} className="animate-spin" />
-                            ) : (
-                              <CalendarCheck size={13} />
-                            )}
-                            Re-send joining date
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setSendJoiningDateOpen(true)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700"
+                        >
+                          <CalendarCheck size={13} />
+                          Re-send joining date
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Candidate's response from the public confirmation link, once submitted. */}
+                    {stage.action.kind === 'confirm-joining' && joiningConfirmation?.respondedAt && (
+                      <div className="space-y-1.5 rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] p-2.5 text-[11.5px]">
+                        <p className="font-semibold text-gray-800">Candidate's response</p>
+                        {joiningConfirmation.canJoin ? (
+                          <p className="text-emerald-700">✅ Confirmed they can join on this date.</p>
+                        ) : (
+                          <p className="text-amber-700">
+                            ⚠️ Asked for a different date
+                            {joiningConfirmation.suggestedDate ? ` — ${fmtDate(joiningConfirmation.suggestedDate)}` : ''}.
+                          </p>
+                        )}
+                        {joiningConfirmation.meal && (
+                          <p className="text-gray-600">
+                            Meal: {joiningConfirmation.meal.dish}, {joiningConfirmation.meal.preference}
+                            {joiningConfirmation.meal.notes ? ` (${joiningConfirmation.meal.notes})` : ''}
+                          </p>
+                        )}
+                        {joiningConfirmation.plantChoice && (
+                          <p className="text-gray-600">Welcome plant: {joiningConfirmation.plantChoice}</p>
+                        )}
                       </div>
                     )}
 
@@ -1716,15 +1722,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     {/* Action row */}
                     {showAction && (
                       <div className="flex flex-wrap items-center gap-2">
-                        {isJoining && (
-                          <DatePicker
-                            value={joiningInput}
-                            onChange={setJoiningInput}
-                            disabled={!gateMet}
-                            placeholder="Pick a date"
-                            className="h-8 w-[168px]"
-                          />
-                        )}
                         <button
                           onClick={() => onActionClickFor(i)}
                           disabled={!gateMet || pending}

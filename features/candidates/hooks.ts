@@ -24,6 +24,13 @@ export function useBgvs() {
   return useQuery({ queryKey: qk.bgvs.all, queryFn: () => repositories.bgvs.list() });
 }
 
+export function useJoiningConfirmations() {
+  return useQuery({
+    queryKey: qk.joiningConfirmations.all,
+    queryFn: () => repositories.joiningConfirmations.list(),
+  });
+}
+
 export function useCandidateMutations() {
   const qc = useQueryClient();
 
