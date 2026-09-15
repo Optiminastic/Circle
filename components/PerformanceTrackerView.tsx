@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Gauge, CheckCircle2, TrendingUp, User, ListChecks, Award, Wallet, ClipboardCheck } from 'lucide-react';
 import { Employee } from '@/types';
 import { Table, THead, Th, TBody, Tr, Td, TagPill, StatusPill, SelectionBar, useTableSelection } from '@/components/ui/table';
 import { usePagination } from '@/lib/use-pagination';
 import { Pagination } from '@/components/ui/pagination';
+import { useUrlState } from '@/lib/use-url-state';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
@@ -48,7 +49,11 @@ function grade(pct: number) {
 const inr = (n: number) => '₹' + n.toLocaleString('en-IN');
 
 export function PerformanceTrackerView({ employees }: { employees: Employee[] }) {
-  const [period, setPeriod] = useState<Period>('daily');
+  // Period + pagination live in the URL — survives a refresh and restores
+  // exactly what you left after opening an employee and going back.
+  const [f, setF] = useUrlState({ period: 'daily' as Period, page: 1, pageSize: 15 });
+  const period = f.period;
+  const setPeriod = (v: Period) => setF({ period: v, page: 1 });
   const active = useMemo(() => employees.filter(e => e.status !== 'Offboarded'), [employees]);
 
   const rows = useMemo(
@@ -67,7 +72,12 @@ export function PerformanceTrackerView({ employees }: { employees: Employee[] })
 
   const ids = useMemo(() => rows.map(r => r.e.id), [rows]);
   const sel = useTableSelection(ids);
-  const pg = usePagination(rows.length);
+  const pg = usePagination(rows.length, {
+    page: f.page,
+    pageSize: f.pageSize,
+    setPage: p => setF({ page: p }),
+    setPageSize: s => setF({ pageSize: s, page: 1 }),
+  });
 
   return (
     <div className="space-y-6 select-none">
