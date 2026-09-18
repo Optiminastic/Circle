@@ -206,10 +206,15 @@ export function InterviewScheduleModal({
     if (startMs == null) return 'Invalid date/time.';
     if (startMs < Date.now()) return 'Interview date & time cannot be in the past.';
     if (!candidate.email?.trim()) return 'Candidate has no email on file — cannot send the invitation.';
-    if (conflict)
-      return `That slot overlaps an interview already booked for ${conflict.candidateName}. Pick another time.`;
     return null;
-  }, [date, time, startMs, candidate.email, conflict]);
+  }, [date, time, startMs, candidate.email]);
+
+  // An overlapping interview no longer blocks the booking: HR runs parallel
+  // panels, so several candidates can share a slot. Surfaced as a warning so
+  // the clash is still visible before confirming.
+  const overlapWarning = conflict
+    ? `Heads up: this slot also has an interview booked for ${conflict.candidateName}. You can still schedule it.`
+    : null;
 
   const submit = () => {
     if (error || startMs == null || isSending) return;
@@ -387,10 +392,16 @@ export function InterviewScheduleModal({
             </div>
           </section>
 
-          {error && (
+          {error ? (
             <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-600">
               {error}
             </p>
+          ) : (
+            overlapWarning && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+                {overlapWarning}
+              </p>
+            )
           )}
         </SheetBody>
 

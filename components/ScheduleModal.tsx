@@ -24,12 +24,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { DateTimePicker } from '@/components/ui/date-picker';
+import { BusySlot, findOverlappingSlots } from '@/lib/schedule-conflicts';
 
-export interface BusySlot {
-  start: number; // ms
-  end: number; // ms
-  label: string;
-}
+export type { BusySlot };
 
 interface ScheduleModalProps {
   candidateName: string;
@@ -76,15 +73,20 @@ export function ScheduleModal({
 
   const durationMin = DURATIONS[type];
 
-  const { conflict, validDate, startMs } = useMemo(() => {
+  const { warnings, validDate, startMs } = useMemo(() => {
     const start = new Date(dt).getTime();
-    if (isNaN(start)) return { conflict: null as BusySlot | null, validDate: false, startMs: 0 };
-    const end = start + durationMin * 60_000;
-    const hit = busySlots.find(b => start < b.end && end > b.start) ?? null;
-    return { conflict: hit, validDate: true, startMs: start };
+    if (isNaN(start)) {
+      return { warnings: [] as BusySlot[], validDate: false, startMs: 0 };
+    }
+    return {
+      warnings: findOverlappingSlots({ start, durationMin }, busySlots),
+      validDate: true,
+      startMs: start,
+    };
   }, [dt, busySlots, durationMin]);
 
-  const blocked = !validDate || !!conflict;
+  // Overlaps are advisory only - HR can double-book any round deliberately.
+  const blocked = !validDate;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,13 +148,19 @@ export function ScheduleModal({
               <DateTimePicker value={dt} onChange={setDt} step={15} />
             </div>
 
-            {/* Conflict guard */}
-            {conflict ? (
-              <div className="flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+            {/* Overlaps inform, never block - HR may double-book deliberately. */}
+            {warnings.length > 0 ? (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                 <span>
-                  That slot overlaps <span className="font-semibold">{conflict.label}</span>. Pick a
-                  different time — schedules can&apos;t overlap.
+                  This slot also has{' '}
+                  {warnings.map((slot, i) => (
+                    <React.Fragment key={`${slot.start}-${slot.label}`}>
+                      {i > 0 && ', '}
+                      <span className="font-semibold">{slot.label}</span>
+                    </React.Fragment>
+                  ))}
+                  . You can still schedule it.
                 </span>
               </div>
             ) : (
