@@ -51,6 +51,7 @@ import { useOrgSettings } from '@/store/org-settings';
 import { useRouter } from 'next/navigation';
 import { formatCtc } from '@/lib/utils';
 import { usePagination } from '@/lib/use-pagination';
+import { useUrlState } from '@/lib/use-url-state';
 import { Pagination } from '@/components/ui/pagination';
 import { QUESTION_CATEGORIES } from '@/lib/question-library';
 /**
@@ -1126,8 +1127,13 @@ export function EmployeeDirectoryView({
 }: DirectoryViewProps) {
   const toast = useToast();
   const org = useOrgSettings();
-  const [search, setSearch] = useState('');
-  const [selectedDept, setSelectedDept] = useState('All');
+  // Filters/pagination live in the URL — survives a refresh, is shareable,
+  // and "open an employee → back" restores exactly what you left.
+  const [f, setF] = useUrlState({ search: '', dept: 'All', page: 1, pageSize: 15 });
+  const search = f.search;
+  const setSearch = (v: string) => setF({ search: v, page: 1 });
+  const selectedDept = f.dept;
+  const setSelectedDept = (v: string) => setF({ dept: v, page: 1 });
   const [showAddForm, setShowAddForm] = useState(false);
   const [empForm, setEmpForm] = useState(EMPTY_EMPLOYEE_FORM);
 
@@ -1186,7 +1192,12 @@ export function EmployeeDirectoryView({
   });
 
   const sel = useTableSelection(filtered.map(e => e.id));
-  const pg = usePagination(filtered.length);
+  const pg = usePagination(filtered.length, {
+    page: f.page,
+    pageSize: f.pageSize,
+    setPage: p => setF({ page: p }),
+    setPageSize: s => setF({ pageSize: s, page: 1 }),
+  });
   const empStatusTone = (s: Employee['status']): 'green' | 'amber' | 'gray' | 'red' =>
     s === 'Active' ? 'green' : s === 'On Leave' ? 'amber' : s === 'Offboarded' ? 'gray' : 'red';
 
@@ -1819,7 +1830,11 @@ interface AppraisalsViewProps {
 
 export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps) {
   const toast = useToast();
-  const [selectedEmp, setSelectedEmp] = useState('');
+  // Which employee is selected lives in the URL — survives a refresh and is
+  // shareable/bookmarkable straight to that person's appraisal form.
+  const [f, setF] = useUrlState({ emp: '' });
+  const selectedEmp = f.emp;
+  const setSelectedEmp = (v: string) => setF({ emp: v });
   const [reviewForm, setReviewForm] = useState({
     reviewPeriod: 'Annual 2026',
     performanceScore: 5,

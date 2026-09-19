@@ -36,4 +36,5 @@ export const qk = {
     detail: (id: string) => ['screening-banks', id] as const,
   },
   iqBank: { all: ['iq-bank'] as const },
+  joiningConfirmations: { all: ['joining-confirmations'] as const },
 } as const;

@@ -1,11 +1,22 @@
 'use client';
 
+import { Suspense } from 'react';
 import { JobListView } from '@/components/JobListView';
 import { PageLoading } from '@/components/PageLoading';
 import { useJobs, useJobMutations } from '@/features/jobs/hooks';
 import { useCandidates } from '@/features/candidates/hooks';
 
 export default function JobsPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <JobsPageInner />
+    </Suspense>
+  );
+}
+
+// Filters/pagination read the URL via `useUrlState` (useSearchParams), which
+// Next.js requires a Suspense boundary around.
+function JobsPageInner() {
   const { data: jobs = [], isLoading } = useJobs();
   const { data: candidates = [] } = useCandidates();
   const { create, update, setStatus, remove } = useJobMutations();

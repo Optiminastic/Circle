@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardView } from '@/components/DashboardView';
 import { PageLoading } from '@/components/PageLoading';
@@ -11,6 +12,17 @@ import { useEmployees } from '@/features/employees/hooks';
 import { useOffboarding } from '@/features/offboarding/hooks';
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <DashboardPageInner />
+    </Suspense>
+  );
+}
+
+// Embeds CandidateListView (New Candidates panel), which calls
+// `useSearchParams()` internally even with its filter UI hidden — Next.js
+// requires a Suspense boundary around any use of it.
+function DashboardPageInner() {
   const router = useRouter();
   const { data: candidates = [] } = useCandidates();
   const { data: interviews = [], isLoading: l1 } = useInterviews();

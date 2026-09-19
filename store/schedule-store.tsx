@@ -6,7 +6,8 @@ import { Candidate, CandidateStatus, ScheduleEvent, ScheduleType, TestInvite } f
 import { useSchedules, useScheduleMutations } from '@/features/schedule/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
 import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
-import { ScheduleModal, BusySlot } from '@/components/ScheduleModal';
+import { ScheduleModal } from '@/components/ScheduleModal';
+import { BusySlot } from '@/lib/schedule-conflicts';
 import { useToast } from '@/components/Toaster';
 import { sendScheduleEmail, sendTestEmail } from '@/lib/api/notifications';
 import { pushCalendarEvent } from '@/lib/api/calendar';
@@ -40,17 +41,23 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const { create } = useScheduleMutations();
   const { move } = useCandidateMutations();
 
-  // Existing booked slots (planned schedules + interviews) so the dialog can
-  // prevent overlapping bookings.
+  // Existing booked slots (planned schedules + interviews). The dialog only
+  // warns about overlaps, so this is purely informational.
   const busySlots: BusySlot[] = useMemo(() => {
     const slots: BusySlot[] = [];
     for (const s of schedules) {
       if (s.status === 'Cancelled') continue;
       const start = new Date(s.dateTime).getTime();
       if (Number.isNaN(start)) continue;
-      slots.push({ start, end: start + SLOT_MIN * 60_000, label: `${s.type} · ${s.candidateName}` });
+      slots.push({
+        start,
+        end: start + SLOT_MIN * 60_000,
+        label: `${s.type} · ${s.candidateName}`,
+      });
     }
     for (const iv of interviews) {
+      // Cancelled interviews are free time - don't report them as clashes.
+      if (iv.status === 'Cancelled') continue;
       const start = new Date(iv.dateTime).getTime();
       if (Number.isNaN(start)) continue;
       slots.push({

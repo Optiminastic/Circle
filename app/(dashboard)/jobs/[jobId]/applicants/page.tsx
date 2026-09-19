@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { CandidateListView } from '@/components/CandidateListView';
@@ -14,6 +15,16 @@ import { ArrowLeft, MapPin } from 'lucide-react';
  *  full candidates experience (search, filters, profile, shortlist) scoped to
  *  that role. */
 export default function JobApplicantsPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <JobApplicantsPageInner />
+    </Suspense>
+  );
+}
+
+// Filters/pagination read the URL via `useUrlState` (useSearchParams), which
+// Next.js requires a Suspense boundary around.
+function JobApplicantsPageInner() {
   const params = useParams<{ jobId: string }>();
   const jobId = params?.jobId ?? '';
 

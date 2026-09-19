@@ -21,6 +21,7 @@ import { useToast } from './Toaster';
 import { cn } from '@/lib/utils';
 import { usePagination } from '@/lib/use-pagination';
 import { Pagination } from '@/components/ui/pagination';
+import { useUrlState } from '@/lib/use-url-state';
 import {
   Job,
   JobStatus,
@@ -174,7 +175,17 @@ export function JobListView({
     });
     setShowAddForm(true);
   };
-  const [search, setSearch] = useState('');
+  // Filters/sort/pagination live in the URL — survives a refresh, is
+  // shareable, and "open a job → back" restores exactly what you left.
+  const [f, setF] = useUrlState({
+    search: '',
+    sortKey: 'title' as SortKey,
+    sortDir: 'asc' as 'asc' | 'desc',
+    page: 1,
+    pageSize: 15,
+  });
+  const search = f.search;
+  const setSearch = (v: string) => setF({ search: v, page: 1 });
   // Reusable Must-have/Good-to-have sets from the Question Library (DB-backed).
   const { data: screeningBanks = [] } = useScreeningBanks();
   const { create: createScreeningBank, update: updateScreeningBank } =
@@ -224,13 +235,13 @@ export function JobListView({
     });
   };
 
-  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
-    key: 'title',
-    dir: 'asc',
-  });
-
+  const sort = { key: f.sortKey, dir: f.sortDir };
   const toggleSort = (key: SortKey) =>
-    setSort(s => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+    setF(
+      f.sortKey === key
+        ? { sortKey: key, sortDir: f.sortDir === 'asc' ? 'desc' : 'asc' }
+        : { sortKey: key, sortDir: 'asc' },
+    );
   const toNum = (s: string) => Number(String(s).replace(/[^0-9.]/g, '')) || 0;
   // Auto-capitalise the first letter of the job title (stored & shown that way).
   const capitalizeFirst = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -509,7 +520,12 @@ export function JobListView({
   });
 
   const sel = useTableSelection(sortedJobs.map(j => j.id));
-  const pg = usePagination(sortedJobs.length);
+  const pg = usePagination(sortedJobs.length, {
+    page: f.page,
+    pageSize: f.pageSize,
+    setPage: p => setF({ page: p }),
+    setPageSize: s => setF({ pageSize: s, page: 1 }),
+  });
 
   // Sortable column header.
   const SortTh = ({

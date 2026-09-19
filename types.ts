@@ -460,6 +460,34 @@ export interface DocRequest {
   updatedAt?: string;
 }
 
+/** Public, token-gated joining-date confirmation + welcome preferences sent to
+ *  a hired candidate (see lib/joining-confirmation.ts). HR owns everything
+ *  except the candidate-response fields below — the candidate's answers are
+ *  informational for HR to act on, not an automatic change to the official
+ *  joining date on the onboarding checklist. */
+export interface JoiningConfirmation {
+  id: string;
+  candidateId: string;
+  candidateName: string;
+  email: string;
+  /** The date HR is asking the candidate to confirm (YYYY-MM-DD). */
+  proposedDate: string;
+  createdAt: string;
+  expiresAt: string;
+  updatedAt?: string;
+  /** Set once the candidate submits the form. */
+  respondedAt?: string;
+  canJoin?: boolean;
+  /** Set when canJoin === false — the date the candidate suggested instead. */
+  suggestedDate?: string;
+  meal?: {
+    dish: 'Pizza' | 'Pasta';
+    preference: 'Vegetarian' | 'Non-Vegetarian';
+    notes?: string;
+  };
+  plantChoice?: 'Bamboo' | 'Jade' | 'Money' | 'Red China';
+}
+
 export interface Assignment {
   id: string;
   assignmentTitle: string;

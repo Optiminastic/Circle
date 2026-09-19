@@ -9,7 +9,7 @@ import { useToast } from './Toaster';
  */
 
 import React, { useMemo, useState } from 'react';
-import { usePersistentState } from '@/lib/use-persistent-state';
+import { useUrlState } from '@/lib/use-url-state';
 import { formatCtc, parseCtcLpa } from '@/lib/utils';
 import { usePagination } from '@/lib/use-pagination';
 import { Pagination } from '@/components/ui/pagination';
@@ -105,9 +105,6 @@ interface CandidateListViewProps {
   showHeader?: boolean;
   /** Show the Evaluation Filters bar (search / department / status / source). */
   showFilters?: boolean;
-  /** When set, the filters persist across navigation (e.g. opening a candidate
-   *  and coming back) until manually changed, keyed by this string. */
-  persistKey?: string;
 }
 
 export function CandidateListView({
@@ -119,7 +116,6 @@ export function CandidateListView({
   onSetFit,
   showHeader = true,
   showFilters = true,
-  persistKey,
 }: CandidateListViewProps) {
   const toast = useToast();
   const qc = useQueryClient();
@@ -176,34 +172,50 @@ export function CandidateListView({
   const postedRoles = Array.from(
     new Set(jobs.filter(j => j.status === 'Open').map(j => j.title)),
   );
-  // Filters persist across navigation (open a candidate → back) when a
-  // persistKey is provided — keyed so different lists don't share filters.
-  const fk = (name: string) => (persistKey ? `${persistKey}:${name}` : null);
-  const [search, setSearch] = usePersistentState(fk('search'), '');
-  const [selectedDept, setSelectedDept] = usePersistentState(fk('dept'), 'All');
-  const [selectedStatus, setSelectedStatus] = usePersistentState(fk('status'), 'All');
-  const [selectedSource, setSelectedSource] = usePersistentState(fk('source'), 'All');
-  const [maxNoticePeriod, setMaxNoticePeriod] = usePersistentState<number>(fk('maxNotice'), 9999);
-  const [minExperience, setMinExperience] = usePersistentState<number>(fk('minExp'), 0);
+  // Filters + pagination live in the URL query string — they survive a page
+  // refresh, are shareable/bookmarkable, and "open a candidate → back" always
+  // restores exactly the state you left (no separate in-memory persistence
+  // needed; the URL already is the persisted state). One combined object so a
+  // filter change and its page-1 reset land in a single navigation, not two
+  // racing ones — see lib/use-url-state.ts.
+  const [f, setF] = useUrlState({
+    search: '',
+    dept: 'All',
+    status: 'All',
+    source: 'All',
+    maxNotice: 9999,
+    minExp: 0,
+    rejected: 'all',
+    ctc: 'all',
+    keyword: 'all',
+    page: 1,
+    pageSize: 15,
+  }, { enabled: showFilters });
+  const search = f.search;
+  const setSearch = (v: string) => setF({ search: v, page: 1 });
+  const selectedDept = f.dept;
+  const setSelectedDept = (v: string) => setF({ dept: v, page: 1 });
+  const selectedStatus = f.status;
+  const setSelectedStatus = (v: string) => setF({ status: v, page: 1 });
+  const selectedSource = f.source;
+  const setSelectedSource = (v: string) => setF({ source: v, page: 1 });
+  const maxNoticePeriod = f.maxNotice;
+  const setMaxNoticePeriod = (v: number) => setF({ maxNotice: v, page: 1 });
+  const minExperience = f.minExp;
+  const setMinExperience = (v: number) => setF({ minExp: v, page: 1 });
   // Rejected filter: 'all' (default) shows every candidate, rejected included;
   // 'rejected' narrows down to only the rejected ones (at IQ, assessment,
   // physical interview, or any other step).
-  const [rejectedFilter, setRejectedFilter] = usePersistentState<'all' | 'rejected'>(
-    fk('rejectedFilter'),
-    'all',
-  );
+  const rejectedFilter = f.rejected as 'all' | 'rejected';
+  const setRejectedFilter = (v: 'all' | 'rejected') => setF({ rejected: v, page: 1 });
   // Expected CTC band — preset ranges (LPA), same UX as the Notice Period filter.
-  const [ctcBand, setCtcBand] = usePersistentState<'all' | 'lt5' | '5to10' | '10to20' | 'gte20'>(
-    fk('ctcBand'),
-    'all',
-  );
+  const ctcBand = f.ctc as 'all' | 'lt5' | '5to10' | '10to20' | 'gte20';
+  const setCtcBand = (v: typeof ctcBand) => setF({ ctc: v, page: 1 });
   // Keyword-match tier — mirrors the Keywords column's own pill thresholds
   // (>=0.7 high, >=0.4 medium, else low), plus a bucket for "—" rows (job has
   // no keywords configured, or this candidate applied before matches existed).
-  const [keywordBand, setKeywordBand] = usePersistentState<'all' | 'high' | 'medium' | 'low' | 'none'>(
-    fk('keywordBand'),
-    'all',
-  );
+  const keywordBand = f.keyword as 'all' | 'high' | 'medium' | 'low' | 'none';
+  const setKeywordBand = (v: typeof keywordBand) => setF({ keyword: v, page: 1 });
 
   // New Candidate Modal Form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -294,7 +306,12 @@ export function CandidateListView({
     .sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)));
 
   const sel = useTableSelection(filtered.map(c => c.id));
-  const pg = usePagination(filtered.length);
+  const pg = usePagination(filtered.length, {
+    page: f.page,
+    pageSize: f.pageSize,
+    setPage: p => setF({ page: p }),
+    setPageSize: s => setF({ pageSize: s, page: 1 }),
+  });
 
   // Bulk-delete every currently-selected candidate (confirmed once).
   const deleteSelected = () => {

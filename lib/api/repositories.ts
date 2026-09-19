@@ -12,6 +12,7 @@ import {
   IQTest,
   Interview,
   Job,
+  JoiningConfirmation,
   OffboardingWorkflow,
   OnboardingChecklist,
   ScheduleEvent,
@@ -53,4 +54,5 @@ export const repositories = {
   interviewKitSends: new ResourceRepository<InterviewKitSend>(RESOURCES.interviewKitSends.slug),
   screeningBanks: new ResourceRepository<ScreeningBank>(RESOURCES.screeningBanks.slug),
   iqBank: new ResourceRepository<IqBank>(RESOURCES.iqBank.slug),
+  joiningConfirmations: new ResourceRepository<JoiningConfirmation>(RESOURCES.joiningConfirmations.slug),
 } as const;
