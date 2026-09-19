@@ -73,6 +73,7 @@ import { Separator } from '@/components/ui/separator';
 import { FileDropzone, PickedFile } from '@/components/ui/file-dropzone';
 import { importDriveDocument, uploadDocument } from '@/lib/api/documents';
 import { effectiveFit, fitStyle } from '@/lib/screening';
+import { referrerName } from '@/services/candidate.service';
 import { FitRating } from '@/types';
 import {
   Dialog,
@@ -686,7 +687,26 @@ export function CandidateListView({
                     );
                   })()}
                 </Td>
-                <Td className="font-mono text-[10px] text-gray-500">{cand.sourceOfApplication}</Td>
+                <Td className="font-mono text-[10px] text-gray-500">
+                  {(() => {
+                    // A referral also names the referrer, on a second line — the
+                    // source alone ("Referral") doesn't say who sent them.
+                    const referrer = referrerName(cand);
+                    return (
+                      <>
+                        <span className="block">{cand.sourceOfApplication}</span>
+                        {referrer && (
+                          <span
+                            title={`Referred by ${referrer}`}
+                            className="block truncate text-[9px] text-gray-400"
+                          >
+                            {referrer}
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
+                </Td>
                 <Td align="right" className="whitespace-nowrap" >
                   <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
                       <ActionMenu

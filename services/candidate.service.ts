@@ -74,3 +74,20 @@ export function buildOnboardingForCandidate(candidate: Candidate): OnboardingChe
     ],
   };
 }
+
+/**
+ * The name of whoever referred this candidate, or null when they did not come
+ * through a referral.
+ *
+ * `referralDetails` is NOT always a person: for a public application from any
+ * other source it carries a provenance note ("Applied via public posting
+ * JOB-1875"), so it only reads as a name once the source itself says Referral.
+ * Matched case-insensitively — HR can type their own source values, and the
+ * public apply form stores the exact string "Referral".
+ */
+export function referrerName(
+  candidate: Pick<Candidate, 'sourceOfApplication' | 'referralDetails'>,
+): string | null {
+  if (candidate.sourceOfApplication?.trim().toLowerCase() !== 'referral') return null;
+  return candidate.referralDetails?.trim() || null;
+}
