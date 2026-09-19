@@ -38,6 +38,25 @@ const inputCls =
 
 const MAX_RESUME_MB = 5;
 
+// Server-side limits from ApplicationIn in be/app/api/routes/public.py. The
+// backend rejects anything past these with a single generic message that names
+// no field, so every one of them is mirrored here — keep the two in step.
+const LIMITS = {
+  fullName: 120,
+  email: 254,
+  currentDesignation: 120,
+  currentCtc: 40,
+  expectedCtc: 40,
+  linkedInUrl: 300,
+  coverNote: 5000,
+  location: 120,
+  currentCompany: 120,
+  referredBy: 120,
+  resumeUrl: 500,
+} as const;
+const MAX_EXPERIENCE_YEARS = 60;
+const MAX_NOTICE_DAYS = 3650;
+
 // Per-field input sanitisers — keep each field to its own data type.
 const onlyLetters = (v: string) => v.replace(/[^A-Za-z\s.'-]/g, ''); // names, titles
 const onlyCompany = (v: string) => v.replace(/[^A-Za-z0-9\s.,&'-]/g, ''); // company names
@@ -232,6 +251,27 @@ export function ApplyForm({ job }: { job: Job }) {
 
   // Every field is required except "Previous company" and the Google Drive link.
   const validateDetails = (): string | null => {
+    // Length caps first — they apply to fields checked further down too, and the
+    // server rejects an overflow without saying which field caused it.
+    const over = (value: string, max: number) => value.trim().length > max;
+    if (over(form.fullName, LIMITS.fullName))
+      return `Your full name must be ${LIMITS.fullName} characters or fewer.`;
+    if (over(form.email, LIMITS.email)) return 'That email address is too long.';
+    if (over(form.currentDesignation, LIMITS.currentDesignation))
+      return `Your current title must be ${LIMITS.currentDesignation} characters or fewer.`;
+    if (over(String(form.currentCtc), LIMITS.currentCtc)) return 'Your current CTC is too long.';
+    if (over(String(form.expectedCtc), LIMITS.expectedCtc)) return 'Your expected CTC is too long.';
+    if (over(form.location, LIMITS.location))
+      return `Your location must be ${LIMITS.location} characters or fewer.`;
+    if (over(form.currentCompany, LIMITS.currentCompany))
+      return `Your previous company must be ${LIMITS.currentCompany} characters or fewer.`;
+    if (over(form.referredBy, LIMITS.referredBy))
+      return `The referrer's name must be ${LIMITS.referredBy} characters or fewer.`;
+    if (over(form.linkedInUrl, LIMITS.linkedInUrl)) return 'That LinkedIn URL is too long.';
+    if (over(form.resumeUrl, LIMITS.resumeUrl)) return 'That Google Drive link is too long.';
+    if (over(form.coverNote, LIMITS.coverNote))
+      return `Your cover note must be ${LIMITS.coverNote.toLocaleString()} characters or fewer — it is currently ${form.coverNote.trim().length.toLocaleString()}.`;
+
     if (!form.fullName.trim()) return 'Please enter your full name.';
     if (!form.email.trim()) return 'Please enter your email.';
     if (!EMAIL_RE.test(form.email.trim())) return 'Please enter a valid email address.';
@@ -246,7 +286,15 @@ export function ApplyForm({ job }: { job: Job }) {
     if (!String(form.currentCtc).trim()) return 'Please enter your current CTC.';
     if (!String(form.expectedCtc).trim()) return 'Please enter your expected CTC.';
     if (String(form.totalExperienceYears).trim() === '') return 'Please enter your total experience.';
+    if (!(Number(form.totalExperienceYears) >= 0) || Number(form.totalExperienceYears) > MAX_EXPERIENCE_YEARS)
+      return `Please enter your total experience as a number between 0 and ${MAX_EXPERIENCE_YEARS} years.`;
     if (String(form.noticePeriodDays).trim() === '') return 'Please enter your notice period.';
+    if (!(Number(form.noticePeriodDays) >= 0) || Number(form.noticePeriodDays) > MAX_NOTICE_DAYS)
+      return `Please enter your notice period as a number of days between 0 and ${MAX_NOTICE_DAYS}.`;
+    // The server stores notice period as a whole number of days and rejects a
+    // decimal outright.
+    if (!Number.isInteger(Number(form.noticePeriodDays)))
+      return 'Please enter your notice period as a whole number of days.';
     if (!resumeFile) return 'Please upload your resume.';
     if (form.resumeUrl.trim() && !DRIVE_RE.test(form.resumeUrl.trim()))
       return 'Please enter a valid Google Drive link (e.g. https://drive.google.com/…).';
@@ -561,6 +609,8 @@ export function ApplyForm({ job }: { job: Job }) {
                   <input
                     type="number"
                     min={0}
+                    max={MAX_EXPERIENCE_YEARS}
+                    step={0.5}
                     className={inputCls}
                     value={form.totalExperienceYears}
                     onChange={e => set({ totalExperienceYears: Number(e.target.value) })}
@@ -572,6 +622,8 @@ export function ApplyForm({ job }: { job: Job }) {
                   <input
                     type="number"
                     min={0}
+                    max={MAX_NOTICE_DAYS}
+                    step={1}
                     className={inputCls}
                     value={form.noticePeriodDays}
                     onChange={e => set({ noticePeriodDays: Number(e.target.value) })}
@@ -647,6 +699,7 @@ export function ApplyForm({ job }: { job: Job }) {
               <Field label="Cover note *">
                 <textarea
                   rows={3}
+                  maxLength={LIMITS.coverNote}
                   className={inputCls}
                   value={form.coverNote}
                   onChange={e => set({ coverNote: e.target.value })}
