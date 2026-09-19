@@ -223,10 +223,10 @@ export default function CandidateDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   // Read-only candidate details modal, opened by clicking the header name/avatar.
   const [profileOpen, setProfileOpen] = useState(false);
-  // Header quick-mail composer (Reject / Reminder-JD) — a simple to/subject/body
-  // form that sends via the notification sender.
+  // Header quick-mail composer (Reject / Reminder-JD / back-in-process) — a
+  // simple to/subject/body form that sends via the notification sender.
   const [mail, setMail] = useState<{
-    kind: 'reject' | 'reminder';
+    kind: 'reject' | 'reminder' | 'reinstate';
     subject: string;
     body: string;
   } | null>(null);
@@ -434,6 +434,29 @@ export default function CandidateDetailPage() {
       ].join('\n'),
     });
   };
+  // Tells a candidate whose rejection was just undone that they're back in play.
+  // Opened AFTER the revert is already saved, so sending is optional — HR can
+  // cancel (e.g. the rejection was the silent per-stage one and the candidate
+  // never heard about it, so there is nothing to walk back).
+  const openReinstateMail = () => {
+    setMail({
+      kind: 'reinstate',
+      subject: `Your application is active again — ${mailRole}`,
+      body: [
+        `Dear ${candidate.fullName},`,
+        '',
+        `Thank you for your patience regarding your application for the ${mailRole} role at ${BRAND.company}.`,
+        '',
+        `We are pleased to let you know that your application is active again and back with our hiring team for further consideration. Please disregard our earlier update about not moving forward.`,
+        '',
+        `We will be in touch shortly about the next steps. If you have any questions in the meantime, just reply to this email.`,
+        '',
+        'Warm regards,',
+        hr.signoff,
+      ].join('\n'),
+    });
+  };
+
   const sendHeaderMail = async () => {
     if (!mail || !candidate.email || mailSending) return;
     setMailSending(true);
@@ -449,7 +472,12 @@ export default function CandidateDetailPage() {
             id: randomId('EML'),
             recipientName: candidate.fullName,
             recipientEmail: candidate.email,
-            templateTitle: mail.kind === 'reject' ? `${stages[currentIndex].label} — Rejected` : 'Reminder — JD',
+            templateTitle:
+              mail.kind === 'reject'
+                ? `${stages[currentIndex].label} — Rejected`
+                : mail.kind === 'reinstate'
+                  ? 'Back in process'
+                  : 'Reminder — JD',
             subject: mail.subject,
             dateSent: nowISO(),
             status: 'Sent',
@@ -457,7 +485,13 @@ export default function CandidateDetailPage() {
           })
           .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
           .catch(() => {});
-        toast.success(mail.kind === 'reject' ? 'Candidate rejected — email sent.' : 'Reminder email sent.');
+        toast.success(
+          mail.kind === 'reject'
+            ? 'Candidate rejected — email sent.'
+            : mail.kind === 'reinstate'
+              ? 'Candidate told they are back in the process.'
+              : 'Reminder email sent.',
+        );
         setMail(null);
       } else {
         toast.error('Email not sent — please try again.');
@@ -1430,11 +1464,25 @@ export default function CandidateDetailPage() {
     toast.confirm({
       title: `Undo ${candidate.fullName}'s rejection?`,
       description:
-        'Brings the candidate back into the active pipeline for this role, at the stage they were rejected from. Any rejection email already sent is not recalled.',
+        'Brings the candidate back into the active pipeline for this role, at the stage they were rejected from. You can then email them to say they are back in the process.',
       confirmLabel: 'Undo rejection',
       onConfirm: () => {
+        // Revert first and unconditionally — the email is a follow-up, and must
+        // never be what decides whether the candidate is actually reinstated.
         update.mutate(revertCandidateRejection(candidate));
+        if (!candidate.email) {
+          toast.success(
+            `${candidate.fullName} is back in the active pipeline. No email on file, so none was offered.`,
+          );
+          return;
+        }
         toast.success(`${candidate.fullName} is back in the active pipeline.`);
+        // Open the composer only AFTER the confirm dialog has finished closing
+        // (DialogContent animates out over 200ms). Mounting a second Radix
+        // dialog in the same tick lets the first one's scroll-lock cleanup run
+        // last, which strands `pointer-events: none` on <body> and leaves the
+        // page unclickable.
+        window.setTimeout(openReinstateMail, 220);
       },
     });
   };
@@ -2252,10 +2300,16 @@ export default function CandidateDetailPage() {
             <DialogTitle className="flex items-center gap-2">
               {mail?.kind === 'reject' ? (
                 <ThumbsDown size={15} className="text-red-500" />
+              ) : mail?.kind === 'reinstate' ? (
+                <RotateCcw size={15} className="text-emerald-600" />
               ) : (
                 <Mail size={15} className="text-accent-600" />
               )}
-              {mail?.kind === 'reject' ? 'Send rejection email' : 'Send JD reminder email'}
+              {mail?.kind === 'reject'
+                ? 'Send rejection email'
+                : mail?.kind === 'reinstate'
+                  ? 'Let them know they are back in the process'
+                  : 'Send JD reminder email'}
             </DialogTitle>
             <DialogDescription className="sr-only">Compose email to the candidate</DialogDescription>
           </DialogHeader>
@@ -2290,9 +2344,14 @@ export default function CandidateDetailPage() {
                   className="mt-1 font-mono text-[12px] leading-relaxed"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-1">
+              <div className="flex items-center justify-end gap-2 pt-1">
+                {mail.kind === 'reinstate' && (
+                  <p className="mr-auto text-[11px] text-gray-500">
+                    The candidate is already reinstated — this email is optional.
+                  </p>
+                )}
                 <Button variant="outline" onClick={() => setMail(null)} disabled={mailSending}>
-                  Cancel
+                  {mail.kind === 'reinstate' ? 'Skip email' : 'Cancel'}
                 </Button>
                 <Button onClick={sendHeaderMail} disabled={mailSending || !mail.subject.trim()}>
                   <Send size={14} /> {mailSending ? 'Sending…' : 'Send email'}

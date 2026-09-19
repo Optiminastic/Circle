@@ -139,7 +139,9 @@ export function CandidateListView({
   // lives in the candidate service, shared with the candidate detail page.
   const revertRejection = (cand: Candidate) => {
     update.mutate(revertCandidateRejection(cand));
-    toast.success(`${cand.fullName} reverted — back in the active pipeline.`);
+    toast.success(
+      `${cand.fullName} reverted — back in the active pipeline. No email sent; open their profile to notify them.`,
+    );
   };
 
   // Cross-entity data needed to derive each candidate's current pipeline stage
@@ -755,7 +757,7 @@ export function CandidateListView({
                                     toast.confirm({
                                       title: `Revert ${cand.fullName}'s rejection?`,
                                       description:
-                                        'Brings the candidate back into the active pipeline for this role, at the stage they were rejected from.',
+                                        'Brings the candidate back into the active pipeline for this role, at the stage they were rejected from. No email is sent from here — open their profile to tell them they are back in the process.',
                                       confirmLabel: 'Revert',
                                       onConfirm: () => revertRejection(cand),
                                     }),
