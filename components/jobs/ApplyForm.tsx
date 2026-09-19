@@ -9,6 +9,7 @@ import {
   verifyOtpAction,
   checkAppliedAction,
 } from '@/lib/actions/public';
+import { APPLICATION_SOURCES, REFERRAL_SOURCE, type ApplicationSource } from '@/lib/api/public';
 import { useToast } from '@/components/Toaster';
 import { Tip } from '@/components/ui/tooltip';
 import { CheckCircle2, Loader2, UploadCloud, FileText, X } from 'lucide-react';
@@ -20,6 +21,8 @@ const EMPTY = {
   location: '',
   gender: '',
   currentCompany: '',
+  source: '' as ApplicationSource | '',
+  referredBy: '',
   currentDesignation: '',
   totalExperienceYears: 0,
   currentCtc: '',
@@ -236,6 +239,9 @@ export function ApplyForm({ job }: { job: Job }) {
     if (!form.phone.trim()) return 'Please enter your phone number.';
     if (form.phone.trim().length !== 10) return 'Please enter a valid 10-digit phone number.';
     if (!form.gender) return 'Please select your gender.';
+    if (!form.source) return 'Please select how you heard about this role.';
+    if (form.source === REFERRAL_SOURCE && !form.referredBy.trim())
+      return "Please enter the name of the person who referred you.";
     if (!form.currentDesignation.trim()) return 'Please enter your current title.';
     if (!String(form.currentCtc).trim()) return 'Please enter your current CTC.';
     if (!String(form.expectedCtc).trim()) return 'Please enter your expected CTC.';
@@ -302,6 +308,9 @@ export function ApplyForm({ job }: { job: Job }) {
           location: form.location,
           gender: form.gender,
           currentCompany: form.currentCompany,
+          source: form.source as ApplicationSource,
+          // Only meaningful for a referral; `set` clears it on any other choice.
+          referredBy: form.source === REFERRAL_SOURCE ? form.referredBy.trim() : '',
           resumeUrl: form.resumeUrl,
           responses,
         },
@@ -466,6 +475,41 @@ export function ApplyForm({ job }: { job: Job }) {
                     placeholder="City you're based in"
                   />
                 </Field>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Source *">
+                  <Select
+                    className={inputCls}
+                    value={form.source}
+                    // Changing the source always drops the referrer's name, so a
+                    // name typed under "Referral" can't be submitted with another
+                    // source after the field is hidden.
+                    onChange={e =>
+                      set({ source: e.target.value as ApplicationSource, referredBy: '' })
+                    }
+                    placeholder="How did you hear about this role?"
+                  >
+                    <option value="" disabled>
+                      How did you hear about this role?
+                    </option>
+                    {APPLICATION_SOURCES.map(source => (
+                      <option key={source} value={source}>
+                        {source}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {form.source === REFERRAL_SOURCE && (
+                  <Field label="Referred by *">
+                    <input
+                      className={inputCls}
+                      value={form.referredBy}
+                      onChange={e => set({ referredBy: onlyLetters(e.target.value) })}
+                      placeholder="Name of the person who referred you"
+                      required
+                    />
+                  </Field>
+                )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Previous company">
