@@ -91,3 +91,21 @@ export function referrerName(
   if (candidate.sourceOfApplication?.trim().toLowerCase() !== 'referral') return null;
   return candidate.referralDetails?.trim() || null;
 }
+
+/**
+ * Bring a rejected candidate back into the active pipeline, returning the
+ * patched record for the caller to persist.
+ *
+ * Clears EVERY stage decision set to 'Rejected' and drops `decidedAt`, so the
+ * pipeline stage re-derives from their remaining (untouched) stage decisions and
+ * schedules instead of reading as decided. Clearing all of them matters: the
+ * candidate detail page stops the stepper at the first stage whose decision is
+ * 'Rejected', so a single leftover entry would keep showing them as stopped
+ * there even though their status is active again.
+ */
+export function revertCandidateRejection(candidate: Candidate): Candidate {
+  const stageDecisions = Object.fromEntries(
+    Object.entries(candidate.stageDecisions ?? {}).filter(([, d]) => d !== 'Rejected'),
+  );
+  return { ...candidate, status: 'Under Review', decidedAt: undefined, stageDecisions };
+}

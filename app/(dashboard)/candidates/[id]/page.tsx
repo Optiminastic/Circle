@@ -36,6 +36,7 @@ import {
   Linkedin,
   ExternalLink,
   BadgeCheck,
+  RotateCcw,
 } from 'lucide-react';
 import {
   CandidateStatus,
@@ -58,6 +59,7 @@ import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
 import { useEnsureOnboarding } from '@/features/onboarding/hooks';
+import { revertCandidateRejection } from '@/services/candidate.service';
 import { useScheduler } from '@/store/schedule-store';
 import { useInterviewScheduler } from '@/store/interview-schedule-store';
 import { repositories } from '@/lib/api/repositories';
@@ -1422,6 +1424,21 @@ export default function CandidateDetailPage() {
       toast.error(`${label} created, but sending the email failed.`);
     }
   };
+  // Undo a rejection — puts the candidate back into the active pipeline at the
+  // stage they were rejected from. Shares its rule with the candidates table.
+  const undoRejection = () => {
+    toast.confirm({
+      title: `Undo ${candidate.fullName}'s rejection?`,
+      description:
+        'Brings the candidate back into the active pipeline for this role, at the stage they were rejected from. Any rejection email already sent is not recalled.',
+      confirmLabel: 'Undo rejection',
+      onConfirm: () => {
+        update.mutate(revertCandidateRejection(candidate));
+        toast.success(`${candidate.fullName} is back in the active pipeline.`);
+      },
+    });
+  };
+
   const rejectStage = (label: string) => {
     setStageDecision(label, 'Rejected', 'Rejected');
     toast.info('Candidate marked as rejected.');
@@ -2368,15 +2385,28 @@ export default function CandidateDetailPage() {
           >
             <Eye size={16} />
           </button>
-          <button
-            type="button"
-            onClick={openRejectMail}
-            disabled={iqReached || decided}
-            title={iqReached && !decided ? 'IQ Test has started — use the Reject button on the current stage instead' : undefined}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
-          >
-            <ThumbsDown size={14} /> Reject
-          </button>
+          {/* Once rejected, Reject is permanently disabled — its slot becomes the
+              undo, so the way back is where the way out was. */}
+          {rejected ? (
+            <button
+              type="button"
+              onClick={undoRejection}
+              title="Put this candidate back into the active pipeline"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+            >
+              <RotateCcw size={14} /> Undo rejection
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={openRejectMail}
+              disabled={iqReached || decided}
+              title={iqReached && !decided ? 'IQ Test has started — use the Reject button on the current stage instead' : undefined}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
+            >
+              <ThumbsDown size={14} /> Reject
+            </button>
+          )}
           <button
             type="button"
             onClick={openReminderMail}

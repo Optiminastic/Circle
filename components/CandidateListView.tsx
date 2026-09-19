@@ -73,7 +73,7 @@ import { Separator } from '@/components/ui/separator';
 import { FileDropzone, PickedFile } from '@/components/ui/file-dropzone';
 import { importDriveDocument, uploadDocument } from '@/lib/api/documents';
 import { effectiveFit, fitStyle } from '@/lib/screening';
-import { referrerName } from '@/services/candidate.service';
+import { referrerName, revertCandidateRejection } from '@/services/candidate.service';
 import { FitRating } from '@/types';
 import {
   Dialog,
@@ -135,22 +135,10 @@ export function CandidateListView({
     });
   };
 
-  // Bring a rejected candidate back into the active pipeline — clears whichever
-  // stage decision was set to 'Rejected' + decidedAt, and restores a
-  // non-terminal status so the pipeline stage badge re-derives from their other
-  // (untouched) stageDecisions/schedules instead of showing them as decided.
+  // Bring a rejected candidate back into the active pipeline. The rule itself
+  // lives in the candidate service, shared with the candidate detail page.
   const revertRejection = (cand: Candidate) => {
-    const rejectedLabel = Object.entries(cand.stageDecisions ?? {}).find(
-      ([, decision]) => decision === 'Rejected',
-    )?.[0];
-    const stageDecisions = { ...(cand.stageDecisions ?? {}) };
-    if (rejectedLabel) delete stageDecisions[rejectedLabel];
-    update.mutate({
-      ...cand,
-      status: 'Under Review',
-      decidedAt: undefined,
-      stageDecisions,
-    });
+    update.mutate(revertCandidateRejection(cand));
     toast.success(`${cand.fullName} reverted — back in the active pipeline.`);
   };
 

@@ -12,7 +12,7 @@
  * only these exact strings (see ApplicationIn.source in be/app/api/routes/public.py
  * — keep the two lists in step).
  */
-export const APPLICATION_SOURCES = ['Job Posting', 'Careers', 'Referral', 'Other'] as const;
+export const APPLICATION_SOURCES = ['LinkedIn', 'Careers', 'Referral', 'Other'] as const;
 
 export type ApplicationSource = (typeof APPLICATION_SOURCES)[number];
 
