@@ -35,8 +35,8 @@ export function StartBgvModal({ candidateName, pending, onStart, onClose }: Prop
     const on = selected.includes(check.code);
     return (
       <label
-        className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 transition ${
-          on ? 'border-accent-300 bg-accent-50' : 'border-[#E4E6EA] bg-white hover:bg-[#F7F8FA]'
+        className={`flex cursor-pointer items-center gap-2 rounded-sm border px-2 py-1.5 transition ${
+          on ? 'border-accent-300 bg-accent-50' : 'border-line bg-surface hover:bg-surface-muted'
         }`}
       >
         <Checkbox checked={on} onCheckedChange={() => toggle(check.code)} />
@@ -71,7 +71,7 @@ export function StartBgvModal({ candidateName, pending, onStart, onClose }: Prop
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-5 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">
@@ -117,7 +117,7 @@ export function StartBgvModal({ candidateName, pending, onStart, onClose }: Prop
         </p>
         <CheckGrid checks={singles} />
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#ECEDF0] pt-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
           <p className="min-w-0 text-[11.5px] text-gray-600">
             <span className="font-semibold text-gray-900">{selected.length}</span> selected
             {selected.length > 0 && (
@@ -128,14 +128,14 @@ export function StartBgvModal({ candidateName, pending, onStart, onClose }: Prop
             <button
               onClick={onClose}
               disabled={pending}
-              className="rounded-lg border border-[#E4E6EA] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 hover:bg-[#F1F3F5] disabled:opacity-60"
+              className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               onClick={start}
               disabled={pending || selected.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
             >
               {pending && <Loader2 size={13} className="animate-spin" />}
               {pending ? 'Sending…' : 'Send for verification'}

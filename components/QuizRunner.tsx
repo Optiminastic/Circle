@@ -69,7 +69,7 @@ export function QuizRunner({
   }, [current, total, onNavigate]);
 
   return (
-    <div className="flex min-h-screen flex-col select-none bg-[#F6F7F9]">
+    <div className="flex min-h-screen flex-col select-none bg-background">
       {topBar}
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-4 py-7 lg:px-6">
@@ -81,7 +81,7 @@ export function QuizRunner({
               <span className="text-lg font-bold text-accent-600">{progress}%</span>
             </div>
             {subtitle && <p className="mt-1 text-[13px] text-gray-500">{subtitle}</p>}
-            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[#E4E6EA]">
+            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-line">
               <div
                 className="h-full rounded-full bg-accent-600 transition-all duration-300"
                 style={{ width: `${progress}%` }}
@@ -121,15 +121,15 @@ export function QuizRunner({
                     key={idx}
                     type="button"
                     onClick={() => onPick(q.key, idx)}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3.5 text-left text-sm transition ${
+                    className={`flex w-full items-center gap-3 rounded-md border px-4 py-3.5 text-left text-sm transition ${
                       selected
                         ? 'border-accent-500 bg-accent-50 font-medium text-accent-800 ring-1 ring-accent-500/20'
-                        : 'border-transparent bg-[#F1F3F5] text-gray-700 hover:bg-[#EBEDEF]'
+                        : 'border-transparent bg-surface-sunken text-gray-700 hover:bg-surface-hover'
                     }`}
                   >
                     <span
                       className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${
-                        selected ? 'bg-accent-600 text-white' : 'bg-white text-gray-500 ring-1 ring-[#E4E6EA]'
+                        selected ? 'bg-accent-600 text-white' : 'bg-surface text-gray-500 ring-1 ring-line'
                       }`}
                     >
                       {selected ? <Check size={13} strokeWidth={3} /> : String.fromCharCode(65 + idx)}
@@ -146,7 +146,7 @@ export function QuizRunner({
               type="button"
               onClick={() => onNavigate(current - 1)}
               disabled={current === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-[#F1F3F5] disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ArrowLeft size={15} /> Previous
             </button>
@@ -155,7 +155,7 @@ export function QuizRunner({
                 type="button"
                 onClick={onSubmit}
                 disabled={!canSubmit}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? (
                   <>
@@ -171,7 +171,7 @@ export function QuizRunner({
               <button
                 type="button"
                 onClick={() => onNavigate(current + 1)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-700"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-700"
               >
                 Next <ArrowRight size={15} />
               </button>

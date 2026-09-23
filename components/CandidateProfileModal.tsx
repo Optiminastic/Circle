@@ -211,9 +211,9 @@ export function CandidateProfileModal({
 
   return (
     <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-xs flex justify-end z-[100] transition-opacity duration-300">
-      <div className="bg-[#FFFFFF] w-full max-w-4xl h-full flex flex-col shadow-2xl relative animate-slide-in select-none">
+      <div className="bg-surface w-full max-w-4xl h-full flex flex-col shadow-2xl relative animate-slide-in select-none">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-[#E4E6EA] bg-[#F7F8FA] flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 border-b border-line bg-surface-muted flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center text-accent-600 font-bold text-sm">
               {candidate.fullName
@@ -237,7 +237,7 @@ export function CandidateProfileModal({
           <button
             id="close-profile-modal"
             aria-label="Close" onClick={onClose}
-            className="p-1.5 hover:bg-[#EDEEF1] rounded-md text-gray-500 hover:text-gray-600 shrink-0 cursor-pointer"
+            className="p-1.5 hover:bg-surface-hover rounded-sm text-gray-500 hover:text-gray-600 shrink-0 cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -249,7 +249,7 @@ export function CandidateProfileModal({
           onValueChange={v => setActiveTab(v as 'profile' | 'evaluation' | 'bgv')}
           className="shrink-0 gap-0"
         >
-          <TabsList className="bg-[#FFFFFF] px-6 text-xs font-medium">
+          <TabsList className="bg-surface px-6 text-xs font-medium">
             <TabsTrigger value="profile" className="py-3">
               Profile &amp; Resume
             </TabsTrigger>
@@ -259,7 +259,7 @@ export function CandidateProfileModal({
             <TabsTrigger value="bgv" className="py-3">
               BGV &amp; Onboarding Setup{' '}
               {bgv && (
-                <span className="ml-1 rounded-md bg-yellow-50 px-1 text-[9px] font-bold text-yellow-600">
+                <span className="ml-1 rounded-sm bg-yellow-50 px-1 text-[9px] font-bold text-yellow-600">
                   Pending
                 </span>
               )}
@@ -268,17 +268,17 @@ export function CandidateProfileModal({
         </Tabs>
 
         {/* Content Body split */}
-        <div className="flex-1 overflow-y-auto flex min-h-0 bg-[#F7F8FA]">
+        <div className="flex-1 overflow-y-auto flex min-h-0 bg-surface-muted">
           {activeTab === 'profile' && (
             <div className="flex-1 flex flex-col md:flex-row min-h-0">
               {/* Left Sidebar column: details */}
-              <div className="w-full md:w-5/12 border-r border-[#E4E6EA] p-5 space-y-5 overflow-y-auto bg-[#FFFFFF]">
+              <div className="w-full md:w-5/12 border-r border-line p-5 space-y-5 overflow-y-auto bg-surface">
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono">
                     Overview
                   </h3>
                   <div className="space-y-2 text-xs text-gray-600">
-                    <div className="flex justify-between py-1 border-b border-[#EDEEF1]">
+                    <div className="flex justify-between py-1 border-b border-line-hover">
                       <span>Source:</span>
                       <span className="font-semibold text-gray-900">{candidate.sourceOfApplication}</span>
                     </div>
@@ -288,14 +288,14 @@ export function CandidateProfileModal({
                         <span className="font-semibold text-right">{candidate.referralDetails}</span>
                       </div>
                     )}
-                    <div className="flex justify-between py-1 border-b border-[#EDEEF1]">
+                    <div className="flex justify-between py-1 border-b border-line-hover">
                       <span>Experience:</span>
                       <span className="font-semibold text-gray-900">
                         {candidate.totalExperienceYears} Years (Relevant: {candidate.relevantExperienceYears}{' '}
                         Yrs)
                       </span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[#EDEEF1]">
+                    <div className="flex justify-between py-1 border-b border-line-hover">
                       <span>Notice Period:</span>
                       <span className="font-semibold text-gray-900">{candidate.noticePeriodDays} Days</span>
                     </div>
@@ -307,11 +307,11 @@ export function CandidateProfileModal({
                     CTC Metrics
                   </h3>
                   <div className="space-y-2 text-xs text-gray-600">
-                    <div className="flex justify-between py-1 border-b border-[#EDEEF1]">
+                    <div className="flex justify-between py-1 border-b border-line-hover">
                       <span>Current:</span>
                       <span className="font-semibold text-gray-900">{candidate.currentCtc}</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-[#EDEEF1]">
+                    <div className="flex justify-between py-1 border-b border-line-hover">
                       <span>Expected:</span>
                       <span className="font-semibold text-gray-900 text-accent-600">
                         {candidate.expectedCtc}
@@ -353,7 +353,7 @@ export function CandidateProfileModal({
                         href={candidate.linkedInUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 text-accent-600 bg-accent-50 px-2.5 py-1 rounded-md hover:bg-accent-100 font-medium"
+                        className="flex items-center gap-1 text-accent-600 bg-accent-50 px-2.5 py-1 rounded-sm hover:bg-accent-100 font-medium"
                       >
                         <Linkedin size={11} />
                         LinkedIn
@@ -364,7 +364,7 @@ export function CandidateProfileModal({
                         href={candidate.portfolioLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 text-gray-650 bg-[#EDEEF1] px-2.5 py-1 rounded-md hover:bg-[#ECEDF0] font-medium"
+                        className="flex items-center gap-1 text-gray-650 bg-surface-hover px-2.5 py-1 rounded-sm hover:bg-surface-faint font-medium"
                       >
                         <Link2 size={11} />
                         Portfolio
@@ -373,7 +373,7 @@ export function CandidateProfileModal({
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[#E4E6EA]">
+                <div className="pt-4 border-t border-line">
                   <DocumentsPanel
                     entityType="candidate"
                     entityId={candidate.id}
@@ -387,11 +387,11 @@ export function CandidateProfileModal({
               {/* Right column: activity timeline & HR intros call */}
               <div className="flex-1 p-5 space-y-6 overflow-y-auto">
                 {/* Cultural/Initial Remark panel */}
-                <div className="bg-[#FFFFFF] border border-[#E4E6EA] p-4 rounded-xl space-y-2">
+                <div className="bg-surface border border-line p-4 rounded-md space-y-2">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-mono">
                     HR Screening Remarks
                   </h4>
-                  <p className="text-xs text-gray-800 italic bg-[#EDEEF1] p-3 rounded-lg border-l-2 border-accent-500 font-serif leading-relaxed">
+                  <p className="text-xs text-gray-800 italic bg-surface-hover p-3 rounded-md border-l-2 border-accent-500 font-serif leading-relaxed">
                     "
                     {candidate.hrRemarks ||
                       'No initial remarks have been entered. Add some below during introductory screening.'}
@@ -400,8 +400,8 @@ export function CandidateProfileModal({
                 </div>
 
                 {/* Introductory Call summary details */}
-                <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 space-y-4">
-                  <div className="flex items-center justify-between border-b border-[#E4E6EA]/60 pb-2">
+                <div className="bg-surface border border-line rounded-md p-4 space-y-4">
+                  <div className="flex items-center justify-between border-b border-line/60 pb-2">
                     <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono">
                       HR Introductory Call (Feedback)
                     </h3>
@@ -432,7 +432,7 @@ export function CandidateProfileModal({
                             onChange={e =>
                               setHrCallForm({ ...hrCallForm, candidateAvailability: e.target.value })
                             }
-                            className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus:ring-1 focus:ring-accent-600 bg-[#EDEEF1]"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus:ring-1 focus:ring-accent-600 bg-surface-hover"
                             required
                           />
                         </div>
@@ -446,7 +446,7 @@ export function CandidateProfileModal({
                             onChange={e =>
                               setHrCallForm({ ...hrCallForm, communicationRating: Number(e.target.value) })
                             }
-                            className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                             required
                           />
                         </div>
@@ -461,7 +461,7 @@ export function CandidateProfileModal({
                             setHrCallForm({ ...hrCallForm, professionalBackgroundSummary: e.target.value })
                           }
                           rows={2}
-                          className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 bg-[#EDEEF1] font-sans"
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 bg-surface-hover font-sans"
                           required
                         />
                       </div>
@@ -472,7 +472,7 @@ export function CandidateProfileModal({
                           <Select
                             value={hrCallForm.nextStep}
                             onChange={e => setHrCallForm({ ...hrCallForm, nextStep: e.target.value as any })}
-                            className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded-md bg-[#EDEEF1]"
+                            className="w-full px-2.5 py-1.5 border border-line rounded-sm bg-surface-hover"
                           >
                             <option value="Proceed to Interview">Proceed to Panel Interview</option>
                             <option value="Keep on Hold">Keep on Hold</option>
@@ -488,14 +488,14 @@ export function CandidateProfileModal({
                           placeholder="Attitude matches our horizontal principles..."
                           value={hrCallForm.culturalFitRemarks}
                           onChange={e => setHrCallForm({ ...hrCallForm, culturalFitRemarks: e.target.value })}
-                          className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 bg-[#EDEEF1]"
+                          className="w-full px-2.5 py-1.5 border border-line rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 bg-surface-hover"
                         />
                       </div>
 
                       <div className="flex justify-end pt-2">
                         <button
                           type="submit"
-                          className="bg-accent-600 hover:bg-accent-700 text-white font-medium px-4 py-1.5 rounded-md cursor-pointer transition"
+                          className="bg-accent-600 hover:bg-accent-700 text-white font-medium px-4 py-1.5 rounded-sm cursor-pointer transition"
                         >
                           Complete HR Call
                         </button>
@@ -504,7 +504,7 @@ export function CandidateProfileModal({
                   ) : (
                     /* Display call summary state */
                     <div className="text-xs space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-[#F7F8FA] p-3 rounded-lg border border-[#E4E6EA]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-surface-muted p-3 rounded-md border border-line">
                         <div>
                           <p className="text-gray-500 font-mono text-[9px] uppercase">Availability</p>
                           <p className="font-semibold text-gray-850">
@@ -527,14 +527,14 @@ export function CandidateProfileModal({
                         <p className="text-gray-500 font-mono text-[9px] uppercase">
                           Professional Background
                         </p>
-                        <p className="text-gray-700 bg-[#EDEEF1] p-2 rounded">
+                        <p className="text-gray-700 bg-surface-hover p-2 rounded">
                           {candidate.hrCall.professionalBackgroundSummary}
                         </p>
                       </div>
 
                       <div className="space-y-1">
                         <p className="text-gray-500 font-mono text-[9px] uppercase">Cultural Fit Analysis</p>
-                        <p className="text-gray-700 bg-[#EDEEF1] p-2 rounded">
+                        <p className="text-gray-700 bg-surface-hover p-2 rounded">
                           {candidate.hrCall.culturalFitRemarks}
                         </p>
                       </div>
@@ -548,8 +548,8 @@ export function CandidateProfileModal({
           {activeTab === 'evaluation' && (
             <div className="flex-1 p-6 space-y-6 overflow-y-auto">
               {/* Recruitment pipeline — scheduled events + online test results */}
-              <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4">
-                <div className="border-b border-[#E4E6EA]/65 pb-2">
+              <div className="bg-surface border border-line rounded-md p-5 space-y-4">
+                <div className="border-b border-line/65 pb-2">
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono">
                     Recruitment Pipeline — Tests &amp; Schedule
                   </h3>
@@ -564,7 +564,7 @@ export function CandidateProfileModal({
                     {candidateEvents.map(ev => (
                       <span
                         key={ev.id}
-                        className="flex items-center gap-1.5 text-[10px] font-mono font-semibold bg-[#F7F8FA] border border-[#E4E6EA] text-gray-700 px-2.5 py-1.5 rounded-lg"
+                        className="flex items-center gap-1.5 text-[10px] font-mono font-semibold bg-surface-muted border border-line text-gray-700 px-2.5 py-1.5 rounded-md"
                       >
                         <CalendarClock size={11} className="text-accent-600" />
                         {ev.type} ·{' '}
@@ -602,7 +602,7 @@ export function CandidateProfileModal({
                       return (
                         <div
                           key={t.id}
-                          className="flex flex-wrap items-center gap-x-4 gap-y-2 border border-[#E4E6EA] bg-[#F7F8FA] rounded-lg px-3.5 py-2.5"
+                          className="flex flex-wrap items-center gap-x-4 gap-y-2 border border-line bg-surface-muted rounded-md px-3.5 py-2.5"
                         >
                           <span className="flex items-center gap-1.5 text-[11px] font-bold text-gray-800 min-w-[90px]">
                             {t.kind === 'iq' ? (
@@ -620,7 +620,7 @@ export function CandidateProfileModal({
                                   ? 'bg-orange-50 text-orange-600'
                                   : t.status === 'In Progress'
                                     ? 'bg-sky-50 text-sky-600'
-                                    : 'bg-[#EDEEF1] text-gray-500'
+                                    : 'bg-surface-hover text-gray-500'
                             }`}
                           >
                             {t.status}
@@ -654,14 +654,14 @@ export function CandidateProfileModal({
                           {finished ? (
                             <button
                               onClick={() => setTestReport(t)}
-                              className="text-[10px] bg-[#FFFFFF] border border-[#E4E6EA] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                              className="text-[10px] bg-surface border border-line text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-sm font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
                             >
                               <Eye size={11} /> Detailed report
                             </button>
                           ) : (
                             <button
                               onClick={() => copyTestLink(t.id)}
-                              className="text-[10px] bg-[#FFFFFF] border border-[#E4E6EA] text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-md font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                              className="text-[10px] bg-surface border border-line text-gray-700 hover:text-accent-600 hover:border-accent-300 px-2 py-1 rounded-sm font-semibold font-mono flex items-center gap-1 cursor-pointer transition shadow-2xs"
                               title="Copy the candidate's test link"
                             >
                               <Link2 size={11} /> Copy link
@@ -675,8 +675,8 @@ export function CandidateProfileModal({
               </div>
 
               {/* Scheduled / Historic Interviews panel */}
-              <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E4E6EA]/65 pb-2">
+              <div className="bg-surface border border-line rounded-md p-5 space-y-4">
+                <div className="flex items-center justify-between border-b border-line/65 pb-2">
                   <div>
                     <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono">
                       Interview Panel Records
@@ -695,7 +695,7 @@ export function CandidateProfileModal({
                       );
                       toast.success('Interview scheduled — invite email recorded in history.');
                     }}
-                    className="bg-[#EDEEF1] hover:bg-[#ECEDF0] text-gray-800 text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1 cursor-pointer transition font-semibold"
+                    className="bg-surface-hover hover:bg-surface-faint text-gray-800 text-xs px-2.5 py-1.5 rounded-sm flex items-center gap-1 cursor-pointer transition font-semibold"
                   >
                     <Plus size={12} /> Schedule New
                   </button>
@@ -710,7 +710,7 @@ export function CandidateProfileModal({
                     candidateInterviews.map(idx => (
                       <div
                         key={idx.id}
-                        className="p-3 border border-[#E4E6EA] rounded-lg space-y-3 bg-[#F7F8FA]"
+                        className="p-3 border border-line rounded-md space-y-3 bg-surface-muted"
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -731,8 +731,8 @@ export function CandidateProfileModal({
                         </div>
 
                         {idx.grading ? (
-                          <div className="border-t border-[#ECEDF0] pt-2 text-xs space-y-2">
-                            <div className="bg-[#FFFFFF] p-2.5 rounded border border-[#E4E6EA] flex justify-between items-center text-[10px]">
+                          <div className="border-t border-line-soft pt-2 text-xs space-y-2">
+                            <div className="bg-surface p-2.5 rounded border border-line flex justify-between items-center text-[10px]">
                               <div>
                                 <span className="text-gray-500 font-mono uppercase mr-2">
                                   Evaluation Feedback:
@@ -745,14 +745,14 @@ export function CandidateProfileModal({
                                 Graded on {idx.grading.gradedAt}
                               </span>
                             </div>
-                            <p className="text-gray-500 italic bg-[#FFFFFF] p-2 rounded">
+                            <p className="text-gray-500 italic bg-surface p-2 rounded">
                               "{idx.grading.interviewerComments}"
                             </p>
                           </div>
                         ) : (
                           // Active evaluation feedback trigger if pending
                           userRole === 'HR' && (
-                            <div className="border-t border-[#ECEDF0] pt-3 space-y-3 text-xs">
+                            <div className="border-t border-line-soft pt-3 space-y-3 text-xs">
                               <p className="font-bold text-gray-500 font-mono text-[9px] uppercase">
                                 Input secure interview feedback:
                               </p>
@@ -762,7 +762,7 @@ export function CandidateProfileModal({
                                   onChange={e =>
                                     setGradingForm({ ...gradingForm, recommendation: e.target.value })
                                   }
-                                  className="px-2.5 py-1 border border-[#E4E6EA] rounded text-xs bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                                  className="px-2.5 py-1 border border-line rounded text-xs bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                                 >
                                   <option value="Strong Hire">Strong Hire</option>
                                   <option value="Hire">Standard Hire</option>
@@ -791,7 +791,7 @@ export function CandidateProfileModal({
                                 value={gradingForm.comments}
                                 onChange={e => setGradingForm({ ...gradingForm, comments: e.target.value })}
                                 placeholder="Candidate detailed grading feedback comments..."
-                                className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#FFFFFF]"
+                                className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface"
                               />
                             </div>
                           )
@@ -805,13 +805,13 @@ export function CandidateProfileModal({
               {/* IQ Tests and Assignments Results row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* IQ Test Panel */}
-                <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 space-y-3">
+                <div className="bg-surface border border-line rounded-md p-4 space-y-3">
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono flex items-center gap-1">
                     <Award size={13} className="text-accent-600" /> Custom IQ Test Outcome
                   </h3>
                   {candidateIq ? (
                     <div className="text-xs space-y-2">
-                      <div className="flex justify-between py-1 bg-[#F7F8FA] px-2 rounded font-mono text-[10px]">
+                      <div className="flex justify-between py-1 bg-surface-muted px-2 rounded font-mono text-[10px]">
                         <span>Test Result:</span>
                         <span className="font-bold text-green-600">{candidateIq.qualificationStatus}</span>
                       </div>
@@ -841,7 +841,7 @@ export function CandidateProfileModal({
                 </div>
 
                 {/* Submissions Section */}
-                <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 space-y-3">
+                <div className="bg-surface border border-line rounded-md p-4 space-y-3">
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono flex items-center gap-1">
                     <BookOpen size={13} className="text-purple-600" /> Trial Code Assignments
                   </h3>
@@ -852,7 +852,7 @@ export function CandidateProfileModal({
                   ) : (
                     candidateAssignmentsSubmissions.map(sub => (
                       <div key={sub.id} className="text-xs space-y-2">
-                        <div className="flex justify-between font-mono text-[10px] bg-[#F7F8FA] p-1.5 rounded">
+                        <div className="flex justify-between font-mono text-[10px] bg-surface-muted p-1.5 rounded">
                           <span className="truncate max-w-[120px]">{sub.assignmentTitle}</span>
                           <span className="font-bold text-green-650">{sub.status}</span>
                         </div>
@@ -862,7 +862,7 @@ export function CandidateProfileModal({
                               <span>Overall Quality Score:</span>
                               <span className="text-purple-600">{sub.grading.overallScore} / 100</span>
                             </div>
-                            <p className="text-[10px] bg-[#EDEEF1] p-1 rounded italic mt-1 font-sans">
+                            <p className="text-[10px] bg-surface-hover p-1 rounded italic mt-1 font-sans">
                               "{sub.grading.evaluatorComments}"
                             </p>
                           </div>
@@ -883,8 +883,8 @@ export function CandidateProfileModal({
             <div className="flex-1 p-6 space-y-5 overflow-y-auto">
               {/* BGV Status Overview */}
               {bgv ? (
-                <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-5">
-                  <div className="flex justify-between items-center border-b border-[#ECEDF0] pb-2.5">
+                <div className="bg-surface border border-line rounded-md p-5 space-y-5">
+                  <div className="flex justify-between items-center border-b border-line-soft pb-2.5">
                     <div>
                       <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider font-mono">
                         Background Verification (BGV Queue)
@@ -900,7 +900,7 @@ export function CandidateProfileModal({
 
                   {/* Documents table list details */}
                   <div className="space-y-2.5">
-                    <div className="grid grid-cols-12 text-[10px] font-mono text-gray-500 border-b border-[#E4E6EA] pb-1 font-bold uppercase">
+                    <div className="grid grid-cols-12 text-[10px] font-mono text-gray-500 border-b border-line pb-1 font-bold uppercase">
                       <span className="col-span-5">Document Class</span>
                       <span className="col-span-3 text-center">Status</span>
                       <span className="col-span-4 text-right">Moderator Control</span>
@@ -910,7 +910,7 @@ export function CandidateProfileModal({
                       {bgv.documents.map((doc, k) => (
                         <div
                           key={k}
-                          className="grid grid-cols-12 items-center text-xs py-1.5 border-b border-[#EDEEF1] last:border-none"
+                          className="grid grid-cols-12 items-center text-xs py-1.5 border-b border-line-hover last:border-none"
                         >
                           <div className="col-span-5 flex items-center gap-1.5 truncate">
                             <FileText size={12} className="text-gray-500" />
@@ -923,7 +923,7 @@ export function CandidateProfileModal({
                                 doc.status === 'Verified'
                                   ? 'bg-green-50 text-green-600'
                                   : doc.status === 'Pending'
-                                    ? 'bg-gray-105 text-gray-500 bg-[#EDEEF1]'
+                                    ? 'bg-gray-105 text-gray-500 bg-surface-hover'
                                     : doc.status === 'Rejected'
                                       ? 'bg-red-50 text-red-600'
                                       : 'bg-yellow-50 text-yellow-600'
@@ -960,12 +960,12 @@ export function CandidateProfileModal({
                       value={bgvDocComment}
                       onChange={e => setBgvDocComment(e.target.value)}
                       rows={2}
-                      className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1]"
+                      className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover"
                     />
                   </div>
 
                   {/* Verification History Log */}
-                  <div className="space-y-2 pt-3 border-t border-[#ECEDF0]">
+                  <div className="space-y-2 pt-3 border-t border-line-soft">
                     <h4 className="text-[10px] font-bold text-gray-500 font-mono uppercase tracking-wider">
                       BGV Compliance Timeline
                     </h4>
@@ -984,7 +984,7 @@ export function CandidateProfileModal({
                   </div>
                 </div>
               ) : interviewCleared ? (
-                <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 text-center text-gray-500 text-xs py-10">
+                <div className="bg-surface border border-line rounded-md p-5 text-center text-gray-500 text-xs py-10">
                   <CheckCircle className="mx-auto text-emerald-500 mb-2" size={24} />
                   <p className="font-semibold text-gray-700">
                     Interview cleared — {candidate.fullName} is eligible for background
@@ -999,14 +999,14 @@ export function CandidateProfileModal({
                         onStartBGV();
                         toast.success(`BGV initiated for ${candidate.fullName} — checklist created.`);
                       }}
-                      className="mt-4 bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded-lg font-semibold text-xs cursor-pointer transition inline-flex items-center gap-1.5"
+                      className="mt-4 bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded-md font-semibold text-xs cursor-pointer transition inline-flex items-center gap-1.5"
                     >
                       <CheckCircle size={13} /> Start BGV Verification
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 text-center text-gray-500 text-xs py-10">
+                <div className="bg-surface border border-line rounded-md p-5 text-center text-gray-500 text-xs py-10">
                   <AlertTriangle className="mx-auto text-amber-500 mb-2" size={24} />
                   <p className="font-semibold text-gray-600">
                     BGV is locked until the candidate clears the interview.

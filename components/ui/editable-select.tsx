@@ -66,7 +66,7 @@ export function EditableSelect({
           type="button"
           disabled={disabled}
           className={cn(
-            'flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-secondary/50 px-3 text-sm text-gray-900 transition hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-9 w-full items-center justify-between gap-2 rounded-sm border border-input bg-secondary/50 px-3 text-sm text-gray-900 transition hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-not-allowed disabled:opacity-50',
             className,
           )}
         >
@@ -90,7 +90,7 @@ export function EditableSelect({
                   setOpen(false);
                 }}
                 className={cn(
-                  'flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition hover:bg-[#F1F3F5]',
+                  'flex w-full items-center justify-between gap-2 rounded-sm px-2.5 py-2 text-left text-sm transition hover:bg-surface-sunken',
                   selected ? 'font-semibold text-accent-600' : 'text-gray-700',
                 )}
               >
@@ -121,12 +121,12 @@ export function EditableSelect({
                   }
                 }}
                 placeholder="New value…"
-                className="h-8 w-full rounded-md border border-input bg-white px-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                className="h-8 w-full rounded-sm border border-input bg-surface px-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
               />
               <button
                 type="button"
                 onClick={commitAdd}
-                className="h-8 shrink-0 rounded-md bg-accent-600 px-2.5 text-xs font-semibold text-white hover:bg-accent-700"
+                className="h-8 shrink-0 rounded-sm bg-accent-600 px-2.5 text-xs font-semibold text-white hover:bg-accent-700"
               >
                 Add
               </button>

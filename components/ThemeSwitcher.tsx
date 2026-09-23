@@ -28,7 +28,7 @@ export function ThemeSwitcher() {
       <Popover.Trigger
         id="btn-theme-switcher"
         className={cn(
-          'rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+          'rounded-md border border-line p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
           ui.focusRing,
         )}
         aria-label="Theme"
@@ -57,7 +57,7 @@ export function ThemeSwitcher() {
                 type="button"
                 onClick={() => setTheme(m.id)}
                 className={cn(
-                  'flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-semibold transition',
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-semibold transition',
                   theme === m.id
                     ? 'border-accent-300 bg-accent-50 text-accent-700'
                     : 'border-transparent text-gray-500 hover:bg-accent hover:text-gray-700',
@@ -78,7 +78,7 @@ export function ThemeSwitcher() {
                   type="button"
                   onClick={() => setPalette(p.id)}
                   className={cn(
-                    'flex flex-col gap-1.5 rounded-lg border p-2.5 text-left transition',
+                    'flex flex-col gap-1.5 rounded-md border p-2.5 text-left transition',
                     selected
                       ? 'border-accent-400 bg-accent-50/60 ring-1 ring-accent-400'
                       : 'border-border hover:border-accent-200 hover:bg-accent',

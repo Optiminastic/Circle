@@ -114,8 +114,8 @@ export function FileDropzone({
           always be replaced by dropping / browsing / re-importing — never a
           dead end that silently keeps a stale pick. */}
       {value && (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
+        <div className="flex items-center gap-3 rounded-md border border-border bg-secondary/40 px-3 py-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-accent-50 text-accent-600">
             {value.kind === 'drive' ? <GoogleGlyph className="size-4" /> : <FileIcon size={16} />}
           </span>
           <div className="min-w-0 flex-1">
@@ -130,7 +130,7 @@ export function FileDropzone({
             onClick={() => onChange(null)}
             aria-label="Remove file"
             className={cn(
-              'rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground',
+              'rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground',
               ui.focusRing,
             )}
           >
@@ -156,7 +156,7 @@ export function FileDropzone({
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          'flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed text-center transition-colors',
+          'flex flex-col items-center justify-center gap-1.5 rounded-md border border-dashed text-center transition-colors',
           value ? 'px-4 py-3' : 'px-4 py-6',
           ui.focusRing,
           disabled
@@ -190,7 +190,7 @@ export function FileDropzone({
           onClick={handleDrive}
           disabled={disabled || drive.loading}
           className={cn(
-            'flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground',
+            'flex w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground',
             ui.press,
             ui.focusRing,
             'hover:bg-secondary/50 disabled:opacity-60',

@@ -187,6 +187,25 @@ export function buildSignedLetterReuploadDraft(
 }
 
 /**
+ * Reference material sent with every buddy-assignment email. Both are tabs of
+ * the same Google Sheet, so they go out as links rather than file attachments --
+ * a Sheet has no file to attach, and a link always shows the current version.
+ *
+ * The recipient must have access to the sheet; sharing is managed in Google
+ * Drive, not here.
+ */
+export const BUDDY_RESOURCE_LINKS: { label: string; url: string }[] = [
+  {
+    label: 'Buddy Interaction Process - 2-Week Framework',
+    url: 'https://docs.google.com/spreadsheets/d/1DrY6w5sIWBntAfFgUyqNsK9OwtH5HaJ3Exl3n7GtECY/edit?gid=0#gid=0',
+  },
+  {
+    label: 'Buddy Interaction Process - Key Pointers',
+    url: 'https://docs.google.com/spreadsheets/d/1DrY6w5sIWBntAfFgUyqNsK9OwtH5HaJ3Exl3n7GtECY/edit?gid=1205498225#gid=1205498225',
+  },
+];
+
+/**
  * Buddy-assignment email sent to the employee HR picks to buddy a new
  * joinee. Fixed subject/body (not part of the OnboardingEmailKind union —
  * this goes to a chosen employee, not the candidate), with placeholders
@@ -209,7 +228,7 @@ export function buildBuddyEmailDraft(
       '',
       'As a Buddy, your role is to help the new joinee settle in, feel comfortable, understand the team culture, and navigate their initial days at Optiminastic.',
       '',
-      'We’ve attached the Buddy Interaction Process – 2-Week Framework, which outlines the interactions, key pointers, and suggested timelines to follow.',
+      'The Buddy Interaction Process – 2-Week Framework is linked below. It outlines the interactions, key pointers, and suggested timelines to follow.',
       '',
       'A few key expectations:',
       '- Be approachable and available for basic questions or guidance.',
@@ -218,7 +237,7 @@ export function buildBuddyEmailDraft(
       '- Encourage them to become comfortable and independent within the team.',
       '- Escalate any relevant concerns to HR or the Reporting Manager.',
       '',
-      'Please use the attached framework as a guide while keeping the interactions informal, supportive, and comfortable.',
+      'Please use the linked framework as a guide while keeping the interactions informal, supportive, and comfortable.',
       '',
       'Thank you for helping us create a positive first experience for our new joinees!',
       '',

@@ -25,7 +25,7 @@ export default function OnboardingDetailPage() {
 
   if (!checklist) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#D7DAE0] bg-[#FFFFFF] px-6 py-16 text-center text-xs">
+      <div className="rounded-lg border border-dashed border-line-strong bg-surface px-6 py-16 text-center text-xs">
         <p className="text-sm font-bold text-gray-700">Onboarding record not found</p>
         <p className="mt-1 text-[11px] text-gray-500">It may have been concluded already.</p>
         <Link
@@ -69,7 +69,7 @@ export default function OnboardingDetailPage() {
         <button
           onClick={del}
           disabled={remove.isPending}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-surface px-3 py-1.5 text-[12px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
         >
           {remove.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
           Delete candidate

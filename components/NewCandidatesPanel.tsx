@@ -65,7 +65,7 @@ export function NewCandidatesPanel({ candidates }: NewCandidatesPanelProps) {
       </div>
 
       {newCandidates.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#E4E6EA] bg-[#FFFFFF] py-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-line bg-surface py-10 text-center">
           <UserPlus size={20} className="text-gray-400" />
           <p className="text-xs text-gray-500">No new applications right now.</p>
         </div>

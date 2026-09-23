@@ -33,7 +33,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { useHrIdentity } from '@/features/employees/hooks';
 
 const FIELD =
-  'mt-1 h-9 w-full rounded-md border border-[#E4E6EA] bg-white px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'mt-1 h-9 w-full rounded-sm border border-line bg-surface px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 const fmt = (iso?: string) => {
   if (!iso) return '—';
@@ -187,7 +187,7 @@ export function SendInterviewKitTab() {
   return (
     <div className="space-y-6">
       {/* Send form */}
-      <div className="space-y-4 rounded-xl border border-[#E4E6EA] bg-white p-4">
+      <div className="space-y-4 rounded-md border border-line bg-surface p-4">
         <div className="flex items-center gap-2">
           <ClipboardList size={15} className="text-accent-600" />
           <h3 className="text-sm font-bold text-gray-900">Send interview kit</h3>
@@ -263,18 +263,18 @@ export function SendInterviewKitTab() {
         <div className="flex items-center gap-2">
           <Mail size={14} className="text-gray-400" />
           <h3 className="text-sm font-bold text-gray-900">Sent history</h3>
-          <span className="rounded-full bg-[#F1F3F5] px-2 py-0.5 font-mono text-[10px] font-semibold text-gray-500">
+          <span className="rounded-full bg-surface-sunken px-2 py-0.5 font-mono text-[10px] font-semibold text-gray-500">
             {sortedHistory.length}
           </span>
         </div>
         {sortedHistory.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-[#E4E6EA] bg-[#F7F8FA] px-3 py-4 text-center text-[12px] text-gray-500">
+          <p className="rounded-md border border-dashed border-line bg-surface-muted px-3 py-4 text-center text-[12px] text-gray-500">
             No interview kits sent from Settings yet.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-[#E4E6EA]">
+          <div className="overflow-x-auto rounded-md border border-line">
             <table className="w-full text-left text-[12px]">
-              <thead className="bg-[#F7F8FA] text-[10px] uppercase tracking-wide text-gray-400">
+              <thead className="bg-surface-muted text-[10px] uppercase tracking-wide text-gray-400">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Candidate</th>
                   <th className="px-3 py-2 font-semibold">Interviewer</th>
@@ -285,7 +285,7 @@ export function SendInterviewKitTab() {
                   <th className="px-3 py-2 font-semibold">Sheet</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#ECEDF0]">
+              <tbody className="divide-y divide-line-soft">
                 {sortedHistory.slice(pg.start, pg.end).map(h => (
                   <tr key={h.id} className="text-gray-700">
                     <td className="px-3 py-2 font-medium text-gray-900">{h.candidateName}</td>
@@ -297,7 +297,7 @@ export function SendInterviewKitTab() {
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                           h.status === 'Completed'
                             ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-[#F1F3F5] text-gray-500'
+                            : 'bg-surface-sunken text-gray-500'
                         }`}
                       >
                         {h.status === 'Completed' ? 'Answered' : 'Awaiting'}

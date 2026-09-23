@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 
 const triggerCls =
-  'flex h-9 w-full items-center gap-2 rounded-md border border-border bg-white px-3 text-xs text-gray-900 transition hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-not-allowed disabled:opacity-50';
+  'flex h-9 w-full items-center gap-2 rounded-sm border border-border bg-surface px-3 text-xs text-gray-900 transition hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Parse a `yyyy-MM-dd` string into a local Date (no timezone drift). */
 function parseDate(value?: string): Date | undefined {

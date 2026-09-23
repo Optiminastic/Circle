@@ -139,8 +139,8 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
   const references = request?.references ?? [];
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-2xl p-4 shadow-2xs space-y-4 md:col-span-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EDEEF1] pb-2.5">
+    <div className="bg-surface border border-line rounded-lg p-4 shadow-2xs space-y-4 md:col-span-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-hover pb-2.5">
         <div>
           <h4 className="flex items-center gap-1.5 font-bold text-gray-900">
             <FileText size={14} className="text-accent-600" /> Joining documents
@@ -168,7 +168,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               onClick={refresh}
               title="Check for new uploads"
               aria-label="Refresh"
-              className="grid size-7 place-items-center rounded-lg border border-[#E4E6EA] text-gray-500 transition hover:border-accent-400 hover:text-accent-600"
+              className="grid size-7 place-items-center rounded-md border border-line text-gray-500 transition hover:border-accent-400 hover:text-accent-600"
             >
               <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
             </button>
@@ -185,7 +185,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
       ) : (
         <>
           {/* Link + expiry */}
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#E4E6EA] bg-[#F1F3F5] px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface-sunken px-3 py-2">
             <span
               className={`inline-flex items-center gap-1 font-mono text-[11px] font-semibold ${
                 live ? 'text-amber-700' : 'text-red-600'
@@ -199,7 +199,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                   <Select
                     value={reHours}
                     onChange={e => setReHours(Number(e.target.value))}
-                    className="rounded-md border border-[#E4E6EA] bg-white px-1.5 py-1 text-[10px] font-semibold text-gray-600"
+                    className="rounded-sm border border-line bg-surface px-1.5 py-1 text-[10px] font-semibold text-gray-600"
                   >
                     <option value={24}>24h</option>
                     <option value={48}>48h</option>
@@ -217,7 +217,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                       )
                     }
                     disabled={reactivate.isPending}
-                    className="inline-flex items-center gap-1 rounded-md border border-accent-300 bg-accent-50 px-2 py-1 text-[10px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
+                    className="inline-flex items-center gap-1 rounded-sm border border-accent-300 bg-accent-50 px-2 py-1 text-[10px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
                   >
                     {reactivate.isPending ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                     Reactivate
@@ -226,7 +226,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               )}
               <button
                 onClick={copyLink}
-                className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2 py-1 text-[10px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
+                className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2 py-1 text-[10px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
               >
                 <Copy size={11} /> Copy link
               </button>
@@ -256,8 +256,8 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               return (
                 <div
                   key={doc.type}
-                  className={`rounded-lg border p-2.5 ${
-                    locked ? 'border-emerald-200 bg-emerald-50/40' : 'border-[#E4E6EA] bg-white'
+                  className={`rounded-md border p-2.5 ${
+                    locked ? 'border-emerald-200 bg-emerald-50/40' : 'border-line bg-surface'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -294,7 +294,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                           // Verified = approved & locked: no further review actions.
                           <span
                             title="Verified — locked"
-                            className="grid size-7 place-items-center rounded-md border border-emerald-500 bg-emerald-500 text-white"
+                            className="grid size-7 place-items-center rounded-sm border border-emerald-500 bg-emerald-500 text-white"
                           >
                             <Lock size={12} />
                           </span>
@@ -329,11 +329,11 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                         value={reason}
                         onChange={e => setReason(e.target.value)}
                         placeholder="Reason for rejection (shown to the candidate)"
-                        className="flex-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2 py-1 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                        className="flex-1 rounded-sm border border-line bg-surface px-2 py-1 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                       />
                       <button
                         onClick={() => runVerify(doc.type, 'Rejected', reason.trim() || undefined)}
-                        className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700"
+                        className="rounded-sm bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700"
                       >
                         Reject
                       </button>
@@ -349,7 +349,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
 
           {/* Bank details — only when HR requested them */}
           {needsBank(request?.requiredDocs) && (
-          <div className="rounded-lg border border-[#E4E6EA] bg-white p-3">
+          <div className="rounded-md border border-line bg-surface p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-800">
                 <Landmark size={13} className="text-accent-600" /> Bank details
@@ -386,16 +386,16 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                     <button
                       onClick={() => runVerifyBank('Verified')}
                       disabled={verifyBank.isPending}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-60"
+                      className="inline-flex items-center gap-1 rounded-sm border border-emerald-500 bg-surface px-2 py-1 text-[10px] font-semibold text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-60"
                     >
                       <CheckCircle2 size={12} /> Verify
                     </button>
                     <button
                       onClick={() => setRejectingBank(v => !v)}
-                      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold transition ${
+                      className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-[10px] font-semibold transition ${
                         bank.status === 'Rejected'
                           ? 'border-red-500 bg-red-50 text-red-600'
-                          : 'border-[#E4E6EA] bg-white text-gray-600 hover:bg-red-50 hover:text-red-600'
+                          : 'border-line bg-surface text-gray-600 hover:bg-red-50 hover:text-red-600'
                       }`}
                     >
                       <XCircle size={12} /> Reject
@@ -409,11 +409,11 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                       value={bankReason}
                       onChange={e => setBankReason(e.target.value)}
                       placeholder="Reason for rejection (shown to the candidate)"
-                      className="flex-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-1 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                      className="flex-1 rounded-sm border border-line bg-surface px-2 py-1 text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                     />
                     <button
                       onClick={() => runVerifyBank('Rejected', bankReason.trim() || undefined)}
-                      className="rounded-md bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700"
+                      className="rounded-sm bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700"
                     >
                       Reject
                     </button>
@@ -428,7 +428,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
 
           {/* Reference contacts the candidate submitted through the public link. */}
           {needsReferences(request?.requiredDocs) && (
-            <div className="rounded-lg border border-[#E4E6EA] bg-white p-3">
+            <div className="rounded-md border border-line bg-surface p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-800">
                   <Users size={13} className="text-accent-600" /> Reference contacts
@@ -444,7 +444,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               ) : (
                 <div className="space-y-2">
                   {references.map((r, i) => (
-                    <div key={i} className="rounded-md border border-[#EDEEF1] bg-[#FBFBFC] p-2">
+                    <div key={i} className="rounded-sm border border-line-hover bg-surface-subtle p-2">
                       <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">
                         Reference {i + 1}
                       </p>
@@ -493,19 +493,19 @@ function IconBtn({
   active?: boolean;
 }) {
   const tones: Record<string, string> = {
-    gray: 'border-[#E4E6EA] text-gray-500 hover:text-accent-600 hover:border-accent-400',
+    gray: 'border-line text-gray-500 hover:text-accent-600 hover:border-accent-400',
     green: active
       ? 'border-emerald-500 bg-emerald-500 text-white'
-      : 'border-[#E4E6EA] text-emerald-600 hover:border-emerald-400',
+      : 'border-line text-emerald-600 hover:border-emerald-400',
     red: active
       ? 'border-red-500 bg-red-500 text-white'
-      : 'border-[#E4E6EA] text-red-600 hover:border-red-400',
+      : 'border-line text-red-600 hover:border-red-400',
   };
   return (
     <button
       title={title}
       onClick={onClick}
-      className={`grid size-7 place-items-center rounded-md border transition ${tones[tone]}`}
+      className={`grid size-7 place-items-center rounded-sm border transition ${tones[tone]}`}
     >
       {children}
     </button>

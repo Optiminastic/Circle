@@ -41,7 +41,7 @@ export function Tip({
           sideOffset={6}
           className={cn(
             ui.motion,
-            'z-[250] rounded-md bg-gray-900 px-2 py-1 text-[11px] font-medium text-white shadow-md',
+            'z-[250] rounded-sm bg-gray-900 px-2 py-1 text-[11px] font-medium text-white shadow-md',
           )}
         >
           {label}

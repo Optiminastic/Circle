@@ -26,7 +26,7 @@ export function VerifyBgvReportModal({ candidateName, pending, onSubmit, onClose
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-md rounded-lg bg-surface p-5 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">
@@ -50,18 +50,18 @@ export function VerifyBgvReportModal({ candidateName, pending, onSubmit, onClose
           disabled={pending}
         />
 
-        <div className="mt-4 flex items-center justify-end gap-2 border-t border-[#ECEDF0] pt-3">
+        <div className="mt-4 flex items-center justify-end gap-2 border-t border-line-soft pt-3">
           <button
             onClick={onClose}
             disabled={pending}
-            className="rounded-lg border border-[#E4E6EA] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 hover:bg-[#F1F3F5] disabled:opacity-60"
+            className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-60"
           >
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={pending || !picked}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
           >
             {pending && <Loader2 size={13} className="animate-spin" />}
             {pending ? 'Marking verified…' : 'Mark verified'}

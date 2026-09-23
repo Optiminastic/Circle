@@ -28,7 +28,7 @@ function appointmentFileName(d?: AppointmentLetterData): string {
 }
 
 const inputCls =
-  'w-full rounded-md border border-[#E4E6EA] bg-white px-3 py-2 text-[13px] text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'w-full rounded-sm border border-line bg-surface px-3 py-2 text-[13px] text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 export function SendAppointmentLetterModal({
   candidate,
@@ -149,7 +149,7 @@ export function SendAppointmentLetterModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -200,12 +200,12 @@ export function SendAppointmentLetterModal({
                     readOnly
                     value={link}
                     onFocus={e => e.target.select()}
-                    className={`${inputCls} cursor-default bg-[#F7F8FA] text-gray-600`}
+                    className={`${inputCls} cursor-default bg-surface-muted text-gray-600`}
                   />
                   <button
                     type="button"
                     onClick={copyLink}
-                    className="inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                    className="inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-sm border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
                   >
                     <Copy size={13} /> Copy
                   </button>
@@ -222,7 +222,7 @@ export function SendAppointmentLetterModal({
               <p className="mb-1.5 text-[11px] font-semibold text-gray-500">Attach the appointment letter</p>
               <div className="space-y-2">
                 <label
-                  className={`flex items-center gap-2 rounded-lg border p-2.5 text-[12px] ${attachMode === 'created' ? 'border-accent-300 bg-accent-50' : 'border-[#E4E6EA]'} ${appointmentLetter ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                  className={`flex items-center gap-2 rounded-md border p-2.5 text-[12px] ${attachMode === 'created' ? 'border-accent-300 bg-accent-50' : 'border-line'} ${appointmentLetter ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
                 >
                   <input
                     type="radio"
@@ -235,7 +235,7 @@ export function SendAppointmentLetterModal({
                   <span>Use the created appointment letter{!appointmentLetter && ' (none created yet)'}</span>
                 </label>
                 <label
-                  className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-[12px] ${attachMode === 'upload' ? 'border-accent-300 bg-accent-50' : 'border-[#E4E6EA]'}`}
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border p-2.5 text-[12px] ${attachMode === 'upload' ? 'border-accent-300 bg-accent-50' : 'border-line'}`}
                 >
                   <input type="radio" name="attach" checked={attachMode === 'upload'} onChange={() => setAttachMode('upload')} />
                   <Upload size={14} className="text-accent-600" />
@@ -246,7 +246,7 @@ export function SendAppointmentLetterModal({
                     type="file"
                     accept="application/pdf,.pdf"
                     onChange={e => setUploadFile(e.target.files?.[0] ?? null)}
-                    className="block w-full text-[12px] text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-accent-600 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white"
+                    className="block w-full text-[12px] text-gray-600 file:mr-3 file:rounded-sm file:border-0 file:bg-accent-600 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white"
                   />
                 )}
               </div>
@@ -256,14 +256,14 @@ export function SendAppointmentLetterModal({
               <button
                 onClick={onClose}
                 disabled={sending}
-                className="rounded-lg border border-[#E4E6EA] bg-white px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-[#F1F3F5] disabled:opacity-60"
+                className="rounded-md border border-line bg-surface px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 onClick={send}
                 disabled={sending}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 {sending && <Loader2 size={14} className="animate-spin" />}
                 {sending ? 'Sending…' : 'Send appointment letter'}

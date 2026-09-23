@@ -17,7 +17,7 @@ interface CtcBreakdownCardProps {
   onSave: (breakdown: CtcBreakdown) => void;
 }
 
-const cell = 'border border-[#D5D8DD] px-2.5 py-1.5';
+const cell = 'border border-line-strong px-2.5 py-1.5';
 const numCell = `${cell} text-right tabular-nums`;
 
 /** Editable salary-component fields (everything except the computed totals). */
@@ -38,7 +38,7 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
   // No CTC on file → nothing to break down.
   if (annualCtc == null) {
     return (
-      <div className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4">
+      <div className="rounded-md border border-line bg-surface p-4">
         <h3 className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
           <Wallet size={12} className="text-accent-600" /> CTC Breakdown
         </h3>
@@ -96,14 +96,14 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
         min={0}
         value={String(draft?.[k] ?? 0)}
         onChange={e => setField(k, Number(e.target.value))}
-        className="w-24 rounded border border-input bg-white px-1.5 py-0.5 text-right tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        className="w-24 rounded border border-input bg-surface px-1.5 py-0.5 text-right tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
       />
     ) : (
       fmtINR(active[k])
     );
 
   return (
-    <div className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4">
+    <div className="rounded-md border border-line bg-surface p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
           <Wallet size={12} className="text-accent-600" /> CTC Breakdown
@@ -112,21 +112,21 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
           <div className="flex items-center gap-1.5">
             <button
               onClick={cancel}
-              className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
+              className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
             >
               <X size={11} /> Cancel
             </button>
             <button
               onClick={balance}
               title="Set Special Allowance so the CTC matches the annual CTC"
-              className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-700"
+              className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-700"
             >
               <Scale size={11} /> Balance
             </button>
             <button
               onClick={save}
               disabled={mismatch}
-              className="inline-flex items-center gap-1 rounded-md bg-accent-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-sm bg-accent-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-50"
             >
               <Check size={11} /> Save
             </button>
@@ -134,7 +134,7 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
         ) : (
           <button
             onClick={startEdit}
-            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-700"
+            className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-700"
           >
             <Pencil size={11} /> Edit
           </button>
@@ -144,7 +144,7 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[26rem] border-collapse text-[11px] text-gray-800">
           <thead>
-            <tr className="bg-[#EDEEF1] font-bold text-gray-900">
+            <tr className="bg-surface-hover font-bold text-gray-900">
               <th className={`${cell} text-left`}>Headings</th>
               <th className={`${cell} text-right`}>Monthly</th>
               <th className={`${cell} text-right`}>Annual</th>
@@ -166,7 +166,7 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
               <td className={numCell}>{monthlyCell('specialAllowance')}</td>
               <td className={numCell}>{fmtINR(c.specialAllowance.annual)}</td>
             </tr>
-            <tr className="bg-[#DCDFE4] font-bold text-gray-900">
+            <tr className="bg-line-strong font-bold text-gray-900">
               <td className={cell}>Gross Salary</td>
               <td className={numCell}>{fmtINR(c.gross.monthly)}</td>
               <td className={numCell}>{fmtINR(c.gross.annual)}</td>
@@ -181,7 +181,7 @@ export function CtcBreakdownCard({ employee, onSave }: CtcBreakdownCardProps) {
                 &nbsp;
               </td>
             </tr>
-            <tr className="bg-[#DCDFE4] font-bold text-gray-900">
+            <tr className="bg-line-strong font-bold text-gray-900">
               <td className={cell}>CTC (Cost to the Company) A</td>
               <td className={numCell}>{fmtINR(c.ctc.monthly)}</td>
               <td className={numCell}>{fmtINR(c.ctc.annual)}</td>

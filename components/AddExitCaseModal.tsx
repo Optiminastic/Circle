@@ -30,7 +30,7 @@ interface Props {
 }
 
 const todayStr = () => new Date().toISOString().split('T')[0];
-const selectCls = 'mt-0 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm';
+const selectCls = 'mt-0 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm';
 const labelCls = 'text-[11px] font-medium text-gray-600';
 
 /** Open a new exit case — pick the employee, reason, and notice period. Mirrors
@@ -108,7 +108,7 @@ export function AddExitCaseModal({ employees, pending, onSubmit, onClose }: Prop
               />
             </div>
           </div>
-          <div className="rounded-lg bg-secondary/40 px-3 py-2.5">
+          <div className="rounded-md bg-secondary/40 px-3 py-2.5">
             <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
               Last working day
             </p>

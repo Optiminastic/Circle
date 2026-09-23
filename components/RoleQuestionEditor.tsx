@@ -203,14 +203,14 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
         <div className="flex items-center gap-3">
           {back}
           {Icon && (
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
               <Icon size={18} />
             </span>
           )}
           <h2 className="font-display text-base font-bold tracking-tight text-gray-900">{bank.jobTitle}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <label className="flex items-center gap-1.5 rounded-full bg-[#F1F3F5] px-3 py-1 font-mono text-[11px] font-semibold text-gray-600">
+          <label className="flex items-center gap-1.5 rounded-full bg-surface-sunken px-3 py-1 font-mono text-[11px] font-semibold text-gray-600">
             <span>{bank.questions.length} /</span>
             <input
               type="number"
@@ -219,7 +219,7 @@ export function RoleQuestionEditor({ category, slug, bankId }: RoleQuestionEdito
               value={bank.maxQuestions}
               onChange={e => updateMax(e.target.value)}
               title="Question limit for this bank"
-              className="w-12 rounded border border-[#E4E6EA] bg-white px-1.5 py-0.5 text-center font-mono text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="w-12 rounded border border-line bg-surface px-1.5 py-0.5 text-center font-mono text-[11px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
           </label>
           <input

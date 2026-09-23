@@ -486,6 +486,12 @@ export interface JoiningConfirmation {
     notes?: string;
   };
   plantChoice?: 'Bamboo' | 'Jade' | 'Money' | 'Red China';
+  /** Candidate's own words, shared with the team in their welcome note. */
+  introduction?: string;
+  /** Welcome photo, uploaded via POST /api/joining-confirmations/{token}/photo.
+   *  Written by that endpoint, never through the candidate PATCH allowlist. */
+  photoDocumentId?: string;
+  photoFileName?: string;
 }
 
 export interface Assignment {
@@ -760,9 +766,18 @@ export interface CtcBreakdown {
 }
 
 export interface Employee {
-  id: string; // Employee ID e.g., 'EMP-1024'
+  /** Employee code e.g. 'EMP-1024'. Allocated server-side from a sequence. */
+  id: string;
+  /** Stable id in the shared identity registry, once that exists. Apps key
+   *  cross-system joins on this rather than on email, which changes. */
+  identityId?: string;
   fullName: string;
+  /** Company mailbox, entered by HR at onboarding step 6. Treated as the work
+   *  address everywhere downstream (offboarding handover, granted credentials). */
   email: string;
+  /** The address they applied with. Kept so pre-joining correspondence stays
+   *  findable after `email` becomes the company one. */
+  personalEmail?: string;
   phone: string;
   department: string;
   role: string;
@@ -907,6 +922,8 @@ export interface OffboardingWorkflow {
   checklist: {
     id: string;
     title: string;
+    /** What the step actually involves, from the HR exit process sheet. */
+    detail?: string;
     isChecked: boolean;
     category:
       | 'Notice Period'

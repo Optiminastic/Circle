@@ -97,7 +97,7 @@ export function Checkbox({ checked, indeterminate, onChange, className, ...rest 
         'grid size-4 shrink-0 place-items-center rounded-[5px] border transition-colors',
         on
           ? 'border-accent-600 bg-accent-600 text-white'
-          : 'border-[#D7DAE0] bg-[#FFFFFF] hover:border-accent-400',
+          : 'border-line-strong bg-surface hover:border-accent-400',
         className,
       )}
     >
@@ -110,7 +110,7 @@ export function Checkbox({ checked, indeterminate, onChange, className, ...rest 
 
 export function Table({ children, className, minWidth }: { children: React.ReactNode; className?: string; minWidth?: number }) {
   return (
-    <div className={cn('overflow-x-auto rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs', className)}>
+    <div className={cn('overflow-x-auto rounded-md border border-line bg-surface shadow-2xs', className)}>
       <table className="w-full text-left text-xs" style={minWidth ? { minWidth } : undefined}>
         {children}
       </table>
@@ -120,8 +120,8 @@ export function Table({ children, className, minWidth }: { children: React.React
 
 export function THead({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <thead>
-      <tr className={cn('border-b border-[#E4E6EA] bg-[#F7F8FA]', className)}>{children}</tr>
+    <thead className="sticky top-0 z-10">
+      <tr className={cn('border-b border-line bg-surface-muted', className)}>{children}</tr>
     </thead>
   );
 }
@@ -141,7 +141,7 @@ interface ThProps {
 export function Th({ children, icon, select, checked, indeterminate, onToggle, align = 'left', className }: ThProps) {
   if (select)
     return (
-      <th className={cn('w-10 px-3 py-2.5', className)}>
+      <th className={cn('w-10 px-3 py-2', className)}>
         <Checkbox
           checked={!!checked}
           indeterminate={indeterminate}
@@ -154,7 +154,7 @@ export function Th({ children, icon, select, checked, indeterminate, onToggle, a
     <th
       scope="col"
       className={cn(
-        'px-4 py-2.5 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-500',
+        'px-4 py-2 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-500',
         align === 'right' && 'text-right',
         align === 'center' && 'text-center',
         className,
@@ -190,8 +190,8 @@ export function Tr({ children, selected, onClick, className }: TrProps) {
     <tr
       onClick={onClick}
       className={cn(
-        'border-b border-[#EDEEF1] transition-colors last:border-0',
-        selected ? 'bg-accent-50/60' : 'hover:bg-[#F7F8FA]',
+        'border-b border-line-hover transition-colors last:border-0',
+        selected ? 'bg-accent-50/60' : 'hover:bg-surface-muted',
         onClick && 'cursor-pointer',
         className,
       )}
@@ -215,7 +215,7 @@ interface TdProps {
 export function Td({ children, select, checked, onToggle, align = 'left', className, colSpan }: TdProps) {
   if (select)
     return (
-      <td className={cn('w-10 px-3 py-2.5', className)}>
+      <td className={cn('w-10 px-3 py-2', className)}>
         <Checkbox checked={!!checked} onChange={() => onToggle?.()} aria-label="Select row" />
       </td>
     );
@@ -223,7 +223,7 @@ export function Td({ children, select, checked, onToggle, align = 'left', classN
     <td
       colSpan={colSpan}
       className={cn(
-        'px-4 py-2.5 align-middle text-[12px] text-gray-700',
+        'px-4 py-2 align-middle text-[12px] text-gray-700 tabular-nums',
         align === 'right' && 'text-right',
         align === 'center' && 'text-center',
         className,
@@ -254,7 +254,7 @@ export function TagPill({ children, color = 'gray', className }: { children: Rea
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border border-[#ECEDF0] bg-[#F1F3F5] px-2.5 py-0.5 text-[11px] font-medium text-gray-700',
+        'inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-sunken px-2.5 py-0.5 text-[11px] font-medium text-gray-700',
         className,
       )}
     >
@@ -288,7 +288,7 @@ export function StatusPill({
     green: 'bg-emerald-50 text-emerald-700',
     red: 'bg-red-50 text-red-600',
     amber: 'bg-amber-50 text-amber-700',
-    gray: 'bg-[#F1F3F5] text-gray-500',
+    gray: 'bg-surface-sunken text-gray-500',
     blue: 'bg-blue-50 text-blue-700',
   };
   const defaultIcon =
@@ -312,13 +312,13 @@ export function StatusPill({
 export function SelectionBar({ count, onClear, children }: { count: number; onClear: () => void; children?: React.ReactNode }) {
   if (count === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2 text-xs">
+    <div className="flex flex-wrap items-center gap-3 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-xs">
       <span className="font-semibold text-accent-700">{count} selected</span>
       <div className="ml-auto flex items-center gap-2">
         {children}
         <button
           onClick={onClear}
-          className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-2 py-1 font-medium text-gray-600 transition hover:bg-[#EDEEF1]"
+          className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2 py-1 font-medium text-gray-600 transition hover:bg-surface-hover"
         >
           <X size={12} /> Clear
         </button>

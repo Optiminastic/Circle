@@ -110,7 +110,7 @@ export function IqQuestionEditor() {
           >
             <ArrowLeft size={18} />
           </Link>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
             <BrainCircuit size={18} />
           </span>
           <h2 className="font-display text-base font-bold tracking-tight text-gray-900">
@@ -120,7 +120,7 @@ export function IqQuestionEditor() {
         <div className="flex items-center gap-3">
           <span
             className={`rounded-full px-3 py-1 font-mono text-[11px] font-semibold ${
-              atMax ? 'bg-amber-50 text-amber-700' : 'bg-[#F1F3F5] text-gray-600'
+              atMax ? 'bg-amber-50 text-amber-700' : 'bg-surface-sunken text-gray-600'
             }`}
           >
             {questions.length} / {MAX_QUESTIONS}

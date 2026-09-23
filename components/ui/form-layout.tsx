@@ -161,7 +161,7 @@ export default function WorkspaceForm() {
                   key={plan.name}
                   htmlFor={plan.name}
                   className={cn(
-                    "relative block cursor-pointer rounded-md border bg-background transition",
+                    "relative block cursor-pointer rounded-sm border bg-background transition",
                     selected.name === plan.name
                       ? "border-primary/20 ring-2 ring-primary/20"
                       : "border-border"
@@ -198,7 +198,7 @@ export default function WorkspaceForm() {
                       </ul>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-b-md border-t border-border bg-muted px-6 py-3">
+                  <div className="flex items-center justify-between rounded-b-sm border-t border-border bg-muted px-6 py-3">
                     <a
                       href={plan.href}
                       className="inline-flex items-center gap-1 text-sm text-primary hover:underline hover:underline-offset-4"

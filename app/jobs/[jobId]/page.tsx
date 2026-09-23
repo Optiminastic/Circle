@@ -48,7 +48,7 @@ export default async function PublicJobPage({ params }: { params: Promise<{ jobI
     .filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF]">
+    <div className="min-h-screen bg-surface">
       {/* Textured hero band — public, candidate-facing only (not the HRMS). */}
       <div className="bg-sandslate relative">
         <div
@@ -149,7 +149,7 @@ export default async function PublicJobPage({ params }: { params: Promise<{ jobI
         <ApplyForm job={job} />
       </main>
 
-      <footer className="mx-auto max-w-2xl border-t border-[#EDEEF1] px-5 py-8 text-center text-[11px] text-gray-400">
+      <footer className="mx-auto max-w-2xl border-t border-line-hover px-5 py-8 text-center text-[11px] text-gray-400">
         {BRAND.name} · Careers
       </footer>
     </div>
@@ -158,7 +158,7 @@ export default async function PublicJobPage({ params }: { params: Promise<{ jobI
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#FFFFFF] flex flex-col items-center justify-center gap-3 px-5">
+    <div className="min-h-screen bg-surface flex flex-col items-center justify-center gap-3 px-5">
       {children}
     </div>
   );

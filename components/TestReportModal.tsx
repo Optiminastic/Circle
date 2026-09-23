@@ -81,13 +81,13 @@ export function TestReportModal({ invite, onClose }: { invite: TestInvite; onClo
       aria-label="Close" onClick={onClose}
     >
       <div
-        className="bg-[#FFFFFF] rounded-2xl border border-[#E4E6EA] shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+        className="bg-surface rounded-lg border border-line shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-[#EDEEF1]">
+        <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-line-hover">
           <div className="flex items-center gap-3 min-w-0">
-            <span className="w-10 h-10 rounded-xl bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
+            <span className="w-10 h-10 rounded-md bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
               {isIq ? <BrainCircuit size={18} /> : <ClipboardList size={18} />}
             </span>
             <div className="min-w-0">
@@ -114,7 +114,7 @@ export function TestReportModal({ invite, onClose }: { invite: TestInvite; onClo
         <div className="overflow-y-auto px-6 py-5 space-y-5">
           {/* Score hero */}
           <div
-            className={`rounded-2xl border px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-4 ${
+            className={`rounded-lg border px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-4 ${
               invite.passed ? 'bg-emerald-50/60 border-emerald-200' : 'bg-red-50/60 border-red-200'
             }`}
           >
@@ -153,7 +153,7 @@ export function TestReportModal({ invite, onClose }: { invite: TestInvite; onClo
             {stats.map(s => (
               <div
                 key={s.label}
-                className="bg-[#F7F8FA] border border-[#E4E6EA] rounded-xl px-3 py-2.5 text-center"
+                className="bg-surface-muted border border-line rounded-md px-3 py-2.5 text-center"
               >
                 <span className={`inline-flex ${s.cls}`}>{s.icon}</span>
                 <p className="text-base font-bold text-gray-900 tabular-nums leading-tight mt-0.5">
@@ -179,9 +179,9 @@ export function TestReportModal({ invite, onClose }: { invite: TestInvite; onClo
                 return (
                   <div
                     key={q.id}
-                    className={`rounded-xl border px-4 py-3 ${
+                    className={`rounded-md border px-4 py-3 ${
                       !hasAnswer
-                        ? 'border-[#E4E6EA] bg-[#FFFFFF]'
+                        ? 'border-line bg-surface'
                         : right
                           ? 'border-emerald-200 bg-emerald-50/40'
                           : 'border-red-200 bg-red-50/40'

@@ -69,7 +69,7 @@ export function KPICards({
             key={k.id}
             onClick={() => onCardClick?.(k.id)}
             style={{ animationDelay: `${i * 70}ms` }}
-            className={`group flex animate-in cursor-pointer flex-col justify-between rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 fade-in-0 slide-in-from-bottom-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+            className={`group flex animate-in cursor-pointer flex-col justify-between rounded-md border border-line bg-surface p-4 fade-in-0 slide-in-from-bottom-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
               isSelected ? 'border-accent-200 shadow-md ring-1 ring-accent-600' : ''
             }`}
           >
@@ -78,7 +78,7 @@ export function KPICards({
                 {k.title}
               </span>
               <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${k.bg} border ${k.border} transition-transform duration-200 group-hover:scale-110`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${k.bg} border ${k.border} transition-transform duration-200 group-hover:scale-110`}
               >
                 {k.icon}
               </div>

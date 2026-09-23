@@ -29,7 +29,7 @@ export function ActionMenu({ items, className = '' }: ActionMenuProps) {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         className={cn(
-          'rounded-md p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700 data-[state=open]:bg-accent data-[state=open]:text-gray-700',
+          'rounded-sm p-1.5 text-gray-500 transition hover:bg-accent hover:text-gray-700 data-[state=open]:bg-accent data-[state=open]:text-gray-700',
           ui.focusRing,
           className,
         )}

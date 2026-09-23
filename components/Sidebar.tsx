@@ -53,10 +53,10 @@ export function Sidebar({
       <Link
         href={href}
         onClick={onCloseMobile}
-        className={`group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 ${
+        className={`group flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-all duration-150 ${
           isActive
-            ? 'bg-[#FFFFFF] text-gray-900 font-semibold shadow-2xs ring-1 ring-[#ECEDF0]'
-            : 'text-gray-600 hover:bg-[#F1F3F5] hover:text-gray-900'
+            ? 'bg-surface text-gray-900 font-semibold shadow-2xs ring-1 ring-line-soft'
+            : 'text-gray-600 hover:bg-surface-sunken hover:text-gray-900'
         } ${isCollapsed ? 'md:justify-center' : ''}`}
         title={label}
       >
@@ -73,18 +73,17 @@ export function Sidebar({
   return (
     <aside
       id="app-sidebar"
-      className={`bg-[#FBFBFC] h-screen select-none flex flex-col transition-transform duration-200
+      className={`bg-surface-subtle h-screen select-none flex flex-col transition-transform duration-200
         fixed inset-y-0 left-0 z-50 w-64 shadow-xl
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
         md:static md:z-auto md:shrink-0 md:translate-x-0 md:shadow-none md:transition-all
         ${isCollapsed ? 'md:w-16' : 'md:w-64'}`}
     >
-      {/* Workspace switcher — height aligned to the main header */}
-      <div className="flex h-14 shrink-0 items-center bg-[#FFFFFF] px-3">
+      {/* Brand block — height aligned to the main header */}
+      <div className="flex h-12 shrink-0 items-center bg-surface px-3">
         {!isCollapsed ? (
-          <button
-            type="button"
-            className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition hover:bg-[#F1F3F5]"
+          <div
+            className="flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left"
             title={BRAND.name}
           >
             <Logo size={30} className="shrink-0" />
@@ -96,8 +95,7 @@ export function Sidebar({
                 HR Operating System
               </p>
             </div>
-            <ChevronDown size={14} className="shrink-0 text-gray-400" />
-          </button>
+          </div>
         ) : (
           <Logo size={28} className="mx-auto shrink-0" />
         )}
@@ -156,7 +154,7 @@ export function Sidebar({
         </div>
 
         {/* ANALYTICS & SETTINGS */}
-        <div className="space-y-0.5 border-t border-[#E4E6EA] pt-3">
+        <div className="space-y-0.5 border-t border-line pt-3">
           {navItem('/reports', 'Enterprise Reports', <BarChart3 size={14} />)}
           {navItem('/settings', 'Global Settings', <Settings size={14} />)}
         </div>

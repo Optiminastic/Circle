@@ -285,7 +285,7 @@ export default function EmployeeDetailPage() {
         {/* MAIN */}
         <div className="space-y-5">
           {/* Profile card */}
-          <div className="overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
+          <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-2xs">
             <div
               className="h-28 bg-[#EDE9E3] bg-cover bg-center"
               style={{ backgroundImage: "url('/optiminastic-banner.png')" }}
@@ -311,7 +311,7 @@ export default function EmployeeDetailPage() {
                   <p className="text-[13px] text-gray-500">
                     {employee.role} · {employee.department}
                   </p>
-                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-[#E4E6EA] bg-[#F7F8FA] px-2 py-0.5 text-[11px] text-gray-600">
+                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted px-2 py-0.5 text-[11px] text-gray-600">
                     <MapPin size={11} /> {employee.workLocation || '—'}
                   </span>
                 </div>
@@ -343,7 +343,7 @@ export default function EmployeeDetailPage() {
                   {!onNotice && (
                     <span
                       title="Applicable resignation notice period"
-                      className="inline-flex items-center gap-1 rounded-full bg-[#F1F3F5] px-2.5 py-1 font-mono text-[10px] font-bold text-gray-500"
+                      className="inline-flex items-center gap-1 rounded-full bg-surface-sunken px-2.5 py-1 font-mono text-[10px] font-bold text-gray-500"
                     >
                       <LogOut size={11} /> Notice {noticePolicyDays === 30 ? '1mo' : '15d'}
                     </span>
@@ -365,7 +365,7 @@ export default function EmployeeDetailPage() {
               </div>
 
               {/* Tabs */}
-              <div className="mt-4 flex flex-wrap gap-1 border-b border-[#EDEEF1]">
+              <div className="mt-4 flex flex-wrap gap-1 border-b border-line-hover">
                 {TABS.map(t => (
                   <button
                     key={t.key}
@@ -504,7 +504,7 @@ export default function EmployeeDetailPage() {
                     </div>
                     <div className="space-y-1.5">
                       {bgv.documents.map(d => (
-                        <div key={d.type} className="flex items-center justify-between border-b border-[#ECEDF0] pb-1 text-[11px] last:border-0">
+                        <div key={d.type} className="flex items-center justify-between border-b border-line-soft pb-1 text-[11px] last:border-0">
                           <span className="flex items-center gap-1.5 text-gray-700">
                             {d.status === 'Verified' ? (
                               <CheckCircle2 size={12} className="text-emerald-500" />
@@ -520,7 +520,7 @@ export default function EmployeeDetailPage() {
                       ))}
                     </div>
                     {bgv.verificationTimeline?.length > 0 && (
-                      <div className="rounded-lg bg-[#F7F8FA] p-2.5">
+                      <div className="rounded-md bg-surface-muted p-2.5">
                         <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">Timeline</p>
                         <ul className="space-y-1">
                           {bgv.verificationTimeline.map((t, i) => (
@@ -587,7 +587,7 @@ export default function EmployeeDetailPage() {
                 {employee.appraisalHistory && employee.appraisalHistory.length ? (
                   <div className="space-y-2">
                     {employee.appraisalHistory.map(ap => (
-                      <div key={ap.id} className="rounded-lg bg-[#F7F8FA] p-2.5">
+                      <div key={ap.id} className="rounded-md bg-surface-muted p-2.5">
                         <div className="flex justify-between font-mono text-[9px] font-bold">
                           <span className="text-accent-600 uppercase">{ap.reviewPeriod}</span>
                           <span className="text-emerald-600">⭐ {ap.performanceScore}/5</span>
@@ -639,7 +639,7 @@ export default function EmployeeDetailPage() {
       {/* HR: start the notice period on resignation */}
       {resignOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-gray-900/45 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-xl">
+          <div className="w-full max-w-md rounded-lg border border-line bg-surface p-5 shadow-xl">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="flex items-center gap-1.5 text-sm font-bold text-gray-900">
                 <LogOut size={15} className="text-accent-600" /> Start notice period
@@ -660,7 +660,7 @@ export default function EmployeeDetailPage() {
                 <Select
                   value={resignReason}
                   onChange={e => setResignReason(e.target.value as OffboardingWorkflow['triggerReason'])}
-                  className="mt-1 w-full rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] px-2.5 py-1.5 text-xs"
+                  className="mt-1 w-full rounded-md border border-line bg-surface-muted px-2.5 py-1.5 text-xs"
                 >
                   <option value="Resignation">Resignation</option>
                   <option value="Termination">Termination</option>
@@ -682,11 +682,11 @@ export default function EmployeeDetailPage() {
                     min={0}
                     value={resignNoticeDays}
                     onChange={e => setResignNoticeDays(Number(e.target.value))}
-                    className="mt-1 w-full rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] px-2.5 py-1.5 font-mono text-xs"
+                    className="mt-1 w-full rounded-md border border-line bg-surface-muted px-2.5 py-1.5 font-mono text-xs"
                   />
                 </div>
               </div>
-              <div className="rounded-lg bg-[#F7F8FA] px-3 py-2.5">
+              <div className="rounded-md bg-surface-muted px-3 py-2.5">
                 <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">Last working day</p>
                 <p className="text-[13px] font-bold text-gray-900">{fmtDate(resignLastWorkingDay)}</p>
               </div>
@@ -695,14 +695,14 @@ export default function EmployeeDetailPage() {
             <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => setResignOpen(false)}
-                className="rounded-lg border border-[#E4E6EA] px-4 py-1.5 text-xs font-semibold text-gray-600 hover:bg-[#F7F8FA]"
+                className="rounded-md border border-line px-4 py-1.5 text-xs font-semibold text-gray-600 hover:bg-surface-muted"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmResign}
                 disabled={update.isPending}
-                className="rounded-lg bg-accent-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-accent-700 disabled:opacity-60"
+                className="rounded-md bg-accent-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-accent-700 disabled:opacity-60"
               >
                 Start notice period
               </button>
@@ -736,7 +736,7 @@ function PersonRow({ name, role, self }: { name: string; role: string; self?: bo
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-[#F7F8FA] text-accent-600">{icon}</span>
+      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-surface-muted text-accent-600">{icon}</span>
       <div className="min-w-0">
         <p className="font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
         <p className="break-words text-[12px] font-medium text-gray-700">{value || '—'}</p>
@@ -747,8 +747,8 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 function Card({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
-      <h3 className="mb-3 flex items-center gap-1.5 border-b border-[#EDEEF1] pb-2 text-[12px] font-bold text-gray-900">
+    <div className="rounded-md border border-line bg-surface p-4 shadow-2xs">
+      <h3 className="mb-3 flex items-center gap-1.5 border-b border-line-hover pb-2 text-[12px] font-bold text-gray-900">
         <span className="text-accent-600">{icon}</span>
         {title}
       </h3>

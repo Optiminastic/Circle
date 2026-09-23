@@ -26,7 +26,7 @@ export default function OffboardingDetailPage() {
 
   if (!workflow) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#D7DAE0] bg-[#FFFFFF] px-6 py-16 text-center text-xs">
+      <div className="rounded-lg border border-dashed border-line-strong bg-surface px-6 py-16 text-center text-xs">
         <p className="text-sm font-bold text-gray-700">Exit case not found</p>
         <p className="mt-1 text-[11px] text-gray-500">It may have been completed already.</p>
         <Link

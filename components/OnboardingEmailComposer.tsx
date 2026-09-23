@@ -55,7 +55,7 @@ export function OnboardingEmailComposer({
       <DialogContent className="flex max-h-[92vh] w-[min(96vw,44rem)] max-w-[44rem] flex-col gap-0 overflow-hidden p-0 sm:max-w-[44rem]">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
           <DialogTitle className="flex items-center gap-2 text-sm">
-            <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
+            <span className="grid size-7 place-items-center rounded-md bg-accent-50 text-accent-600">
               <Mail size={15} />
             </span>
             {seed.title}
@@ -77,7 +77,7 @@ export function OnboardingEmailComposer({
               value={body}
               onChange={e => setBody(e.target.value)}
               rows={18}
-              className="w-full rounded-md border border-input bg-secondary/40 px-3 py-2 font-mono text-[12px] leading-relaxed text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="w-full rounded-sm border border-input bg-secondary/40 px-3 py-2 font-mono text-[12px] leading-relaxed text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
             <p className="text-[10px] text-gray-400">
               Plain text — line breaks are preserved and the company header/footer is added

@@ -48,14 +48,14 @@ export default function ReportsPage() {
       {/* Headline KPIs (real data) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {kpis.map(k => (
-          <div key={k.label} className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4">
+          <div key={k.label} className="rounded-md border border-line bg-surface p-4">
             <p className="font-mono text-2xl font-bold leading-none text-gray-900">{k.value}</p>
             <p className="mt-2 text-[11px] font-medium leading-tight text-gray-500">{k.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5">
+      <div className="bg-surface border border-line rounded-md p-5">
         <HiringFunnelChart candidates={candidates} interviews={scopedInterviews} />
       </div>
     </div>

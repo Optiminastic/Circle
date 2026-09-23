@@ -45,7 +45,7 @@ export function DocumentsPanel({
   };
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 space-y-3">
+    <div className="bg-surface border border-line rounded-md p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
           <FileText size={13} className="text-accent-600" /> {title}
@@ -56,7 +56,7 @@ export function DocumentsPanel({
               <button
                 onClick={() => openDocument(previewDoc.id)}
                 aria-label="Preview"
-                className="text-[11px] flex items-center gap-1 bg-accent-600 hover:bg-accent-700 text-white px-2.5 py-1 rounded-md font-medium cursor-pointer transition"
+                className="text-[11px] flex items-center gap-1 bg-accent-600 hover:bg-accent-700 text-white px-2.5 py-1 rounded-sm font-medium cursor-pointer transition"
               >
                 <Eye size={12} /> Preview
               </button>
@@ -67,7 +67,7 @@ export function DocumentsPanel({
             <button
               onClick={() => inputRef.current?.click()}
               disabled={upload.isPending}
-              className="text-[11px] flex items-center gap-1 bg-accent-600 hover:bg-accent-700 text-white px-2.5 py-1 rounded-md font-medium cursor-pointer transition disabled:opacity-60"
+              className="text-[11px] flex items-center gap-1 bg-accent-600 hover:bg-accent-700 text-white px-2.5 py-1 rounded-sm font-medium cursor-pointer transition disabled:opacity-60"
             >
               {upload.isPending ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
               Upload
@@ -96,7 +96,7 @@ export function DocumentsPanel({
               key={doc.id}
               onClick={previewOnly ? () => openDocument(doc.id) : undefined}
               title={previewOnly ? 'Open in new tab' : undefined}
-              className={`flex items-center gap-2 p-2 border border-[#E4E6EA] rounded-lg text-[11px] hover:bg-[#EDEEF1] transition ${
+              className={`flex items-center gap-2 p-2 border border-line rounded-md text-[11px] hover:bg-surface-hover transition ${
                 previewOnly ? 'cursor-pointer' : ''
               }`}
             >

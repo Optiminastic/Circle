@@ -104,7 +104,7 @@ export function ScheduleModal({
       <DialogContent className="max-w-md max-h-[90vh] gap-0 overflow-y-auto p-0">
         <form onSubmit={submit}>
           <DialogHeader className="flex-row items-center gap-2.5 space-y-0 border-b border-border px-5 py-4 text-left">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-50 text-accent-600">
               <CalendarClock size={17} />
             </span>
             <div>
@@ -150,7 +150,7 @@ export function ScheduleModal({
 
             {/* Overlaps inform, never block - HR may double-book deliberately. */}
             {warnings.length > 0 ? (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                 <span>
                   This slot also has{' '}

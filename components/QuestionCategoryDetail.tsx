@@ -38,7 +38,7 @@ export function QuestionCategoryDetail({ slug }: { slug: string }) {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
             <Icon size={18} />
           </span>
           <div>
@@ -51,11 +51,11 @@ export function QuestionCategoryDetail({ slug }: { slug: string }) {
       </div>
 
       {/* Question table shell */}
-      <div className="overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
+      <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="border-b border-[#E4E6EA] bg-[#F1F3F5] font-mono text-[10px] uppercase tracking-wider text-gray-500">
+              <tr className="border-b border-line bg-surface-sunken font-mono text-[10px] uppercase tracking-wider text-gray-500">
                 <th scope="col" className="px-4 py-2.5 font-semibold">#</th>
                 <th scope="col" className="px-4 py-2.5 font-semibold">Question</th>
                 <th scope="col" className="px-4 py-2.5 font-semibold">Type</th>

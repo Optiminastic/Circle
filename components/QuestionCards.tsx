@@ -6,7 +6,7 @@ import type { TestQuestion } from '@/data/test-banks';
 import { Button } from '@/components/ui/button';
 
 const inputCls =
-  'w-full rounded-lg border border-[#E4E6EA] bg-[#F1F3F5] px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'w-full rounded-md border border-line bg-surface-sunken px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 interface QuestionCardsProps {
   questions: TestQuestion[];
@@ -41,8 +41,8 @@ export function QuestionCards({
   return (
     <div className="mx-auto w-full max-w-3xl">
       {questions.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#D7DAE0] bg-[#FFFFFF] px-6 py-16 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-6 py-16 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-accent-50 text-accent-500">
             <EmptyIcon size={26} />
           </span>
           <p className="text-sm font-bold text-gray-700">No questions yet</p>
@@ -55,18 +55,18 @@ export function QuestionCards({
           {questions.map((item, qi) => (
             <div
               key={item.id}
-              className="rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs"
+              className="rounded-md border border-line bg-surface p-4 shadow-2xs"
             >
               {/* Card header: number + delete */}
               <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="rounded-md bg-accent-50 px-2 py-0.5 font-mono text-[11px] font-bold text-accent-700">
+                <span className="rounded-sm bg-accent-50 px-2 py-0.5 font-mono text-[11px] font-bold text-accent-700">
                   Q{qi + 1}
                 </span>
                 <button
                   onClick={() => onRemove(item.id)}
                   title="Delete this question"
                   aria-label="Delete question"
-                  className="rounded-md p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                  className="rounded-sm p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                 >
                   <Trash2 size={15} />
                 </button>
@@ -88,8 +88,8 @@ export function QuestionCards({
                   return (
                     <div
                       key={oi}
-                      className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-1.5 transition ${
-                        correct ? 'border-accent-500 bg-accent-50' : 'border-[#E4E6EA] bg-[#F1F3F5]'
+                      className={`flex items-center gap-2.5 rounded-md border px-2.5 py-1.5 transition ${
+                        correct ? 'border-accent-500 bg-accent-50' : 'border-line bg-surface-sunken'
                       }`}
                     >
                       <button
@@ -101,7 +101,7 @@ export function QuestionCards({
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${
                           correct
                             ? 'border-accent-600 bg-accent-600 text-white'
-                            : 'border-[#C7BFB0] text-transparent hover:border-accent-400'
+                            : 'border-line-warm-strong text-transparent hover:border-accent-400'
                         }`}
                       >
                         <Check size={13} />

@@ -21,7 +21,15 @@ export function apiBase(): string {
   if (explicit) return explicit.replace(/\/$/, '');
 
   if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
+    // "localhost" resolves to ::1 before 127.0.0.1. uvicorn binds 0.0.0.0 only
+    // (IPv4), so every request tries IPv6 first, fails, then falls back --
+    // measured at ~210ms of dead time per request against ~3ms via the IPv4
+    // literal. Next's dev server binds both stacks, which is why only API calls
+    // were slow. Target the IPv4 address directly; any other hostname (a LAN IP
+    // from a phone, an ngrok host) is passed through untouched.
+    const host =
+      window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
+    return `${window.location.protocol}//${host}:${API_PORT}`;
   }
 
   // Same-origin fallback (relative). Set NEXT_PUBLIC_API_URL for a separate API host.

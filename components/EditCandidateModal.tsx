@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { clampCtcInput } from '@/lib/ctc';
 import { Loader2, Save } from 'lucide-react';
 import {
   Dialog,
@@ -82,7 +83,7 @@ export function EditCandidateModal({
                 id="ec-gender"
                 value={draft.gender ?? ''}
                 onChange={e => set('gender', (e.target.value || undefined) as Candidate['gender'])}
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm"
               >
                 <option value="">Not set</option>
                 <option value="Male">Male</option>
@@ -108,7 +109,7 @@ export function EditCandidateModal({
                 id="ec-role"
                 value={draft.appliedRole}
                 onChange={e => set('appliedRole', e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm"
               >
                 {!roles.includes(draft.appliedRole) && <option value={draft.appliedRole}>{draft.appliedRole}</option>}
                 {roles.map(r => <option key={r} value={r}>{r}</option>)}
@@ -120,7 +121,7 @@ export function EditCandidateModal({
                 id="ec-dept"
                 value={draft.department}
                 onChange={e => set('department', e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm"
               >
                 {!departments.includes(draft.department) && <option value={draft.department}>{draft.department}</option>}
                 {departments.map(d => <option key={d} value={d}>{d}</option>)}
@@ -132,7 +133,7 @@ export function EditCandidateModal({
                 id="ec-source"
                 value={draft.sourceOfApplication}
                 onChange={e => set('sourceOfApplication', e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm"
               >
                 {!sources.includes(draft.sourceOfApplication) && (
                   <option value={draft.sourceOfApplication}>{draft.sourceOfApplication}</option>
@@ -150,11 +151,11 @@ export function EditCandidateModal({
             </div>
             <div>
               <Label htmlFor="ec-cctc" className="text-sm font-medium">Current CTC</Label>
-              <Input id="ec-cctc" className={field} value={draft.currentCtc} onChange={e => set('currentCtc', e.target.value)} />
+              <Input id="ec-cctc" className={field} value={draft.currentCtc} onChange={e => set('currentCtc', clampCtcInput(e.target.value))} />
             </div>
             <div>
               <Label htmlFor="ec-ectc" className="text-sm font-medium">Expected CTC</Label>
-              <Input id="ec-ectc" className={field} value={draft.expectedCtc} onChange={e => set('expectedCtc', e.target.value)} />
+              <Input id="ec-ectc" className={field} value={draft.expectedCtc} onChange={e => set('expectedCtc', clampCtcInput(e.target.value))} />
             </div>
             <div>
               <Label htmlFor="ec-notice" className="text-sm font-medium">Notice period (days)</Label>
@@ -168,7 +169,7 @@ export function EditCandidateModal({
               value={draft.hrRemarks ?? ''}
               onChange={e => set('hrRemarks', e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="mt-1 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
           </div>
         </div>

@@ -26,7 +26,7 @@ export default async function CareersPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#FFFFFF] text-gray-900"
+      className="min-h-screen bg-surface text-gray-900"
       style={{
         backgroundImage:
           'linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)), url(/careers-bg.jpg)',
@@ -68,7 +68,7 @@ export default async function CareersPage() {
             <p className="font-display text-xs font-bold uppercase tracking-tight text-gray-700 sm:text-sm">
               Build what&apos;s next at {BRAND.company}
             </p>
-            <h1 className="headline-3d mt-2 font-display text-[2.75rem] font-extrabold uppercase leading-[0.92] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="headline-3d mt-2 font-display text-[2.75rem] font-bold uppercase leading-[0.92] tracking-tight sm:text-6xl lg:text-7xl">
               We are hiring!
             </h1>
             <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-gray-600 sm:mt-5 sm:text-[15px]">
@@ -77,7 +77,7 @@ export default async function CareersPage() {
             </p>
             <a
               href="#openings"
-              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700 sm:mt-6"
+              className="mt-5 inline-flex items-center gap-2 rounded-md bg-accent-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700 sm:mt-6"
             >
               View open roles <ArrowDown size={15} />
             </a>
@@ -105,7 +105,7 @@ export default async function CareersPage() {
         )}
       </main>
 
-      <footer className="mx-auto max-w-3xl border-t border-[#EDEEF1] px-5 py-10 text-[11px] text-gray-400">
+      <footer className="mx-auto max-w-3xl border-t border-line-hover px-5 py-10 text-[11px] text-gray-400">
         © {BRAND.company} · Careers
       </footer>
     </div>

@@ -129,7 +129,7 @@ function statusBadge(status: JobStatus): string {
     case 'On Hold':
       return 'bg-yellow-50 text-yellow-600';
     default:
-      return 'bg-[#EDEEF1] text-gray-500';
+      return 'bg-surface-hover text-gray-500';
   }
 }
 
@@ -353,7 +353,7 @@ export function JobListView({
 
   // One question editor row (importance is set by the group it lives in).
   const renderQuestion = (q: ScreeningQuestion, idx: number) => (
-    <div key={q.id} className="space-y-2.5 rounded-xl border border-border bg-secondary/30 p-3">
+    <div key={q.id} className="space-y-2.5 rounded-md border border-border bg-secondary/30 p-3">
       <div className="flex items-start gap-2">
         <span className="mt-2.5 font-mono text-[11px] text-muted-foreground">{idx + 1}.</span>
         <Input
@@ -366,7 +366,7 @@ export function JobListView({
           type="button"
           onClick={() => removeQuestion(q.id)}
           aria-label="Remove question"
-          className="mt-1.5 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-red-600"
+          className="mt-1.5 rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-red-600"
         >
           <Trash2 size={14} />
         </button>
@@ -377,7 +377,7 @@ export function JobListView({
           <Select
             value={q.category}
             onChange={e => updateQuestion(q.id, { category: e.target.value as QuestionCategory })}
-            className="mt-1 h-8 w-full rounded-md border border-input bg-secondary/50 px-2 text-xs"
+            className="mt-1 h-8 w-full rounded-sm border border-input bg-secondary/50 px-2 text-xs"
           >
             <option value="Field">Field / skills</option>
             <option value="Cultural Fit">Cultural fit</option>
@@ -395,7 +395,7 @@ export function JobListView({
               if (type === 'choice' && !(q.options && q.options.length)) patch.options = ['', ''];
               updateQuestion(q.id, patch);
             }}
-            className="mt-1 h-8 w-full rounded-md border border-input bg-secondary/50 px-2 text-xs"
+            className="mt-1 h-8 w-full rounded-sm border border-input bg-secondary/50 px-2 text-xs"
           >
             <option value="yesno">Yes / No</option>
             <option value="choice">Multiple choice</option>
@@ -414,7 +414,7 @@ export function JobListView({
             <Select
               value={q.expectedAnswer ? 'yes' : 'no'}
               onChange={e => updateQuestion(q.id, { expectedAnswer: e.target.value === 'yes' })}
-              className="mt-1 h-8 w-full rounded-md border border-input bg-secondary/50 px-2 text-xs"
+              className="mt-1 h-8 w-full rounded-sm border border-input bg-secondary/50 px-2 text-xs"
             >
               <option value="yes">Yes</option>
               <option value="no">No</option>
@@ -446,7 +446,7 @@ export function JobListView({
                     updateQuestion(q.id, { options: (q.options ?? []).filter((_, j) => j !== oi) })
                   }
                   aria-label="Remove option"
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-red-600"
+                  className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-red-600"
                 >
                   <X size={13} />
                 </button>
@@ -466,7 +466,7 @@ export function JobListView({
               <Select
                 value={q.expectedOption ?? ''}
                 onChange={e => updateQuestion(q.id, { expectedOption: e.target.value })}
-                className="mt-1 h-8 w-full rounded-md border border-input bg-secondary/50 px-2 text-xs"
+                className="mt-1 h-8 w-full rounded-sm border border-input bg-secondary/50 px-2 text-xs"
               >
                 <option value="">— select the correct option —</option>
                 {(q.options ?? []).filter(Boolean).map((opt, i) => (
@@ -578,7 +578,7 @@ export function JobListView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div className="flex items-start gap-3">
-          <span className="w-10 h-10 rounded-xl bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
+          <span className="w-10 h-10 rounded-md bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
             <Briefcase size={18} />
           </span>
           <div>
@@ -600,13 +600,13 @@ export function JobListView({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search jobs…"
-              className="w-44 sm:w-56 pl-8 pr-3 py-2 text-xs bg-[#FFFFFF] border border-[#E4E6EA] rounded-lg focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 transition"
+              className="w-44 sm:w-56 pl-8 pr-3 py-2 text-xs bg-surface border border-line rounded-md focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 transition"
             />
           </div>
           <button
             id="btn-post-job"
             onClick={openCreate}
-            className="bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition font-medium shrink-0 shadow-2xs"
+            className="bg-accent-600 hover:bg-accent-700 text-white h-9 px-3.5 rounded-md inline-flex items-center justify-center gap-1.5 cursor-pointer transition text-xs font-semibold shrink-0 shadow-2xs"
           >
             <Plus size={15} /> Post New Job
           </button>
@@ -616,7 +616,7 @@ export function JobListView({
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map(s => (
-          <div key={s.label} className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl px-4 py-3 shadow-2xs">
+          <div key={s.label} className="bg-surface border border-line rounded-md px-4 py-3 shadow-2xs">
             <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-gray-500">
               <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
               {s.label}
@@ -628,8 +628,8 @@ export function JobListView({
 
       {/* Job cards grid */}
       {jobs.length === 0 ? (
-        <div className="bg-[#FFFFFF] border border-dashed border-[#D7DAE0] rounded-2xl py-16 flex flex-col items-center gap-3 text-center px-6">
-          <span className="w-14 h-14 rounded-2xl bg-accent-50 text-accent-500 flex items-center justify-center">
+        <div className="bg-surface border border-dashed border-line-strong rounded-lg py-16 flex flex-col items-center gap-3 text-center px-6">
+          <span className="w-14 h-14 rounded-lg bg-accent-50 text-accent-500 flex items-center justify-center">
             <Briefcase size={26} />
           </span>
           <p className="font-bold text-gray-700 text-sm">No job postings yet</p>
@@ -638,7 +638,7 @@ export function JobListView({
           </p>
           <button
             onClick={openCreate}
-            className="mt-1 bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center gap-1.5 cursor-pointer transition font-medium"
+            className="mt-1 bg-accent-600 hover:bg-accent-700 text-white h-9 px-3.5 rounded-md inline-flex items-center gap-1.5 cursor-pointer transition text-xs font-semibold"
           >
             <Plus size={14} /> Post New Job
           </button>
@@ -852,7 +852,7 @@ export function JobListView({
                         onChange={e =>
                           setForm({ ...form, employmentType: e.target.value as Job['employmentType'] })
                         }
-                        className="mt-2 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm shadow-xs"
+                        className="mt-2 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm shadow-xs"
                       >
                         <option value="Full-time">Full-time</option>
                         <option value="Part-time">Part-time</option>
@@ -1036,7 +1036,7 @@ export function JobListView({
                 </div>
                 <div className="space-y-5 md:col-span-2">
                   {/* Reuse a saved Must-have/Good-to-have set from the Question Library */}
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
+                  <div className="rounded-md border border-border bg-secondary/20 p-3">
                     <label className="text-xs font-semibold text-foreground">
                       Reuse a saved screening set
                     </label>
@@ -1052,7 +1052,7 @@ export function JobListView({
                       <Select
                         value={screeningSetId}
                         onChange={e => applyScreeningSet(e.target.value)}
-                        className="h-8 w-full rounded-md border border-input bg-secondary/50 px-2 text-xs"
+                        className="h-8 w-full rounded-sm border border-input bg-secondary/50 px-2 text-xs"
                         placeholder="Select a screening set"
                       >
                         <option value="">— None (add manually) —</option>
@@ -1088,7 +1088,7 @@ export function JobListView({
                           </Button>
                         </div>
                         {items.length === 0 ? (
-                          <p className="rounded-lg border border-dashed border-border bg-secondary/20 px-3 py-3 text-center text-xs text-muted-foreground">
+                          <p className="rounded-md border border-dashed border-border bg-secondary/20 px-3 py-3 text-center text-xs text-muted-foreground">
                             No {group.label.toLowerCase()} questions yet.
                           </p>
                         ) : (

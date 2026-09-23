@@ -33,10 +33,10 @@ export function Pagination({
   const end = Math.min(start + pageSize, totalItems);
 
   const btnCls =
-    'grid size-7 place-items-center rounded-md border border-[#E4E6EA] bg-white text-gray-500 transition hover:bg-[#F1F3F5] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white';
+    'grid size-7 place-items-center rounded-sm border border-line bg-surface text-gray-500 transition hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface';
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E4E6EA] px-1 py-3 text-[12px] text-gray-500">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-1 py-3 text-[12px] text-gray-500">
       <span>
         Showing {start + 1} to {end} of {totalItems} {itemLabel}
       </span>
@@ -46,7 +46,7 @@ export function Pagination({
           <Select
             value={String(pageSize)}
             onChange={e => onPageSizeChange(Number(e.target.value))}
-            className="h-7 w-[64px] rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+            className="h-7 w-[64px] rounded-sm border border-line bg-surface px-2 text-gray-700"
           >
             {PAGE_SIZES.map(size => (
               <option key={size} value={size}>

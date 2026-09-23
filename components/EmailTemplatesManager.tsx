@@ -117,7 +117,7 @@ function TemplateCard({
     <button
       type="button"
       onClick={onEdit}
-      className="flex w-full items-center justify-between gap-3 rounded-lg border border-[#E4E6EA] bg-white p-3 text-left transition hover:border-accent-400 hover:bg-[#FDFDFE]"
+      className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface p-3 text-left transition hover:border-accent-400 hover:bg-surface-subtle"
     >
       <span className="min-w-0">
         <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-gray-900">
@@ -132,7 +132,7 @@ function TemplateCard({
         <span className="mt-0.5 block truncate text-[11px] text-gray-500">{def.description}</span>
         <span className="mt-0.5 block truncate font-mono text-[10.5px] text-gray-400">{subject}</span>
       </span>
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#E4E6EA] px-2 py-1 text-[10.5px] font-semibold text-gray-600">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-line px-2 py-1 text-[10.5px] font-semibold text-gray-600">
         <Pencil size={11} /> Edit
       </span>
     </button>
@@ -193,7 +193,7 @@ function TemplateEditor({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-5 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">
@@ -222,7 +222,7 @@ function TemplateEditor({
           </div>
 
           {/* Placeholders are the contract between the template and the send site. */}
-          <div className="rounded-lg border border-[#E4E6EA] bg-[#FBFBFC] p-2.5">
+          <div className="rounded-md border border-line bg-surface-subtle p-2.5">
             <p className="mb-1.5 font-mono text-[9.5px] font-bold uppercase tracking-wider text-gray-400">
               Available placeholders — click to insert
             </p>
@@ -232,7 +232,7 @@ function TemplateEditor({
                   key={p}
                   type="button"
                   onClick={() => setBody(b => `${b}{{${p}}}`)}
-                  className="rounded-md border border-[#E4E6EA] bg-white px-1.5 py-0.5 font-mono text-[10px] text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
+                  className="rounded-sm border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
                 >
                   {`{{${p}}}`}
                 </button>
@@ -246,12 +246,12 @@ function TemplateEditor({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#ECEDF0] pt-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
           <button
             onClick={onReset}
             disabled={busy || !resolved.isCustom}
             title={resolved.isCustom ? 'Discard your edits and use the built-in copy' : 'Already the default'}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:bg-[#F1F3F5] disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-40"
           >
             <RotateCcw size={12} /> Reset to default
           </button>
@@ -259,14 +259,14 @@ function TemplateEditor({
             <button
               onClick={onClose}
               disabled={busy}
-              className="rounded-lg border border-[#E4E6EA] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 hover:bg-[#F1F3F5] disabled:opacity-60"
+              className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               onClick={onSave}
               disabled={busy || !dirty}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
             >
               {save.isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
               {save.isPending ? 'Saving…' : 'Save template'}

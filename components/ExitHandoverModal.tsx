@@ -113,12 +113,12 @@ export function ExitHandoverModal({
   };
 
   const inputCls =
-    'w-full rounded-md border border-[#E4E6EA] bg-white px-2.5 py-2 text-[13px] text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+    'w-full rounded-sm border border-line bg-surface px-2.5 py-2 text-[13px] text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -157,7 +157,7 @@ export function ExitHandoverModal({
               <button
                 type="button"
                 onClick={copyLink}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#E4E6EA] px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-line px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
               >
                 {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                 {copied ? 'Copied' : 'Copy'}
@@ -180,7 +180,7 @@ export function ExitHandoverModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-[#E4E6EA] bg-white px-4 py-2 text-[13px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
+            className="rounded-md border border-line bg-surface px-4 py-2 text-[13px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
           >
             Cancel
           </button>
@@ -188,7 +188,7 @@ export function ExitHandoverModal({
             type="button"
             onClick={send}
             disabled={sending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
           >
             {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             Send link
