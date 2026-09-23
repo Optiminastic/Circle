@@ -1,5 +1,6 @@
 'use client';
 import { Select } from './Select';
+import { clampCtcInput } from '@/lib/ctc';
 import { ActionMenu } from './ActionMenu';
 import { EditCandidateModal } from './EditCandidateModal';
 import { useToast } from './Toaster';
@@ -15,6 +16,7 @@ import { usePagination } from '@/lib/use-pagination';
 import { Pagination } from '@/components/ui/pagination';
 import { useQueryClient } from '@tanstack/react-query';
 import { Candidate } from '../types';
+import { CandidateStatusHover } from '@/components/StatusHoverCard';
 import { useUiStore } from '@/store/ui-store';
 import { useOrgSettings } from '@/store/org-settings';
 import { useJobs } from '@/features/jobs/hooks';
@@ -150,12 +152,15 @@ export function CandidateListView({
   const { data: interviews = [] } = useInterviews();
   const { data: iqTests = [] } = useIqTests();
   const { data: invites = [] } = useTestInvites();
+  const pipelineCtx = useMemo(
+    () => ({ schedules, interviews, iqTests, invites }),
+    [schedules, interviews, iqTests, invites],
+  );
   const stageOf = useMemo(() => {
-    const ctx = { schedules, interviews, iqTests, invites };
     const map = new Map<string, ReturnType<typeof candidateStageStatus>>();
-    for (const c of candidates) map.set(c.id, candidateStageStatus(c, ctx));
+    for (const c of candidates) map.set(c.id, candidateStageStatus(c, pipelineCtx));
     return (id: string) => map.get(id);
-  }, [candidates, schedules, interviews, iqTests, invites]);
+  }, [candidates, pipelineCtx]);
 
   // Applied-role options are sourced ONLY from live job postings (status
   // "Open") so a candidate can never be admitted against a role we aren't
@@ -245,11 +250,21 @@ export function CandidateListView({
   // Apply sequential pipeline filters, then sort newest-first so the latest
   // applicant is always on top (falls back to the date when no timestamp exists).
   const recencyKey = (c: Candidate) => c.appliedAt ?? c.appliedDate ?? '';
+  // Normalised once per render rather than three times per candidate.
+  const q = search.trim().toLowerCase();
+  /** Resume keywords on this candidate that match the current search term. */
+  const hitKeywords = (cand: Candidate) =>
+    q === '' ? [] : (cand.keywordMatches ?? []).filter(k => k.toLowerCase().includes(q));
   const filtered = candidates
     .filter(cand => {
+      // Name, role, and the job keywords found in this candidate's resume at
+      // apply time (Candidate.keywordMatches) - so searching "Figma" surfaces
+      // everyone whose resume actually contained it.
       const matchesSearch =
-        cand.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        cand.appliedRole.toLowerCase().includes(search.toLowerCase());
+        q === '' ||
+        cand.fullName.toLowerCase().includes(q) ||
+        cand.appliedRole.toLowerCase().includes(q) ||
+        hitKeywords(cand).length > 0;
       const matchesDept = selectedDept === 'All' || cand.department === selectedDept;
       // Rejected filter owns the rejected/not-rejected split. 'all' → everyone,
       // rejected included. 'rejected' → only rejected. The stage-status dropdown
@@ -441,7 +456,7 @@ export function CandidateListView({
       )}
       {/* View Header with CTA triggers */}
       {showHeader && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-md border border-line bg-surface-muted px-5 py-4">
           <div>
             <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
               Candidate Evaluation & ATS Panel
@@ -458,7 +473,7 @@ export function CandidateListView({
                 setResume(null);
                 setShowAddForm(true);
               }}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
             >
               <Plus size={14} /> Add Candidate
             </button>
@@ -468,24 +483,24 @@ export function CandidateListView({
 
       {/* Advanced Filter Bars — a flat inline toolbar, no card/background around it. */}
       {showFilters && (
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#E4E6EA] pb-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-3 text-xs">
         <div className="relative">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
             <Search size={12} />
           </span>
           <input
             type="text"
-            placeholder="Search name, applied role..."
+            placeholder="Search name, role, or resume keyword..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="h-8 w-48 rounded-md border border-[#E4E6EA] bg-white pl-7 pr-3 text-xs focus:border-accent-400"
+            className="h-8 w-48 rounded-sm border border-line bg-surface pl-7 pr-3 text-xs focus:border-accent-400"
           />
         </div>
 
         <Select
           value={selectedDept}
           onChange={e => setSelectedDept(e.target.value)}
-          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+          className="h-8 rounded-sm border border-line bg-surface px-2 text-gray-700"
         >
           {departments.map(d => (
             <option key={d} value={d}>
@@ -497,7 +512,7 @@ export function CandidateListView({
         <Select
           value={maxNoticePeriod}
           onChange={e => setMaxNoticePeriod(Number(e.target.value))}
-          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 font-mono text-gray-700"
+          className="h-8 rounded-sm border border-line bg-surface px-2 font-mono text-gray-700"
         >
           <option value={9999}>Any Notice</option>
           <option value={30}>≤ 30 Days</option>
@@ -508,7 +523,7 @@ export function CandidateListView({
         <Select
           value={selectedStatus}
           onChange={e => setSelectedStatus(e.target.value)}
-          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+          className="h-8 rounded-sm border border-line bg-surface px-2 text-gray-700"
         >
           {statuses.map(s => (
             <option key={s} value={s}>
@@ -520,7 +535,7 @@ export function CandidateListView({
         <Select
           value={selectedSource}
           onChange={e => setSelectedSource(e.target.value)}
-          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+          className="h-8 rounded-sm border border-line bg-surface px-2 text-gray-700"
         >
           {sources.map(sc => (
             <option key={sc} value={sc}>
@@ -534,7 +549,7 @@ export function CandidateListView({
         <Select
           value={rejectedFilter}
           onChange={e => setRejectedFilter(e.target.value as 'all' | 'rejected')}
-          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+          className="h-8 rounded-sm border border-line bg-surface px-2 text-gray-700"
         >
           <option value="all">All Candidates</option>
           <option value="rejected">Rejected</option>
@@ -543,7 +558,7 @@ export function CandidateListView({
         <Select
           value={ctcBand}
           onChange={e => setCtcBand(e.target.value as typeof ctcBand)}
-          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 font-mono text-gray-700"
+          className="h-8 rounded-sm border border-line bg-surface px-2 font-mono text-gray-700"
         >
           <option value="all">Any Expected CTC</option>
           <option value="lt5">{'≤'} 5 LPA</option>
@@ -555,7 +570,7 @@ export function CandidateListView({
         <Select
           value={keywordBand}
           onChange={e => setKeywordBand(e.target.value as typeof keywordBand)}
-          className="h-8 rounded-md border border-[#E4E6EA] bg-white px-2 text-gray-700"
+          className="h-8 rounded-sm border border-line bg-surface px-2 text-gray-700"
         >
           <option value="all">All Keywords</option>
           <option value="high">High match ({'≥'}70%)</option>
@@ -571,7 +586,7 @@ export function CandidateListView({
         {onDeleteCandidate && (
           <button
             onClick={deleteSelected}
-            className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-[#FFFFFF] px-2 py-1 font-medium text-red-600 transition hover:bg-red-50"
+            className="inline-flex items-center gap-1 rounded-sm border border-red-200 bg-surface px-2 py-1 font-medium text-red-600 transition hover:bg-red-50"
           >
             <Trash2 size={12} /> Delete
           </button>
@@ -619,9 +634,15 @@ export function CandidateListView({
               >
                 <Td select checked={sel.isSelected(cand.id)} onToggle={() => sel.toggle(cand.id)} />
                 <Td>
-                  <span className="font-semibold text-gray-900 group-hover:text-accent-600 group-hover:underline">
-                    {cand.fullName}
-                  </span>
+                  <CandidateStatusHover
+                    candidate={cand}
+                    ctx={pipelineCtx}
+                    stage={stageOf(cand.id) ?? 'Screening'}
+                  >
+                    <span className="font-semibold text-gray-900 group-hover:text-accent-600 group-hover:underline">
+                      {cand.fullName}
+                    </span>
+                  </CandidateStatusHover>
                 </Td>
                 <Td className="max-w-[150px] truncate font-medium text-gray-700">{cand.appliedRole}</Td>
                 <Td>
@@ -670,9 +691,22 @@ export function CandidateListView({
                     const tooltip =
                       `Matched: ${cand.keywordMatches.join(', ') || 'none'}` +
                       (missing.length ? `\nMissing: ${missing.join(', ')}` : '');
+                    // When the search term hit this candidate's resume keywords,
+                    // name them - the ratio alone doesn't say which one matched.
+                    const hits = hitKeywords(cand);
                     return (
-                      <span title={tooltip} className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-bold ${tone}`}>
-                        {matched}/{total}
+                      <span className="inline-flex flex-wrap items-center justify-center gap-1">
+                        <span title={tooltip} className={`rounded-full px-2 py-0.5 font-mono text-[9px] font-bold ${tone}`}>
+                          {matched}/{total}
+                        </span>
+                        {hits.map(k => (
+                          <span
+                            key={k}
+                            className="rounded-full bg-accent-100 px-1.5 py-0.5 text-[9px] font-bold text-accent-700"
+                          >
+                            {k}
+                          </span>
+                        ))}
                       </span>
                     );
                   })()}
@@ -873,7 +907,7 @@ export function CandidateListView({
                           setNewCand({ ...newCand, gender: e.target.value as typeof newCand.gender })
                         }
                         placeholder="Select gender"
-                        className="mt-2 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                        className="mt-2 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm"
                       >
                         <option value="" disabled>
                           Select gender
@@ -990,7 +1024,7 @@ export function CandidateListView({
                         id="cand-ctc"
                         placeholder="e.g. 15 LPA"
                         value={newCand.expectedCtc}
-                        onChange={e => setNewCand({ ...newCand, expectedCtc: e.target.value })}
+                        onChange={e => setNewCand({ ...newCand, expectedCtc: clampCtcInput(e.target.value) })}
                         className="mt-2"
                       />
                     </div>

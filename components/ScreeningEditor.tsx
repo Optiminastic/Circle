@@ -23,7 +23,7 @@ const SLUG = 'screening-questions';
 type Bucket = 'mustHave' | 'goodToHave';
 
 const inputCls =
-  'w-full rounded-lg border border-[#E4E6EA] bg-[#F1F3F5] px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'w-full rounded-md border border-line bg-surface-sunken px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 export function ScreeningEditor({ bankId }: { bankId: string }) {
   const toast = useToast();
@@ -202,7 +202,7 @@ export function ScreeningEditor({ bankId }: { bankId: string }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {back}
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
             <ShieldCheck size={18} />
           </span>
           <h2 className="font-display text-base font-bold tracking-tight text-gray-900">{bank.roleName}</h2>
@@ -294,13 +294,13 @@ function Section({
 }: SectionProps) {
   const atMax = items.length >= SCREENING_MAX;
   return (
-    <div className="overflow-hidden rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
+    <div className="overflow-hidden rounded-md border border-line bg-surface shadow-2xs">
       {/* Header / toggle */}
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#F1F3F5]"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-sunken"
       >
         <div>
           <p className="text-[13px] font-bold text-gray-900">{title}</p>
@@ -309,7 +309,7 @@ function Section({
         <div className="flex items-center gap-2.5">
           <span
             className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] font-semibold ${
-              atMax ? 'bg-amber-50 text-amber-700' : 'bg-[#F1F3F5] text-gray-600'
+              atMax ? 'bg-amber-50 text-amber-700' : 'bg-surface-sunken text-gray-600'
             }`}
           >
             {items.length} / {SCREENING_MAX}
@@ -323,7 +323,7 @@ function Section({
 
       {/* Body */}
       {open && (
-        <div className="space-y-3 border-t border-[#EDEEF1] px-4 py-3">
+        <div className="space-y-3 border-t border-line-hover px-4 py-3">
           {items.length === 0 ? (
             <p className="py-2 text-center text-[11px] text-gray-500">
               No questions yet — add the first one below.
@@ -335,7 +335,7 @@ function Section({
               return (
                 <div
                   key={it.id}
-                  className="space-y-2.5 rounded-lg border border-[#E4E6EA] bg-[#F1F3F5]/50 p-3"
+                  className="space-y-2.5 rounded-md border border-line bg-surface-sunken/50 p-3"
                 >
                   {/* Question row */}
                   <div className="flex items-start gap-2">
@@ -353,7 +353,7 @@ function Section({
                       onClick={() => onRemoveQuestion(it.id)}
                       title="Delete this question"
                       aria-label="Delete question"
-                      className="mt-1 shrink-0 rounded-md p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                      className="mt-1 shrink-0 rounded-sm p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -364,7 +364,7 @@ function Section({
                     {it.options.map((opt, oi) => (
                       <div
                         key={oi}
-                        className="flex items-center gap-2 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1.5"
+                        className="flex items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5"
                       >
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-50 font-mono text-[10px] font-bold text-accent-600">
                           {String.fromCharCode(65 + oi)}

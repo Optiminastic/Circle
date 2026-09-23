@@ -14,7 +14,7 @@ function ratingLabel(r: number): { text: string; cls: string } {
   if (r >= 4) return { text: 'Good', cls: 'text-accent-700 bg-accent-50' };
   if (r >= 3) return { text: 'Average', cls: 'text-amber-600 bg-amber-50' };
   if (r >= 1) return { text: 'Needs Work', cls: 'text-red-500 bg-red-50' };
-  return { text: 'Unrated', cls: 'text-gray-500 bg-[#EDEEF1]' };
+  return { text: 'Unrated', cls: 'text-gray-500 bg-surface-hover' };
 }
 
 export function CommunicationView({ employees, onRate }: CommunicationViewProps) {
@@ -34,7 +34,7 @@ export function CommunicationView({ employees, onRate }: CommunicationViewProps)
             Track and rate how clearly and effectively each employee communicates across the team.
           </p>
         </div>
-        <span className="text-[11px] font-mono text-gray-500 bg-[#EDEEF1] px-2.5 py-1 rounded-md w-fit">
+        <span className="text-[11px] font-mono text-gray-500 bg-surface-hover px-2.5 py-1 rounded-sm w-fit">
           Team avg <span className="font-bold text-gray-900">{avg.toFixed(1)}</span>/5 · {rated.length}/{active.length} rated
         </span>
       </div>
@@ -44,7 +44,7 @@ export function CommunicationView({ employees, onRate }: CommunicationViewProps)
           const rating = emp.communicationRating || 0;
           const label = ratingLabel(rating);
           return (
-            <div key={emp.id} className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 space-y-3">
+            <div key={emp.id} className="bg-surface border border-line rounded-md p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="font-bold text-gray-900 text-sm truncate">{emp.fullName}</p>

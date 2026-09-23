@@ -2,17 +2,23 @@
 @import 'tw-animate-css';
 
 @theme {
-  /* Typography — Inter is loaded via next/font and exposed as --font-inter.
-     display + mono repoint to Inter so existing utility classes keep their
-     sizing/tracking but lose the code-font personality. */
+  /* Typography — two families, both self-hosted via next/font.
+       --font-sans    Inter. Body, tables, inputs. Best in the 8-13px band that
+                      dominates this UI, which is why it keeps the dense stuff.
+       --font-display General Sans. Headings.
+       --font-mono    General Sans. A misnomer inherited from an earlier state:
+                      this token has never pointed at a monospace face. It is
+                      the house eyebrow/label style (~350 uses, mostly small
+                      uppercase + tracking-wider), so it follows the display
+                      face, not the body face. */
   --font-sans:
     var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
   --font-mono:
-    var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    sans-serif;
+    var(--font-general-sans), var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display:
-    var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    var(--font-general-sans), var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Active palette — Primary brand accent: Raspberry pink #D11453.
@@ -29,6 +35,41 @@
   --color-accent-600: #d11453;
   --color-accent-700: #a91044;
   --color-accent-800: #7d0c33;
+  /* Lime highlight from the reference: used sparingly for emphasis marks,
+     chart fills and the marquee strip -- never as a text colour on cream,
+     where it fails contrast badly. Pair it with highlight-foreground. */
+  --color-highlight: #D6F34B;
+  --color-highlight-foreground: #14251A;
+
+  /* ---- Neutral surface + line scale -------------------------------------
+     Every one of these was previously a hardcoded hex repeated across the
+     component tree (e.g. border-[#E4E6EA] appeared 363 times). Values here
+     are byte-identical to what they replaced, so light mode is unchanged.
+     Dark mode remaps them in one place at the bottom of this file instead of
+     overriding ~60 individual utility classes.
+
+     surface-* = fills, line-* = borders/rings/dividers. Two tokens may share
+     a light value but differ in role (and therefore in dark mode). */
+  --color-surface: #FFFDF8;
+  --color-surface-subtle: #FBF9F3;
+  --color-surface-muted: #F5F2E9;
+  --color-surface-sunken: #EFEBE0;
+  --color-surface-hover: #E9E4D7;
+  --color-surface-faint: #EDE9DE;
+  --color-line: #E2DCCC;
+  --color-line-soft: #EAE5D8;
+  --color-line-hover: #E9E4D7;
+  --color-line-strong: #D3CBB6;
+  --color-line-stronger: #C2B89F;
+  /* Warm borders left over from an earlier palette; kept distinct so Phase 1
+     changes nothing visually. Phase 2's cream theme should absorb them. */
+  --color-line-warm: #CFC8BA;
+  --color-line-warm-strong: #C7BFB0;
+
+  /* Deeper accent for "current stage" emphasis. Declared here (not only in
+     :root) so Tailwind generates bg-strong / border-strong / text-strong /
+     ring-strong; [data-palette] blocks below still override the value. */
+  --color-strong: #c21c51;
 }
 
 /* shadcn/ui token layer — maps shadcn's semantic tokens to the live
@@ -61,31 +102,27 @@
 }
 
 :root {
-  --radius: 0.875rem; /* softer, more modern SaaS corners (was 0.625rem) */
-  --background: #F6F7F9; /* soft off-white page */
-  --foreground: #1a1a1a;
-  --card: #FFFFFF;
-  --card-foreground: #1a1a1a;
-  --popover: #FFFFFF;
-  --popover-foreground: #1a1a1a;
-  --primary: #d11453; /* raspberry brand */
-  --primary-foreground: #ffffff;
-  --secondary: #F1F3F5;
-  --secondary-foreground: #1a1a1a;
-  --muted: #F1F3F5;
-  --muted-foreground: #6b7280;
-  --accent: #EDEEF1; /* subtle hover fill */
-  --accent-foreground: #1a1a1a;
+  --radius: 0.375rem; /* tight enterprise corners -- drives shadcn radius-sm/md/lg/xl */
+  --background: #F7F4EC; /* warm cream page */
+  --foreground: #171812;
+  --card: #FFFDF8;
+  --card-foreground: #171812;
+  --popover: #FFFDF8;
+  --popover-foreground: #171812;
+  --primary: #171812; /* near-black buttons; accents stay forest green */
+  --primary-foreground: #FFFDF8;
+  --secondary: #EFEBE0;
+  --secondary-foreground: #171812;
+  --muted: #EFEBE0;
+  --muted-foreground: #6A6555;
+  --accent: #E9E4D7; /* subtle hover fill */
+  --accent-foreground: #171812;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #E4E6EA;
-  --input: #E4E6EA;
+  --border: #E2DCCC;
+  --input: #E2DCCC;
   --ring: #e42a63; /* raspberry focus ring */
 
-  /* Stronger/deeper accent used for "current stage"/emphasis highlights
-     (e.g. the active pipeline-stage stripe) — was hardcoded #C21C51 inline
-     across components; now themeable alongside the accent-* scale below. */
-  --color-strong: #c21c51;
 }
 
 @layer base {
@@ -191,23 +228,6 @@
   --color-strong: #b45309;
 }
 
-/* Apply --color-strong wherever the old hardcoded "#C21C51" strong-accent
-   was used directly as an arbitrary Tailwind value, so it recolors with the
-   active palette too. Unlayered rules win over Tailwind's utility layer
-   regardless of source order, so this doesn't need !important. */
-.border-\[\#C21C51\] {
-  border-color: var(--color-strong);
-}
-.bg-\[\#C21C51\] {
-  background-color: var(--color-strong);
-}
-.text-\[\#C21C51\] {
-  color: var(--color-strong);
-}
-.ring-\[\#C21C51\] {
-  --tw-ring-color: var(--color-strong);
-}
-
 /* Dark mode: toggled via next-themes' .dark class on html. Re-maps the
    shadcn semantic tokens, inverts Tailwind's default gray-* scale (also a
    live CSS var, so every text-gray, bg-gray, and border-gray utility follows
@@ -217,24 +237,24 @@
    one-off hardcoded colors elsewhere may still look off until a follow-up
    pass migrates them to the semantic tokens. */
 .dark {
-  --background: #0f1115;
-  --foreground: #eceef1;
-  --card: #171a20;
+  --background: #0E1310;
+  --foreground: #E8EDE6;
+  --card: #161C18;
   --card-foreground: #eceef1;
-  --popover: #171a20;
+  --popover: #161C18;
   --popover-foreground: #eceef1;
   --primary: var(--color-accent-600);
   --primary-foreground: #ffffff;
-  --secondary: #1e222a;
+  --secondary: #1C241E;
   --secondary-foreground: #eceef1;
-  --muted: #1e222a;
-  --muted-foreground: #9aa1ad;
-  --accent: #232732;
+  --muted: #1C241E;
+  --muted-foreground: #9AA598;
+  --accent: #222B24;
   --accent-foreground: #eceef1;
   --destructive: #f87171;
   --destructive-foreground: #1a1a1a;
-  --border: #2a2f3a;
-  --input: #2a2f3a;
+  --border: #2A342C;
+  --input: #2A342C;
   --ring: var(--color-accent-500);
 
   /* Tailwind's default gray-* scale, inverted (same oklch steps Tailwind
@@ -250,100 +270,24 @@
   --color-gray-800: oklch(92.8% 0.006 264.531);
   --color-gray-900: oklch(96.7% 0.003 264.542);
   --color-gray-950: oklch(98.5% 0.001 264.542);
-}
 
-/* Highest-frequency hardcoded hex utilities, remapped to the dark tokens
-   above. Ranked by actual usage count across the app. Each also gets its
-   hover:/focus: variant covered, since those are separate generated classes
-   Tailwind names differently (hover:bg-[#F1F3F5] != bg-[#F1F3F5]) and don't
-   inherit the base override.
-
-   Deliberately ONE selector per rule below, no comma-grouping: the
-   production CSS minifier used by this build has a reproducible bug where it
-   silently drops one selector out of a multi-selector rule (confirmed by
-   inspecting the compiled output directly) -- splitting each into its own
-   rule avoids the bug entirely, at the cost of some repetition. */
-.dark .border-\[\#E4E6EA\] {
-  border-color: var(--border);
-}
-.dark .border-\[\#ECEDF0\] {
-  border-color: var(--border);
-}
-.dark .border-\[\#EDEEF1\] {
-  border-color: var(--border);
-}
-.dark .border-\[\#D7DAE0\] {
-  border-color: var(--border);
-}
-.dark .bg-\[\#FFFFFF\] {
-  background-color: var(--card);
-}
-.dark .hover\:bg-\[\#FFFFFF\]:hover {
-  background-color: var(--card);
-}
-.dark .focus\:bg-\[\#FFFFFF\]:focus {
-  background-color: var(--card);
-}
-.dark .bg-white {
-  background-color: var(--card);
-}
-.dark .hover\:bg-white:hover {
-  background-color: var(--card);
-}
-.dark .focus\:bg-white:focus {
-  background-color: var(--card);
-}
-.dark .border-white {
-  border-color: var(--border);
-}
-.dark .bg-\[\#EDEEF1\] {
-  background-color: var(--secondary);
-}
-.dark .hover\:bg-\[\#EDEEF1\]:hover {
-  background-color: var(--secondary);
-}
-.dark .bg-\[\#F1F3F5\] {
-  background-color: var(--secondary);
-}
-.dark .hover\:bg-\[\#F1F3F5\]:hover {
-  background-color: var(--secondary);
-}
-.dark .bg-\[\#F7F8FA\] {
-  background-color: var(--secondary);
-}
-.dark .hover\:bg-\[\#F7F8FA\]:hover {
-  background-color: var(--secondary);
-}
-.dark .bg-\[\#ECEDF0\] {
-  background-color: var(--secondary);
-}
-.dark .hover\:bg-\[\#ECEDF0\]:hover {
-  background-color: var(--secondary);
-}
-.dark .bg-\[\#F6F7F9\] {
-  background-color: var(--background);
-}
-.dark .bg-\[\#FBFBFC\] {
-  background-color: var(--background);
-}
-.dark .ring-\[\#ECEDF0\] {
-  --tw-ring-color: var(--border);
-}
-.dark .ring-\[\#E4E6EA\] {
-  --tw-ring-color: var(--border);
-}
-
-/* Semi-transparent "glass" surfaces (e.g. the dashboard stat cards) built on
-   Tailwind's white/N opacity utilities — remapped to the dark card/border
-   tokens at the same opacity instead of staying frosted-white. */
-.dark .bg-white\/60 {
-  background-color: color-mix(in oklab, var(--card) 60%, transparent);
-}
-.dark .bg-white\/70 {
-  background-color: color-mix(in oklab, var(--card) 70%, transparent);
-}
-.dark .border-white\/60 {
-  border-color: color-mix(in oklab, var(--border) 60%, transparent);
+  /* Neutral scale, dark. One redefinition each, replacing the ~60 per-class
+     hex overrides this block used to carry -- including the hover:/focus:
+     duplicates and the one-selector-per-rule minifier workaround, both of
+     which stop being necessary once utilities resolve a var at use time. */
+  --color-surface: var(--card);
+  --color-surface-subtle: var(--background);
+  --color-surface-muted: var(--secondary);
+  --color-surface-sunken: var(--secondary);
+  --color-surface-hover: var(--secondary);
+  --color-surface-faint: var(--secondary);
+  --color-line: var(--border);
+  --color-line-soft: var(--border);
+  --color-line-hover: var(--border);
+  --color-line-strong: var(--border);
+  --color-line-stronger: var(--border);
+  --color-line-warm: var(--border);
+  --color-line-warm-strong: var(--border);
 }
 
 /* Light accent tints (accent-50) read as a near-white wash at any hue, which
@@ -369,20 +313,21 @@
 }
 
 body {
-  background-color: #F6F7F9; /* warm greige page surface */
-  color: #1a1a1a; /* near-black text */
+  background-color: #F7F4EC; /* warm cream page surface */
+  color: #171812; /* warm near-black text */
   font-family: var(--font-sans);
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Tighter, more confident headings to match the reference */
+/* Headings. General Sans is already tightly fitted, so it needs less negative
+   tracking than Plus Jakarta Sans did (-0.02em) to read the same. */
 h1,
 h2,
 h3,
 h4 {
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
 
 /* Toast slide-in */
@@ -465,7 +410,7 @@ h4 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D7DAE0;
+  background: var(--color-line-strong);
   border-radius: 9999px;
 }
 
@@ -475,8 +420,8 @@ h4 {
 
 /* Enterprise styles */
 .gradient-border-button {
-  background: #FFFFFF;
-  border: 1px solid #E4E6EA;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
   position: relative;
 }
 

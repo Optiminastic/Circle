@@ -81,8 +81,8 @@ export default function SignAppointmentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] text-gray-900">
-      <header className="border-b border-black/[0.06] bg-white">
+    <div className="min-h-screen bg-surface-muted text-gray-900">
+      <header className="border-b border-black/[0.06] bg-surface">
         <div className="mx-auto flex h-14 max-w-2xl items-center gap-2.5 px-5">
           <Logo size={24} />
           <span className="font-display text-sm font-bold tracking-tight">{BRAND.company}</span>
@@ -90,7 +90,7 @@ export default function SignAppointmentPage() {
       </header>
 
       <main className="mx-auto max-w-lg px-5 py-12">
-        <div className="rounded-2xl border border-[#E4E6EA] bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-line bg-surface p-6 shadow-sm">
           <h1 className="text-lg font-bold">Upload your signed appointment letter</h1>
           {req?.candidateName && (
             <p className="mt-1 text-[13px] text-gray-500">For {req.candidateName}</p>
@@ -132,7 +132,7 @@ export default function SignAppointmentPage() {
           {phase === 'ready' && (
             <div className="mt-5 space-y-4">
               {rejectedReason !== null && (
-                <div className="flex gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">
+                <div className="flex gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">
                   <XCircle size={16} className="mt-px shrink-0" />
                   <p>
                     The copy you uploaded earlier could not be accepted
@@ -149,13 +149,13 @@ export default function SignAppointmentPage() {
                 type="file"
                 accept="application/pdf,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={e => pickFile(e.target.files?.[0] ?? null)}
-                className="block w-full rounded-lg border border-dashed border-[#CBD0D6] p-3 text-[13px] text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-accent-600 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white"
+                className="block w-full rounded-md border border-dashed border-line-stronger p-3 text-[13px] text-gray-600 file:mr-3 file:rounded-sm file:border-0 file:bg-accent-600 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white"
               />
               {error && <p className="text-[12px] text-red-600">{error}</p>}
               <button
                 onClick={upload}
                 disabled={!file || uploading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent-600 py-2.5 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent-600 py-2.5 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-50"
               >
                 {uploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
                 {uploading ? 'Uploading…' : 'Upload signed appointment letter'}

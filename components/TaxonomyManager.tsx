@@ -32,7 +32,7 @@ function ListEditor({ title, description, kind, values, placeholder }: ListEdito
   };
 
   return (
-    <div className="space-y-2.5 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4">
+    <div className="space-y-2.5 rounded-md border border-line bg-surface p-4">
       <div>
         <h4 className="text-xs font-bold text-gray-900">{title}</h4>
         <p className="text-[11px] text-gray-500">{description}</p>
@@ -49,12 +49,12 @@ function ListEditor({ title, description, kind, values, placeholder }: ListEdito
             }
           }}
           placeholder={placeholder}
-          className="h-9 flex-1 rounded-md border border-[#E4E6EA] bg-[#EDEEF1] px-2.5 text-xs focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          className="h-9 flex-1 rounded-sm border border-line bg-surface-hover px-2.5 text-xs focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
         />
         <button
           type="button"
           onClick={commit}
-          className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md bg-accent-600 px-3 text-xs font-semibold text-white transition hover:bg-accent-700"
+          className="inline-flex h-9 shrink-0 items-center gap-1 rounded-sm bg-accent-600 px-3 text-xs font-semibold text-white transition hover:bg-accent-700"
         >
           <Plus size={14} /> Add
         </button>
@@ -67,7 +67,7 @@ function ListEditor({ title, description, kind, values, placeholder }: ListEdito
           values.map(v => (
             <span
               key={v}
-              className="inline-flex items-center gap-1 rounded-full border border-[#ECEDF0] bg-[#F1F3F5] py-0.5 pl-2.5 pr-1 text-[11px] font-medium text-gray-700"
+              className="inline-flex items-center gap-1 rounded-full border border-line-soft bg-surface-sunken py-0.5 pl-2.5 pr-1 text-[11px] font-medium text-gray-700"
             >
               {v}
               <button

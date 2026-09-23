@@ -61,7 +61,7 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
       {/* Left column: candidate snapshot + offer-letter builder */}
       <div className="space-y-4 lg:col-span-3">
       {/* Candidate snapshot */}
-      <div className="space-y-3.5 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+      <div className="space-y-3.5 rounded-lg border border-line bg-surface p-4 shadow-2xs">
         <div className="space-y-1">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-gray-500">
             Candidate Snapshot
@@ -75,7 +75,7 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
         </div>
 
         {/* Quick facts */}
-        <div className="space-y-2 rounded-lg bg-[#F7F8FA] p-3">
+        <div className="space-y-2 rounded-md bg-surface-muted p-3">
           {email && (
             <Row icon={<Mail size={12} />}>
               <a href={`mailto:${email}`} className="break-all hover:text-accent-600">
@@ -115,7 +115,7 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
             <MessageSquare size={11} /> Interview outcome
           </p>
           {lastGraded?.grading ? (
-            <div className="space-y-1.5 rounded-lg border border-[#ECEDF0] p-3">
+            <div className="space-y-1.5 rounded-md border border-line-soft p-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-[11px] font-semibold text-gray-800">
                   {lastGraded.interviewRound}
@@ -138,7 +138,7 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
               )}
             </div>
           ) : (
-            <p className="rounded-lg bg-[#F7F8FA] p-3 text-[11px] text-gray-500">
+            <p className="rounded-md bg-surface-muted p-3 text-[11px] text-gray-500">
               No interview feedback recorded yet.
             </p>
           )}
@@ -150,7 +150,7 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
             <p className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">
               <Phone size={11} /> HR call
             </p>
-            <div className="rounded-lg border border-[#ECEDF0] p-3">
+            <div className="rounded-md border border-line-soft p-3">
               {hr.hrRecommendation && (
                 <p className="text-[11px] font-semibold text-gray-800">{hr.hrRecommendation}</p>
               )}
@@ -172,7 +172,7 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
         {checklist.convertedToEmployeeAt ? (
           <a
             href={checklist.employeeId ? `/employees/${checklist.employeeId}` : undefined}
-            className="block w-full cursor-pointer rounded-lg bg-emerald-50 py-2 text-center font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            className="block w-full cursor-pointer rounded-md bg-emerald-50 py-2 text-center font-semibold text-emerald-700 transition hover:bg-emerald-100"
           >
             Converted to Employee{checklist.employeeId ? ` (${checklist.employeeId})` : ''}
           </a>
@@ -182,14 +182,14 @@ export function OnboardingDetail({ checklist, onAddEmployeeTrigger }: Onboarding
               onAddEmployeeTrigger(checklist);
               toast.success(`${checklist.candidateName} onboarded into the employee directory.`);
             }}
-            className="w-full cursor-pointer rounded-lg bg-accent-600 py-2 text-center font-semibold text-white transition hover:bg-accent-700"
+            className="w-full cursor-pointer rounded-md bg-accent-600 py-2 text-center font-semibold text-white transition hover:bg-accent-700"
           >
             Conclude Onboarding (EMP-ID)
           </button>
         ) : (
           <button
             disabled
-            className="w-full cursor-not-allowed rounded-lg bg-[#EDEEF1] py-2 text-center font-mono text-[10px] font-medium text-gray-500"
+            className="w-full cursor-not-allowed rounded-md bg-surface-hover py-2 text-center font-mono text-[10px] font-medium text-gray-500"
           >
             Clear all tasks to active EMP conversion
           </button>

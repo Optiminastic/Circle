@@ -32,7 +32,7 @@ export function GoogleCalendarEmbed() {
     <iframe
       title="Recruitment Google Calendar"
       src={url}
-      className="h-[76vh] w-full rounded-xl border border-[#E4E6EA] bg-white shadow-2xs"
+      className="h-[76vh] w-full rounded-md border border-line bg-surface shadow-2xs"
       style={{ border: 0 }}
     />
   );

@@ -42,7 +42,7 @@ export function RefreshButton({
       disabled={busy}
       title={title}
       aria-label={title}
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#E4E6EA] bg-white text-gray-600 transition hover:bg-[#F1F3F5] hover:text-accent-600 disabled:opacity-60 ${className}`}
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-gray-600 transition hover:bg-surface-sunken hover:text-accent-600 disabled:opacity-60 ${className}`}
     >
       <RefreshCw size={15} className={busy ? 'animate-spin' : ''} />
     </button>

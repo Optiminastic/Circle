@@ -31,7 +31,7 @@ export function LetterCompanyPicker({
 }: LetterCompanyPickerProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-lg bg-surface p-6 shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">{title}</h3>
           <button
@@ -47,8 +47,8 @@ export function LetterCompanyPicker({
             <button
               key={opt.value}
               onClick={() => onPick(opt.value)}
-              className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition hover:border-accent-400 hover:bg-accent-50 ${
-                suggested === opt.value ? 'border-accent-300 bg-accent-50/60' : 'border-[#E4E6EA]'
+              className={`flex w-full items-center gap-3 rounded-md border p-3.5 text-left transition hover:border-accent-400 hover:bg-accent-50 ${
+                suggested === opt.value ? 'border-accent-300 bg-accent-50/60' : 'border-line'
               }`}
             >
               <Building2 size={18} className="shrink-0 text-accent-600" />

@@ -23,12 +23,12 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex animate-in flex-col items-center justify-center rounded-2xl border border-dashed border-[#D7DAE0] bg-[#FFFFFF] px-6 py-16 text-center fade-in-0 zoom-in-95 duration-300',
+        'flex animate-in flex-col items-center justify-center rounded-lg border border-dashed border-line-strong bg-surface px-6 py-16 text-center fade-in-0 zoom-in-95 duration-300',
         className,
       )}
     >
       {Icon && (
-        <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
+        <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-lg bg-accent-50 text-accent-500">
           <Icon size={26} />
         </span>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { clampCtcInput } from '@/lib/ctc';
 import {
   Dialog,
   DialogContent,
@@ -171,7 +172,7 @@ export function AddOnboardingCandidateModal({ jobs, pending, onSubmit, onClose }
                       value={form.gender}
                       onChange={e => set('gender', e.target.value as typeof form.gender)}
                       placeholder="Select gender"
-                      className="mt-2 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                      className="mt-2 w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm"
                     >
                       <option value="" disabled>
                         Select gender
@@ -248,7 +249,7 @@ export function AddOnboardingCandidateModal({ jobs, pending, onSubmit, onClose }
                     <Input
                       placeholder="e.g. 8 LPA"
                       value={form.currentCtc}
-                      onChange={e => set('currentCtc', e.target.value)}
+                      onChange={e => set('currentCtc', clampCtcInput(e.target.value))}
                       className="mt-2"
                     />
                   </div>
@@ -257,7 +258,7 @@ export function AddOnboardingCandidateModal({ jobs, pending, onSubmit, onClose }
                     <Input
                       placeholder="e.g. 15 LPA"
                       value={form.expectedCtc}
-                      onChange={e => set('expectedCtc', e.target.value)}
+                      onChange={e => set('expectedCtc', clampCtcInput(e.target.value))}
                       className="mt-2"
                     />
                   </div>

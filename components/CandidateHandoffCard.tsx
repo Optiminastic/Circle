@@ -57,7 +57,7 @@ export function CandidateHandoffCard({
   const inFeed = !!record?.arrivedAt;
 
   return (
-    <div className="rounded-2xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
+    <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">
       <div className="mb-1.5 flex items-center gap-1.5">
         <Rss size={13} className="text-accent-600" />
         <h4 className="text-xs font-bold text-gray-900">Onboarding feed</h4>
@@ -73,7 +73,7 @@ export function CandidateHandoffCard({
       ) : (
         <div className="space-y-2.5">
           {inFeed && (
-            <div className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-2 text-[11px] text-emerald-700">
+            <div className="flex items-start gap-1.5 rounded-md bg-emerald-50 px-2.5 py-2 text-[11px] text-emerald-700">
               <CheckCircle2 size={13} className="mt-px shrink-0" />
               <span>In the onboarding feed since {new Date(record!.arrivedAt!).toLocaleString()}</span>
             </div>
@@ -82,9 +82,9 @@ export function CandidateHandoffCard({
             type="button"
             onClick={markArrived}
             disabled={marking}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold transition disabled:opacity-60 ${
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-[11px] font-semibold transition disabled:opacity-60 ${
               inFeed
-                ? 'border border-[#E4E6EA] bg-white text-gray-700 hover:bg-[#F1F3F5]'
+                ? 'border border-line bg-surface text-gray-700 hover:bg-surface-sunken'
                 : 'bg-accent-600 text-white hover:bg-accent-700'
             }`}
           >

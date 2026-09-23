@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { clampCtcInput } from '@/lib/ctc';
 import {
   Dialog,
   DialogContent,
@@ -71,7 +72,7 @@ export function EditCandidateDialog({ open, candidate, onClose, onSave }: EditCa
                 value={form.gender ?? ''}
                 onChange={e => set('gender', (e.target.value || undefined) as Candidate['gender'])}
                 placeholder="Select gender"
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                className="w-full rounded-sm border border-input bg-transparent px-3 py-2 text-sm"
               >
                 <option value="" disabled>
                   Select gender
@@ -155,11 +156,11 @@ export function EditCandidateDialog({ open, candidate, onClose, onSave }: EditCa
             </div>
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-gray-600">Current CTC</Label>
-              <Input value={form.currentCtc} onChange={e => set('currentCtc', e.target.value)} />
+              <Input value={form.currentCtc} onChange={e => set('currentCtc', clampCtcInput(e.target.value))} />
             </div>
             <div className="space-y-1">
               <Label className="text-[11px] font-medium text-gray-600">Expected CTC</Label>
-              <Input value={form.expectedCtc} onChange={e => set('expectedCtc', e.target.value)} />
+              <Input value={form.expectedCtc} onChange={e => set('expectedCtc', clampCtcInput(e.target.value))} />
             </div>
           </div>
 

@@ -94,3 +94,59 @@ export function ctcAnnualGap(b: CtcBreakdown, annualCtc: number): number {
 
 /** Indian-grouped rupee formatting (e.g. 1,80,000). */
 export const fmtINR = (n: number): string => n.toLocaleString('en-IN');
+
+/* ------------------------------------------------------- LPA input guards */
+
+/**
+ * CTC is captured in LPA, but the field is free text and candidates routinely
+ * type the full annual rupee figure instead -- "35000" when they mean "3.5".
+ * `parseCtcLpa` in lib/utils.ts rescues those after the fact by dividing
+ * anything >= 1000 by 100000, but that is a guess applied to already-bad data:
+ * "500" is genuinely ambiguous, and a wrong guess silently misprices someone.
+ *
+ * So constrain the input instead: at most two digits before the decimal point
+ * and two after, capping the field at 99.99 LPA.
+ */
+
+/** Largest value the LPA inputs accept. */
+export const CTC_MAX_LPA = 99.99;
+
+const INT_DIGITS = 2;
+const DECIMAL_DIGITS = 2;
+
+/**
+ * Constrain raw input to a valid LPA figure as the user types. Keeps digits and
+ * a single decimal point, truncates to two digits either side, and leaves a
+ * trailing "." alone so "3." is typable on the way to "3.45".
+ */
+export function clampCtcInput(raw: string): string {
+  let s = (raw ?? '').replace(/[^\d.]/g, '');
+
+  // Collapse extra dots into the first ("3.4.5" -> "3.45").
+  const firstDot = s.indexOf('.');
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '');
+  }
+
+  const [intPart = '', decPart] = s.split('.');
+  const int = intPart.slice(0, INT_DIGITS);
+  if (firstDot === -1) return int;
+  return `${int}.${(decPart ?? '').slice(0, DECIMAL_DIGITS)}`;
+}
+
+/**
+ * Validate an LPA value at submit time. Returns an error message, or null.
+ * `clampCtcInput` stops most bad input at the keyboard, but values still arrive
+ * by paste, autofill, or from a client that never used the input at all.
+ */
+export function ctcError(value: string, label: string): string | null {
+  const v = String(value ?? '').trim();
+  if (!v) return `Please enter your ${label}.`;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return `${label} must be a number in LPA (e.g. 3.45).`;
+  if (n <= 0) return `${label} must be greater than zero.`;
+  if (n > CTC_MAX_LPA) {
+    return `${label} looks like a full annual salary. Enter it in LPA instead - ${CTC_MAX_LPA} is the maximum (e.g. 3.45).`;
+  }
+  return null;
+}

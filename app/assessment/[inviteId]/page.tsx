@@ -72,9 +72,9 @@ export default function AssessmentPage() {
   if ((phase === 'ready' || phase === 'submitting') && invite) {
     const items = questions.map((q, i) => ({ key: String(i), prompt: q.text, options: q.options }));
     const header = (
-      <div className="sticky top-0 z-50 border-b border-[#E4E6EA] bg-white">
+      <div className="sticky top-0 z-50 border-b border-line bg-surface">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-2.5 lg:px-6">
-          <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-accent-500 to-accent-700 text-white">
+          <span className="grid size-7 place-items-center rounded-md bg-gradient-to-br from-accent-500 to-accent-700 text-white">
             <Logo size={15} />
           </span>
           <span className="truncate text-[13px] font-bold text-gray-900">
@@ -101,9 +101,9 @@ export default function AssessmentPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F1F3F5]">
+    <div className="flex min-h-screen flex-col bg-surface-sunken">
       <header className="flex items-center gap-2.5 px-5 py-4">
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-sm">
+        <span className="grid h-9 w-9 place-items-center rounded-md bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-sm">
           <Logo size={20} />
         </span>
         <div>

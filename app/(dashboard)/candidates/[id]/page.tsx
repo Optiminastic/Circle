@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { clampCtcInput } from '@/lib/ctc';
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -838,7 +839,7 @@ export default function CandidateDetailPage() {
       return (
         <div className="space-y-3">
           {fit === 'Unfit' && failedMustHaves.length > 0 && (
-            <div className="rounded-lg border border-red-100 bg-red-50 p-2.5">
+            <div className="rounded-md border border-red-100 bg-red-50 p-2.5">
               <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-700">
                 <XCircle size={13} className="shrink-0" />
                 Marked Unfit — failed must-have screening question
@@ -854,7 +855,7 @@ export default function CandidateDetailPage() {
             </div>
           )}
           {fit === 'Fit' && (mustHaves.length > 0 || goodTotal > 0) && (
-            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2.5">
+            <div className="rounded-md border border-emerald-100 bg-emerald-50 p-2.5">
               <p className="flex items-start gap-1.5 text-[12px] font-semibold text-emerald-700">
                 <CheckCircle2 size={13} className="mt-0.5 shrink-0" />
                 <span>
@@ -867,7 +868,7 @@ export default function CandidateDetailPage() {
             </div>
           )}
           {fit === 'Borderline' && (
-            <div className="rounded-lg border border-amber-100 bg-amber-50 p-2.5">
+            <div className="rounded-md border border-amber-100 bg-amber-50 p-2.5">
               <p className="flex items-start gap-1.5 text-[12px] font-semibold text-amber-700">
                 <Info size={13} className="mt-0.5 shrink-0" />
                 <span>
@@ -878,7 +879,7 @@ export default function CandidateDetailPage() {
             </div>
           )}
           {review && (
-            <div className="space-y-1.5 rounded-lg border border-[#ECEDF0] bg-white p-2.5">
+            <div className="space-y-1.5 rounded-md border border-line-soft bg-surface p-2.5">
               {SCREENING_CRITERIA.map(c => (
                 <div key={c.key} className="flex items-center justify-between">
                   <span className="text-[11px] text-gray-600">{c.label}</span>
@@ -887,7 +888,7 @@ export default function CandidateDetailPage() {
                   </span>
                 </div>
               ))}
-              <div className="flex items-center justify-between border-t border-[#E4E6EA] pt-1.5">
+              <div className="flex items-center justify-between border-t border-line pt-1.5">
                 <span className="text-[11px] font-semibold text-gray-700">Average</span>
                 <span className="font-mono text-[11px] font-bold text-accent-600">
                   {screeningAvg(review).toFixed(1)}/5
@@ -939,7 +940,7 @@ export default function CandidateDetailPage() {
             <KV k="Interest" v={`${h.interestLevel}/5`} />
             <KV k="Availability" v={h.candidateAvailability || '—'} />
             {h.professionalBackgroundSummary && (
-              <p className="rounded-lg bg-[#F1F3F5] p-2.5 text-[11px] italic text-gray-600">
+              <p className="rounded-md bg-surface-sunken p-2.5 text-[11px] italic text-gray-600">
                 “{h.professionalBackgroundSummary}”
               </p>
             )}
@@ -981,7 +982,7 @@ export default function CandidateDetailPage() {
               <KV k="Correct" v={`${asgInvite.correct} / ${asgInvite.total}`} />
             )}
             {asgInvite.disqualified && (
-              <p className="rounded-lg bg-red-50 p-2.5 text-[11px] font-medium text-red-600">
+              <p className="rounded-md bg-red-50 p-2.5 text-[11px] font-medium text-red-600">
                 Disqualified — {asgInvite.violations ?? 0} rule violation(s).
               </p>
             )}
@@ -1021,11 +1022,11 @@ export default function CandidateDetailPage() {
       return (
         <div className="space-y-2.5">
           <div className="space-y-2">
-            <div className="flex items-center justify-between border-b border-[#ECEDF0] pb-1.5">
+            <div className="flex items-center justify-between border-b border-line-soft pb-1.5">
               <p className="text-[12px] font-semibold text-gray-800">
                 {online ? 'Online' : 'Offline'} interview
               </p>
-              <span className="rounded-full border border-[#E4E6EA] bg-white px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
+              <span className="rounded-full border border-line bg-surface px-2 py-0.5 font-mono text-[9px] font-bold text-gray-500">
                 {primaryIv.status}
               </span>
             </div>
@@ -1041,13 +1042,13 @@ export default function CandidateDetailPage() {
             />
             <KV k="Calendar invite" v={primaryIv.emailStatus === 'Sent' ? 'Sent ✓ (Yes)' : 'Not sent'} />
             {primaryIv.emailStatus === 'Sent' && primaryIv.status !== 'Cancelled' && (
-              <div className="mt-1 flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
+              <div className="mt-1 flex items-center gap-1.5 rounded-sm bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
                 <CheckCircle2 size={12} /> Candidate invited — calendar event sent; expected to attend on{' '}
                 {fmtDateTime(primaryIv.dateTime)}
               </div>
             )}
             {primaryIv.additionalNotes && (
-              <p className="rounded bg-white/60 p-2 text-[11px] italic text-gray-600">
+              <p className="rounded bg-surface/60 p-2 text-[11px] italic text-gray-600">
                 “{primaryIv.additionalNotes}”
               </p>
             )}
@@ -1071,7 +1072,7 @@ export default function CandidateDetailPage() {
       return (
         <div className="space-y-2.5">
           {myInterviews.map(iv => (
-            <div key={iv.id} className="rounded-lg border border-[#ECEDF0] bg-white p-2.5">
+            <div key={iv.id} className="rounded-md border border-line-soft bg-surface p-2.5">
               <p className="text-[12px] font-semibold text-gray-800">
                 {iv.interviewRound} · {iv.status}
               </p>
@@ -1102,7 +1103,7 @@ export default function CandidateDetailPage() {
               note?: string;
             }[];
             return (
-              <div key={kit.id} className="rounded-lg border border-[#ECEDF0] bg-white p-2.5">
+              <div key={kit.id} className="rounded-md border border-line-soft bg-surface p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[12px] font-semibold text-gray-800">
                     Interview kit · {kit.roleName}
@@ -1111,7 +1112,7 @@ export default function CandidateDetailPage() {
                     className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
                       kit.status === 'Completed'
                         ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-[#F1F3F5] text-gray-500'
+                        : 'bg-surface-sunken text-gray-500'
                     }`}
                   >
                     {kit.status === 'Completed' ? 'Answered' : 'Awaiting'}
@@ -1137,7 +1138,7 @@ export default function CandidateDetailPage() {
                     {kit.questions.map((q, i) => {
                       const resp = responses.find(r => r.text === q.text) ?? responses[i];
                       return (
-                        <div key={i} className="border-b border-[#F1F3F5] pb-1.5 last:border-0">
+                        <div key={i} className="border-b border-surface-sunken pb-1.5 last:border-0">
                           <p className="text-[11px] font-medium text-gray-700">
                             {i + 1}. {q.text}
                           </p>
@@ -1915,7 +1916,7 @@ export default function CandidateDetailPage() {
       disabled={disabled}
       aria-label={title}
       title={title}
-      className="grid size-8 shrink-0 place-items-center rounded-lg border border-[#E4E6EA] bg-white text-accent-600 transition hover:border-accent-300 hover:bg-accent-50 disabled:pointer-events-none disabled:opacity-40"
+      className="grid size-8 shrink-0 place-items-center rounded-md border border-line bg-surface text-accent-600 transition hover:border-accent-300 hover:bg-accent-50 disabled:pointer-events-none disabled:opacity-40"
     >
       {icon}
     </button>
@@ -2150,7 +2151,7 @@ export default function CandidateDetailPage() {
         return (
           <button
             onClick={() => rejectAfterTest(label as 'IQ Test' | 'Assessment')}
-            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+            className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
           >
             <ThumbsDown size={11} /> Reject &amp; email
           </button>
@@ -2159,19 +2160,19 @@ export default function CandidateDetailPage() {
         <>
           <button
             onClick={() => acceptStage(label)}
-            className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
+            className="inline-flex items-center gap-1 rounded-sm bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-700"
           >
             <Check size={11} /> Accept
           </button>
           <button
             onClick={() => holdStage(label)}
-            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
+            className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
           >
             <Pause size={11} /> On Hold
           </button>
           <button
             onClick={() => rejectStage(label)}
-            className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+            className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
           >
             <ThumbsDown size={11} /> Reject
           </button>
@@ -2183,7 +2184,7 @@ export default function CandidateDetailPage() {
       return (
         <button
           onClick={() => nextStage(label)}
-          className="inline-flex items-center gap-1 rounded-md bg-accent-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700"
+          className="inline-flex items-center gap-1 rounded-sm bg-accent-600 px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-accent-700"
         >
           Next <ChevronRight size={11} />
         </button>
@@ -2317,7 +2318,7 @@ export default function CandidateDetailPage() {
             <div className="space-y-3">
               <div>
                 <Label className="text-[11px] font-medium text-gray-600">To</Label>
-                <div className="mt-1 flex items-center gap-1.5 rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-gray-700">
+                <div className="mt-1 flex items-center gap-1.5 rounded-sm border border-input bg-secondary/40 px-3 py-2 text-sm text-gray-700">
                   <Mail size={13} className="text-gray-400" /> {candidate.email}
                 </div>
               </div>
@@ -2364,13 +2365,13 @@ export default function CandidateDetailPage() {
 
       {/* Full-width candidate header: avatar + name/role on the left, résumé
           preview + "View candidate profile" on the right. */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-3 shadow-2xs">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3 shadow-2xs">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={() => setProfileOpen(true)}
             title="View candidate details"
-            className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-lg text-left transition hover:opacity-90"
+            className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-md text-left transition hover:opacity-90"
           >
             <span className="grid size-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-sm font-bold text-white">
               {candidate.fullName.slice(0, 2).toUpperCase()}
@@ -2440,7 +2441,7 @@ export default function CandidateDetailPage() {
             onClick={openResume}
             title="Preview résumé"
             aria-label="Preview résumé"
-            className="grid size-9 place-items-center rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] text-gray-500 transition hover:border-accent-400 hover:text-accent-600"
+            className="grid size-9 place-items-center rounded-md border border-line bg-surface text-gray-500 transition hover:border-accent-400 hover:text-accent-600"
           >
             <Eye size={16} />
           </button>
@@ -2451,7 +2452,7 @@ export default function CandidateDetailPage() {
               type="button"
               onClick={undoRejection}
               title="Put this candidate back into the active pipeline"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-surface px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
             >
               <RotateCcw size={14} /> Undo rejection
             </button>
@@ -2461,7 +2462,7 @@ export default function CandidateDetailPage() {
               onClick={openRejectMail}
               disabled={iqReached || decided}
               title={iqReached && !decided ? 'IQ Test has started — use the Reject button on the current stage instead' : undefined}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
+              className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-surface px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-surface"
             >
               <ThumbsDown size={14} /> Reject
             </button>
@@ -2469,7 +2470,7 @@ export default function CandidateDetailPage() {
           <button
             type="button"
             onClick={openReminderMail}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600"
+            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600"
           >
             <Mail size={14} /> Reminder JD
           </button>
@@ -2478,14 +2479,14 @@ export default function CandidateDetailPage() {
             onClick={() => openDecision('accept')}
             disabled={decided}
             title={decided ? 'Already decided' : 'Skip the remaining pipeline and hire this candidate directly'}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
+            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-surface px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-surface"
           >
             <BadgeCheck size={14} /> Direct Hire
           </button>
           <button
             type="button"
             onClick={() => setEditOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-accent-700"
           >
             <Pencil size={14} /> Edit
           </button>
@@ -2495,7 +2496,7 @@ export default function CandidateDetailPage() {
       <div className="grid grid-cols-1 gap-2 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
         {/* LEFT — full candidate details, all in one card, section by section */}
         <aside className="space-y-4">
-          <div className="space-y-3.5 rounded-2xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
+          <div className="space-y-3.5 rounded-lg border border-line bg-surface p-4 shadow-2xs">
           <ProfileSection title="Contact">
             <ProfileRow label="Email" value={candidate.email} />
             <ProfileRow label="Phone" value={candidate.phone} />
@@ -2565,11 +2566,11 @@ export default function CandidateDetailPage() {
         {/* CENTER — pipeline */}
         <div className="space-y-4">
           <div
-            className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs transition-all duration-500 ease-out"
+            className="rounded-lg border border-line bg-surface shadow-2xs transition-all duration-500 ease-out"
             style={{ opacity: stepIn ? 1 : 0, transform: stepIn ? 'translateY(0)' : 'translateY(10px)' }}
           >
             {/* Header — title + step count */}
-            <div className="flex items-center gap-2.5 border-b border-[#ECEDF0] px-5 py-4">
+            <div className="flex items-center gap-2.5 border-b border-line-soft px-5 py-4">
               <h3 className="text-sm font-bold text-gray-900">Recruitment Progress</h3>
               <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
                 {stages.length} Steps
@@ -2596,9 +2597,9 @@ export default function CandidateDetailPage() {
                       ? 'bg-emerald-50 text-emerald-600'
                       : rejected
                         ? 'bg-red-50 text-red-600'
-                        : 'bg-[#F1F3F5] text-gray-400'
+                        : 'bg-surface-sunken text-gray-400'
                     : (STAGE_ICON_COLOR[stage.label] ?? 'bg-accent-50 text-accent-600');
-                const iconCls = stage.done ? doneColor : 'bg-[#F1F3F5] text-gray-400';
+                const iconCls = stage.done ? doneColor : 'bg-surface-sunken text-gray-400';
                 // Status pill (Completed / Passed / Scheduled / Pending / …).
                 const pill: { label: string; cls: string } = (() => {
                   // A completed test shows Passed/Failed even when the step is
@@ -2618,7 +2619,7 @@ export default function CandidateDetailPage() {
                   if (stage.label === 'Decision') {
                     if (selected) return { label: 'Selected for role', cls: 'bg-emerald-50 text-emerald-700' };
                     if (offerShortlisted) return { label: 'Shortlisted', cls: 'bg-emerald-50 text-emerald-700' };
-                    return { label: 'Pending', cls: 'bg-[#F1F3F5] text-gray-500' };
+                    return { label: 'Pending', cls: 'bg-surface-sunken text-gray-500' };
                   }
                   // Physical Interview shows the interviewer's recommendation
                   // (Strong Hire / Hire / Hold / Re-Interview Required / Reject).
@@ -2639,7 +2640,7 @@ export default function CandidateDetailPage() {
                       return { label: 'Awaiting', cls: 'bg-accent-50 text-accent-700' };
                     return { label: 'In progress', cls: 'bg-accent-50 text-accent-700' };
                   }
-                  return { label: 'Pending', cls: 'bg-[#F1F3F5] text-gray-500' };
+                  return { label: 'Pending', cls: 'bg-surface-sunken text-gray-500' };
                 })();
                 // Default (openStep === null) opens whichever step is current.
                 const activeStep = openStep ?? currentIndex;
@@ -2669,28 +2670,28 @@ export default function CandidateDetailPage() {
                             <XCircle size={13} />
                           </span>
                         ) : state === 'current' ? (
-                          <span className="grid size-6 place-items-center rounded-full bg-[#C21C51] ring-4 ring-[#C21C51]/15">
-                            <span className="size-2 rounded-full bg-white" />
+                          <span className="grid size-6 place-items-center rounded-full bg-strong ring-4 ring-strong/15">
+                            <span className="size-2 rounded-full bg-surface" />
                           </span>
                         ) : (
-                          <span className="size-6 rounded-full border-2 border-[#D8DAE0] bg-white" />
+                          <span className="size-6 rounded-full border-2 border-line-strong bg-surface" />
                         )}
                       </span>
                       {!last && (
                         <span
-                          className={`mt-1 w-0.5 flex-1 ${pathDone ? 'bg-emerald-400' : 'bg-[#E4E6EA]'}`}
+                          className={`mt-1 w-0.5 flex-1 ${pathDone ? 'bg-emerald-400' : 'bg-line'}`}
                         />
                       )}
                     </div>
 
                     {/* Step card */}
                     <div
-                      className={`min-w-0 flex-1 rounded-2xl border transition-colors ${
+                      className={`min-w-0 flex-1 rounded-lg border transition-colors ${
                         infoShown
-                          ? 'border-[#C21C51] bg-[#C21C51]/[0.06]'
+                          ? 'border-strong bg-strong/[0.06]'
                           : state === 'current'
-                            ? 'border-[#C21C51]/30 bg-[#C21C51]/[0.05]'
-                            : 'border-[#E9EAEE] bg-white'
+                            ? 'border-strong/30 bg-strong/[0.05]'
+                            : 'border-line bg-surface'
                       }`}
                     >
                       <div className="flex items-center gap-3 px-3.5 py-3">
@@ -2701,7 +2702,7 @@ export default function CandidateDetailPage() {
                           className="flex min-w-0 flex-1 items-center gap-3 text-left"
                         >
                           <span
-                            className={`relative grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
+                            className={`relative grid size-9 shrink-0 place-items-center rounded-md transition-colors ${iconCls}`}
                           >
                             <StageIcon size={16} />
                             {stageEmailCount[stage.label] > 0 && (
@@ -2752,8 +2753,8 @@ export default function CandidateDetailPage() {
                           title="View details"
                           className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
                             infoShown
-                              ? 'border-[#C21C51]/30 bg-white text-[#C21C51]'
-                              : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
+                              ? 'border-strong/30 bg-surface text-strong'
+                              : 'border-line bg-surface text-gray-400 hover:bg-surface-sunken hover:text-gray-600'
                           }`}
                         >
                           <ChevronDown
@@ -2765,7 +2766,7 @@ export default function CandidateDetailPage() {
 
                       {/* Expanded section — required details + actions for this step */}
                       {infoShown && (
-                        <div className="space-y-3 rounded-b-2xl border-t border-[#C21C51]/15 bg-white px-3.5 py-3">
+                        <div className="space-y-3 rounded-b-lg border-t border-strong/15 bg-surface px-3.5 py-3">
                           {stageDetail(i)}
                           {stage.label === 'Decision' && actions && <div>{actions}</div>}
                           {gate && <div className="flex flex-wrap items-center gap-2">{gate}</div>}
@@ -2781,13 +2782,13 @@ export default function CandidateDetailPage() {
 
         {/* RIGHT — activity feed + upcoming interviews */}
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+          <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">
             <h3 className="mb-3 text-sm font-bold text-gray-900">Activity</h3>
-            <ol className="relative space-y-4 border-l border-[#E4E6EA] pl-5">
+            <ol className="relative space-y-4 border-l border-line pl-5">
               {events.map((ev, i) => (
                 <li key={i} className="relative">
                   <span
-                    className={`absolute -left-[23px] top-1 size-2.5 rounded-full ring-4 ring-[#FFFFFF] ${toneDot[ev.tone]}`}
+                    className={`absolute -left-[23px] top-1 size-2.5 rounded-full ring-4 ring-surface ${toneDot[ev.tone]}`}
                   />
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-[12px] font-semibold text-gray-800">{ev.title}</p>
@@ -2801,7 +2802,7 @@ export default function CandidateDetailPage() {
             </ol>
           </div>
 
-          <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+          <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-gray-900">
               <Mail size={14} className="text-accent-600" /> Email Log
             </h3>
@@ -2814,7 +2815,7 @@ export default function CandidateDetailPage() {
                   const cls = tone === 'red' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100';
                   const textCls = tone === 'red' ? 'text-red-700' : 'text-emerald-700';
                   return (
-                    <div key={m.id} className={`rounded-lg border px-3 py-2 ${cls}`}>
+                    <div key={m.id} className={`rounded-md border px-3 py-2 ${cls}`}>
                       <div className="flex items-baseline justify-between gap-2">
                         <p className={`text-[12px] font-semibold ${textCls}`}>
                           {EMAIL_LOG_LABELS[m.templateTitle] ?? m.templateTitle}
@@ -2834,7 +2835,7 @@ export default function CandidateDetailPage() {
           </div>
 
           {upcomingInterviews.length > 0 && (
-            <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 shadow-2xs">
+            <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">
               <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-gray-900">
                 <CalendarClock size={14} className="text-accent-600" /> Upcoming interviews
               </h3>
@@ -2842,7 +2843,7 @@ export default function CandidateDetailPage() {
                 {upcomingInterviews.map(iv => {
                   const online = iv.interviewType === 'Online' || iv.meetingMode !== 'In-Person';
                   return (
-                    <div key={iv.id} className="rounded-lg border border-[#ECEDF0] bg-[#F7F8FA] p-3">
+                    <div key={iv.id} className="rounded-md border border-line-soft bg-surface-muted p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-[12px] font-semibold text-gray-800">
                           {online ? 'Online' : 'Offline'} interview
@@ -2907,7 +2908,7 @@ export default function CandidateDetailPage() {
             {/* Screening review form */}
             {openForm === 'screening' && (
               <div className="space-y-5 text-xs">
-                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2">
+                <div className="flex items-center justify-between gap-2 rounded-md bg-surface-muted px-3 py-2">
                   <p className="text-[11px] italic text-gray-500">
                     Capture why this candidate is worth a call and what stands out.
                   </p>
@@ -2931,7 +2932,7 @@ export default function CandidateDetailPage() {
                       />
                     </div>
                   ))}
-                  <div className="flex items-center justify-between rounded-lg bg-[#F7F8FA] px-3 py-2">
+                  <div className="flex items-center justify-between rounded-md bg-surface-muted px-3 py-2">
                     <span className="font-semibold text-gray-700">Average</span>
                     <span className="font-mono text-sm font-bold text-accent-600">
                       {screeningAvg(sr).toFixed(1)} / 5
@@ -2958,7 +2959,7 @@ export default function CandidateDetailPage() {
             {/* HR call form — grouped sections + rating pills */}
             {openForm === 'hrcall' && (
               <div className="space-y-5 text-xs">
-                <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2">
+                <div className="flex items-center justify-between gap-2 rounded-md bg-surface-muted px-3 py-2">
                   <p className="text-[11px] italic text-gray-500">Document the candidate call securely.</p>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
@@ -3021,7 +3022,7 @@ export default function CandidateDetailPage() {
                         type="text"
                         placeholder="e.g. 12 LPA"
                         value={hc.currentCtc}
-                        onChange={e => updateHc('currentCtc', e.target.value)}
+                        onChange={e => updateHc('currentCtc', clampCtcInput(e.target.value))}
                         className={FIELD_CLS}
                       />
                     </div>
@@ -3031,7 +3032,7 @@ export default function CandidateDetailPage() {
                         type="text"
                         placeholder="e.g. 18 LPA"
                         value={hc.expectedCtc}
-                        onChange={e => updateHc('expectedCtc', e.target.value)}
+                        onChange={e => updateHc('expectedCtc', clampCtcInput(e.target.value))}
                         className={FIELD_CLS}
                       />
                     </div>
@@ -3113,7 +3114,7 @@ export default function CandidateDetailPage() {
                     </Select>
                   </div>
                   {hc.nextStep === 'Reject' && (
-                    <p className="rounded-md bg-red-50 px-2.5 py-1.5 text-[11px] font-medium text-red-600">
+                    <p className="rounded-sm bg-red-50 px-2.5 py-1.5 text-[11px] font-medium text-red-600">
                       Completing will mark the candidate as rejected.
                     </p>
                   )}
@@ -3134,13 +3135,13 @@ export default function CandidateDetailPage() {
                           'noopener,noreferrer',
                         )
                       }
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
                     >
                       <Eye size={14} /> Preview submission
                     </button>
                     <button
                       onClick={() => openDocument(asgInvite.submissionDocId!)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
                     >
                       <Download size={14} /> {asgInvite.submissionFileName ?? 'Download'}
                     </button>
@@ -3155,7 +3156,7 @@ export default function CandidateDetailPage() {
                       {asgInvite.assessmentQuestions.map((q, i) => {
                         const sel = asgInvite.answers?.[String(i)];
                         return (
-                          <div key={i} className="rounded-lg border border-border bg-secondary/30 p-3">
+                          <div key={i} className="rounded-md border border-border bg-secondary/30 p-3">
                             <p className="text-[13px] font-semibold text-gray-800">
                               {i + 1}. {q.text}
                             </p>
@@ -3166,7 +3167,7 @@ export default function CandidateDetailPage() {
                                 return (
                                   <div
                                     key={oi}
-                                    className={`flex items-center gap-2 rounded-md px-2 py-1 text-[12px] ${
+                                    className={`flex items-center gap-2 rounded-sm px-2 py-1 text-[12px] ${
                                       isCorrect
                                         ? 'bg-emerald-50 font-semibold text-emerald-700'
                                         : isSel
@@ -3174,7 +3175,7 @@ export default function CandidateDetailPage() {
                                           : 'text-gray-600'
                                     }`}
                                   >
-                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white font-mono text-[10px] font-bold">
+                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface font-mono text-[10px] font-bold">
                                       {String.fromCharCode(65 + oi)}
                                     </span>
                                     <span className="flex-1">{opt}</span>
@@ -3246,7 +3247,7 @@ export default function CandidateDetailPage() {
                         const isRating = (r.options?.length ?? 0) === 0;
                         const isNA = r.selected === 'NA' || r.selected === 'na';
                         return (
-                          <div key={i} className="rounded-lg border border-border bg-secondary/30 p-3">
+                          <div key={i} className="rounded-md border border-border bg-secondary/30 p-3">
                             <p className="text-[13px] font-semibold text-gray-800">
                               {i + 1}. {r.text}
                             </p>
@@ -3327,7 +3328,7 @@ export default function CandidateDetailPage() {
             {openForm === 'decision' && (
               <>
                 <p
-                  className={`rounded-lg px-3 py-2 text-[12px] font-medium ${
+                  className={`rounded-md px-3 py-2 text-[12px] font-medium ${
                     decisionKind === 'accept' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
                   }`}
                 >
@@ -3405,7 +3406,7 @@ export default function CandidateDetailPage() {
                   </Select>
                 </div>
                 {ivpackMode === 'Online' && (
-                  <p className="rounded-lg bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
+                  <p className="rounded-md bg-accent-50 px-3 py-2 text-[12px] text-accent-700">
                     A Google Meet link is created automatically and emailed to both the candidate and the
                     interviewer (requires Google Calendar connected in Global Settings).
                   </p>
@@ -3415,7 +3416,7 @@ export default function CandidateDetailPage() {
                     Interview question set
                   </Label>
                   {ivpackBanks.length === 0 ? (
-                    <p className="mt-2 rounded-md border border-dashed border-border bg-secondary/20 px-3 py-2 text-[12px] text-gray-500">
+                    <p className="mt-2 rounded-sm border border-dashed border-border bg-secondary/20 px-3 py-2 text-[12px] text-gray-500">
                       No interview question sets found. Create one in Question Library → Interview Questions.
                     </p>
                   ) : (
@@ -3454,12 +3455,12 @@ export default function CandidateDetailPage() {
                         href={ivpackSheet.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-1 block truncate rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
+                        className="mt-1 block truncate rounded-sm border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
                       >
                         {ivpackSheet.url}
                       </a>
                     ) : (
-                      <p className="mt-1 rounded-md border border-dashed border-input bg-secondary/20 px-3 py-2 text-[12px] text-gray-400">
+                      <p className="mt-1 rounded-sm border border-dashed border-input bg-secondary/20 px-3 py-2 text-[12px] text-gray-400">
                         Select an interview question set to generate the link.
                       </p>
                     )}
@@ -3473,12 +3474,12 @@ export default function CandidateDetailPage() {
                         href={documentPreviewUrl(resumeDoc.id)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-1 block truncate rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
+                        className="mt-1 block truncate rounded-sm border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
                       >
                         {documentPreviewUrl(resumeDoc.id)}
                       </a>
                     ) : (
-                      <p className="mt-1 rounded-md border border-dashed border-input bg-secondary/20 px-3 py-2 text-[12px] text-gray-400">
+                      <p className="mt-1 rounded-sm border border-dashed border-input bg-secondary/20 px-3 py-2 text-[12px] text-gray-400">
                         No résumé uploaded for this candidate.
                       </p>
                     )}
@@ -3564,11 +3565,11 @@ export default function CandidateDetailPage() {
 }
 
 const SELECT_CLS =
-  'mt-1.5 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring/40 focus:outline-none';
+  'mt-1.5 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring/40 focus:outline-none';
 
 // Greige field styling that matches the candidate profile feedback panel.
 const FIELD_CLS =
-  'mt-1.5 w-full rounded-md border border-[#E4E6EA] bg-[#EDEEF1] px-2.5 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'mt-1.5 w-full rounded-sm border border-line bg-surface-hover px-2.5 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 function screeningAvg(r: ScreeningReview): number {
   const vals = [r.resumeRelevance, r.experienceMatch, r.skillMatch, r.standoutFactor, r.communication];
@@ -3588,7 +3589,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
       {children}
-      <span className="h-px flex-1 bg-[#E4E6EA]" />
+      <span className="h-px flex-1 bg-line" />
     </p>
   );
 }
@@ -3601,10 +3602,10 @@ function RatingRow({ value, onChange }: { value: number; onChange: (n: number) =
           key={n}
           type="button"
           onClick={() => onChange(n)}
-          className={`grid size-8 place-items-center rounded-md border text-xs font-bold transition ${
+          className={`grid size-8 place-items-center rounded-sm border text-xs font-bold transition ${
             n <= value
               ? 'border-accent-600 bg-accent-600 text-white shadow-sm'
-              : 'border-[#E4E6EA] bg-[#EDEEF1] text-gray-400 hover:border-accent-400 hover:text-accent-600'
+              : 'border-line bg-surface-hover text-gray-400 hover:border-accent-400 hover:text-accent-600'
           }`}
           aria-label={`Rate ${n}`}
         >
@@ -3617,7 +3618,7 @@ function RatingRow({ value, onChange }: { value: number; onChange: (n: number) =
 
 function KV({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-[#ECEDF0] pb-1.5 last:border-0">
+    <div className="flex items-baseline justify-between gap-3 border-b border-line-soft pb-1.5 last:border-0">
       <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">{k}</span>
       <span className="text-right text-[12px] font-medium text-gray-700">{v || '—'}</span>
     </div>
@@ -3627,7 +3628,7 @@ function KV({ k, v }: { k: string; v: string }) {
 // Read-only candidate-details modal helpers.
 function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border-t border-[#ECEDF0] pt-3.5 first:border-t-0 first:pt-0">
+    <div className="border-t border-line-soft pt-3.5 first:border-t-0 first:pt-0">
       <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-wider text-gray-400">
         {title}
       </p>

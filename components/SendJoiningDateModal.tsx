@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { HrCcNotice } from '@/components/HrCcNotice';
 import { X, Loader2, Link2, Copy } from 'lucide-react';
 import { format, parse, isValid } from 'date-fns';
 import { useOnboardingEmails } from '@/features/onboarding/hooks';
@@ -33,7 +34,7 @@ function formatJoin(value?: string): string {
 }
 
 const inputCls =
-  'w-full rounded-md border border-[#E4E6EA] bg-white px-3 py-2 text-[13px] text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'w-full rounded-sm border border-line bg-surface px-3 py-2 text-[13px] text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 export function SendJoiningDateModal({ candidateId, candidateName, email, proposedDate, onClose }: Props) {
   const toast = useToast();
@@ -158,7 +159,7 @@ export function SendJoiningDateModal({ candidateId, candidateName, email, propos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -183,6 +184,7 @@ export function SendJoiningDateModal({ candidateId, candidateName, email, propos
                 onChange={e => setTo(e.target.value)}
                 placeholder="candidate@email.com"
               />
+              <HrCcNotice className="mt-1.5" />
             </div>
 
             <div>
@@ -219,12 +221,12 @@ export function SendJoiningDateModal({ candidateId, candidateName, email, propos
                     readOnly
                     value={link}
                     onFocus={e => e.target.select()}
-                    className={`${inputCls} cursor-default bg-[#F7F8FA] text-gray-600`}
+                    className={`${inputCls} cursor-default bg-surface-muted text-gray-600`}
                   />
                   <button
                     type="button"
                     onClick={copyLink}
-                    className="inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                    className="inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-sm border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
                   >
                     <Copy size={13} /> Copy
                   </button>
@@ -240,7 +242,7 @@ export function SendJoiningDateModal({ candidateId, candidateName, email, propos
               <button
                 onClick={onClose}
                 disabled={sending}
-                className="rounded-lg border border-[#E4E6EA] bg-white px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-[#F1F3F5] disabled:opacity-60"
+                className="rounded-md border border-line bg-surface px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -248,7 +250,7 @@ export function SendJoiningDateModal({ candidateId, candidateName, email, propos
                 onClick={send}
                 disabled={sending || !joiningDate}
                 title={!joiningDate ? 'Pick the joining date first' : undefined}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 {sending && <Loader2 size={14} className="animate-spin" />}
                 {sending ? 'Sending…' : 'Send'}

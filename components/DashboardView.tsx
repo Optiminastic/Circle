@@ -33,6 +33,7 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { TagPill, StatusPill } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 
 interface DashboardViewProps {
   candidates: Candidate[];
@@ -47,9 +48,9 @@ interface DashboardViewProps {
 
 const PROBATION_MONTHS = 6;
 
-// Looping, muted ambient video behind the dashboard greeting header (Cloudinary).
-const HEADER_VIDEO =
-  'https://res.cloudinary.com/dui7h1n3d/video/upload/v1782882408/From_Klickpin.com-_Wave-filled_ocean_moods_for_people_who_love_beauty_with_soft_aesthetic_charm_to_brighten_your_feed-pin-id-23573598046061690_-_ROTATE_-_Videobolt.net_x2dqmi.mp4';
+// Looping, muted ambient video behind the dashboard greeting header.
+// Self-hosted from /public so the header doesn't depend on a third-party CDN.
+const HEADER_VIDEO = '/greeting-header.mp4';
 
 /** "Tue, 30 Jun · 11:00 AM" style interview slot. */
 const fmtSlot = (iso: string) => {
@@ -171,7 +172,7 @@ export function DashboardView({
     .map(x => x.iv);
 
   return (
-    <div className="relative space-y-6 select-none pb-10">
+    <div className="relative space-y-4 select-none pb-8">
       {/* Decorative ambient glows — give the glass cards something to frost over
           and break up the flat background. */}
       <div
@@ -184,7 +185,7 @@ export function DashboardView({
       />
 
       {/* Greeting header */}
-      <div className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] px-7 py-8 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative flex flex-col gap-4 overflow-hidden min-h-[215px] rounded-lg border border-white/10 bg-[#0b1f3a] px-6 pt-8 pb-6 sm:flex-row sm:items-end sm:justify-between">
         {/* Ambient looping video backdrop — muted, auto-playing, cover-fit */}
         <video
           aria-hidden="true"
@@ -199,35 +200,38 @@ export function DashboardView({
         {/* Light wash on the left so the text stays readable */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#FFFFFF]/85 via-[#FFFFFF]/45 to-[#FFFFFF]/10"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0b1f3a] via-[#0b1f3a]/55 to-[#0b1f3a]/10"
         />
         <div className="relative z-10 min-w-0">
-          <p className="font-mono text-[12px] uppercase tracking-wider text-accent-600">{today || ' '}</p>
-          <h2 className="mt-1 font-display text-3xl font-bold tracking-tight text-gray-900">
+          <p className="font-mono text-[12px] uppercase tracking-wider text-white/70">{today || ' '}</p>
+          <h2 className="mt-0.5 font-display text-xl font-bold tracking-tight text-white">
             {greeting}, {name}
           </h2>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <p className="mt-1.5 text-sm text-white/75">
             Here&apos;s what&apos;s moving across hiring, your team, and exits today.
           </p>
         </div>
         <div className="relative z-10 flex shrink-0 items-center gap-2.5">
-          <Link
-            href="/jobs"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700"
+          <Button
+            asChild
+            variant="outline"
+            size="default"
+            className="border-white/30 bg-white/5 text-white backdrop-blur-sm hover:bg-white/15"
           >
-            <Plus size={16} /> Post a job
-          </Link>
-          <Link
-            href="/directory"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-700"
-          >
-            <Users size={16} /> Directory
-          </Link>
+            <Link href="/jobs">
+              <Plus size={16} /> Post a job
+            </Link>
+          </Button>
+          <Button asChild variant="secondary" size="default">
+            <Link href="/directory">
+              <Users size={16} /> Directory
+            </Link>
+          </Button>
         </div>
       </div>
 
       {/* KPI stat cards — real values, clickable */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s, i) => {
           const Icon = s.Icon;
           return (
@@ -235,32 +239,25 @@ export function DashboardView({
               key={s.id}
               href={s.href}
               style={{ animationDelay: `${i * 70}ms` }}
-              className="group flex animate-in cursor-pointer flex-col justify-between rounded-2xl border border-white/60 bg-white/70 p-4 shadow-sm ring-1 ring-black/[0.03] backdrop-blur-xl fade-in-0 slide-in-from-bottom-2 transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-accent-200/70 hover:shadow-xl hover:shadow-accent-500/10"
+              className="group flex animate-in cursor-pointer flex-col gap-2 rounded-md border border-line bg-surface p-4 fade-in-0 slide-in-from-bottom-1 transition-colors duration-150 hover:border-accent-300 hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <div className="flex items-center justify-between">
                 <span className="font-display text-xs font-semibold uppercase tracking-wider text-gray-500">
                   {s.title}
                 </span>
                 <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-transform duration-200 group-hover:scale-110 ${s.iconCls}`}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-transform duration-200 group-hover:scale-110 ${s.iconCls}`}
                 >
                   <Icon size={16} />
                 </div>
               </div>
-              <div className="mt-4 flex items-end justify-between">
-                <div>
-                  <span className="flex items-baseline gap-0.5">
-                    <CountUp
-                      value={s.value}
-                      className="font-display text-2xl font-bold tracking-tight text-gray-900 tabular-nums"
-                    />
-                    {typeof s.total === 'number' && (
-                      <span className="font-display text-sm font-semibold text-gray-400 tabular-nums">
-                        /{s.total}
-                      </span>
-                    )}
-                  </span>
-                  <p className="mt-0.5 font-mono text-[10px] text-gray-500">{s.sub}</p>
+              <div className="flex items-end justify-between">
+                <div className="min-w-0">
+                  <CountUp
+                    value={s.value}
+                    className="font-display text-2xl font-bold leading-none tracking-tight text-gray-900 tabular-nums"
+                  />
+                  <p className="mt-1.5 truncate text-[11px] text-gray-500">{s.sub}</p>
                 </div>
                 <ArrowUpRight
                   size={14}
@@ -287,8 +284,14 @@ export function DashboardView({
         </div>
 
         {upcomingInterviews.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#E4E6EA] bg-[#FFFFFF] py-10 text-center text-xs text-gray-500">
-            No upcoming interviews scheduled.
+          <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-line bg-surface px-5 py-4">
+            <p className="text-xs text-gray-500">No upcoming interviews scheduled.</p>
+            <Link
+              href="/calendar"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-accent-600 hover:text-accent-700"
+            >
+              Schedule one <ArrowRight size={12} />
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -299,7 +302,7 @@ export function DashboardView({
                   key={iv.id}
                   type="button"
                   onClick={() => onSelectCandidate(iv.candidateId)}
-                  className="group flex flex-col rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 text-left shadow-2xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-accent-300 hover:shadow-lg"
+                  className="group flex flex-col rounded-lg border border-line bg-surface p-4 text-left shadow-2xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.01] hover:border-accent-300 hover:shadow-lg"
                 >
                   {/* Header: accent bar + name + tags + kebab */}
                   <div className="flex items-start justify-between gap-2">
@@ -312,19 +315,19 @@ export function DashboardView({
                         {iv.appliedRole && <TagPill color="gray">{iv.appliedRole}</TagPill>}
                       </div>
                     </div>
-                    <span className="grid size-6 shrink-0 place-items-center rounded-md text-gray-400 transition group-hover:bg-[#F1F3F5] group-hover:text-accent-600">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-sm text-gray-400 transition group-hover:bg-surface-sunken group-hover:text-accent-600">
                       <MoreHorizontal size={15} />
                     </span>
                   </div>
 
                   {/* Interview slot */}
-                  <div className="mt-4 flex items-center gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2">
+                  <div className="mt-4 flex items-center gap-2 rounded-md bg-surface-muted px-3 py-2">
                     <CalendarClock size={14} className="shrink-0 text-accent-600" />
                     <span className="text-xs font-semibold text-gray-800">{fmtSlot(iv.dateTime)}</span>
                   </div>
 
                   {/* Footer: interviewer + mode */}
-                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-[#EDEEF1] pt-2.5 text-[11px] text-gray-500">
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-line-hover pt-2.5 text-[11px] text-gray-500">
                     <span className="flex min-w-0 items-center gap-1">
                       <User size={11} className="shrink-0" />
                       <span className="truncate">{iv.interviewerName || 'To be assigned'}</span>

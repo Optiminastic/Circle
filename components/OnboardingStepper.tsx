@@ -280,7 +280,20 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     );
   };
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
-  const joiningConfirmation = joiningConfirmations.find(j => j.candidateId === checklist.candidateId);
+  // A candidate accumulates one record per "send joining date" -- re-sends add
+  // more, and only the one the candidate actually opened carries their answers.
+  // `.find()` returned whichever happened to be first, which is usually an
+  // unanswered one, so the response block silently never rendered. Prefer the
+  // latest answered record, else the latest sent. (ISO timestamps sort
+  // lexicographically, so string compare is chronological.)
+  const joiningConfirmation = useMemo(() => {
+    const mine = joiningConfirmations.filter(j => j.candidateId === checklist.candidateId);
+    if (mine.length === 0) return undefined;
+    const answered = mine.filter(j => j.respondedAt);
+    const latest = (list: typeof mine, key: 'respondedAt' | 'createdAt') =>
+      [...list].sort((a, b) => String(b[key] ?? '').localeCompare(String(a[key] ?? '')))[0];
+    return answered.length ? latest(answered, 'respondedAt') : latest(mine, 'createdAt');
+  }, [joiningConfirmations, checklist.candidateId]);
   const toEmail = candidate?.email || checklist.candidateEmail || '';
 
   // Signed offer letter the candidate uploaded via the 72h public link (stored in
@@ -718,7 +731,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
             setReuploadFor(open ? null : letter);
           }}
           title="Reject this file and email the candidate a fresh upload link"
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-50"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-200 bg-surface px-3 text-[12px] font-semibold text-red-600 transition hover:bg-red-50"
         >
           <XCircle size={13} /> {rejected ? 'Ask again' : 'Request re-upload'}
         </button>
@@ -731,7 +744,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         )}
 
         {open && (
-          <div className="w-full space-y-1.5 rounded-lg border border-red-100 bg-red-50/60 p-2.5">
+          <div className="w-full space-y-1.5 rounded-md border border-red-100 bg-red-50/60 p-2.5">
             <label htmlFor={inputId} className="block text-[11px] font-semibold text-gray-600">
               What is wrong with the uploaded file?
             </label>
@@ -742,13 +755,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                 value={reuploadReason}
                 onChange={e => setReuploadReason(e.target.value)}
                 placeholder="e.g. This is the unsigned copy — please upload the signed one"
-                className="min-w-[16rem] flex-1 rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1.5 text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                className="min-w-[16rem] flex-1 rounded-sm border border-line bg-surface px-2.5 py-1.5 text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
               />
               <button
                 type="button"
                 onClick={() => openReuploadComposer(letter)}
                 disabled={!reuploadReason.trim()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Mail size={13} /> Review email
               </button>
@@ -949,7 +962,14 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     if (joined) return;
     promote.mutate(checklist, {
       onSuccess: () => toast.success(`${checklist.candidateName} onboarded into the employee directory.`),
-      onError: () => toast.error('Could not convert to employee — try again.'),
+      // A missing company email is a fixable mistake, not a transient failure —
+      // "try again" would be misleading, so show what actually needs doing.
+      onError: (err: unknown) =>
+        toast.error(
+          err instanceof Error && err.message
+            ? err.message
+            : 'Could not convert to employee — try again.',
+        ),
     });
   };
 
@@ -1151,7 +1171,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
+    <div className="rounded-lg border border-line bg-surface shadow-2xs">
       <OnboardingEmailComposer
         open={!!composer}
         seed={composer}
@@ -1241,7 +1261,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       )}
       {/* Header — title + step count, matching the candidate Recruitment
           Progress flow. */}
-      <div className="flex items-center gap-2.5 border-b border-[#ECEDF0] px-5 py-4">
+      <div className="flex items-center gap-2.5 border-b border-line-soft px-5 py-4">
         <h3 className="text-sm font-bold text-gray-900">Onboarding Progress</h3>
         <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
           {stages.length} Steps
@@ -1261,13 +1281,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           const muted = state === 'todo';
           // Icon square colour: the stage's own colour once DONE, else greyscale.
           const doneColor = STAGE_ICON_COLOR[stage.label] ?? 'bg-accent-50 text-accent-600';
-          const iconCls = state === 'done' ? doneColor : 'bg-[#F1F3F5] text-gray-400';
+          const iconCls = state === 'done' ? doneColor : 'bg-surface-sunken text-gray-400';
           const pillCls =
             state === 'done'
               ? 'bg-emerald-50 text-emerald-700'
               : state === 'current'
                 ? 'bg-accent-50 text-accent-700'
-                : 'bg-[#F1F3F5] text-gray-500';
+                : 'bg-surface-sunken text-gray-500';
           // Default (openStep === null) opens whichever step is current.
           const activeStep = openStep ?? currentIndex;
           const infoShown = activeStep === i;
@@ -1287,26 +1307,26 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       <Check size={13} strokeWidth={3} />
                     </span>
                   ) : state === 'current' ? (
-                    <span className="grid size-6 place-items-center rounded-full bg-[#C21C51] ring-4 ring-[#C21C51]/15">
-                      <span className="size-2 rounded-full bg-white" />
+                    <span className="grid size-6 place-items-center rounded-full bg-strong ring-4 ring-strong/15">
+                      <span className="size-2 rounded-full bg-surface" />
                     </span>
                   ) : (
-                    <span className="size-6 rounded-full border-2 border-[#D8DAE0] bg-white" />
+                    <span className="size-6 rounded-full border-2 border-line-strong bg-surface" />
                   )}
                 </span>
                 {!last && (
-                  <span className={`mt-1 w-0.5 flex-1 ${pathDone ? 'bg-emerald-400' : 'bg-[#E4E6EA]'}`} />
+                  <span className={`mt-1 w-0.5 flex-1 ${pathDone ? 'bg-emerald-400' : 'bg-line'}`} />
                 )}
               </div>
 
               {/* Step card */}
               <div
-                className={`min-w-0 flex-1 rounded-2xl border transition-colors ${
+                className={`min-w-0 flex-1 rounded-lg border transition-colors ${
                   infoShown
-                    ? 'border-[#C21C51] bg-[#C21C51]/[0.06]'
+                    ? 'border-strong bg-strong/[0.06]'
                     : state === 'current'
-                      ? 'border-[#C21C51]/30 bg-[#C21C51]/[0.05]'
-                      : 'border-[#E9EAEE] bg-white'
+                      ? 'border-strong/30 bg-strong/[0.05]'
+                      : 'border-line bg-surface'
                 }`}
               >
                 <div className="flex items-center gap-3 px-3.5 py-3">
@@ -1317,7 +1337,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
                     <span
-                      className={`relative grid size-9 shrink-0 place-items-center rounded-xl transition-colors ${iconCls}`}
+                      className={`relative grid size-9 shrink-0 place-items-center rounded-md transition-colors ${iconCls}`}
                     >
                       <StageIcon size={16} />
                       {stageEmailCount[stage.label] > 0 && (
@@ -1371,7 +1391,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             }
                             disabled={reactivateDocRequest.isPending}
                             title="Re-activate the signed-offer upload link"
-                            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                           >
                             {reactivateDocRequest.isPending ? (
                               <Loader2 size={11} className="animate-spin" />
@@ -1382,7 +1402,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           </button>
                         )}
                         <span
-                          className={`hidden shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
+                          className={`hidden shrink-0 items-center gap-1 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
                             signOfferExpired
                               ? 'border-red-200 bg-red-50 text-red-600'
                               : 'border-amber-200 bg-amber-50 text-amber-700'
@@ -1416,7 +1436,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             }
                             disabled={reactivateDocRequest.isPending}
                             title="Re-activate the signed-appointment upload link"
-                            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-sm bg-emerald-600 px-2 text-[10px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                           >
                             {reactivateDocRequest.isPending ? (
                               <Loader2 size={11} className="animate-spin" />
@@ -1427,7 +1447,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           </button>
                         )}
                         <span
-                          className={`hidden shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
+                          className={`hidden shrink-0 items-center gap-1 rounded-sm border px-2 py-0.5 font-mono text-[10px] font-semibold sm:inline-flex ${
                             signAppointmentExpired
                               ? 'border-red-200 bg-red-50 text-red-600'
                               : 'border-amber-200 bg-amber-50 text-amber-700'
@@ -1440,7 +1460,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                   {/* Joining-documents upload link: expiry + reactivate + copy —
                       shown until every required document is verified. */}
                   {stage.action.kind === 'request-docs' && docRequest && !docsVerified && (
-                    <div className="hidden shrink-0 items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-[#F7F8FA] px-2 py-1 sm:flex">
+                    <div className="hidden shrink-0 items-center gap-1.5 rounded-sm border border-line bg-surface-muted px-2 py-1 sm:flex">
                       <span
                         className={`inline-flex items-center gap-1 font-mono text-[10px] font-semibold ${
                           docReqLive ? 'text-amber-700' : 'text-red-600'
@@ -1453,7 +1473,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           <Select
                             value={docReqHours}
                             onChange={e => setDocReqHours(Number(e.target.value))}
-                            className="rounded-md border border-[#E4E6EA] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-gray-600"
+                            className="rounded-sm border border-line bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-gray-600"
                           >
                             <option value={24}>24h</option>
                             <option value={48}>48h</option>
@@ -1472,7 +1492,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               )
                             }
                             disabled={reactivateDocRequest.isPending}
-                            className="inline-flex items-center gap-1 rounded-md border border-accent-300 bg-accent-50 px-2 py-0.5 text-[10px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
+                            className="inline-flex items-center gap-1 rounded-sm border border-accent-300 bg-accent-50 px-2 py-0.5 text-[10px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
                           >
                             {reactivateDocRequest.isPending ? (
                               <Loader2 size={11} className="animate-spin" />
@@ -1486,7 +1506,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       <button
                         type="button"
                         onClick={copyDocLink}
-                        className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
+                        className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2 py-0.5 text-[10px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
                       >
                         <Copy size={11} /> Copy link
                       </button>
@@ -1510,8 +1530,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       title={!gateMet ? (gateReasonFor(i) ?? undefined) : actionLabel}
                       className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
                         !gateMet
-                          ? 'cursor-not-allowed border-[#E4E6EA] bg-white text-gray-300'
-                          : 'border-[#E4E6EA] bg-white text-accent-600 hover:border-accent-300 hover:bg-accent-50'
+                          ? 'cursor-not-allowed border-line bg-surface text-gray-300'
+                          : 'border-line bg-surface text-accent-600 hover:border-accent-300 hover:bg-accent-50'
                       }`}
                     >
                       {pending ? (
@@ -1531,8 +1551,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     title="View details"
                     className={`grid size-8 shrink-0 place-items-center rounded-full border transition ${
                       infoShown
-                        ? 'border-[#C21C51]/30 bg-white text-[#C21C51]'
-                        : 'border-[#E4E6EA] bg-white text-gray-400 hover:bg-[#F1F3F5] hover:text-gray-600'
+                        ? 'border-strong/30 bg-surface text-strong'
+                        : 'border-line bg-surface text-gray-400 hover:bg-surface-sunken hover:text-gray-600'
                     }`}
                   >
                     <ChevronDown
@@ -1544,20 +1564,20 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
                 {/* Expanded section — details + every action for this step */}
                 {infoShown && (
-                  <div className="space-y-3 rounded-b-2xl border-t border-[#C21C51]/15 bg-white px-3.5 py-3">
+                  <div className="space-y-3 rounded-b-lg border-t border-strong/15 bg-surface px-3.5 py-3">
                     <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
 
                     {/* Joining date: once confirmed, the action row is gone. Re-send from
                         here — opens the same modal, pre-filled with the confirmed date. */}
                     {stage.action.kind === 'confirm-joining' && stage.done && (
-                      <div className="border-t border-[#ECEDF0] pt-3">
+                      <div className="border-t border-line-soft pt-3">
                         <p className="text-[12px] font-semibold text-gray-800">Re-send joining date</p>
                         <p className="mb-2 text-[11px] text-gray-500">
                           Confirmed for {fmtDate(checklist.joiningDate)}. Send an updated date if it changes.
                         </p>
                         <button
                           onClick={() => setSendJoiningDateOpen(true)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700"
                         >
                           <CalendarCheck size={13} />
                           Re-send joining date
@@ -1567,24 +1587,70 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
                     {/* Candidate's response from the public confirmation link, once submitted. */}
                     {stage.action.kind === 'confirm-joining' && joiningConfirmation?.respondedAt && (
-                      <div className="space-y-1.5 rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] p-2.5 text-[11.5px]">
+                      <div className="space-y-1.5 rounded-md border border-line bg-surface-muted p-2.5 text-[11.5px]">
                         <p className="font-semibold text-gray-800">Candidate's response</p>
-                        {joiningConfirmation.canJoin ? (
+                        {/* Three states, not two. The public page no longer asks the
+                            candidate to confirm the date, so `canJoin` is undefined on
+                            new responses -- a plain truthy check would report every one
+                            of them as "asked for a different date". Records from before
+                            that change still carry a real answer, so both are handled. */}
+                        {joiningConfirmation.canJoin === true && (
                           <p className="text-emerald-700">✅ Confirmed they can join on this date.</p>
-                        ) : (
+                        )}
+                        {joiningConfirmation.canJoin === false && (
                           <p className="text-amber-700">
                             ⚠️ Asked for a different date
                             {joiningConfirmation.suggestedDate ? ` — ${fmtDate(joiningConfirmation.suggestedDate)}` : ''}.
                           </p>
                         )}
-                        {joiningConfirmation.meal && (
-                          <p className="text-gray-600">
-                            Meal: {joiningConfirmation.meal.dish}, {joiningConfirmation.meal.preference}
-                            {joiningConfirmation.meal.notes ? ` (${joiningConfirmation.meal.notes})` : ''}
-                          </p>
+                        {(joiningConfirmation.meal || joiningConfirmation.plantChoice) && (
+                          <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line-soft pt-2">
+                            {joiningConfirmation.meal && (
+                              <>
+                                <dt className="text-gray-400">First meal</dt>
+                                <dd className="font-semibold text-gray-800">
+                                  {joiningConfirmation.meal.dish} &middot; {joiningConfirmation.meal.preference}
+                                </dd>
+                              </>
+                            )}
+                            {joiningConfirmation.meal?.notes && (
+                              <>
+                                <dt className="text-gray-400">Dietary</dt>
+                                <dd className="font-semibold text-amber-700">{joiningConfirmation.meal.notes}</dd>
+                              </>
+                            )}
+                            {joiningConfirmation.plantChoice && (
+                              <>
+                                <dt className="text-gray-400">Welcome plant</dt>
+                                <dd className="font-semibold text-gray-800">
+                                  {joiningConfirmation.plantChoice} Plant
+                                </dd>
+                              </>
+                            )}
+                            {joiningConfirmation.photoDocumentId && (
+                              <>
+                                <dt className="text-gray-400">Photo</dt>
+                                <dd>
+                                  <a
+                                    href={documentPreviewUrl(joiningConfirmation.photoDocumentId)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-accent-600 hover:underline"
+                                  >
+                                    {joiningConfirmation.photoFileName || 'View photo'}
+                                  </a>
+                                </dd>
+                              </>
+                            )}
+                          </dl>
                         )}
-                        {joiningConfirmation.plantChoice && (
-                          <p className="text-gray-600">Welcome plant: {joiningConfirmation.plantChoice}</p>
+                        {joiningConfirmation.introduction && (
+                          <div className="mt-1 border-t border-line-soft pt-2">
+                            <p className="text-gray-400">In their words</p>
+                            <p className="mt-0.5 whitespace-pre-wrap text-gray-700">
+                              {joiningConfirmation.introduction}
+                            </p>
+                          </div>
                         )}
                       </div>
                     )}
@@ -1605,7 +1671,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 <span
                                   key={code}
                                   title={check?.name}
-                                  className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-1.5 py-0.5 text-[11px] text-gray-700"
+                                  className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-1.5 py-0.5 text-[11px] text-gray-700"
                                 >
                                   <span className="font-mono text-[10px] font-bold text-accent-700">
                                     {code}
@@ -1624,7 +1690,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                         response) — once that's true, HR never sees a resend option
                         for it; the button only reappears if the send failed. */}
                     {(stage.action.kind === 'start-bgv' || stage.action.kind === 'verify-bgv') && (
-                      <div className="border-t border-[#ECEDF0] pt-3">
+                      <div className="border-t border-line-soft pt-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-[12px] font-semibold text-gray-800">OnGrid verification</p>
@@ -1638,7 +1704,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             <button
                               onClick={beginBgv}
                               disabled={ongridOnboard.isPending}
-                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
                             >
                               {ongridOnboard.isPending && <Loader2 size={13} className="animate-spin" />}
                               Send for verification
@@ -1647,7 +1713,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                         </div>
 
                         {bgv?.ongridIndividualId && (
-                          <div className="mt-2.5 rounded-lg border border-emerald-200 bg-emerald-50/50 p-2.5">
+                          <div className="mt-2.5 rounded-md border border-emerald-200 bg-emerald-50/50 p-2.5">
                             <p className="flex items-center gap-1.5 text-[11.5px] font-semibold text-emerald-800">
                               <CheckCircle2 size={13} /> Sent to OnGrid
                               <span className="font-mono text-[10.5px] font-normal text-emerald-700">
@@ -1668,7 +1734,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                       <span
                                         key={code}
                                         title={check?.name}
-                                        className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-1.5 py-0.5 text-[10.5px] text-gray-700"
+                                        className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-surface px-1.5 py-0.5 text-[10.5px] text-gray-700"
                                       >
                                         <span className="font-mono text-[9.5px] font-bold text-accent-700">
                                           {code}
@@ -1691,10 +1757,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                   {bgv.ongridDocuments.map((d, i) => (
                                     <span
                                       key={`${d.docType}-${i}`}
-                                      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${
+                                      className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10px] ${
                                         d.status === 'uploaded'
-                                          ? 'border-emerald-200 bg-white text-emerald-700'
-                                          : 'border-amber-200 bg-white text-amber-700'
+                                          ? 'border-emerald-200 bg-surface text-emerald-700'
+                                          : 'border-amber-200 bg-surface text-amber-700'
                                       }`}
                                     >
                                       {d.docType}
@@ -1726,7 +1792,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           onClick={() => onActionClickFor(i)}
                           disabled={!gateMet || pending}
                           title={!gateMet ? (gateReasonFor(i) ?? undefined) : undefined}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {pending ? (
                             <Loader2 size={13} className="animate-spin" />
@@ -1760,7 +1826,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             })
                           }
                           disabled={markJoiningDocsSkipped.isPending}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5] disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken disabled:opacity-60"
                         >
                           {markJoiningDocsSkipped.isPending ? (
                             <Loader2 size={13} className="animate-spin" />
@@ -1783,7 +1849,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             onClick={() => setBgvReportModalOpen(true)}
                             disabled={updateBgv.isPending}
                             title="Confirm you've checked OnGrid and the candidate is verified"
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                           >
                             {updateBgv.isPending ? (
                               <Loader2 size={13} className="animate-spin" />
@@ -1794,7 +1860,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           </button>
                           <button
                             onClick={openInvalidEmail}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700"
                           >
                             <XCircle size={13} /> Invalid
                           </button>
@@ -1827,7 +1893,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               })
                             }
                             disabled={markBgvSkipped.isPending}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5] disabled:opacity-60"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken disabled:opacity-60"
                           >
                             {markBgvSkipped.isPending ? (
                               <Loader2 size={13} className="animate-spin" />
@@ -1846,7 +1912,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             onClick={() =>
                               window.open(documentPreviewUrl(bgv.reportDocId!), '_blank', 'noopener,noreferrer')
                             }
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
                           >
                             <Eye size={13} /> Preview BGV report
                           </button>
@@ -1855,7 +1921,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           onClick={undoBgvVerification}
                           disabled={updateBgv.isPending}
                           title="Reopen this — moves it back to under verification"
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-500 transition hover:bg-[#F1F3F5] disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-500 transition hover:bg-surface-sunken disabled:opacity-60"
                         >
                           {updateBgv.isPending ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
                           Undo verification
@@ -1868,7 +1934,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     {stage.action.kind === 'allocation' && (
                       <div className="space-y-3">
                         {/* Sub-step 1: Add Email */}
-                        <div className="rounded-lg border border-[#E4E6EA] p-3">
+                        <div className="rounded-md border border-line p-3">
                           <p className="mb-2 text-[11px] font-semibold text-gray-700">1. Add Email</p>
                           {allocationEmailDone && !editingEmail ? (
                             <div className="flex flex-wrap items-center gap-2">
@@ -1877,7 +1943,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               </span>
                               <button
                                 onClick={startEditEmail}
-                                className="inline-flex h-7 items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 text-[11px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
+                                className="inline-flex h-7 items-center gap-1 rounded-sm border border-line bg-surface px-2 text-[11px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
                               >
                                 <Pencil size={12} /> Edit
                               </button>
@@ -1894,7 +1960,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               <button
                                 onClick={submitEmail}
                                 disabled={saveAllocationEmail.isPending}
-                                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
                               >
                                 {saveAllocationEmail.isPending ? (
                                   <Loader2 size={13} className="animate-spin" />
@@ -1906,7 +1972,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               {allocationEmailDone && (
                                 <button
                                   onClick={() => setEditingEmail(false)}
-                                  className="inline-flex h-8 items-center rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
+                                  className="inline-flex h-8 items-center rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
                                 >
                                   Cancel
                                 </button>
@@ -1917,7 +1983,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
                         {/* Sub-step 2: Assign system and desk */}
                         <div
-                          className={`rounded-lg border border-[#E4E6EA] p-3 ${
+                          className={`rounded-md border border-line p-3 ${
                             !allocationEmailDone ? 'cursor-not-allowed opacity-50' : ''
                           }`}
                         >
@@ -1941,7 +2007,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               </p>
                               <button
                                 onClick={startEditSystemDesk}
-                                className="mt-1 inline-flex h-7 items-center gap-1 rounded-md border border-[#E4E6EA] bg-white px-2 text-[11px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
+                                className="mt-1 inline-flex h-7 items-center gap-1 rounded-sm border border-line bg-surface px-2 text-[11px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
                               >
                                 <Pencil size={12} /> Edit
                               </button>
@@ -1994,7 +2060,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 <button
                                   onClick={submitSystemDesk}
                                   disabled={saveSystemDesk.isPending}
-                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
                                 >
                                   {saveSystemDesk.isPending ? (
                                     <Loader2 size={13} className="animate-spin" />
@@ -2006,7 +2072,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 {systemDeskDone && (
                                   <button
                                     onClick={() => setEditingSystemDesk(false)}
-                                    className="inline-flex h-8 items-center rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-600 transition hover:bg-[#F1F3F5]"
+                                    className="inline-flex h-8 items-center rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
                                   >
                                     Cancel
                                   </button>
@@ -2018,7 +2084,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
                         {/* Sub-step 3: Assign buddy */}
                         <div
-                          className={`rounded-lg border border-[#E4E6EA] p-3 ${
+                          className={`rounded-md border border-line p-3 ${
                             !systemDeskDone ? 'cursor-not-allowed opacity-50' : ''
                           }`}
                         >
@@ -2038,7 +2104,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 <Select
                                   value={buddyPickId}
                                   onChange={e => setBuddyPickId(e.target.value)}
-                                  className="h-8 w-56 rounded-md border border-[#E4E6EA] bg-white px-2 text-[12px] text-gray-700"
+                                  className="h-8 w-56 rounded-sm border border-line bg-surface px-2 text-[12px] text-gray-700"
                                 >
                                   <option value="">Select an employee…</option>
                                   {employees
@@ -2052,7 +2118,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 <button
                                   onClick={openBuddyComposer}
                                   disabled={!buddyPickId}
-                                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   <Send size={13} /> {buddyDone ? 'Resend buddy email' : 'Send buddy email'}
                                 </button>
@@ -2070,13 +2136,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           onClick={() =>
                             window.open(documentPreviewUrl(signedOfferDoc.id), '_blank', 'noopener,noreferrer')
                           }
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
                         >
                           <Eye size={13} /> Preview signed offer
                         </button>
                         <button
                           onClick={() => downloadDocument(signedOfferDoc.id, signedOfferDoc.fileName)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
                         >
                           <Download size={13} /> Download
                         </button>
@@ -2085,7 +2151,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           <button
                             onClick={markSigned}
                             disabled={markOfferSigned.isPending}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                             title="Confirm the signed offer letter is valid"
                           >
                             {markOfferSigned.isPending ? (
@@ -2120,7 +2186,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             )
                           }
                           disabled={reactivateDocRequest.isPending}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                         >
                           {reactivateDocRequest.isPending ? (
                             <Loader2 size={13} className="animate-spin" />
@@ -2142,13 +2208,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               'noopener,noreferrer',
                             )
                           }
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
                         >
                           <Eye size={13} /> Preview signed appointment letter
                         </button>
                         <button
                           onClick={() => downloadDocument(signedAppointmentDoc.id, signedAppointmentDoc.fileName)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-white px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5]"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
                         >
                           <Download size={13} /> Download
                         </button>
@@ -2157,7 +2223,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           <button
                             onClick={markAppointmentSignedNow}
                             disabled={markAppointmentSigned.isPending}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                             title="Confirm the signed appointment letter is valid"
                           >
                             {markAppointmentSigned.isPending ? (
@@ -2195,7 +2261,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             )
                           }
                           disabled={reactivateDocRequest.isPending}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                         >
                           {reactivateDocRequest.isPending ? (
                             <Loader2 size={13} className="animate-spin" />

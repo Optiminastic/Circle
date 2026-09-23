@@ -140,17 +140,17 @@ export function JobApplicantsOverview({ job, applicants }: { job: Job; applicant
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[6fr_4fr]">
       {/* Left — Applied / Interviewed / Rejected trend line, date-filterable */}
-      <div className="rounded-2xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
+      <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">
         <div className="mb-1 flex items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-gray-900">Applicant Overview</h3>
-          <div className="flex items-center rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] p-0.5 text-[11px] font-semibold">
+          <div className="flex items-center rounded-md border border-line bg-surface-muted p-0.5 text-[11px] font-semibold">
             {(['today', 'week', 'month'] as DateRange[]).map(r => (
               <button
                 key={r}
                 type="button"
                 onClick={() => setRange(r)}
-                className={`rounded-md px-2.5 py-1 transition ${
-                  range === r ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-500 hover:text-gray-700'
+                className={`rounded-sm px-2.5 py-1 transition ${
+                  range === r ? 'bg-surface text-gray-900 shadow-2xs' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 {RANGE_LABEL[r]}
@@ -238,7 +238,7 @@ export function JobApplicantsOverview({ job, applicants }: { job: Job; applicant
           {/* One tooltip, every series — the readout lists every line's value at this X. */}
           {hoverIdx !== null && (
             <div
-              className="pointer-events-none absolute top-2 z-10 w-44 -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-2.5 text-white shadow-lg"
+              className="pointer-events-none absolute top-2 z-10 w-44 -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2.5 text-white shadow-lg"
               style={{
                 left: `${(xAt(hoverIdx) / W) * 100}%`,
                 ...(xAt(hoverIdx) / W < 0.18 ? { left: '18%' } : {}),
@@ -265,7 +265,7 @@ export function JobApplicantsOverview({ job, applicants }: { job: Job; applicant
       </div>
 
       {/* Right — compact job-details card */}
-      <div className="rounded-2xl border border-[#E4E6EA] bg-white p-4 shadow-2xs">
+      <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-gray-900">Job Details</h3>
           <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-accent-700">

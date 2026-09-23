@@ -28,10 +28,10 @@ import { documentPreviewUrl } from '@/lib/api/documents';
 const portalKey = (token: string) => ['exit-handover-portal', token] as const;
 
 const inputCls =
-  'w-full rounded-md border border-[#E4E6EA] bg-white px-2.5 py-2 text-[13px] text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
-const cardCls = 'rounded-2xl border border-[#E4E6EA] bg-white p-5 shadow-sm sm:p-6';
+  'w-full rounded-sm border border-line bg-surface px-2.5 py-2 text-[13px] text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+const cardCls = 'rounded-lg border border-line bg-surface p-5 shadow-sm sm:p-6';
 const btnCls =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex items-center justify-center gap-1.5 rounded-md bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50';
 
 const fmtSize = (b: number) =>
   b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`;
@@ -122,8 +122,8 @@ export default function ExitHandoverPortal() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9]">
-      <header className="border-b border-[#EDEEF1] bg-white">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-line-hover bg-surface">
         <div className="mx-auto flex h-14 max-w-2xl items-center gap-2.5 px-5">
           <Logo size={24} />
           <span className="font-display text-sm font-bold tracking-tight text-gray-900">{BRAND.name}</span>
@@ -162,7 +162,7 @@ export default function ExitHandoverPortal() {
                 the handover is complete.
               </p>
               {portal.credentialsSubmitted ? (
-                <p className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-700">
+                <p className="flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-700">
                   <CheckCircle2 size={14} /> Credentials submitted. You can re-submit to update them.
                 </p>
               ) : null}
@@ -207,7 +207,7 @@ export default function ExitHandoverPortal() {
                       <button
                         type="button"
                         onClick={() => removeExtra(i)}
-                        className="shrink-0 rounded-md p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                        className="shrink-0 rounded-sm p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                         aria-label="Remove"
                       >
                         <X size={14} />
@@ -226,7 +226,7 @@ export default function ExitHandoverPortal() {
                 </button>
               </div>
 
-              <div className="mt-4 border-t border-[#EDEEF1] pt-4">
+              <div className="mt-4 border-t border-line-hover pt-4">
                 <button
                   type="button"
                   onClick={() => saveCreds.mutate()}
@@ -252,7 +252,7 @@ export default function ExitHandoverPortal() {
                 Upload any pending documents, files, or credentials lists — add as many as you need.
               </p>
 
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-[#D7DAE0] bg-[#F1F3F5] px-3 py-6 text-center transition hover:border-accent-400 hover:bg-accent-50/40">
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-line-strong bg-surface-sunken px-3 py-6 text-center transition hover:border-accent-400 hover:bg-accent-50/40">
                 {upload.isPending ? (
                   <Loader2 size={20} className="animate-spin text-accent-500" />
                 ) : (
@@ -282,7 +282,7 @@ export default function ExitHandoverPortal() {
                   {portal.documents.map((d, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-2.5 rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] px-3 py-2"
+                      className="flex items-center gap-2.5 rounded-md border border-line bg-surface-muted px-3 py-2"
                     >
                       <FileText size={14} className="shrink-0 text-accent-600" />
                       <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-gray-800">
@@ -331,7 +331,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#F6F7F9] px-5 text-center">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-5 text-center">
       {children}
     </div>
   );

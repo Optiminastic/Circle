@@ -117,7 +117,7 @@ export function InterviewBanksView() {
           >
             <ArrowLeft size={18} />
           </Link>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
             <Icon size={18} />
           </span>
           <h2 className="font-display text-base font-bold tracking-tight text-gray-900">
@@ -131,8 +131,8 @@ export function InterviewBanksView() {
 
       {/* Banks table */}
       {banks.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#CFC8BA] bg-[#FFFFFF] px-6 py-16 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-50 text-accent-500">
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line-warm bg-surface px-6 py-16 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-accent-50 text-accent-500">
             <Icon size={26} />
           </span>
           <p className="text-sm font-bold text-gray-700">No interview sets yet</p>
@@ -144,27 +144,27 @@ export function InterviewBanksView() {
           </Button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs">
+        <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="border-b border-[#E4E6EA] bg-[#EDEEF1] font-mono text-[10px] uppercase tracking-wider text-gray-500">
+                <tr className="border-b border-line bg-surface-hover font-mono text-[10px] uppercase tracking-wider text-gray-500">
                   <th scope="col" className="px-4 py-2.5 font-semibold">Role</th>
                   <th scope="col" className="px-4 py-2.5 text-center font-semibold">Questions</th>
                   <th scope="col" className="px-4 py-2.5 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#EDEEF1]">
+              <tbody className="divide-y divide-line-hover">
                 {banks.map(bank => (
                   <tr
                     key={bank.id}
                     onClick={() => router.push(`/question-library/${SLUG}/${bank.id}`)}
-                    className="cursor-pointer align-middle transition hover:bg-[#EDEEF1]"
+                    className="cursor-pointer align-middle transition hover:bg-surface-hover"
                     title={`Edit ${bank.roleName} interview questions`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
                           <Briefcase size={15} />
                         </span>
                         <div className="text-[13px] font-bold text-gray-900">{bank.roleName}</div>
@@ -183,7 +183,7 @@ export function InterviewBanksView() {
                           }}
                           title="Delete this interview set"
                           aria-label="Delete interview set"
-                          className="rounded-md p-1.5 text-gray-500 transition hover:bg-red-50 hover:text-red-600"
+                          className="rounded-sm p-1.5 text-gray-500 transition hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 size={15} />
                         </button>
@@ -192,7 +192,7 @@ export function InterviewBanksView() {
                           onClick={() => router.push(`/question-library/${SLUG}/${bank.id}`)}
                           title="Edit this interview set"
                           aria-label="Edit interview set"
-                          className="rounded-md p-1.5 text-gray-500 transition hover:bg-[#EDEEF1] hover:text-accent-600"
+                          className="rounded-sm p-1.5 text-gray-500 transition hover:bg-surface-hover hover:text-accent-600"
                         >
                           <ChevronRight size={16} />
                         </button>

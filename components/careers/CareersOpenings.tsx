@@ -39,7 +39,7 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
                 className={`rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition ${
                   active
                     ? 'border-accent-600 bg-accent-600 text-white'
-                    : 'border-[#E4E6EA] bg-white text-gray-600 hover:border-accent-300'
+                    : 'border-line bg-surface text-gray-600 hover:border-accent-300'
                 }`}
               >
                 {d === 'All' ? 'View all' : d}
@@ -50,7 +50,7 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
       )}
 
       {filtered.length === 0 ? (
-        <div className="mt-12 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#E4E6EA] bg-[#F8F9FB] py-20 text-center">
+        <div className="mt-12 flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface-muted py-20 text-center">
           <Building2 className="text-gray-300" size={32} />
           <p className="font-semibold text-gray-700">
             {jobs.length === 0 ? 'No open roles right now' : 'No roles in this team'}
@@ -62,7 +62,7 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
           </p>
         </div>
       ) : (
-        <ul className="mt-6 divide-y divide-[#EDEEF1] border-t border-[#EDEEF1]">
+        <ul className="mt-6 divide-y divide-line-hover border-t border-line-hover">
           {filtered.map(job => {
             // A short one-liner under the title (first line of the description).
             const blurb = (job.description || '').split('\n').map(s => s.trim()).find(Boolean) ?? '';
@@ -113,7 +113,7 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
 
 function Chip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E4E6EA] bg-white px-2.5 py-1 text-[11px] font-medium text-gray-600">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-medium text-gray-600">
       <span className="text-gray-400">{icon}</span>
       {children}
     </span>

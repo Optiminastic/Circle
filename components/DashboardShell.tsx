@@ -92,7 +92,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // Hold rendering until we know the auth state (avoids a flash of the dashboard).
   if (!ready || !user) {
     return (
-      <div className="h-screen bg-[#F1F3F5]">
+      <div className="h-screen bg-surface-sunken">
         <BrandLoading label="" />
       </div>
     );
@@ -101,7 +101,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       id="master-viewport"
-      className="flex h-screen overflow-hidden bg-[#F1F3F5] font-sans antialiased text-gray-950"
+      className="flex h-screen overflow-hidden bg-surface-sunken font-sans antialiased text-gray-950"
     >
       <Sidebar
         userRole={userRole}
@@ -121,17 +121,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#FFFFFF]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-surface">
         <Header
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
           onOpenMobileNav={() => setMobileNavOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 min-h-0 bg-[#F1F3F5] rounded-tl-2xl border-t border-l border-[#E4E6EA]">
+        <main className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 min-h-0 bg-surface-sunken rounded-tl-lg border-t border-l border-line">
           {error ? (
             <div className="max-w-md mx-auto mt-20 text-center">
-              <div className="bg-[#FFFFFF] border border-red-200 rounded-xl p-6">
+              <div className="bg-surface border border-red-200 rounded-md p-6">
                 <p className="text-sm font-semibold text-red-600">Service is down!</p>
                 <p className="text-xs text-gray-500 mt-2">
                   Couldn&apos;t reach the server. It will reconnect automatically — or
@@ -141,7 +141,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   type="button"
                   onClick={retry}
                   disabled={retrying}
-                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-card px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-secondary/50 disabled:opacity-60"
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-md border border-line bg-card px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-secondary/50 disabled:opacity-60"
                 >
                   {retrying ? 'Retrying…' : 'Try again'}
                 </button>

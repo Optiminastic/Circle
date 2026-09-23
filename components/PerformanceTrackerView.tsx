@@ -93,13 +93,13 @@ export function PerformanceTrackerView({ employees }: { employees: Employee[] })
         </div>
 
         {/* Period toggle */}
-        <div className="flex items-center bg-[#EDEEF1] rounded-md p-0.5 w-fit">
+        <div className="flex items-center bg-surface-hover rounded-sm p-0.5 w-fit">
           {PERIODS.map(p => (
             <button
               key={p.key}
               onClick={() => setPeriod(p.key)}
               className={`text-[11px] font-semibold font-mono uppercase tracking-wider px-3 py-1 rounded cursor-pointer transition ${
-                period === p.key ? 'bg-[#FFFFFF] text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                period === p.key ? 'bg-surface text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               {p.label}
@@ -110,17 +110,17 @@ export function PerformanceTrackerView({ employees }: { employees: Employee[] })
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4">
+        <div className="bg-surface border border-line rounded-md p-4">
           <p className="text-[10px] font-mono uppercase tracking-wider text-gray-500">Team completion ({period})</p>
           <p className="text-2xl font-bold text-gray-900 mt-1 font-display">{avg}%</p>
         </div>
-        <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4">
+        <div className="bg-surface border border-line rounded-md p-4">
           <p className="text-[10px] font-mono uppercase tracking-wider text-gray-500">Increment eligible</p>
           <p className="text-2xl font-bold text-green-600 mt-1 font-display flex items-center gap-1.5">
             <TrendingUp size={18} /> {eligible}
           </p>
         </div>
-        <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4">
+        <div className="bg-surface border border-line rounded-md p-4">
           <p className="text-[10px] font-mono uppercase tracking-wider text-gray-500">Employees tracked</p>
           <p className="text-2xl font-bold text-gray-900 mt-1 font-display">{rows.length}</p>
         </div>
@@ -154,7 +154,7 @@ export function PerformanceTrackerView({ employees }: { employees: Employee[] })
               </Td>
               <Td>
                 <div className="flex items-center gap-2">
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#EDEEF1]">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-hover">
                     <div className={`h-full rounded-full ${r.g.bar}`} style={{ width: `${r.completionPct}%` }} />
                   </div>
                   <span className="w-9 text-right font-mono text-[11px] text-gray-600">{r.completionPct}%</span>

@@ -110,7 +110,7 @@ export default function PublicTestPage() {
       <Shell>
         <Card>
           <div className="flex flex-col items-center gap-4 py-14 text-center px-6">
-            <span className="grid h-16 w-16 place-items-center rounded-2xl bg-red-50 text-red-500 ring-8 ring-red-50/40">
+            <span className="grid h-16 w-16 place-items-center rounded-lg bg-red-50 text-red-500 ring-8 ring-red-50/40">
               <XCircle size={30} />
             </span>
             <div>
@@ -396,7 +396,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
                   attempt cannot be accepted.
                 </p>
               </div>
-              <div className="w-full max-w-sm rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-3.5 text-sm text-gray-600">
+              <div className="w-full max-w-sm rounded-lg border border-line bg-surface-muted px-5 py-3.5 text-sm text-gray-600">
                 Our HR team has been notified — you&apos;ll receive an email about the outcome.
               </div>
             </div>
@@ -424,14 +424,14 @@ function TestFlow({ invite }: { invite: TestInvite }) {
               </p>
             </div>
             {isIq && (
-              <div className="w-full max-w-sm rounded-2xl border border-accent-100 bg-accent-50/50 px-5 py-4">
+              <div className="w-full max-w-sm rounded-lg border border-accent-100 bg-accent-50/50 px-5 py-4">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
                   Your IQ Score
                 </p>
                 <p className="mt-1 text-3xl font-bold text-gray-900">{result.score}</p>
               </div>
             )}
-            <div className="w-full max-w-sm rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] px-5 py-3.5 text-sm text-gray-600">
+            <div className="w-full max-w-sm rounded-lg border border-line bg-surface-muted px-5 py-3.5 text-sm text-gray-600">
               📧 Our HR team will review your submission and email you about the next steps.
             </div>
           </div>
@@ -459,7 +459,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
         <Card>
           <div className="space-y-6 px-6 py-8 sm:px-8">
             <div className="flex items-start gap-4">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent-50 to-accent-100 text-accent-600 ring-1 ring-accent-200/60">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent-50 to-accent-100 text-accent-600 ring-1 ring-accent-200/60">
                 {isIq ? <BrainCircuit size={24} /> : <ClipboardList size={24} />}
               </span>
               <div className="min-w-0">
@@ -486,7 +486,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
               ].map(({ icon: Icon, value, label }) => (
                 <div
                   key={label}
-                  className="rounded-2xl border border-[#E4E6EA] bg-white/70 py-4 transition hover:border-accent-300"
+                  className="rounded-lg border border-line bg-surface/70 py-4 transition hover:border-accent-300"
                 >
                   <Icon size={17} className="mx-auto text-accent-600" />
                   <p className="mt-1.5 text-xl font-bold tabular-nums text-gray-900">{value}</p>
@@ -495,7 +495,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
               ))}
             </div>
 
-            <div className="rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] p-5">
+            <div className="rounded-lg border border-line bg-surface-muted p-5">
               <p className="flex items-center gap-2 text-sm font-bold text-gray-900">
                 <ShieldAlert size={16} className="text-accent-600" /> Test rules — read carefully
               </p>
@@ -524,7 +524,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
 
             <button
               onClick={start}
-              className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-accent-600 to-accent-700 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-px"
+              className="group flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent-600 to-accent-700 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-px"
             >
               I understand — Start the test
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
@@ -541,10 +541,10 @@ function TestFlow({ invite }: { invite: TestInvite }) {
 
   const proctorBar = (
     <>
-      <div className="sticky top-0 z-50 border-b border-[#E4E6EA] bg-white">
+      <div className="sticky top-0 z-50 border-b border-line bg-surface">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-accent-500 to-accent-700 text-white">
+            <span className="grid size-7 place-items-center rounded-md bg-gradient-to-br from-accent-500 to-accent-700 text-white">
               <Logo size={15} />
             </span>
             <span className="truncate text-[13px] font-bold text-gray-900">
@@ -558,10 +558,10 @@ function TestFlow({ invite }: { invite: TestInvite }) {
               </span>
             )}
             <span
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-mono text-sm font-bold tabular-nums ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-sm font-bold tabular-nums ${
                 lowTime
                   ? 'animate-pulse bg-red-50 text-red-600 ring-1 ring-red-200'
-                  : 'bg-[#F1F3F5] text-gray-700'
+                  : 'bg-surface-sunken text-gray-700'
               }`}
             >
               <Timer size={13} />
@@ -610,7 +610,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden bg-gradient-to-b from-[#F6F7F9] to-[#E4E6EA]">
+    <div className="relative min-h-screen flex flex-col overflow-hidden bg-gradient-to-b from-background to-line">
       {/* Soft brand glows in the background */}
       <div
         aria-hidden
@@ -623,7 +623,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
       <header className="relative z-10 flex items-center justify-between px-5 py-4">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-sm">
+          <span className="grid h-9 w-9 place-items-center rounded-md bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-sm">
             <Logo size={20} />
           </span>
           <div>
@@ -640,7 +640,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       <footer className="relative z-10 flex items-center justify-center gap-2 py-5 text-[11px] text-gray-500">
-        <span className="grid h-5 w-5 place-items-center rounded-md bg-gradient-to-br from-accent-500 to-accent-700 text-white">
+        <span className="grid h-5 w-5 place-items-center rounded-sm bg-gradient-to-br from-accent-500 to-accent-700 text-white">
           <Logo size={12} />
         </span>
         <span className="font-semibold">{BRAND.name}</span>
@@ -652,7 +652,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 /** Elevated surface used by every non-running screen. */
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-sm">
+    <div className="relative overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-accent-400 via-accent-600 to-accent-800"

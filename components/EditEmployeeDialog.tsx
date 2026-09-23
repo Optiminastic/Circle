@@ -49,7 +49,7 @@ export function EditEmployeeDialog({ open, employee, onClose, onSave }: EditEmpl
   };
 
   const labelCls = 'text-[11px] font-medium text-gray-600';
-  const selectCls = 'mt-0 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm';
+  const selectCls = 'mt-0 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm';
 
   return (
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
@@ -144,7 +144,7 @@ export function EditEmployeeDialog({ open, employee, onClose, onSave }: EditEmpl
           </div>
 
           {/* Personal details */}
-          <div className="border-t border-[#ECEDF0] pt-3">
+          <div className="border-t border-line-soft pt-3">
             <p className="mb-2 font-mono text-[9px] font-bold uppercase tracking-wider text-gray-500">
               Personal records
             </p>

@@ -9,6 +9,7 @@ import {
   Trash2,
   Loader2,
   CheckCircle2,
+  Circle,
   Mail,
   Phone,
   MapPin,
@@ -51,11 +52,22 @@ const fmtDate = (iso?: string) => {
     : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const cardCls = 'rounded-2xl border border-[#E4E6EA] bg-[#FFFFFF] p-5 shadow-2xs';
+const cardCls = 'rounded-lg border border-line bg-surface p-5 shadow-2xs';
+
+/** Process order, not alphabetical - this is the sequence HR runs the exit in. */
+const EXIT_CATEGORY_ORDER: OffboardingWorkflow['checklist'][number]['category'][] = [
+  'Notice Period',
+  'Knowledge Transfer',
+  'Finance Clearance',
+  'Asset Return',
+  'Access Revocation',
+  'Settlement',
+];
+
 
 /** Exit case for one employee — left: employee details, middle: submitted
  *  documents, right: the dated exit journey. */
-export function OffboardingDetail({ workflow }: OffboardingDetailProps) {
+export function OffboardingDetail({ workflow, onToggleExitTask }: OffboardingDetailProps) {
   const { data: employees = [] } = useEmployees();
   const employee: Employee | undefined = employees.find(e => e.id === workflow.employeeId);
 
@@ -117,8 +129,61 @@ export function OffboardingDetail({ workflow }: OffboardingDetailProps) {
         <CredentialsCard employeeId={workflow.employeeId} />
       </aside>
 
-      {/* ── MIDDLE: documents submitted ─────────────────────────────────── */}
+      {/* ── MIDDLE: exit process + documents submitted ──────────────────── */}
       <div className="space-y-4">
+        {/* The 16-step exit process. The data and the toggle mutation already
+            existed; nothing rendered them, so HR had no way to work the list. */}
+        <div className={`${cardCls} space-y-4`}>
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="font-display text-base font-bold tracking-tight text-gray-900">
+              Exit process
+            </h3>
+            <span className="font-mono text-[11px] text-gray-500 tabular-nums">
+              {workflow.checklist.filter(t => t.isChecked).length}/{workflow.checklist.length} done
+            </span>
+          </div>
+
+          {EXIT_CATEGORY_ORDER.map(category => {
+            const items = workflow.checklist.filter(t => t.category === category);
+            if (items.length === 0) return null;
+            return (
+              <div key={category} className="space-y-1">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  {category}
+                </p>
+                {items.map(task => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    onClick={() => onToggleExitTask(workflow.employeeId, task.id)}
+                    className="flex w-full cursor-pointer items-start gap-2.5 rounded-md px-2 py-1.5 text-left transition hover:bg-surface-muted"
+                  >
+                    {task.isChecked ? (
+                      <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-accent-600" />
+                    ) : (
+                      <Circle size={15} className="mt-0.5 shrink-0 text-gray-300" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`block text-[12.5px] font-semibold ${
+                          task.isChecked ? 'text-gray-400 line-through' : 'text-gray-800'
+                        }`}
+                      >
+                        {task.title}
+                      </span>
+                      {task.detail && (
+                        <span className="mt-0.5 block text-[11.5px] leading-snug text-gray-500">
+                          {task.detail}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+
         <DocumentsPanel
           entityType="offboarding"
           entityId={workflow.employeeId}
@@ -131,7 +196,7 @@ export function OffboardingDetail({ workflow }: OffboardingDetailProps) {
       <aside className="space-y-4">
         <div className={`${cardCls} space-y-3`}>
           <h4 className="font-bold text-gray-900">Exit journey</h4>
-          <ol className="relative space-y-4 border-l border-[#E4E6EA] pl-4">
+          <ol className="relative space-y-4 border-l border-line pl-4">
             <Milestone
               icon={<CalendarDays size={12} />}
               label="Joined"
@@ -149,7 +214,7 @@ export function OffboardingDetail({ workflow }: OffboardingDetailProps) {
               tone="red"
             />
           </ol>
-          <div className="rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] p-3">
+          <div className="rounded-md border border-line bg-surface-muted p-3">
             <p className="flex items-center gap-1 font-mono text-[9px] font-bold uppercase text-gray-500">
               <Clock4 size={12} /> Notice remaining
             </p>
@@ -226,7 +291,7 @@ function SendMailButton(props: {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700"
+        className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700"
       >
         <Send size={13} /> Send mail for final documents
       </button>
@@ -314,21 +379,21 @@ function CredentialsCard({ employeeId }: { employeeId: string }) {
             <button
               onClick={doReveal}
               disabled={revealing}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[#E4E6EA] px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-[#F1F3F5] disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:bg-surface-sunken disabled:opacity-50"
             >
               {revealing ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
               Reveal
             </button>
             <button
               onClick={doPurge}
-              className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
+              className="inline-flex items-center gap-1.5 rounded-sm border border-red-200 px-2.5 py-1.5 text-[11px] font-semibold text-red-600 transition hover:bg-red-50"
             >
               <Trash2 size={12} /> Delete
             </button>
           </div>
 
           {reveal && (
-            <div className="space-y-1.5 rounded-lg border border-[#E4E6EA] bg-[#F7F8FA] p-3 text-[12px]">
+            <div className="space-y-1.5 rounded-md border border-line bg-surface-muted p-3 text-[12px]">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-gray-700">Email</span>
                 <span className="min-w-0 truncate font-mono text-gray-900">{reveal.workEmail || '—'}</span>
@@ -353,7 +418,7 @@ function CredentialsCard({ employeeId }: { employeeId: string }) {
               {reveal.extras?.map((ex, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between gap-2 border-t border-[#EDEEF1] pt-1.5"
+                  className="flex items-center justify-between gap-2 border-t border-line-hover pt-1.5"
                 >
                   <span className="min-w-0 truncate font-semibold text-gray-700">{ex.key}</span>
                   <span className="min-w-0 truncate font-mono text-gray-900">{ex.value || '—'}</span>

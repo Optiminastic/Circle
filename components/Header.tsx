@@ -14,6 +14,7 @@ import {
   CalendarRange,
   Library,
   Mail,
+  UserRound,
   LogOut,
   ShieldCheck,
   Menu,
@@ -24,6 +25,7 @@ import { DropdownMenu, Popover } from 'radix-ui';
 import { SentEmailLog } from '../types';
 import { useUiStore } from '@/store/ui-store';
 import { useAuth, displayName, initials } from '@/store/auth-store';
+import { MyProfileModal } from './MyProfileModal';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { cn } from '@/lib/utils';
@@ -58,6 +60,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
   const { setCommandOpen } = useUiStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const onLogout = () => {
     logout();
@@ -89,14 +92,14 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
   return (
     <header
       id="app-header"
-      className="bg-[#FFFFFF] h-14 px-4 md:px-6 flex items-center justify-between gap-2 sticky top-0 z-50 select-none"
+      className="bg-surface h-12 pl-2 pr-4 md:pl-3 md:pr-6 flex items-center justify-between gap-2 sticky top-0 z-50 select-none"
     >
       <div className="flex items-center gap-2 min-w-0">
         {/* Mobile: open the nav drawer (the in-flow sidebar is hidden < md) */}
         <button
           onClick={onOpenMobileNav}
           aria-label="Open navigation"
-          className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-[#EDEEF1] hover:text-gray-700 cursor-pointer transition md:hidden"
+          className="shrink-0 rounded-md p-2 text-gray-500 hover:bg-surface-hover hover:text-gray-700 cursor-pointer transition md:hidden"
         >
           <Menu size={18} />
         </button>
@@ -106,7 +109,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
           id="btn-sidebar-collapse"
           onClick={onToggleSidebar}
           aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="hidden shrink-0 rounded-lg p-2 text-gray-500 hover:bg-[#EDEEF1] hover:text-gray-700 cursor-pointer transition md:block"
+          className="hidden shrink-0 rounded-md p-2 text-gray-500 hover:bg-surface-hover hover:text-gray-700 cursor-pointer transition md:block"
         >
           {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
@@ -116,11 +119,11 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
           id="global-search-trigger"
           type="button"
           onClick={() => setCommandOpen(true)}
-          className="group hidden w-44 items-center gap-2 rounded-xl border border-[#E4E6EA] bg-[#EDEEF1] py-2 pl-3 pr-2 text-left text-xs text-gray-500 transition hover:bg-[#FFFFFF] hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 sm:flex sm:w-64 lg:w-80"
+          className="group hidden w-44 items-center gap-2 rounded-md border border-line bg-surface-hover py-1.5 pl-2.5 pr-2 text-left text-xs text-gray-500 transition hover:bg-surface hover:border-accent-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 sm:flex sm:w-64 lg:w-80"
         >
           <Search size={14} className="shrink-0 text-gray-500" />
           <span className="flex-1 truncate">Search candidates, roles, employees…</span>
-          <kbd className="hidden shrink-0 rounded border border-[#D7DAE0] bg-[#FFFFFF] px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-500 lg:block">
+          <kbd className="hidden shrink-0 rounded border border-line-strong bg-surface px-1.5 py-0.5 font-mono text-[10px] font-medium text-gray-500 lg:block">
             {isMac ? '⌘' : 'Ctrl'} K
           </kbd>
         </button>
@@ -128,7 +131,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
           type="button"
           onClick={() => setCommandOpen(true)}
           aria-label="Search"
-          className="shrink-0 rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-[#EDEEF1] hover:text-gray-700 sm:hidden"
+          className="shrink-0 rounded-md border border-line p-2 text-gray-500 transition hover:bg-surface-hover hover:text-gray-700 sm:hidden"
         >
           <Search size={16} />
         </button>
@@ -142,7 +145,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
           aria-label="Question Bank"
           title="Question Bank"
           className={cn(
-            'rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+            'rounded-md border border-line p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
             ui.focusRing,
           )}
         >
@@ -155,7 +158,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
           aria-label="Recruitment Calendar"
           title="Recruitment Calendar"
           className={cn(
-            'rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+            'rounded-md border border-line p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
             ui.focusRing,
           )}
         >
@@ -167,7 +170,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
           <Popover.Trigger
             id="btn-notifications"
             className={cn(
-              'relative rounded-lg border border-[#E4E6EA] p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
+              'relative rounded-md border border-line p-2 text-gray-500 transition hover:bg-accent hover:text-gray-700',
               ui.focusRing,
             )}
             aria-label="Notifications"
@@ -222,11 +225,11 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
         <ThemeSwitcher />
 
         {/* Active Profile */}
-        <div className="border-l border-[#E4E6EA] pl-4">
+        <div className="border-l border-line pl-4">
           <DropdownMenu.Root>
             <DropdownMenu.Trigger
               id="btn-profile-menu"
-              className={cn('group flex items-center gap-2 rounded-md', ui.focusRing)}
+              className={cn('group flex items-center gap-2 rounded-sm', ui.focusRing)}
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-accent-500 to-accent-700 text-xs font-bold text-white font-display">
                 {initials(user?.email)}
@@ -236,7 +239,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
                   {user?.name || displayName(user?.email)}
                 </p>
                 <p className="font-mono text-[10px] text-gray-500">
-                  {isAdmin ? 'Administrator' : 'HR Specialist'}
+                  {user?.title || (isAdmin ? 'Administrator' : 'HR Specialist')}
                 </p>
               </div>
             </DropdownMenu.Trigger>
@@ -260,11 +263,18 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
                     <Mail size={10} /> {user?.email}
                   </p>
                 </DropdownMenu.Label>
+                <DropdownMenu.Item
+                  id="btn-my-profile"
+                  onSelect={() => setShowProfile(true)}
+                  className={cn(ui.item, 'mt-1 font-medium text-gray-600 focus:text-accent-600')}
+                >
+                  <UserRound size={13} /> My profile
+                </DropdownMenu.Item>
                 {isAdmin && (
                   <DropdownMenu.Item
                     id="btn-manage-access"
                     onSelect={() => setShowAccess(true)}
-                    className={cn(ui.item, 'mt-1 font-medium text-gray-600 focus:text-accent-600')}
+                    className={cn(ui.item, 'font-medium text-gray-600 focus:text-accent-600')}
                   >
                     <ShieldCheck size={13} /> Manage access
                   </DropdownMenu.Item>
@@ -283,6 +293,8 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         </div>
+
+        <MyProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
 
         {showAccess && <AccessControlModal onClose={() => setShowAccess(false)} />}
       </div>

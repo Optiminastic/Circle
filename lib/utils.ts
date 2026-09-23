@@ -16,6 +16,11 @@ export const nowISO = (): string => new Date().toISOString();
 export const capitalizeFirst = (s: string): string =>
   s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
+/** Short display id for records whose id is not a cross-system key (assets,
+ *  credentials). NOT safe for employee codes: it draws at random with no
+ *  uniqueness check, and an employee code is the primary key of the `employees`
+ *  table, so a collision overwrites a real person. Employee codes come from
+ *  `allocateEmployeeCode()` (a Postgres sequence) instead. */
 export const randomId = (prefix: string, span = 900, base = 100): string =>
   `${prefix}-${Math.floor(base + Math.random() * span)}`;
 

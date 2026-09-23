@@ -64,7 +64,7 @@ export function AvatarUploader({
   initials,
   onChange,
   size = 96,
-  ringClassName = 'ring-4 ring-[#FFFFFF]',
+  ringClassName = 'ring-4 ring-surface',
 }: AvatarUploaderProps) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -141,7 +141,7 @@ export function AvatarUploader({
           onClick={() => fileRef.current?.click()}
           aria-label="Change photo"
           title="Change photo"
-          className="absolute bottom-0 right-0 grid size-7 place-items-center rounded-full border-2 border-[#FFFFFF] bg-accent-600 text-white shadow-sm transition hover:bg-accent-700"
+          className="absolute bottom-0 right-0 grid size-7 place-items-center rounded-full border-2 border-surface bg-accent-600 text-white shadow-sm transition hover:bg-accent-700"
         >
           <Camera size={13} />
         </button>
@@ -163,7 +163,7 @@ export function AvatarUploader({
             <DialogDescription>Drag to reposition and zoom to frame the photo.</DialogDescription>
           </DialogHeader>
 
-          <div className="relative h-64 w-full overflow-hidden rounded-xl bg-[#111827]">
+          <div className="relative h-64 w-full overflow-hidden rounded-md bg-[#111827]">
             {src && (
               <Cropper
                 image={src}
@@ -216,7 +216,7 @@ export function AvatarUploader({
             <DialogTitle>Profile photo</DialogTitle>
           </DialogHeader>
           {avatarUrl && (
-            <div className="overflow-hidden rounded-xl border border-[#E4E6EA] bg-[#F1F3F5]">
+            <div className="overflow-hidden rounded-md border border-line bg-surface-sunken">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={avatarUrl} alt="Profile" className="mx-auto max-h-[70vh] w-full object-contain" />
             </div>

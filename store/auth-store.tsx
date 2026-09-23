@@ -16,6 +16,9 @@ export interface SessionUser {
   email: string;
   role: 'admin' | 'hr';
   name: string;
+  /** Self-maintained profile fields (PATCH /api/auth/me). */
+  title?: string;
+  phone?: string;
 }
 
 interface AuthState {
@@ -27,6 +30,12 @@ interface AuthState {
   listUsers: () => Promise<AuthUser[]>;
   changePassword: (targetEmail: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>;
   changeEmail: (currentEmail: string, newEmail: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Update the signed-in user's own display profile (name / title / phone). */
+  updateProfile: (changes: {
+    name: string;
+    title?: string;
+    phone?: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -105,8 +114,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Self-service profile edit. The server re-issues the session cookie with the
+  // new name, so the header updates without a re-login.
+  const updateProfile = async (changes: { name: string; title?: string; phone?: string }) => {
+    try {
+      const updated = await http.patch<SessionUser>('/auth/me', changes);
+      setUser(updated);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errorText(err, 'Could not save your profile. Please try again.') };
+    }
+  };
+
   const value = useMemo<AuthState>(
-    () => ({ user, ready, isAdmin: user?.role === 'admin', login, logout, listUsers, changePassword, changeEmail }),
+    () => ({
+      user,
+      ready,
+      isAdmin: user?.role === 'admin',
+      login,
+      logout,
+      listUsers,
+      changePassword,
+      changeEmail,
+      updateProfile,
+    }),
     [user, ready],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

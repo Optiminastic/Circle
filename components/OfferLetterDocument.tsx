@@ -69,7 +69,7 @@ export function OfferLetterDocument({ data }: { data: OfferLetterData }) {
   return (
     <div
       id="offer-letter-print"
-      className="mx-auto max-w-[820px] bg-white text-[13px] leading-relaxed text-gray-900"
+      className="mx-auto max-w-[820px] bg-surface text-[13px] leading-relaxed text-gray-900"
     >
       {/* Running header for the paged.js preview — placed into every page's top
           margin box via CSS `position: running()`. Hidden on screen + in the print

@@ -19,14 +19,14 @@ import { useInterviewBanks, useInterviewBankMutations } from '@/features/questio
 const SLUG = 'interview-questions';
 
 const inputCls =
-  'w-full rounded-lg border border-[#E4E6EA] bg-[#EDEEF1] px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'w-full rounded-md border border-line bg-surface-hover px-3 py-2 text-sm text-gray-900 transition focus:border-accent-400 focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 /** Static preview of the 1–5 star scale plus the NA option each answer uses. */
 function RatingScale() {
   return (
     <div className="flex items-center gap-1.5 text-gray-300">
       {[1, 2, 3, 4, 5].map(n => (
-        <Star key={n} size={14} className="fill-[#EDEEF1] text-[#C7CBD1]" />
+        <Star key={n} size={14} className="fill-surface-hover text-line-stronger" />
       ))}
       <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-500">
         <Ban size={10} /> NA
@@ -178,7 +178,7 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {back}
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
             <CalendarDays size={18} />
           </span>
           <h2 className="font-display text-base font-bold tracking-tight text-gray-900">{bank.roleName}</h2>
@@ -216,18 +216,18 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
           return (
             <div
               key={module}
-              className="overflow-hidden rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] shadow-2xs"
+              className="overflow-hidden rounded-md border border-line bg-surface shadow-2xs"
             >
               {/* Header / toggle */}
               <button
                 type="button"
                 onClick={() => setOpenModules(o => ({ ...o, [module]: !open }))}
                 aria-expanded={open}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#EDEEF1]"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-hover"
               >
                 <p className="text-[13px] font-bold text-gray-900">{module}</p>
                 <div className="flex items-center gap-2.5">
-                  <span className="rounded-full bg-[#EDEEF1] px-2.5 py-0.5 font-mono text-[10px] font-semibold text-gray-600">
+                  <span className="rounded-full bg-surface-hover px-2.5 py-0.5 font-mono text-[10px] font-semibold text-gray-600">
                     {items.length}
                   </span>
                   <ChevronDown
@@ -239,7 +239,7 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
 
               {/* Body */}
               {open && (
-                <div className="space-y-2.5 border-t border-[#EDEEF1] px-4 py-3">
+                <div className="space-y-2.5 border-t border-line-hover px-4 py-3">
                   {items.length === 0 ? (
                     <p className="py-2 text-center text-[11px] text-gray-500">
                       No questions yet — add the first one below.
@@ -248,7 +248,7 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
                     items.map((it, i) => (
                       <div
                         key={it.id}
-                        className="space-y-2 rounded-lg border border-[#E4E6EA] bg-[#F1F3F5] p-3"
+                        className="space-y-2 rounded-md border border-line bg-surface-sunken p-3"
                       >
                         <div className="flex items-start gap-2">
                           <span className="mt-2 w-5 shrink-0 text-right font-mono text-[11px] font-bold text-accent-700">
@@ -265,7 +265,7 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
                             onClick={() => removeItem(module, it.id)}
                             title="Delete this question"
                             aria-label="Delete question"
-                            className="mt-1 shrink-0 rounded-md p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                            className="mt-1 shrink-0 rounded-sm p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -280,7 +280,7 @@ export function InterviewQuestionEditor({ bankId }: { bankId: string }) {
                   <div className="flex justify-center pt-1">
                     <button
                       onClick={() => addItem(module)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-[#E4E6EA] bg-[#FFFFFF] px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition hover:bg-[#EDEEF1]"
+                      className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-hover"
                     >
                       <Plus size={14} /> Add question
                     </button>

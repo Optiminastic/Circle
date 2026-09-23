@@ -23,7 +23,7 @@ interface Props {
   onSave: (changes: { triggerReason: OffboardingWorkflow['triggerReason']; lastWorkingDay: string }) => void;
 }
 
-const selectCls = 'mt-0 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm';
+const selectCls = 'mt-0 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm';
 const labelCls = 'text-[11px] font-medium text-gray-600';
 
 /** Edit the two case-level fields shown on the Exit Cases list — reason and

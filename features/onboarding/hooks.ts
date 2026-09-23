@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { BUDDY_RESOURCE_LINKS } from '@/lib/onboarding-email-templates';
 import { AppointmentLetterData, Candidate, OfferLetterData, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
@@ -12,6 +13,8 @@ import { sendTestEmail, sendCustomEmail, type TestEmailTemplate } from '@/lib/ap
 import { markCandidateArrived } from '@/lib/api/handoff';
 import { documentPreviewUrl, promoteCandidateDocuments } from '@/lib/api/documents';
 import { nowISO, randomId } from '@/lib/utils';
+import { allocateEmployeeCode } from '@/lib/api/employee-codes';
+import { useAuth } from '@/store/auth-store';
 
 export function useOnboarding() {
   return useQuery({ queryKey: qk.onboarding.all, queryFn: () => repositories.onboarding.list() });
@@ -314,7 +317,12 @@ export function useOnboardingEmails() {
       employeeId: string;
       employeeName: string;
     }) => {
-      const res = await sendCustomEmail({ to: input.to, subject: input.subject, body: input.body }).catch(
+      const res = await sendCustomEmail({
+        to: input.to,
+        subject: input.subject,
+        body: input.body,
+        links: BUDDY_RESOURCE_LINKS,
+      }).catch(
         () => ({ sent: false, reason: undefined }) as { sent: boolean; reason?: string },
       );
       await repositories.onboarding.patch(input.candidateId, {
@@ -389,6 +397,7 @@ export function useOnboardingEmails() {
 /** Promote a finished onboarding into a full employee (touches 3 resources). */
 export function usePromoteFromOnboarding() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   return useMutation({
     mutationFn: async (checklist: OnboardingChecklist) => {
       // Defense-in-depth: the UI already hides the "Convert to employee"
@@ -399,6 +408,20 @@ export function usePromoteFromOnboarding() {
       const candidates = qc.getQueryData<Candidate[]>(qk.candidates.all) ?? [];
       const candidate = candidates.find(c => c.id === checklist.candidateId);
       if (!candidate) return;
+
+      // Step 6 ("Allocation of mail, system & desk") captures the company mailbox
+      // HR created in Google Admin. That address is the employee's work email and
+      // the key every other system will match them on, so refuse to create a
+      // half-formed record without it. Previously this value was saved onto the
+      // checklist and then dropped: the employee was created with the candidate's
+      // PERSONAL address instead, which downstream code (offboarding handover,
+      // granted credentials) treats as the work address.
+      const companyEmail = checklist.allocationEmail?.trim();
+      if (!companyEmail) {
+        throw new Error(
+          'Add the company email under "Allocation of mail, system & desk" before converting.',
+        );
+      }
 
       // Default the new employee's profile photo to the passport photo they
       // uploaded as a joining document, if one was submitted AND it's actually
@@ -413,9 +436,17 @@ export function usePromoteFromOnboarding() {
         s => s.docType === 'Passport photo' && /\.(jpe?g|png|gif|webp)$/i.test(s.fileName || ''),
       );
 
+      // Allocated server-side from a sequence so two HR users converting at the
+      // same moment cannot mint the same code and overwrite each other's employee.
+      const { employeeCode } = await allocateEmployeeCode();
+
       // Snapshot the onboarding email milestones onto the employee.
       const employee = {
-        ...buildEmployeeFromCandidate(candidate),
+        ...buildEmployeeFromCandidate(candidate, {
+          companyEmail,
+          employeeCode,
+          grantedBy: user?.name || user?.email || 'HR',
+        }),
         ...(passportPhoto ? { avatarUrl: documentPreviewUrl(passportPhoto.documentId) } : {}),
         joining: {
           offerLetterSentAt: checklist.offerLetterSentAt,

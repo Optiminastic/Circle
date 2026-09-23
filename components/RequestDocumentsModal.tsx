@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { HrCcNotice } from '@/components/HrCcNotice';
 import { useQueryClient } from '@tanstack/react-query';
 import { X, Loader2, Link2, Mail, FileText } from 'lucide-react';
 import type { DocRequest } from '@/types';
@@ -174,8 +175,8 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
     const on = docs.includes(type);
     return (
       <label
-        className={`flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 transition ${
-          on ? 'border-accent-300 bg-accent-50' : 'border-[#E4E6EA] bg-white hover:bg-[#F7F8FA]'
+        className={`flex cursor-pointer items-center gap-2 rounded-sm border px-2.5 py-2 transition ${
+          on ? 'border-accent-300 bg-accent-50' : 'border-line bg-surface hover:bg-surface-muted'
         }`}
       >
         <Checkbox checked={on} onCheckedChange={() => toggleDoc(type)} />
@@ -189,7 +190,7 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -223,6 +224,7 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
                     onChange={e => setTo(e.target.value)}
                     placeholder="candidate@email.com"
                   />
+                  <HrCcNotice />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="doc-subject">Subject</Label>
@@ -267,18 +269,18 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
         )}
 
         {!preparing && (
-          <div className="mt-4 flex items-center justify-end gap-2 border-t border-[#ECEDF0] pt-3">
+          <div className="mt-4 flex items-center justify-end gap-2 border-t border-line-soft pt-3">
             <button
               onClick={onClose}
               disabled={sending}
-              className="rounded-lg border border-[#E4E6EA] bg-white px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-[#F1F3F5] disabled:opacity-60"
+              className="rounded-md border border-line bg-surface px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               onClick={send}
               disabled={sending || docs.length === 0}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
             >
               {sending && <Loader2 size={14} className="animate-spin" />}
               {sending ? 'Sending…' : 'Send upload link'}

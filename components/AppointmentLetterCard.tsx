@@ -32,7 +32,7 @@ interface AppointmentLetterCardProps {
 }
 
 const inputCls =
-  'w-full rounded-md border border-[#E4E6EA] bg-white px-2.5 py-1.5 text-[12px] text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+  'w-full rounded-sm border border-line bg-surface px-2.5 py-1.5 text-[12px] text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 export function AppointmentLetterCard({
   candidateId,
@@ -173,10 +173,10 @@ export function AppointmentLetterCard({
   };
 
   const iconBtnCls =
-    'inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-[#E4E6EA] bg-white text-gray-600 transition hover:bg-[#F1F3F5]';
+    'inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-gray-600 transition hover:bg-surface-sunken';
 
   return (
-    <div className="rounded-2xl border border-[#E4E6EA] bg-white px-3 py-2 shadow-2xs">
+    <div className="rounded-lg border border-line bg-surface px-3 py-2 shadow-2xs">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <FileText size={13} className="shrink-0 text-accent-600" />
@@ -205,7 +205,7 @@ export function AppointmentLetterCard({
           ) : (
             <button
               onClick={() => setPickerOpen(true)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-accent-700"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-accent-700"
             >
               <Plus size={13} /> Create letter
             </button>
@@ -229,7 +229,7 @@ export function AppointmentLetterCard({
       {mode === 'form' && draft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={close}>
           <div
-            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -303,17 +303,17 @@ export function AppointmentLetterCard({
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-2">
-              <button onClick={close} className="rounded-lg border border-[#E4E6EA] bg-white px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-[#F1F3F5]">
+              <button onClick={close} className="rounded-md border border-line bg-surface px-4 py-2 text-[13px] font-semibold text-gray-600 hover:bg-surface-sunken">
                 Cancel
               </button>
-              <button onClick={() => setMode('preview')} className="rounded-lg border border-[#E4E6EA] bg-white px-4 py-2 text-[13px] font-semibold text-gray-700 hover:bg-[#F1F3F5]">
+              <button onClick={() => setMode('preview')} className="rounded-md border border-line bg-surface px-4 py-2 text-[13px] font-semibold text-gray-700 hover:bg-surface-sunken">
                 Preview
               </button>
               <button
                 onClick={save}
                 disabled={saveAppointmentLetter.isPending || missingField(draft)}
                 title={missingField(draft) ? 'Fill in every field before saving' : undefined}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 {saveAppointmentLetter.isPending && <Loader2 size={14} className="animate-spin" />}
                 Save appointment letter
@@ -326,14 +326,14 @@ export function AppointmentLetterCard({
       {/* Preview modal — self-paginated A4 pages */}
       {mode === 'preview' && draft && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={close}>
-          <div className="my-4 w-full max-w-[860px] rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-[#E4E6EA] px-4 py-2.5">
+          <div className="my-4 w-full max-w-[860px] rounded-lg bg-surface shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
               <h3 className="text-sm font-bold text-gray-900">Appointment letter preview</h3>
               <div className="flex items-center gap-2">
-                <button onClick={() => setMode('form')} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] px-3 py-1.5 text-[11px] font-semibold text-gray-700 hover:bg-[#F1F3F5]">
+                <button onClick={() => setMode('form')} className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[11px] font-semibold text-gray-700 hover:bg-surface-sunken">
                   <Pencil size={12} /> Edit
                 </button>
-                <button onClick={printLetter} className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-accent-700">
+                <button onClick={printLetter} className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-accent-700">
                   <Printer size={12} /> Print / Save PDF
                 </button>
                 <button onClick={close} aria-label="Close" className="rounded p-1 text-gray-400 hover:bg-gray-100">
@@ -341,7 +341,7 @@ export function AppointmentLetterCard({
                 </button>
               </div>
             </div>
-            <div className="max-h-[80vh] overflow-auto bg-[#F1F3F5] p-4">
+            <div className="max-h-[80vh] overflow-auto bg-surface-sunken p-4">
               <div className="[&_.ol-page]:mx-auto [&_.ol-page]:mb-4 [&_.ol-page]:shadow-md">
                 <AppointmentLetterPaged data={draft} rootRef={pagesRootRef} />
               </div>

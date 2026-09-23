@@ -1,5 +1,6 @@
 'use client';
 import { Select } from './Select';
+import { OnboardingStatusHover } from '@/components/StatusHoverCard';
 import { SendInterviewKitTab } from './SendInterviewKitTab';
 import { DocumentsPanel } from './DocumentsPanel';
 import { DocRequestPanel } from './DocRequestPanel';
@@ -374,7 +375,7 @@ export function InterviewsView({
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-lg font-medium text-xs flex items-center gap-1 cursor-pointer transition shrink-0 self-start sm:self-auto"
+          className="bg-accent-600 hover:bg-accent-700 text-white px-3 py-1.5 rounded-md font-medium text-xs flex items-center gap-1 cursor-pointer transition shrink-0 self-start sm:self-auto"
         >
           <Plus size={14} /> Schedule Interview
         </button>
@@ -392,7 +393,7 @@ export function InterviewsView({
               <Select
                 value={form.candidateId}
                 onChange={e => setForm({ ...form, candidateId: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               >
                 {candidates.map(c => (
                   <option key={c.id} value={c.id}>
@@ -408,7 +409,7 @@ export function InterviewsView({
                 type="text"
                 value={form.round}
                 onChange={e => setForm({ ...form, round: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
                 required
               />
             </div>
@@ -419,7 +420,7 @@ export function InterviewsView({
                 type="text"
                 value={form.interviewer}
                 onChange={e => setForm({ ...form, interviewer: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
                 required
               />
             </div>
@@ -438,7 +439,7 @@ export function InterviewsView({
               <Select
                 value={form.mode}
                 onChange={e => setForm({ ...form, mode: e.target.value as any })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               >
                 <option value="Google Meet">Google Meet</option>
                 <option value="Zoom">Zoom Video</option>
@@ -632,16 +633,16 @@ export function IQTestAssignmentsView({
             Role-based question building, IQ metrics automatic scoring, and trial repo reviews.
           </p>
         </div>
-        <div className="border border-[#E4E6EA] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs shrink-0 self-start sm:self-auto">
+        <div className="border border-line rounded-md bg-surface overflow-hidden flex font-semibold text-xs shrink-0 self-start sm:self-auto">
           <button
             onClick={() => setActiveTab('iq')}
-            className={`px-3 py-1.5 transition ${activeTab === 'iq' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EDEEF1]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'iq' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-surface-hover'}`}
           >
             IQ Test Logs
           </button>
           <button
             onClick={() => setActiveTab('assignments')}
-            className={`px-3 py-1.5 transition ${activeTab === 'assignments' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EDEEF1]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'assignments' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-surface-hover'}`}
           >
             Submissions Queue
           </button>
@@ -653,8 +654,8 @@ export function IQTestAssignmentsView({
           {/* Shortlisted candidates flow into the IQ round here, even before a
               result exists, so the next step is always visible to HR. */}
           {awaitingIq.length > 0 && (
-            <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl overflow-hidden">
-              <div className="flex items-center gap-1.5 bg-[#F7F8FA] border-b border-[#E4E6EA] px-3 py-2 text-gray-700 font-semibold">
+            <div className="bg-surface border border-line rounded-md overflow-hidden">
+              <div className="flex items-center gap-1.5 bg-surface-muted border-b border-line px-3 py-2 text-gray-700 font-semibold">
                 <UserCheck size={13} className="text-accent-600" />
                 <span>Awaiting IQ Test</span>
                 <span className="text-[10px] font-mono text-gray-500">({awaitingIq.length})</span>
@@ -692,7 +693,7 @@ export function IQTestAssignmentsView({
                           <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                             <button
                               onClick={() => openSchedule(c.id, c.fullName, 'IQ Test')}
-                              className="text-[10px] bg-accent-600 hover:bg-accent-700 text-white px-3 py-1 rounded-md font-semibold cursor-pointer transition"
+                              className="text-[10px] bg-accent-600 hover:bg-accent-700 text-white px-3 py-1 rounded-sm font-semibold cursor-pointer transition"
                             >
                               {sched ? 'Reschedule' : 'Schedule IQ Test'}
                             </button>
@@ -810,8 +811,8 @@ export function IQTestAssignmentsView({
       ) : (
         <div className="space-y-4">
           {assignments.map(asm => (
-            <div key={asm.id} className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 space-y-3">
-              <div className="flex justify-between items-start border-b border-[#EDEEF1] pb-2">
+            <div key={asm.id} className="bg-surface border border-line rounded-md p-4 space-y-3">
+              <div className="flex justify-between items-start border-b border-line-hover pb-2">
                 <div>
                   <h4 className="font-bold text-gray-900">{asm.assignmentTitle}</h4>
                   <p className="text-[10px] text-gray-500 font-mono mt-0.5">
@@ -825,7 +826,7 @@ export function IQTestAssignmentsView({
                 </span>
               </div>
 
-              <p className="text-gray-600 bg-[#EDEEF1] p-3 rounded-lg">{asm.instructions}</p>
+              <p className="text-gray-600 bg-surface-hover p-3 rounded-md">{asm.instructions}</p>
 
               <div>
                 <h5 className="font-bold text-[10px] uppercase font-mono text-gray-500 mb-2">
@@ -835,7 +836,7 @@ export function IQTestAssignmentsView({
                   {asm.submissions.map(sub => (
                     <div
                       key={sub.id}
-                      className="border border-[#ECEDF0] rounded-lg p-3 flex justify-between items-center text-xs bg-[#F7F8FA]"
+                      className="border border-line-soft rounded-md p-3 flex justify-between items-center text-xs bg-surface-muted"
                     >
                       <div>
                         <span className="font-semibold text-gray-900">{sub.candidateName}</span>
@@ -998,7 +999,7 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
         </div>
         <button
           onClick={() => setAddCandidateOpen(true)}
-          className="bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition font-medium shrink-0 shadow-2xs"
+          className="bg-accent-600 hover:bg-accent-700 text-white h-9 px-3.5 rounded-md inline-flex items-center justify-center gap-1.5 cursor-pointer transition text-xs font-semibold shrink-0 shadow-2xs"
         >
           <Plus size={15} /> Add to onboarding
         </button>
@@ -1006,7 +1007,7 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
 
       {/* Joiners table — click a row to open their full onboarding page */}
       {onboarding.length === 0 ? (
-        <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-6 text-center text-gray-500">
+        <div className="bg-surface border border-line rounded-md p-6 text-center text-gray-500">
           No candidates in the onboarding pipeline presently.
         </div>
       ) : (
@@ -1025,13 +1026,17 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
               const { percentage, status } = onboardingProgress(o, bgv, docRequests);
               return (
                 <Tr key={o.candidateId} onClick={() => router.push(`/onboarding/${o.candidateId}`)}>
-                  <Td className="font-semibold text-gray-900">{o.candidateName}</Td>
+                  <Td className="font-semibold text-gray-900">
+                    <OnboardingStatusHover record={o} status={status} percentage={percentage}>
+                      <span>{o.candidateName}</span>
+                    </OnboardingStatusHover>
+                  </Td>
                   <Td>
                     <TagPill color={percentage === 100 ? 'green' : 'blue'}>{status}</TagPill>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EDEEF1]">
+                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-hover">
                         <div className="h-full rounded-full bg-accent-600" style={{ width: `${percentage}%` }} />
                       </div>
                       <span className="font-mono text-[11px] text-gray-600">{percentage}%</span>
@@ -1248,14 +1253,14 @@ export function EmployeeDirectoryView({
               placeholder="Filter names..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="h-9 w-full sm:w-52 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] pl-8 pr-3 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+              className="h-9 w-full sm:w-52 rounded-md border border-line bg-surface pl-8 pr-3 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
           </div>
 
           <Select
             value={selectedDept}
             onChange={e => setSelectedDept(e.target.value)}
-            className="h-9 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-3 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            className="h-9 rounded-md border border-line bg-surface px-3 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           >
             {departments.map(d => (
               <option key={d} value={d}>
@@ -1268,7 +1273,7 @@ export function EmployeeDirectoryView({
             <button
               id="btn-add-employee"
               onClick={() => setShowAddForm(true)}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-accent-600 px-3.5 text-xs font-semibold text-white transition hover:bg-accent-700"
             >
               <Plus size={14} /> Add Employee
             </button>
@@ -1281,7 +1286,7 @@ export function EmployeeDirectoryView({
         {onDeleteEmployees && (
           <button
             onClick={deleteSelected}
-            className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-[#FFFFFF] px-2 py-1 font-medium text-red-600 transition hover:bg-red-50"
+            className="inline-flex items-center gap-1 rounded-sm border border-red-200 bg-surface px-2 py-1 font-medium text-red-600 transition hover:bg-red-50"
           >
             <Trash2 size={12} /> Delete
           </button>
@@ -1386,7 +1391,7 @@ export function EmployeeDirectoryView({
                   placeholder="e.g. Priya Sharma"
                   value={empForm.fullName}
                   onChange={e => setEmpForm({ ...empForm, fullName: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                   required
                 />
               </div>
@@ -1410,7 +1415,7 @@ export function EmployeeDirectoryView({
                   placeholder="name@optiminastic.com"
                   value={empForm.email}
                   onChange={e => setEmpForm({ ...empForm, email: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                 />
               </div>
               <div className="space-y-1">
@@ -1420,7 +1425,7 @@ export function EmployeeDirectoryView({
                   placeholder="+91 ..."
                   value={empForm.phone}
                   onChange={e => setEmpForm({ ...empForm, phone: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                 />
               </div>
             </div>
@@ -1443,7 +1448,7 @@ export function EmployeeDirectoryView({
                   onChange={e =>
                     setEmpForm({ ...empForm, status: e.target.value as Employee['status'] })
                   }
-                  className="w-full px-2 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1]"
+                  className="w-full px-2 py-1.5 border border-line rounded text-xs bg-surface-hover"
                 >
                   <option value="Active">Active</option>
                   <option value="On Leave">On Leave</option>
@@ -1464,7 +1469,7 @@ export function EmployeeDirectoryView({
                   placeholder="Mumbai, India"
                   value={empForm.workLocation}
                   onChange={e => setEmpForm({ ...empForm, workLocation: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                 />
               </div>
             </div>
@@ -1480,7 +1485,7 @@ export function EmployeeDirectoryView({
                       employmentType: e.target.value as NonNullable<Employee['employmentType']>,
                     })
                   }
-                  className="w-full px-2 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1]"
+                  className="w-full px-2 py-1.5 border border-line rounded text-xs bg-surface-hover"
                 >
                   <option value="Full-time">Full-time</option>
                   <option value="Part-time">Part-time</option>
@@ -1495,7 +1500,7 @@ export function EmployeeDirectoryView({
                   placeholder="e.g. 12 LPA"
                   value={empForm.annualCtc}
                   onChange={e => setEmpForm({ ...empForm, annualCtc: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                 />
               </div>
             </div>
@@ -1507,11 +1512,11 @@ export function EmployeeDirectoryView({
                 placeholder="e.g. Akshae (Director)"
                 value={empForm.reportingManager}
                 onChange={e => setEmpForm({ ...empForm, reportingManager: e.target.value })}
-                className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
               />
             </div>
 
-            <div className="pt-1 border-t border-[#ECEDF0]">
+            <div className="pt-1 border-t border-line-soft">
               <p className="font-bold text-gray-500 font-mono text-[9px] uppercase tracking-wider mb-2">
                 Personal records (optional)
               </p>
@@ -1528,7 +1533,7 @@ export function EmployeeDirectoryView({
                   <Select
                     value={empForm.gender}
                     onChange={e => setEmpForm({ ...empForm, gender: e.target.value })}
-                    className="w-full px-2 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1]"
+                    className="w-full px-2 py-1.5 border border-line rounded text-xs bg-surface-hover"
                   >
                     <option value="">—</option>
                     <option value="Female">Female</option>
@@ -1544,7 +1549,7 @@ export function EmployeeDirectoryView({
                     placeholder="Name · +91 ..."
                     value={empForm.emergencyContact}
                     onChange={e => setEmpForm({ ...empForm, emergencyContact: e.target.value })}
-                    className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                   />
                 </div>
               </div>
@@ -1556,7 +1561,7 @@ export function EmployeeDirectoryView({
                   placeholder="Mailing address"
                   value={empForm.address}
                   onChange={e => setEmpForm({ ...empForm, address: e.target.value })}
-                  className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                 />
               </div>
 
@@ -1572,7 +1577,7 @@ export function EmployeeDirectoryView({
                     value={empForm.panNumber}
                     onChange={e => setEmpForm({ ...empForm, panNumber: e.target.value.toUpperCase() })}
                     maxLength={10}
-                    className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] font-mono uppercase focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover font-mono uppercase focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1583,7 +1588,7 @@ export function EmployeeDirectoryView({
                     placeholder="1234 5678 9012"
                     value={empForm.aadhaarNumber}
                     onChange={e => setEmpForm({ ...empForm, aadhaarNumber: e.target.value.replace(/[^0-9 ]/g, '').slice(0, 14) })}
-                    className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] font-mono focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover font-mono focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1593,7 +1598,7 @@ export function EmployeeDirectoryView({
                     placeholder="e.g. HDFC Bank"
                     value={empForm.bankName}
                     onChange={e => setEmpForm({ ...empForm, bankName: e.target.value })}
-                    className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                   />
                 </div>
                 <div className="space-y-1 col-span-2">
@@ -1604,7 +1609,7 @@ export function EmployeeDirectoryView({
                     placeholder="Bank account number"
                     value={empForm.accountNumber}
                     onChange={e => setEmpForm({ ...empForm, accountNumber: e.target.value.replace(/[^0-9]/g, '') })}
-                    className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] font-mono focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover font-mono focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1615,7 +1620,7 @@ export function EmployeeDirectoryView({
                     value={empForm.ifsc}
                     onChange={e => setEmpForm({ ...empForm, ifsc: e.target.value.toUpperCase() })}
                     maxLength={11}
-                    className="w-full px-2.5 py-1.5 border border-[#E4E6EA] rounded text-xs bg-[#EDEEF1] font-mono uppercase focus:bg-[#FFFFFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                    className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover font-mono uppercase focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                   />
                 </div>
               </div>
@@ -1690,16 +1695,16 @@ export function CredentialsAssetsView({
           </p>
         </div>
 
-        <div className="border border-[#E4E6EA] rounded-lg bg-[#FFFFFF] overflow-hidden flex font-semibold text-xs shrink-0 self-start sm:self-auto">
+        <div className="border border-line rounded-md bg-surface overflow-hidden flex font-semibold text-xs shrink-0 self-start sm:self-auto">
           <button
             onClick={() => setActiveTab('creds')}
-            className={`px-3 py-1.5 transition ${activeTab === 'creds' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EDEEF1]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'creds' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-surface-hover'}`}
           >
             System Credentials
           </button>
           <button
             onClick={() => setActiveTab('assets')}
-            className={`px-3 py-1.5 transition ${activeTab === 'assets' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-[#EDEEF1]'}`}
+            className={`px-3 py-1.5 transition ${activeTab === 'assets' ? 'bg-accent-50 text-accent-600' : 'text-gray-600 hover:bg-surface-hover'}`}
           >
             Hardware Inventory
           </button>
@@ -1737,7 +1742,7 @@ export function CredentialsAssetsView({
                       <Select
                         value={cred.status}
                         onChange={e => onUpdateCredential(emp.id, cred.id, e.target.value)}
-                        className="text-[10px] bg-[#FFFFFF] border border-[#E4E6EA] px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:ring-1 focus:ring-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                        className="text-[10px] bg-surface border border-line px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:ring-1 focus:ring-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                       >
                         <option value="Active">Grant Active</option>
                         <option value="Suspended">Suspend Access</option>
@@ -1792,7 +1797,7 @@ export function CredentialsAssetsView({
                     <Select
                       value={ast.status}
                       onChange={e => handleAssetStatusChange(ast.id, e.target.value)}
-                      className="text-[10px] bg-[#FFFFFF] border border-[#E4E6EA] px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                      className="text-[10px] bg-surface border border-line px-1.5 py-1 rounded cursor-pointer text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                     >
                       <option value="Available">Available</option>
                       <option value="Assigned">Assigned</option>
@@ -1882,7 +1887,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
 
   return (
     <div className="space-y-4 text-xs select-none">
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-[#F7F8FA] border-b border-[#E4E6EA] pb-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-surface-muted border-b border-line pb-3">
         <div>
           <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
             Appraisals & Growth Scorecards
@@ -1895,7 +1900,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
         <Select
           value={selectedEmp}
           onChange={e => setSelectedEmp(e.target.value)}
-          className="w-full sm:w-auto shrink-0 px-2.5 py-1 text-xs border border-[#E4E6EA] bg-[#FFFFFF] rounded font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          className="w-full sm:w-auto shrink-0 px-2.5 py-1 text-xs border border-line bg-surface rounded font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
         >
           {employees.map(e => (
             <option key={e.id} value={e.fullName}>
@@ -1908,7 +1913,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <form
           onSubmit={handleSubmit}
-          className="md:col-span-2 bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4"
+          className="md:col-span-2 bg-surface border border-line rounded-md p-5 space-y-4"
         >
           <h3 className="font-bold text-gray-900">Conduct Annual Appraisal Cycle Review</h3>
 
@@ -1919,7 +1924,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 type="text"
                 value={reviewForm.reviewPeriod}
                 onChange={e => setReviewForm({ ...reviewForm, reviewPeriod: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               />
             </div>
             <div className="space-y-1">
@@ -1930,7 +1935,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 max="5"
                 value={reviewForm.performanceScore}
                 onChange={e => setReviewForm({ ...reviewForm, performanceScore: Number(e.target.value) })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               />
             </div>
           </div>
@@ -1941,7 +1946,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
               value={reviewForm.targetAchievement}
               onChange={e => setReviewForm({ ...reviewForm, targetAchievement: e.target.value })}
               rows={2}
-              className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+              className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               required
             />
           </div>
@@ -1952,7 +1957,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
               value={reviewForm.managerFeedback}
               onChange={e => setReviewForm({ ...reviewForm, managerFeedback: e.target.value })}
               rows={2}
-              className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+              className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               required
             />
           </div>
@@ -1964,7 +1969,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 type="text"
                 value={reviewForm.recommendedPromotion}
                 onChange={e => setReviewForm({ ...reviewForm, recommendedPromotion: e.target.value })}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               />
             </div>
             <div className="space-y-1">
@@ -1974,7 +1979,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
                 value={reviewForm.recommendedSalaryRevision}
                 onChange={e => setReviewForm({ ...reviewForm, recommendedSalaryRevision: e.target.value })}
                 placeholder="e.g. 22 LPA"
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
               />
             </div>
           </div>
@@ -1982,7 +1987,7 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
           <div className="flex justify-end pt-1">
             <button
               type="submit"
-              className="bg-accent-600 hover:bg-accent-700 text-white font-medium px-4 py-1.5 rounded-md cursor-pointer transition"
+              className="bg-accent-600 hover:bg-accent-700 text-white font-medium px-4 py-1.5 rounded-sm cursor-pointer transition"
             >
               Document Scorecard
             </button>
@@ -1990,14 +1995,14 @@ export function AppraisalsView({ employees, onSaveReview }: AppraisalsViewProps)
         </form>
 
         {/* Existing Appraisal track lists */}
-        <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4">
+        <div className="bg-surface border border-line rounded-md p-5 space-y-4">
           <h3 className="font-bold text-gray-900 uppercase font-mono text-[10px] text-gray-500">
             Historic Logs
           </h3>
 
           {targetEmp?.appraisalHistory && targetEmp.appraisalHistory.length > 0 ? (
             targetEmp.appraisalHistory.map(hist => (
-              <div key={hist.id} className="p-3 border border-[#ECEDF0] rounded-lg space-y-2 bg-[#F7F8FA]">
+              <div key={hist.id} className="p-3 border border-line-soft rounded-md space-y-2 bg-surface-muted">
                 <div className="flex justify-between items-center font-mono text-[9px]">
                   <span className="font-semibold text-accent-600">{hist.reviewPeriod}</span>
                   <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold">
@@ -2106,7 +2111,7 @@ export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) 
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition font-medium shrink-0 shadow-2xs"
+          className="bg-accent-600 hover:bg-accent-700 text-white h-9 px-3.5 rounded-md inline-flex items-center justify-center gap-1.5 cursor-pointer transition text-xs font-semibold shrink-0 shadow-2xs"
         >
           <Plus size={15} /> Open exit case
         </button>
@@ -2114,7 +2119,7 @@ export function OffboardingChecklistView({ offboarding }: OffboardingViewProps) 
 
       {/* Exit cases table — click a row to open the full workflow page */}
       {offboarding.length === 0 ? (
-        <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-6 text-center text-gray-500">
+        <div className="bg-surface border border-line rounded-md p-6 text-center text-gray-500">
           No live employee offboarding case in notice cycle currently.
         </div>
       ) : (
@@ -2237,7 +2242,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Template selector & trigger */}
-        <form onSubmit={handleSend} className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-4">
+        <form onSubmit={handleSend} className="bg-surface border border-line rounded-md p-5 space-y-4">
           <h3 className="font-bold text-gray-900">Email Draft Trigger Creator</h3>
 
           <div className="space-y-1">
@@ -2245,7 +2250,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
             <Select
               value={activeTemplateId}
               onChange={e => setActiveTemplateId(e.target.value)}
-              className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+              className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
             >
               {emailTemplates.map(t => (
                 <option key={t.id} value={t.id}>
@@ -2255,14 +2260,14 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
             </Select>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-[#EDEEF1]">
+          <div className="space-y-2 pt-2 border-t border-line-hover">
             <div className="space-y-1">
               <label className="font-semibold text-gray-700">Recipient Name</label>
               <input
                 type="text"
                 value={recipientName}
                 onChange={e => setRecipientName(e.target.value)}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
                 required
               />
             </div>
@@ -2272,7 +2277,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
                 type="email"
                 value={recipientEmail}
                 onChange={e => setRecipientEmail(e.target.value)}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
                 required
               />
             </div>
@@ -2282,7 +2287,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
                 type="text"
                 value={roleField}
                 onChange={e => setRoleField(e.target.value)}
-                className="w-full px-2 py-1.5 border border-[#E4E6EA] bg-[#EDEEF1] rounded"
+                className="w-full px-2 py-1.5 border border-line bg-surface-hover rounded"
                 required
               />
             </div>
@@ -2290,7 +2295,7 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
 
           <button
             type="submit"
-            className="w-full bg-accent-600 hover:bg-accent-700 text-white font-medium py-2 rounded-md transition font-semibold"
+            className="w-full bg-accent-600 hover:bg-accent-700 text-white font-medium py-2 rounded-sm transition font-semibold"
           >
             Trigger Automated Dispatch
           </button>
@@ -2298,12 +2303,12 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
 
         {/* Live WYSIWYG Parser Preview */}
         {selectedTemplate && (
-          <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 flex flex-col justify-between">
+          <div className="bg-surface border border-line rounded-md p-5 flex flex-col justify-between">
             <div className="space-y-2">
               <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider font-semibold">
                 Live Variable Compilation Parser
               </span>
-              <div className="border border-[#E4E6EA] p-3 rounded-lg bg-[#F7F8FA] font-mono text-[11px] text-gray-700 space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="border border-line p-3 rounded-md bg-surface-muted font-mono text-[11px] text-gray-700 space-y-2 max-h-[300px] overflow-y-auto">
                 <p className="font-bold text-gray-900 border-b border-gray-150 pb-1">
                   Subject: {selectedTemplate.subject.replace('{{ROLE}}', roleField)}
                 </p>
@@ -2323,13 +2328,13 @@ export function EmailCenterView({ emailTemplates, sentMails, onTriggerEmail }: E
         )}
 
         {/* Sent Mails Ledger */}
-        <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-5 space-y-3 overflow-y-auto max-h-[380px]">
+        <div className="bg-surface border border-line rounded-md p-5 space-y-3 overflow-y-auto max-h-[380px]">
           <h3 className="font-bold text-gray-900 uppercase font-mono text-[10px] text-gray-500">
             Sent Triggers Log
           </h3>
           <div className="space-y-2">
             {sentMails.map(m => (
-              <div key={m.id} className="p-2.5 border border-[#ECEDF0] bg-[#F7F8FA] rounded-lg">
+              <div key={m.id} className="p-2.5 border border-line-soft bg-surface-muted rounded-md">
                 <div className="flex justify-between text-[10px]">
                   <span className="font-semibold text-gray-800">{m.recipientName}</span>
                   <span className="text-green-600 font-bold">{m.status}</span>
@@ -2421,10 +2426,10 @@ function GoogleCalendarCard() {
   const configured = !!status?.configured;
 
   return (
-    <div className="border border-[#E4E6EA] rounded-lg p-4 bg-[#F7F8FA] space-y-3">
+    <div className="border border-line rounded-md p-4 bg-surface-muted space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
-          <span className="w-9 h-9 rounded-lg bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
+          <span className="w-9 h-9 rounded-md bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
             <CalendarDays size={16} />
           </span>
           <div>
@@ -2441,7 +2446,7 @@ function GoogleCalendarCard() {
               ? 'bg-emerald-50 text-emerald-600'
               : configured
                 ? 'bg-yellow-50 text-yellow-600'
-                : 'bg-[#EDEEF1] text-gray-500'
+                : 'bg-surface-hover text-gray-500'
           }`}
         >
           {connected ? 'Connected' : configured ? 'Not connected' : 'Not configured'}
@@ -2466,7 +2471,7 @@ function GoogleCalendarCard() {
             <button
               onClick={connect}
               disabled={loading}
-              className="bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white px-3 py-1.5 rounded-lg font-medium cursor-pointer transition flex items-center gap-1.5"
+              className="bg-accent-600 hover:bg-accent-700 disabled:opacity-60 text-white px-3 py-1.5 rounded-md font-medium cursor-pointer transition flex items-center gap-1.5"
             >
               <CalendarDays size={13} />
               {connected ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}
@@ -2475,7 +2480,7 @@ function GoogleCalendarCard() {
               <button
                 onClick={disconnect}
                 disabled={loading}
-                className="border border-[#E4E6EA] bg-white text-red-600 hover:bg-red-50 disabled:opacity-60 px-3 py-1.5 rounded-lg font-medium cursor-pointer transition"
+                className="border border-line bg-surface text-red-600 hover:bg-red-50 disabled:opacity-60 px-3 py-1.5 rounded-md font-medium cursor-pointer transition"
               >
                 Disconnect
               </button>
@@ -2494,7 +2499,7 @@ export function SettingsView() {
   >('general');
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#E4E6EA] rounded-xl p-4 md:p-6 text-xs select-none space-y-5">
+    <div className="bg-surface border border-line rounded-md p-4 md:p-6 text-xs select-none space-y-5">
       <div>
         <h2 className="text-sm font-bold text-gray-900 tracking-tight font-display">
           {BRAND.name} Workspace Settings
@@ -2532,7 +2537,7 @@ export function SettingsView() {
                 value={workspace.name}
                 readOnly
                 placeholder="Set NEXT_PUBLIC_WORKSPACE_NAME"
-                className="w-full bg-[#EDEEF1] px-2.5 py-1.5 rounded border border-[#E4E6EA]"
+                className="w-full bg-surface-hover px-2.5 py-1.5 rounded border border-line"
               />
             </div>
             <div className="space-y-1">
@@ -2542,11 +2547,11 @@ export function SettingsView() {
                 value={workspace.domain}
                 readOnly
                 placeholder="Set NEXT_PUBLIC_WORKSPACE_DOMAIN"
-                className="w-full bg-[#EDEEF1] px-2.5 py-1.5 rounded border border-[#E4E6EA]"
+                className="w-full bg-surface-hover px-2.5 py-1.5 rounded border border-line"
               />
             </div>
           </div>
-          <div className="p-3 bg-accent-50/50 rounded-lg text-accent-600 border border-accent-100 flex items-center gap-2">
+          <div className="p-3 bg-accent-50/50 rounded-md text-accent-600 border border-accent-100 flex items-center gap-2">
             <Eye size={14} className="shrink-0" />
             <span className="text-[11px] leading-relaxed">
               Passwords are always masked securely using industry-standard cryptography. Standard SSL
@@ -2582,9 +2587,9 @@ export function SettingsView() {
                     key={cat.slug}
                     type="button"
                     onClick={() => router.push(`/question-library/${cat.slug}`)}
-                    className="group flex items-start gap-3 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4 text-left transition hover:-translate-y-0.5 hover:border-accent-300 hover:shadow-md"
+                    className="group flex items-start gap-3 rounded-md border border-line bg-surface p-4 text-left transition hover:-translate-y-0.5 hover:border-accent-300 hover:shadow-md"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-50 text-accent-600">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-50 text-accent-600">
                       <Icon size={16} />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -2618,7 +2623,7 @@ export function SettingsView() {
         <TabsContent value="roles">
         <div className="space-y-3">
           <h4 className="font-bold text-gray-850">Regulatory Role permissions matrix</h4>
-          <div className="border border-[#E4E6EA] rounded bg-[#EDEEF1] p-3 space-y-2 font-mono text-[11px]">
+          <div className="border border-line rounded bg-surface-hover p-3 space-y-2 font-mono text-[11px]">
             <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-3">
               <span className="font-semibold">HR Specialist Role:</span>
               <span>Reads CRM, Uploads CVs, Schedules slots, triggers email templates drafts.</span>
@@ -2636,7 +2641,7 @@ export function SettingsView() {
         <TabsContent value="rules">
         <div className="space-y-3">
           <h4 className="font-bold text-gray-850">Corporate BGV Dependency Checklist Rules</h4>
-          <div className="space-y-2 bg-[#F7F8FA] p-3 rounded-lg border border-[#ECEDF0]">
+          <div className="space-y-2 bg-surface-muted p-3 rounded-md border border-line-soft">
             <div className="flex items-center gap-2">
               <div className="w-3.5 h-3.5 bg-accent-600 rounded flex items-center justify-center text-white">
                 <Check size={8} />

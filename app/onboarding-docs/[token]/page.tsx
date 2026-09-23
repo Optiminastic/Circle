@@ -248,7 +248,7 @@ export default function OnboardingDocsPortal() {
 
   return (
     <Shell>
-      <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-[#E4E6EA] bg-[#FFFFFF] p-4">
+      <div className="mb-5 flex items-center justify-between gap-3 rounded-md border border-line bg-surface p-4">
         <div>
           <p className="text-sm font-bold text-gray-900">Welcome, {request.candidateName}</p>
           <p className="text-[12px] text-gray-500">
@@ -274,7 +274,7 @@ export default function OnboardingDocsPortal() {
       </div>
 
       {errorMsg && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-600">
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-600">
           <AlertTriangle size={14} /> {errorMsg}
         </div>
       )}
@@ -306,8 +306,8 @@ export default function OnboardingDocsPortal() {
           return (
             <div
               key={doc.type}
-              className={`flex items-center justify-between gap-3 rounded-lg border bg-white p-3 ${
-                rejected ? 'border-red-300' : locked ? 'border-emerald-300' : sub ? 'border-emerald-200' : 'border-[#E4E6EA]'
+              className={`flex items-center justify-between gap-3 rounded-md border bg-surface p-3 ${
+                rejected ? 'border-red-300' : locked ? 'border-emerald-300' : sub ? 'border-emerald-200' : 'border-line'
               }`}
             >
               <div className="min-w-0">
@@ -333,7 +333,7 @@ export default function OnboardingDocsPortal() {
               </div>
               <div className="shrink-0">
                 {locked ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
                     <Lock size={13} /> Locked
                   </span>
                 ) : (
@@ -355,7 +355,7 @@ export default function OnboardingDocsPortal() {
                       type="button"
                       disabled={isUploading}
                       onClick={() => fileInputs.current[doc.type]?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:opacity-50"
                     >
                       {isUploading ? (
                         <Loader2 size={13} className="animate-spin" />
@@ -431,7 +431,7 @@ export default function OnboardingDocsPortal() {
               type="button"
               disabled={!bankValid || saveBank.isPending}
               onClick={() => saveBank.mutate()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saveBank.isPending ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
               Save bank details
@@ -456,7 +456,7 @@ export default function OnboardingDocsPortal() {
             Please share a reference from a past organization. You can add more than one.
           </p>
           {refs.map((r, i) => (
-            <div key={i} className="rounded-lg border border-[#E4E6EA] bg-white p-3">
+            <div key={i} className="rounded-md border border-line bg-surface p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-gray-400">
                   Reference {i + 1}
@@ -465,7 +465,7 @@ export default function OnboardingDocsPortal() {
                   <button
                     type="button"
                     onClick={() => removeRef(i)}
-                    className="inline-flex items-center gap-1 rounded-md border border-[#E4E6EA] px-1.5 py-0.5 text-[10.5px] font-semibold text-gray-500 transition hover:border-red-300 hover:text-red-600"
+                    className="inline-flex items-center gap-1 rounded-sm border border-line px-1.5 py-0.5 text-[10.5px] font-semibold text-gray-500 transition hover:border-red-300 hover:text-red-600"
                   >
                     <Trash2 size={11} /> Remove
                   </button>
@@ -522,7 +522,7 @@ export default function OnboardingDocsPortal() {
           <button
             type="button"
             onClick={addRef}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#C9CDD3] bg-white py-2 text-[12px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-line-stronger bg-surface py-2 text-[12px] font-semibold text-gray-600 transition hover:border-accent-400 hover:text-accent-600"
           >
             <Plus size={13} /> Add another reference
           </button>
@@ -532,7 +532,7 @@ export default function OnboardingDocsPortal() {
               type="button"
               disabled={!refsValid || saveRefs.isPending}
               onClick={() => saveRefs.mutate()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saveRefs.isPending ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
               Save references
@@ -561,7 +561,7 @@ export default function OnboardingDocsPortal() {
           <h2 className="mb-2 flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
             <ShieldCheck size={13} /> Consent
           </h2>
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#E4E6EA] bg-white px-3.5">
+          <div className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3.5">
             <Checkbox
               checked={consentChecked}
               disabled={saveConsent.isPending}
@@ -603,13 +603,13 @@ export default function OnboardingDocsPortal() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#F1F3F5] px-4 py-8">
+    <div className="min-h-screen bg-surface-sunken px-4 py-8">
       <div className="mx-auto w-full max-w-xl">
         <div className="mb-5 flex items-center gap-2">
           <Logo size={26} />
           <span className="text-sm font-bold text-gray-800">{BRAND.name}</span>
         </div>
-        <div className="rounded-2xl border border-[#E4E6EA] bg-[#F7F8FA] p-5 shadow-sm sm:p-6">{children}</div>
+        <div className="rounded-lg border border-line bg-surface-muted p-5 shadow-sm sm:p-6">{children}</div>
       </div>
     </div>
   );

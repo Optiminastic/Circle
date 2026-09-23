@@ -38,12 +38,12 @@ function JobApplicantsPageInner() {
 
   if (!job) {
     return (
-      <div className="bg-[#FFFFFF] border border-dashed border-[#D7DAE0] rounded-2xl py-16 flex flex-col items-center gap-3 text-center px-6 text-xs">
+      <div className="bg-surface border border-dashed border-line-strong rounded-lg py-16 flex flex-col items-center gap-3 text-center px-6 text-xs">
         <p className="font-bold text-gray-700 text-sm">Job posting not found</p>
         <p className="text-[11px] text-gray-500">It may have been deleted.</p>
         <Link
           href="/jobs"
-          className="mt-1 bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition font-medium"
+          className="mt-1 bg-accent-600 hover:bg-accent-700 text-white px-3.5 py-2 rounded-md flex items-center gap-1.5 transition font-medium"
         >
           <ArrowLeft size={14} /> Back to Job Postings
         </Link>
@@ -74,7 +74,7 @@ function JobApplicantsPageInner() {
 
       {/* Overview: Applied/Rejected/Interviewed chart + job details */}
       <JobApplicantsOverview job={job} applicants={applicants} />
-      <hr className="border-t border-[#E4E6EA]" />
+      <hr className="border-t border-line" />
 
       {/* Same candidates experience, scoped to this job's applicants */}
       <CandidateListView

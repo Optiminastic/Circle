@@ -232,7 +232,7 @@ export function InterviewScheduleModal({
   };
 
   const readOnlyCls =
-    'mt-1 flex items-center gap-1.5 rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm text-gray-700';
+    'mt-1 flex items-center gap-1.5 rounded-sm border border-input bg-secondary/40 px-3 py-2 text-sm text-gray-700';
 
   return (
     <Sheet open onOpenChange={open => !open && !isSending && onClose()}>
@@ -314,7 +314,7 @@ export function InterviewScheduleModal({
                   id="iv-interviewer"
                   value={interviewerName}
                   onChange={e => pickInterviewer(e.target.value)}
-                  className="mt-1 h-9 w-full rounded-md border border-input bg-secondary/50 px-3 text-sm"
+                  className="mt-1 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm"
                 >
                   <option value="">Select an employee…</option>
                   {interviewerPool.map(e => (
@@ -393,12 +393,12 @@ export function InterviewScheduleModal({
           </section>
 
           {error ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-600">
+            <p className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-600">
               {error}
             </p>
           ) : (
             overlapWarning && (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+              <p className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
                 {overlapWarning}
               </p>
             )

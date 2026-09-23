@@ -102,7 +102,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent className="max-w-md max-h-[90vh] gap-0 overflow-y-auto p-0">
         <DialogHeader className="flex-row items-center gap-2.5 space-y-0 border-b border-border px-5 py-4 text-left">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-purple-50 text-purple-600">
             <ShieldCheck size={17} />
           </span>
           <div>
@@ -124,7 +124,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
             users.map(u => (
               <div
                 key={u.id}
-                className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5"
+                className="flex items-center justify-between rounded-md border border-border px-3 py-2.5"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-accent-500 to-accent-700 text-[11px] font-bold text-white">
@@ -226,7 +226,7 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
 
           {msg && (
             <div
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs ${
+              className={`flex items-center gap-1.5 rounded-md px-3 py-2 text-xs ${
                 msg.ok
                   ? 'border border-emerald-100 bg-emerald-50 text-emerald-600'
                   : 'border border-red-100 bg-red-50 text-red-600'

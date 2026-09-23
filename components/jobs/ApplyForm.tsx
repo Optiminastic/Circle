@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { clampCtcInput, ctcError, CTC_MAX_LPA } from '@/lib/ctc';
 import { Select } from '@/components/Select';
 import { Job } from '@/types';
 import {
@@ -34,7 +35,7 @@ const EMPTY = {
 };
 
 const inputCls =
-  'w-full px-3 py-2.5 border border-[#E4E6EA] rounded-lg text-sm bg-[#FFFFFF] placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 focus:border-accent-500 transition';
+  'w-full px-3 py-2.5 border border-line rounded-md text-sm bg-surface placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30 focus:border-accent-500 transition';
 
 const MAX_RESUME_MB = 5;
 
@@ -283,8 +284,10 @@ export function ApplyForm({ job }: { job: Job }) {
     if (form.source === REFERRAL_SOURCE && !form.referredBy.trim())
       return "Please enter the name of the person who referred you.";
     if (!form.currentDesignation.trim()) return 'Please enter your current title.';
-    if (!String(form.currentCtc).trim()) return 'Please enter your current CTC.';
-    if (!String(form.expectedCtc).trim()) return 'Please enter your expected CTC.';
+    const currentCtcErr = ctcError(String(form.currentCtc), 'current CTC');
+    if (currentCtcErr) return currentCtcErr;
+    const expectedCtcErr = ctcError(String(form.expectedCtc), 'expected CTC');
+    if (expectedCtcErr) return expectedCtcErr;
     if (String(form.totalExperienceYears).trim() === '') return 'Please enter your total experience.';
     if (!(Number(form.totalExperienceYears) >= 0) || Number(form.totalExperienceYears) > MAX_EXPERIENCE_YEARS)
       return `Please enter your total experience as a number between 0 and ${MAX_EXPERIENCE_YEARS} years.`;
@@ -402,7 +405,7 @@ export function ApplyForm({ job }: { job: Job }) {
 
   if (submitted) {
     return (
-      <div className="mt-8 flex flex-col items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 px-5 py-12 text-center">
+      <div className="mt-8 flex flex-col items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-5 py-12 text-center">
         <CheckCircle2 className="text-emerald-500" size={34} />
         <p className="text-lg font-bold text-gray-900">Application submitted!</p>
         <p className="max-w-sm text-sm text-gray-500">
@@ -414,14 +417,14 @@ export function ApplyForm({ job }: { job: Job }) {
   }
 
   return (
-    <section id="apply" className="mt-8 scroll-mt-16 border-t border-[#EDEEF1] pt-8">
+    <section id="apply" className="mt-8 scroll-mt-16 border-t border-line-hover pt-8">
       <h2 className="text-lg font-bold tracking-tight text-gray-900">Apply for this role</h2>
       <p className="mb-5 mt-1 text-[13px] text-gray-500">
         Your application goes straight to the hiring team.
       </p>
 
       {closed ? (
-        <div className="bg-red-50 border border-red-100 text-red-600 text-xs rounded-lg p-3">
+        <div className="bg-red-50 border border-red-100 text-red-600 text-xs rounded-md p-3">
           Applications for this posting are currently closed.
         </div>
       ) : (
@@ -451,22 +454,22 @@ export function ApplyForm({ job }: { job: Job }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Email *">
                   <div
-                    className={`flex items-stretch rounded-lg border bg-white transition focus-within:ring-2 ${
+                    className={`flex items-stretch rounded-md border bg-surface transition focus-within:ring-2 ${
                       emailError
                         ? 'border-red-400 focus-within:border-red-500 focus-within:ring-red-500/30'
-                        : 'border-[#E4E6EA] focus-within:border-accent-500 focus-within:ring-accent-500/30'
+                        : 'border-line focus-within:border-accent-500 focus-within:ring-accent-500/30'
                     }`}
                   >
                     <input
                       type="email"
-                      className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                      className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
                       value={form.email}
                       onChange={e => onEmailChange(e.target.value)}
                       placeholder="example@email.com"
                       required
                     />
                     {emailVerified ? (
-                      <span className="my-1.5 mr-1.5 inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-600">
+                      <span className="my-1.5 mr-1.5 inline-flex shrink-0 items-center gap-1 rounded-sm bg-emerald-50 px-2.5 text-[11px] font-semibold text-emerald-600">
                         <CheckCircle2 size={13} /> Verified
                       </span>
                     ) : (
@@ -474,7 +477,7 @@ export function ApplyForm({ job }: { job: Job }) {
                         type="button"
                         onClick={openOtp}
                         disabled={checkingEmail}
-                        className="my-1.5 mr-1.5 inline-flex shrink-0 items-center gap-1 rounded-md bg-red-600 px-3 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 cursor-pointer"
+                        className="my-1.5 mr-1.5 inline-flex shrink-0 items-center gap-1 rounded-sm bg-red-600 px-3 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-60 cursor-pointer"
                       >
                         {checkingEmail ? <Loader2 size={12} className="animate-spin" /> : null}
                         Verify
@@ -485,7 +488,7 @@ export function ApplyForm({ job }: { job: Job }) {
                 </Field>
                 <Field label="Phone *">
                   <div className="flex items-stretch">
-                    <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-[#E4E6EA] bg-[#EDEEF1] text-sm text-gray-600">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-line bg-surface-hover text-sm text-gray-600">
                       +91
                     </span>
                     <input
@@ -581,29 +584,32 @@ export function ApplyForm({ job }: { job: Job }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Current CTC (LPA) *">
                   <input
-                    type="number"
-                    min={0}
-                    step={0.01}
+                    type="text"
+                    inputMode="decimal"
                     className={inputCls}
                     value={form.currentCtc}
-                    onChange={e => set({ currentCtc: e.target.value })}
-                    placeholder="e.g. 6"
+                    onChange={e => set({ currentCtc: clampCtcInput(e.target.value) })}
+                    placeholder="e.g. 3.45"
+                    aria-describedby="ctc-hint"
                     required
                   />
                 </Field>
                 <Field label="Expected CTC (LPA) *">
                   <input
-                    type="number"
-                    min={0}
-                    step={0.01}
+                    type="text"
+                    inputMode="decimal"
                     className={inputCls}
                     value={form.expectedCtc}
-                    onChange={e => set({ expectedCtc: e.target.value })}
-                    placeholder="e.g. 8"
+                    onChange={e => set({ expectedCtc: clampCtcInput(e.target.value) })}
+                    placeholder="e.g. 5.5"
+                    aria-describedby="ctc-hint"
                     required
                   />
                 </Field>
               </div>
+              <p id="ctc-hint" className="-mt-1 text-[11px] text-gray-500">
+                In lakhs per annum, not rupees. A 3,45,000 salary is 3.45 LPA. Maximum {CTC_MAX_LPA}.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Experience (yrs) *">
                   <input
@@ -634,8 +640,8 @@ export function ApplyForm({ job }: { job: Job }) {
               </div>
               <Field label="Resume *">
                 {resumeFile ? (
-                  <div className="flex items-center gap-2.5 border border-[#E4E6EA] rounded-lg px-3 py-2.5 bg-accent-50/50">
-                    <span className="w-8 h-8 rounded-md bg-accent-100 text-accent-700 flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-2.5 border border-line rounded-md px-3 py-2.5 bg-accent-50/50">
+                    <span className="w-8 h-8 rounded-sm bg-accent-100 text-accent-700 flex items-center justify-center shrink-0">
                       <FileText size={15} />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -654,7 +660,7 @@ export function ApplyForm({ job }: { job: Job }) {
                     </Tip>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center gap-1 cursor-pointer border border-dashed border-[#D7DAE0] rounded-lg px-3 py-5 bg-[#F1F3F5] hover:border-accent-400 hover:bg-accent-50/40 transition text-center">
+                  <label className="flex flex-col items-center justify-center gap-1 cursor-pointer border border-dashed border-line-strong rounded-md px-3 py-5 bg-surface-sunken hover:border-accent-400 hover:bg-accent-50/40 transition text-center">
                     <UploadCloud size={20} className="text-accent-500" />
                     <span className="text-xs font-semibold text-gray-600">Click to upload your resume</span>
                     <span className="text-[10px] text-gray-500">PDF only · up to {MAX_RESUME_MB} MB</span>
@@ -711,7 +717,7 @@ export function ApplyForm({ job }: { job: Job }) {
           )}
 
           {step === 1 && (
-            <div className="space-y-4 rounded-lg border border-[#E4E6EA] bg-[#F1F3F5]/60 p-3">
+            <div className="space-y-4 rounded-md border border-line bg-surface-sunken/60 p-3">
               <p className="text-[11px] font-semibold text-gray-700">A few quick questions</p>
               {(
                 [
@@ -752,10 +758,10 @@ export function ApplyForm({ job }: { job: Job }) {
                                           setOtherActive(o => ({ ...o, [q.id]: false }));
                                           setResponses(r => ({ ...r, [q.id]: opt }));
                                         }}
-                                        className={`min-w-[6rem] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                                        className={`min-w-[6rem] flex-1 rounded-md border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                                           active
                                             ? 'border-accent-500 bg-accent-50 text-accent-700'
-                                            : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 hover:border-accent-300'
+                                            : 'border-line bg-surface text-gray-600 hover:border-accent-300'
                                         }`}
                                       >
                                         {opt}
@@ -770,10 +776,10 @@ export function ApplyForm({ job }: { job: Job }) {
                                       setOtherActive(o => ({ ...o, [q.id]: true }));
                                       setResponses(r => ({ ...r, [q.id]: '' }));
                                     }}
-                                    className={`min-w-[6rem] flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                                    className={`min-w-[6rem] flex-1 rounded-md border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
                                       otherActive[q.id]
                                         ? 'border-accent-500 bg-accent-50 text-accent-700'
-                                        : 'border-[#E4E6EA] bg-[#FFFFFF] text-gray-600 hover:border-accent-300'
+                                        : 'border-line bg-surface text-gray-600 hover:border-accent-300'
                                     }`}
                                   >
                                     Other
@@ -812,7 +818,7 @@ export function ApplyForm({ job }: { job: Job }) {
               onClick={goNext}
               disabled={!emailVerified}
               title={!emailVerified ? 'Verify your email to continue' : undefined}
-              className="w-full bg-accent-600 hover:bg-accent-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
+              className="w-full bg-accent-600 hover:bg-accent-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-md font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
             >
               Next: a few questions
             </button>
@@ -822,7 +828,7 @@ export function ApplyForm({ job }: { job: Job }) {
                 <button
                   type="button"
                   onClick={() => setStep(0)}
-                  className="rounded-lg border border-[#E4E6EA] bg-[#FFFFFF] px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-[#EDEEF1] cursor-pointer transition"
+                  className="rounded-md border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-surface-hover cursor-pointer transition"
                 >
                   Previous
                 </button>
@@ -831,7 +837,7 @@ export function ApplyForm({ job }: { job: Job }) {
                 type="submit"
                 disabled={busy || !emailVerified}
                 title={!emailVerified ? 'Verify your email to continue' : undefined}
-                className="flex-1 bg-accent-600 hover:bg-accent-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
+                className="flex-1 bg-accent-600 hover:bg-accent-700 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-md font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
               >
                 {busy ? (
                   <>
@@ -853,7 +859,7 @@ export function ApplyForm({ job }: { job: Job }) {
           onClick={() => setOtpOpen(false)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+            className="w-full max-w-sm rounded-lg bg-surface p-6 shadow-xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="mb-1 flex items-center justify-between">
@@ -895,7 +901,7 @@ export function ApplyForm({ job }: { job: Job }) {
                   onChange={e => setOtpDigit(i, e.target.value)}
                   onKeyDown={e => onOtpKey(i, e)}
                   onPaste={onOtpPaste}
-                  className="h-14 w-12 rounded-lg border border-[#E4E6EA] text-center text-2xl font-bold text-gray-900 focus:border-accent-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30"
+                  className="h-14 w-12 rounded-md border border-line text-center text-2xl font-bold text-gray-900 focus:border-accent-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/30"
                 />
               ))}
             </div>
@@ -911,7 +917,7 @@ export function ApplyForm({ job }: { job: Job }) {
               type="button"
               onClick={verifyOtp}
               disabled={otpVerifying || otpDigits.join('').length !== 4}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60 cursor-pointer"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60 cursor-pointer"
             >
               {otpVerifying ? (
                 <>
