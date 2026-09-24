@@ -9,7 +9,7 @@ import { useToast } from './Toaster';
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useUrlState } from '@/lib/use-url-state';
 import { formatCtc, parseCtcLpa } from '@/lib/utils';
 import { usePagination } from '@/lib/use-pagination';
@@ -190,7 +190,33 @@ export function CandidateListView({
     pageSize: 15,
   }, { enabled: showFilters });
   const search = f.search;
-  const setSearch = (v: string) => setF({ search: v, page: 1 });
+  const setSearchCommitted = (v: string) => setF({ search: v, page: 1 });
+  // Typing in the search box used to feel laggy on large applicant lists:
+  // every keystroke committed straight to the URL (router.replace), which
+  // re-renders every useSearchParams() consumer — including this whole
+  // hundreds-of-rows table — on every character. Decouple the input's
+  // visible value (instant, local state) from the committed filter/URL
+  // value (debounced ~250ms after typing stops), so typing itself always
+  // feels snappy and the table only re-filters once per pause, not once
+  // per keystroke.
+  const [searchInput, setSearchInput] = useState(search);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    // Keep the visible input in sync when the committed value changes from
+    // outside typing (browser back/forward, a "Clear filters" action, etc).
+    setSearchInput(search);
+  }, [search]);
+  useEffect(
+    () => () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    },
+    [],
+  );
+  const setSearch = (v: string) => {
+    setSearchInput(v);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setSearchCommitted(v), 250);
+  };
   const selectedDept = f.dept;
   const setSelectedDept = (v: string) => setF({ dept: v, page: 1 });
   const selectedStatus = f.status;
@@ -507,7 +533,7 @@ export function CandidateListView({
           <input
             type="text"
             placeholder="Search name, role, or resume keyword..."
-            value={search}
+            value={searchInput}
             onChange={e => setSearch(e.target.value)}
             className="h-8 w-48 rounded-sm border border-line bg-surface pl-7 pr-3 text-xs focus:border-accent-400"
           />
