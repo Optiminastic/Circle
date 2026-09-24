@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from './Logo';
 import { BRAND } from '@/lib/brand';
+import { useAuth } from '@/store/auth-store';
 import {
   LayoutDashboard,
   Users,
@@ -16,6 +17,7 @@ import {
   UserSearch,
   ChevronDown,
   ShieldCheck,
+  ScrollText,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,6 +37,7 @@ export function Sidebar({
   onCloseMobile,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
   const [expandedSections, setExpandedSections] = useState({
     employees: true,
     offboarding: true,
@@ -156,6 +159,8 @@ export function Sidebar({
         {/* ANALYTICS & SETTINGS */}
         <div className="space-y-0.5 border-t border-line pt-3">
           {navItem('/reports', 'Enterprise Reports', <BarChart3 size={14} />)}
+          {/* Admin-only: the audit trail of what HR staff have been doing. */}
+          {isAdmin && navItem('/audit', 'Audit Trails', <ScrollText size={14} />)}
           {navItem('/settings', 'Global Settings', <Settings size={14} />)}
         </div>
       </div>
