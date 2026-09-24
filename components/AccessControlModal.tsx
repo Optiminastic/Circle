@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { AuthUser } from '@/types';
 import { useAuth, displayName } from '@/store/auth-store';
-import { ShieldCheck, KeyRound, Loader2, Check, Eye, EyeOff, User, AtSign } from 'lucide-react';
+import { ShieldCheck, KeyRound, Loader2, Check, Eye, EyeOff, User, AtSign, UserPlus, Send } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
  * account's password (e.g. the HR login). Rendered from the header profile menu.
  */
 export function AccessControlModal({ onClose }: { onClose: () => void }) {
-  const { user, listUsers, changePassword, changeEmail } = useAuth();
+  const { user, listUsers, inviteUser, changePassword, changeEmail } = useAuth();
   const [users, setUsers] = useState<AuthUser[] | null>(null);
   const [target, setTarget] = useState<string>('');
   const [newEmail, setNewEmail] = useState('');
@@ -38,7 +38,33 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Invite (create) a new account.
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'hr'>('hr');
+  const [inviting, setInviting] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const refresh = () => listUsers().then(setUsers).catch(() => setUsers([]));
+
+  const sendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteMsg(null);
+    const email = inviteEmail.trim().toLowerCase();
+    setInviting(true);
+    const res = await inviteUser(email, inviteName, inviteRole);
+    setInviting(false);
+    if (!res.ok) {
+      setInviteMsg({ ok: false, text: res.error ?? 'Could not send the invite.' });
+      return;
+    }
+    await refresh();
+    setInviteName('');
+    setInviteEmail('');
+    setInviteRole('hr');
+    // The account cannot be used until they set a password from the emailed link.
+    setInviteMsg({ ok: true, text: `Invite emailed to ${email}. They'll set their own password from the link.` });
+  };
 
   useEffect(() => {
     listUsers()
@@ -151,6 +177,85 @@ export function AccessControlModal({ onClose }: { onClose: () => void }) {
             ))
           )}
         </div>
+
+        {/* Invite a new account */}
+        <form onSubmit={sendInvite} className="space-y-3 border-t border-border px-5 pt-3 pb-4">
+          <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-gray-500">
+            <UserPlus size={12} /> Invite a new account
+          </p>
+
+          <div className="space-y-1">
+            <Label htmlFor="invite-name" className="text-[11px] font-semibold text-gray-600">
+              Name
+            </Label>
+            <Input
+              id="invite-name"
+              value={inviteName}
+              onChange={e => setInviteName(e.target.value)}
+              placeholder="Full name"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="invite-email" className="text-[11px] font-semibold text-gray-600">
+              Company email
+            </Label>
+            <div className="relative">
+              <Input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                placeholder="name@optiminastic.com"
+                className="pl-9"
+                autoComplete="off"
+              />
+              <AtSign
+                size={14}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-[11px] font-semibold text-gray-600">Role</Label>
+            <Select value={inviteRole} onValueChange={v => setInviteRole(v as 'admin' | 'hr')}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hr">HR</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {inviteMsg && (
+            <div
+              className={`flex items-center gap-1.5 rounded-md px-3 py-2 text-xs ${
+                inviteMsg.ok
+                  ? 'border border-emerald-100 bg-emerald-50 text-emerald-600'
+                  : 'border border-red-100 bg-red-50 text-red-600'
+              }`}
+            >
+              {inviteMsg.ok && <Check size={13} />}
+              {inviteMsg.text}
+            </div>
+          )}
+
+          <Button type="submit" disabled={inviting} className="w-full">
+            {inviting ? (
+              <>
+                <Loader2 size={14} className="animate-spin" /> Sending invite…
+              </>
+            ) : (
+              <>
+                <Send size={14} /> Send invite
+              </>
+            )}
+          </Button>
+        </form>
 
         {/* Reset password */}
         <form onSubmit={submit} className="space-y-3 border-t border-border px-5 pt-3 pb-5">

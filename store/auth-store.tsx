@@ -28,6 +28,11 @@ interface AuthState {
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   listUsers: () => Promise<AuthUser[]>;
+  /**
+   * Create (or re-invite) a dashboard account and email them a password-setup
+   * link. No password is set here - the invitee chooses their own from the email.
+   */
+  inviteUser: (email: string, name: string, role: 'admin' | 'hr') => Promise<{ ok: boolean; error?: string }>;
   changePassword: (targetEmail: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>;
   changeEmail: (currentEmail: string, newEmail: string) => Promise<{ ok: boolean; error?: string }>;
   /** Update the signed-in user's own display profile (name / title / phone). */
@@ -84,6 +89,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const listUsers = () => http.get<AuthUser[]>('/auth/users');
 
+  const inviteUser = async (email: string, name: string, role: 'admin' | 'hr') => {
+    const clean = email.trim().toLowerCase();
+    if (clean.length < 3 || !clean.includes('@')) {
+      return { ok: false, error: 'Enter a valid email address.' };
+    }
+    try {
+      // `appOrigin` is where the set-password link points; the server rejects a
+      // value that is not an absolute http(s) URL, so pass the live frontend origin.
+      await http.post('/auth/users/invite', {
+        email: clean,
+        name: name.trim(),
+        role,
+        appOrigin: window.location.origin,
+      });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errorText(err, 'Could not send the invite. Please try again.') };
+    }
+  };
+
   const changePassword = async (targetEmail: string, newPassword: string) => {
     if (newPassword.trim().length < 6) {
       return { ok: false, error: 'Password must be at least 6 characters.' };
@@ -134,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
       listUsers,
+      inviteUser,
       changePassword,
       changeEmail,
       updateProfile,
