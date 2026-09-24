@@ -183,6 +183,8 @@ export function CandidateListView({
     minExp: 0,
     rejected: 'all',
     ctc: 'all',
+    ctcMin: '',
+    ctcMax: '',
     keyword: 'all',
     page: 1,
     pageSize: 15,
@@ -204,9 +206,14 @@ export function CandidateListView({
   // physical interview, or any other step).
   const rejectedFilter = f.rejected as 'all' | 'rejected';
   const setRejectedFilter = (v: 'all' | 'rejected') => setF({ rejected: v, page: 1 });
-  // Expected CTC band — preset ranges (LPA), same UX as the Notice Period filter.
-  const ctcBand = f.ctc as 'all' | 'lt5' | '5to10' | '10to20' | 'gte20';
+  // Expected CTC band — preset ranges (LPA), same UX as the Notice Period filter,
+  // plus a "Custom range" band that filters against user-entered min/max LPA.
+  const ctcBand = f.ctc as 'all' | 'lt5' | '5to10' | '10to20' | 'gte20' | 'custom';
   const setCtcBand = (v: typeof ctcBand) => setF({ ctc: v, page: 1 });
+  const ctcMin = f.ctcMin;
+  const setCtcMin = (v: string) => setF({ ctcMin: clampCtcInput(v), page: 1 });
+  const ctcMax = f.ctcMax;
+  const setCtcMax = (v: string) => setF({ ctcMax: clampCtcInput(v), page: 1 });
   // Keyword-match tier — mirrors the Keywords column's own pill thresholds
   // (>=0.7 high, >=0.4 medium, else low), plus a bucket for "—" rows (job has
   // no keywords configured, or this candidate applied before matches existed).
@@ -284,7 +291,11 @@ export function CandidateListView({
         if (ctcBand === 'lt5') return lpa < 5;
         if (ctcBand === '5to10') return lpa >= 5 && lpa < 10;
         if (ctcBand === '10to20') return lpa >= 10 && lpa < 20;
-        return lpa >= 20; // gte20
+        if (ctcBand === 'gte20') return lpa >= 20;
+        // custom — either bound left blank means "no lower/upper limit".
+        const min = ctcMin === '' ? -Infinity : Number(ctcMin);
+        const max = ctcMax === '' ? Infinity : Number(ctcMax);
+        return lpa >= min && lpa <= max;
       })();
       const matchesKeywords = (() => {
         if (keywordBand === 'all') return true;
@@ -565,7 +576,31 @@ export function CandidateListView({
           <option value="5to10">5{'–'}10 LPA</option>
           <option value="10to20">10{'–'}20 LPA</option>
           <option value="gte20">20+ LPA</option>
+          <option value="custom">Custom range…</option>
         </Select>
+
+        {ctcBand === 'custom' && (
+          <div className="flex items-center gap-1">
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Min"
+              value={ctcMin}
+              onChange={e => setCtcMin(e.target.value)}
+              className="h-8 w-16 rounded-sm border border-line bg-surface px-2 font-mono text-xs text-gray-700 focus:border-accent-400"
+            />
+            <span className="text-xs text-gray-400">{'–'}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Max"
+              value={ctcMax}
+              onChange={e => setCtcMax(e.target.value)}
+              className="h-8 w-16 rounded-sm border border-line bg-surface px-2 font-mono text-xs text-gray-700 focus:border-accent-400"
+            />
+            <span className="text-[10px] font-mono uppercase text-gray-400">LPA</span>
+          </div>
+        )}
 
         <Select
           value={keywordBand}
