@@ -132,24 +132,31 @@ export function computeBreakup(d: OfferLetterData): BreakupRow[] {
   const basicM = Math.round((annual * 0.3) / 12);
   const hraM = Math.round(basicM / 2);
   const pfM = pfEnabled ? Math.min(1800, Math.round(basicM * 0.12)) : 0;
-  const specialM = Math.max(0, ctcM - basicM - hraM - pfM);
+  // Annual figures reconcile to the stated Annual CTC EXACTLY. Annualising
+  // rounded monthly values loses a few rupees (round(annual/12) drops the
+  // fraction, then x12), so CTC (A) came out short. Special Allowance is the
+  // balancing plug: its annual is the remainder, making CTC (A) exact.
+  const pfY = y(pfM);
+  const specialY = Math.max(0, annual - y(basicM) - y(hraM) - pfY);
+  const specialM = Math.round(specialY / 12);
   const grossM = basicM + hraM + specialM;
 
-  const grossY = y(basicM) + y(hraM) + y(specialM);
-  const pfY = y(pfM);
+  const grossY = y(basicM) + y(hraM) + specialY;
   const ctcY = grossY + pfY; // == annual CTC
 
   const ptM = 200;
   const ptY = 2500; // Maharashtra professional tax is ₹2,500/yr, not ₹200 × 12
   const totalDedM = pfM + ptM;
-  const totalDedY = y(totalDedM);
+  // Sum the annual LESS rows so Total Deduction equals PF + PT exactly. PT is
+  // Rs 2,500/yr by Maharashtra convention (not 200 x 12), so y(totalDedM) undercounts.
+  const totalDedY = pfY + ptY;
   const netM = grossM - totalDedM;
   const netY = ctcY - totalDedY;
 
   const rows: BreakupRow[] = [
     { label: 'Basic', monthly: basicM, annual: y(basicM) },
     { label: 'HRA', monthly: hraM, annual: y(hraM) },
-    { label: 'Special Allowance', monthly: specialM, annual: y(specialM) },
+    { label: 'Special Allowance', monthly: specialM, annual: specialY },
     { label: 'Gross Salary', monthly: grossM, annual: grossY, strong: true },
   ];
   if (pfEnabled) rows.push({ label: 'PF', monthly: pfM, annual: pfY });
