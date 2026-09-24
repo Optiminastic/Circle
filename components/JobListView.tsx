@@ -179,6 +179,11 @@ export function JobListView({
   // shareable, and "open a job → back" restores exactly what you left.
   const [f, setF] = useUrlState({
     search: '',
+    // Experience filter — matches a posting's required years (minExperienceYears)
+    // against an inclusive [min, max] range. Stored as strings so an empty box
+    // means "no bound"; digits-only so a stray letter can't NaN out the filter.
+    expMin: '',
+    expMax: '',
     sortKey: 'title' as SortKey,
     sortDir: 'asc' as 'asc' | 'desc',
     page: 1,
@@ -186,6 +191,10 @@ export function JobListView({
   });
   const search = f.search;
   const setSearch = (v: string) => setF({ search: v, page: 1 });
+  const expMin = f.expMin;
+  const setExpMin = (v: string) => setF({ expMin: v.replace(/[^0-9]/g, ''), page: 1 });
+  const expMax = f.expMax;
+  const setExpMax = (v: string) => setF({ expMax: v.replace(/[^0-9]/g, ''), page: 1 });
   // Reusable Must-have/Good-to-have sets from the Question Library (DB-backed).
   const { data: screeningBanks = [] } = useScreeningBanks();
   const { create: createScreeningBank, update: updateScreeningBank } =
@@ -493,15 +502,19 @@ export function JobListView({
   const totalApplicants = Object.values(applicantCounts).reduce((a, b) => a + b, 0);
 
   const q = search.trim().toLowerCase();
-  const visibleJobs = q
-    ? jobs.filter(
-        j =>
-          j.title.toLowerCase().includes(q) ||
-          j.department.toLowerCase().includes(q) ||
-          j.location.toLowerCase().includes(q) ||
-          j.id.toLowerCase().includes(q),
-      )
-    : jobs;
+  // Empty bound = open-ended; the range is inclusive on both ends.
+  const expLo = expMin === '' ? -Infinity : Number(expMin);
+  const expHi = expMax === '' ? Infinity : Number(expMax);
+  const visibleJobs = jobs.filter(j => {
+    const matchesSearch =
+      !q ||
+      j.title.toLowerCase().includes(q) ||
+      j.department.toLowerCase().includes(q) ||
+      j.location.toLowerCase().includes(q) ||
+      j.id.toLowerCase().includes(q);
+    const exp = j.minExperienceYears ?? 0;
+    return matchesSearch && exp >= expLo && exp <= expHi;
+  });
 
   const sortedJobs = [...visibleJobs].sort((a, b) => {
     const dir = sort.dir === 'asc' ? 1 : -1;
@@ -602,6 +615,46 @@ export function JobListView({
               placeholder="Search jobs…"
               className="w-44 sm:w-56 pl-8 pr-3 py-2 text-xs bg-surface border border-line rounded-md focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 transition"
             />
+          </div>
+          {/* Experience filter — postings whose required years fall in [min, max]. */}
+          <div
+            className="flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1"
+            title="Filter postings by required experience (years)"
+          >
+            <Gauge size={13} className="shrink-0 text-gray-500" />
+            <span className="hidden font-mono text-[9px] uppercase tracking-wider text-gray-500 sm:inline">
+              Exp
+            </span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={expMin}
+              onChange={e => setExpMin(e.target.value)}
+              placeholder="Min"
+              aria-label="Minimum experience (years)"
+              className="w-11 rounded-sm bg-transparent px-1 py-0.5 text-center font-mono text-xs text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500"
+            />
+            <span className="text-xs text-gray-400">–</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={expMax}
+              onChange={e => setExpMax(e.target.value)}
+              placeholder="Max"
+              aria-label="Maximum experience (years)"
+              className="w-11 rounded-sm bg-transparent px-1 py-0.5 text-center font-mono text-xs text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500"
+            />
+            <span className="font-mono text-[9px] uppercase text-gray-400">yrs</span>
+            {(expMin !== '' || expMax !== '') && (
+              <button
+                type="button"
+                onClick={() => setF({ expMin: '', expMax: '', page: 1 })}
+                aria-label="Clear experience filter"
+                className="rounded-full p-0.5 text-gray-400 hover:bg-surface-hover hover:text-gray-700"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
           <button
             id="btn-post-job"
