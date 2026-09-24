@@ -10,7 +10,7 @@ import { EmailTemplatesManager } from './EmailTemplatesManager';
 import { useToast } from './Toaster';
 import { useUiStore } from '@/store/ui-store';
 import { useSchedules } from '@/features/schedule/hooks';
-import { useCandidates, useBgvs, useCandidateMutations } from '@/features/candidates/hooks';
+import { useCandidates, useBgvs, useCandidateMutations, useRestoreFromBlacklist } from '@/features/candidates/hooks';
 import { useDocRequests } from '@/features/doc-requests/hooks';
 import { useEmployees } from '@/features/employees/hooks';
 import { useJobs } from '@/features/jobs/hooks';
@@ -19,10 +19,12 @@ import {
   useUpdateOffboardingCase,
   useDeleteOffboarding,
 } from '@/features/offboarding/hooks';
-import { useEnsureOnboarding } from '@/features/onboarding/hooks';
+import { useEnsureOnboarding, useConvertToCandidate, useBlacklistCandidate } from '@/features/onboarding/hooks';
 import { AddExitCaseModal } from '@/components/AddExitCaseModal';
 import { EditExitCaseDialog } from '@/components/EditExitCaseDialog';
 import { AddOnboardingCandidateModal } from '@/components/AddOnboardingCandidateModal';
+import { OnboardingCandidateActionsModal } from '@/components/OnboardingCandidateActionsModal';
+import { BlacklistedCandidatesModal } from '@/components/BlacklistedCandidatesModal';
 import { uploadDocument, importDriveDocument } from '@/lib/api/documents';
 import { PickedFile } from '@/components/ui/file-dropzone';
 import { useScheduler } from '@/store/schedule-store';
@@ -60,7 +62,7 @@ import { QUESTION_CATEGORIES } from '@/lib/question-library';
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Clock,
   CalendarDays,
@@ -99,6 +101,8 @@ import {
   MapPin,
   Video,
   Award,
+  MoreVertical,
+  Ban,
 } from 'lucide-react';
 import {
   Candidate,
@@ -946,12 +950,19 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
   const { data: bgvs = [] } = useBgvs();
   const { data: docRequests = [] } = useDocRequests();
   const { data: jobs = [] } = useJobs();
+  const { data: candidates = [] } = useCandidates();
   const { create } = useCandidateMutations();
   const ensureOnboarding = useEnsureOnboarding();
+  const convertToCandidate = useConvertToCandidate();
+  const blacklistCandidate = useBlacklistCandidate();
+  const restoreFromBlacklist = useRestoreFromBlacklist();
   const pg = usePagination(onboarding.length);
 
   const [addCandidateOpen, setAddCandidateOpen] = useState(false);
+  const [actionsFor, setActionsFor] = useState<{ id: string; name: string } | null>(null);
+  const [blacklistOpen, setBlacklistOpen] = useState(false);
   const openJobs = jobs.filter(j => j.status === 'Open');
+  const blacklisted = useMemo(() => candidates.filter(c => c.status === 'Blacklisted'), [candidates]);
 
   // Straight-to-onboarding add: create the candidate, spin up their checklist
   // immediately (no pipeline stages), attach the resume, then jump to their
@@ -997,12 +1008,20 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
             Checklist-driven joiner actions. Open a joiner to manage their checklist and journey.
           </p>
         </div>
-        <button
-          onClick={() => setAddCandidateOpen(true)}
-          className="bg-accent-600 hover:bg-accent-700 text-white h-9 px-3.5 rounded-md inline-flex items-center justify-center gap-1.5 cursor-pointer transition text-xs font-semibold shrink-0 shadow-2xs"
-        >
-          <Plus size={15} /> Add to onboarding
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setBlacklistOpen(true)}
+            className="bg-surface hover:bg-surface-hover text-gray-700 border border-line h-9 px-3.5 rounded-md inline-flex items-center justify-center gap-1.5 cursor-pointer transition text-xs font-semibold shadow-2xs"
+          >
+            <Ban size={14} /> Blacklisted candidates{blacklisted.length > 0 ? ` (${blacklisted.length})` : ''}
+          </button>
+          <button
+            onClick={() => setAddCandidateOpen(true)}
+            className="bg-accent-600 hover:bg-accent-700 text-white h-9 px-3.5 rounded-md inline-flex items-center justify-center gap-1.5 cursor-pointer transition text-xs font-semibold shadow-2xs"
+          >
+            <Plus size={15} /> Add to onboarding
+          </button>
+        </div>
       </div>
 
       {/* Joiners table — click a row to open their full onboarding page */}
@@ -1018,6 +1037,7 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
             <Th icon={<CheckCircle size={11} />}>Progress</Th>
             <Th>Tags</Th>
             <Th icon={<Users size={11} />}>Employment</Th>
+            <Th align="right" className="w-10" />
           </THead>
           <TBody>
             {onboarding.slice(pg.start, pg.end).map(o => {
@@ -1062,6 +1082,17 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
                       <TagPill color="gray">Pending</TagPill>
                     )}
                   </Td>
+                  <Td align="right">
+                    <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setActionsFor({ id: o.candidateId, name: o.candidateName })}
+                        aria-label="Manage candidate"
+                        className="rounded p-1.5 text-gray-400 transition hover:bg-surface-hover hover:text-gray-700"
+                      >
+                        <MoreVertical size={15} />
+                      </button>
+                    </div>
+                  </Td>
                 </Tr>
               );
             })}
@@ -1082,6 +1113,43 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
           pending={create.isPending}
           onSubmit={addCandidateDirect}
           onClose={() => setAddCandidateOpen(false)}
+        />
+      )}
+      {actionsFor && (
+        <OnboardingCandidateActionsModal
+          candidateName={actionsFor.name}
+          onClose={() => setActionsFor(null)}
+          onConvertToCandidate={async () => {
+            try {
+              await convertToCandidate.mutateAsync(actionsFor.id);
+              toast.success(`${actionsFor.name} moved back to the candidates pipeline.`);
+            } catch {
+              toast.error('Could not convert this candidate — try again.');
+            }
+          }}
+          onBlacklist={async reason => {
+            try {
+              await blacklistCandidate.mutateAsync({ candidateId: actionsFor.id, reason });
+              toast.success(`${actionsFor.name} blacklisted and removed from onboarding.`);
+            } catch {
+              toast.error('Could not blacklist this candidate — try again.');
+            }
+          }}
+        />
+      )}
+      {blacklistOpen && (
+        <BlacklistedCandidatesModal
+          candidates={blacklisted}
+          onClose={() => setBlacklistOpen(false)}
+          onRestore={async id => {
+            const cand = blacklisted.find(c => c.id === id);
+            try {
+              await restoreFromBlacklist.mutateAsync(id);
+              toast.success(`${cand?.fullName ?? 'Candidate'} restored to the candidates pipeline.`);
+            } catch {
+              toast.error('Could not restore this candidate — try again.');
+            }
+          }}
         />
       )}
     </div>

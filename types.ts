@@ -74,6 +74,14 @@ export interface Candidate {
    * 'Rejected' / 'On Hold' stop the candidate from moving forward.
    */
   stageDecisions?: Record<string, StageDecision>;
+
+  /** Set when HR blacklists this candidate from the Onboarding row menu.
+   *  Blacklisted candidates are hidden everywhere except the dedicated
+   *  "Blacklisted candidates" view — their uploaded documents are left
+   *  untouched in storage; only the status/onboarding record changes. */
+  blacklistedAt?: string;
+  /** HR's reason for blacklisting, entered at the time of the action. */
+  blacklistReason?: string;
 }
 
 export type StageDecision = 'Accepted' | 'Rejected' | 'On Hold';
@@ -250,7 +258,8 @@ export type CandidateStatus =
   | 'Moved to HR Call'
   | 'Offer Shortlisted'
   | 'Selected'
-  | 'Duplicate Profile';
+  | 'Duplicate Profile'
+  | 'Blacklisted';
 
 export interface HRCallRecord {
   completed: boolean;

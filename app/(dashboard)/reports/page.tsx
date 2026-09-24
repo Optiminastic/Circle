@@ -20,7 +20,7 @@ export default function ReportsPage() {
 
   // Headline metrics straight off the live candidate + interview data.
   const count = (pred: (c: Candidate) => boolean) => candidates.filter(pred).length;
-  const terminal = ['Rejected', 'Selected', 'On Hold', 'Duplicate Profile'];
+  const terminal = ['Rejected', 'Selected', 'On Hold', 'Duplicate Profile', 'Blacklisted'];
   const completedInterviews = scopedInterviews.filter(i => i.status === 'Completed').length;
   const upcomingInterviews = scopedInterviews.filter(i => i.status === 'Scheduled').length;
 

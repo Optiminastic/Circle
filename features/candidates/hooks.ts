@@ -117,6 +117,22 @@ export function useCandidateMutations() {
   return { create, update, move, remove, setFit };
 }
 
+/** Restore a Blacklisted candidate back to the active pipeline (used from the
+ *  "Blacklisted candidates" view). They already have no onboarding record —
+ *  blacklisting removed it — so this only patches the candidate itself. */
+export function useRestoreFromBlacklist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (candidateId: string) =>
+      repositories.candidates.patch(candidateId, {
+        status: 'Shortlisted',
+        blacklistedAt: null,
+        blacklistReason: null,
+      } as unknown as Partial<Candidate>),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.candidates.all }),
+  });
+}
+
 export function useUpdateBgv() {
   const qc = useQueryClient();
   return useMutation({

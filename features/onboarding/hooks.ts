@@ -394,6 +394,54 @@ export function useOnboardingEmails() {
   };
 }
 
+/** Pull a candidate back OUT of onboarding into the plain Candidates pipeline
+ *  for their role — the reverse of useEnsureOnboarding. Only the onboarding
+ *  checklist record (metadata) is removed and the candidate's status reverts
+ *  to 'Shortlisted'; nothing here ever calls the candidate DELETE endpoint,
+ *  which is the only path that cascades to deleting S3 documents — uploaded
+ *  onboarding docs are left exactly where they are. */
+export function useConvertToCandidate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (candidateId: string) => {
+      await repositories.onboarding.remove(candidateId);
+      await repositories.candidates.patch(candidateId, {
+        status: 'Shortlisted',
+        blacklistedAt: null,
+        blacklistReason: null,
+      } as unknown as Partial<Candidate>);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: qk.onboarding.all });
+      qc.invalidateQueries({ queryKey: qk.candidates.all });
+    },
+  });
+}
+
+/** Remove a candidate from onboarding and mark them Blacklisted. Same
+ *  storage guarantee as useConvertToCandidate — only the onboarding record
+ *  is removed and the candidate's status is patched; uploaded documents in
+ *  S3 are never touched. Blacklisted candidates are filtered out of the
+ *  regular Candidates list (see CandidateListView) and surface only in the
+ *  "Blacklisted candidates" view. */
+export function useBlacklistCandidate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ candidateId, reason }: { candidateId: string; reason: string }) => {
+      await repositories.onboarding.remove(candidateId);
+      await repositories.candidates.patch(candidateId, {
+        status: 'Blacklisted',
+        blacklistedAt: nowISO(),
+        blacklistReason: reason,
+      } as unknown as Partial<Candidate>);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: qk.onboarding.all });
+      qc.invalidateQueries({ queryKey: qk.candidates.all });
+    },
+  });
+}
+
 /** Promote a finished onboarding into a full employee (touches 3 resources). */
 export function usePromoteFromOnboarding() {
   const qc = useQueryClient();

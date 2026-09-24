@@ -263,6 +263,11 @@ export function CandidateListView({
   const hitKeywords = (cand: Candidate) =>
     q === '' ? [] : (cand.keywordMatches ?? []).filter(k => k.toLowerCase().includes(q));
   const filtered = candidates
+    // Blacklisted candidates never show here (or anywhere derived from this
+    // view — the dashboard's New Candidates panel, jobs' Applicants tab).
+    // They only surface in the dedicated "Blacklisted candidates" view on
+    // the Onboarding page; their uploaded documents are untouched in S3.
+    .filter(cand => cand.status !== 'Blacklisted')
     .filter(cand => {
       // Name, role, and the job keywords found in this candidate's resume at
       // apply time (Candidate.keywordMatches) - so searching "Figma" surfaces
