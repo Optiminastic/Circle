@@ -295,13 +295,16 @@ export function CandidateListView({
     // the Onboarding page; their uploaded documents are untouched in S3.
     .filter(cand => cand.status !== 'Blacklisted')
     .filter(cand => {
-      // Name, role, and the job keywords found in this candidate's resume at
-      // apply time (Candidate.keywordMatches) - so searching "Figma" surfaces
-      // everyone whose resume actually contained it.
+      // Name, role, and the FULL resume text (Candidate.resumeText, extracted
+      // from the uploaded PDF at apply time) - so searching any skill like
+      // "next js" surfaces everyone whose resume mentions it, even when it is
+      // not one of the job's keywords. keywordMatches is still matched too, for
+      // the normalised job-keyword hits shown as pills on the row.
       const matchesSearch =
         q === '' ||
         cand.fullName.toLowerCase().includes(q) ||
         cand.appliedRole.toLowerCase().includes(q) ||
+        (cand.resumeText?.toLowerCase().includes(q) ?? false) ||
         hitKeywords(cand).length > 0;
       const matchesDept = selectedDept === 'All' || cand.department === selectedDept;
       // Rejected filter owns the rejected/not-rejected split. 'all' → everyone,
@@ -532,7 +535,7 @@ export function CandidateListView({
           </span>
           <input
             type="text"
-            placeholder="Search name, role, or resume keyword..."
+            placeholder="Search name, role, or resume (any skill)..."
             value={searchInput}
             onChange={e => setSearch(e.target.value)}
             className="h-8 w-48 rounded-sm border border-line bg-surface pl-7 pr-3 text-xs focus:border-accent-400"
