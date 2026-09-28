@@ -45,10 +45,15 @@ export async function uploadRequestDocument(params: {
 export async function confirmSubmission(
   token: string,
   docType: string,
+  fields?: Record<string, string>,
 ): Promise<DocSubmission> {
   const res = await fetch(
     `${apiBase()}/api/doc-requests/${encodeURIComponent(token)}/submissions/${encodeURIComponent(docType)}/confirm`,
-    { method: 'POST' },
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    },
   );
   if (!res.ok) {
     const detail = await res.text().catch(() => '');

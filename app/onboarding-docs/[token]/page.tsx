@@ -372,13 +372,14 @@ export default function OnboardingDocsPortal() {
               </div>
 
               {/* What we read off the document, for the candidate to confirm
-                  before HR ever sees it. Hidden once HR has locked it. */}
-              {sub?.extraction && !locked && (
+                  before HR ever sees it. Read-only once HR has locked it. */}
+              {sub?.extraction && (
                 <ExtractedDetailsCheck
                   token={token}
                   docType={doc.type}
                   docLabel={doc.label}
                   extraction={sub.extraction}
+                  locked={locked}
                   onReplace={() => fileInputs.current[doc.type]?.click()}
                   onConfirmed={() => qc.invalidateQueries({ queryKey: portalKey(token) })}
                 />

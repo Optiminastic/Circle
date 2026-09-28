@@ -432,8 +432,18 @@ export interface DocExtraction {
   meanConfidence: number;
   fields: Record<string, string>;
   warnings: string[];
+  /**
+   * Field keys a machine check confirmed - an Aadhaar number that satisfies its
+   * checksum, a well-formed PAN, a plausible pincode or year. These are shown
+   * read-only: the point of the check is that the value came off the document
+   * rather than off a keyboard. Everything else is OCR's best guess and is
+   * editable by the candidate and by HR.
+   */
+  validatedFields?: string[];
   /** True once HR has corrected the extracted values. */
   editedByHr?: boolean;
+  /** True once the candidate corrected a field OCR could not confirm. */
+  editedByCandidate?: boolean;
   /**
    * When the candidate confirmed these values against their own document, in
    * the upload portal. Confirming is NOT verifying - HR still reviews every
