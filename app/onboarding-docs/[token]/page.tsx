@@ -37,6 +37,7 @@ import {
   saveDocRequestReferences,
   saveDocRequestConsent,
 } from '@/lib/api/doc-requests';
+import { ExtractedDetailsCheck } from '@/components/onboarding-docs/ExtractedDetailsCheck';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -306,10 +307,11 @@ export default function OnboardingDocsPortal() {
           return (
             <div
               key={doc.type}
-              className={`flex items-center justify-between gap-3 rounded-md border bg-surface p-3 ${
+              className={`rounded-md border bg-surface p-3 ${
                 rejected ? 'border-red-300' : locked ? 'border-emerald-300' : sub ? 'border-emerald-200' : 'border-line'
               }`}
             >
+              <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-800">
                   {sub && !rejected && <CheckCircle2 size={14} className="text-emerald-500" />}
@@ -367,6 +369,20 @@ export default function OnboardingDocsPortal() {
                   </>
                 )}
               </div>
+              </div>
+
+              {/* What we read off the document, for the candidate to confirm
+                  before HR ever sees it. Hidden once HR has locked it. */}
+              {sub?.extraction && !locked && (
+                <ExtractedDetailsCheck
+                  token={token}
+                  docType={doc.type}
+                  docLabel={doc.label}
+                  extraction={sub.extraction}
+                  onReplace={() => fileInputs.current[doc.type]?.click()}
+                  onConfirmed={() => qc.invalidateQueries({ queryKey: portalKey(token) })}
+                />
+              )}
             </div>
           );
         })}

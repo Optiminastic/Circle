@@ -417,6 +417,31 @@ export interface BankDetails {
 
 export type DocSubmissionStatus = 'Submitted' | 'Verified' | 'Rejected';
 
+/** How much to trust what OCR read off the uploaded image. */
+export type DocExtractionQuality = 'clear' | 'needs_review' | 'unreadable';
+
+/**
+ * Values read off the document by the backend's OCR (app/services/ocr.py).
+ * Always a starting point for HR, never a decision — the Aadhaar number here is
+ * already masked server-side, so the full value lives only on the image itself.
+ */
+export interface DocExtraction {
+  engine: string;
+  extractedAt: string;
+  quality: DocExtractionQuality;
+  meanConfidence: number;
+  fields: Record<string, string>;
+  warnings: string[];
+  /** True once HR has corrected the extracted values. */
+  editedByHr?: boolean;
+  /**
+   * When the candidate confirmed these values against their own document, in
+   * the upload portal. Confirming is NOT verifying - HR still reviews every
+   * document; this only records that a second pair of eyes saw them first.
+   */
+  candidateConfirmedAt?: string;
+}
+
 export interface DocSubmission {
   docType: string; // RequiredDocType (kept loose so custom items don't break)
   documentId: string; // id in the documents table — used for presigned download
@@ -427,6 +452,8 @@ export interface DocSubmission {
   /** HR's note when rejecting (or any review remark). */
   reviewReason?: string;
   reviewedAt?: string;
+  /** Populated on demand when HR opens the document for review. */
+  extraction?: DocExtraction;
 }
 
 /**

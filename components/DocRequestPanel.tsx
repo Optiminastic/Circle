@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Lock,
   Users,
+  ScanLine,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DocRequest } from '@/types';
@@ -23,7 +24,14 @@ import { qk } from '@/lib/query/keys';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useDocRequests, useDocRequestMutations, isDocRequestLive } from '@/features/doc-requests/hooks';
 import { openDocument, downloadDocument } from '@/features/documents/hooks';
-import { docDefsFor, needsBank, needsReferences, isSubmissionLocked } from '@/lib/onboarding-docs';
+import {
+  docDefsFor,
+  needsBank,
+  needsReferences,
+  isSubmissionLocked,
+  supportsExtraction,
+} from '@/lib/onboarding-docs';
+import { DocExtractionReview } from '@/components/DocExtractionReview';
 import {
   Accordion,
   AccordionItem,
@@ -82,6 +90,8 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
   }, [requests, candidateId]);
 
   const [rejecting, setRejecting] = useState<string | null>(null);
+  // Which document's extracted details are expanded for review.
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
   const submittedFor = useMemo(() => {
@@ -99,10 +109,15 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
     );
   };
 
-  const runVerify = (docType: string, status: 'Verified' | 'Rejected', why?: string) => {
+  const runVerify = (
+    docType: string,
+    status: 'Verified' | 'Rejected',
+    why?: string,
+    fields?: Record<string, string>,
+  ) => {
     if (!request) return;
     verify.mutate(
-      { request, docType, status, reason: why },
+      { request, docType, status, reason: why, fields },
       {
         onSuccess: () => {
           toast.success(status === 'Verified' ? 'Document verified.' : 'Document rejected.');
@@ -284,6 +299,15 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                     </div>
                     {sub && (
                       <div className="flex shrink-0 items-center gap-1">
+                        {supportsExtraction(doc.type) && (
+                          <IconBtn
+                            title={reviewing === doc.type ? 'Hide details' : 'Review details'}
+                            active={reviewing === doc.type}
+                            onClick={() => setReviewing(reviewing === doc.type ? null : doc.type)}
+                          >
+                            <ScanLine size={13} />
+                          </IconBtn>
+                        )}
                         <IconBtn title="View" onClick={() => openDocument(sub.documentId)}>
                           <Eye size={13} />
                         </IconBtn>
@@ -321,6 +345,17 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
                       </div>
                     )}
                   </div>
+
+                  {sub && reviewing === doc.type && (
+                    <DocExtractionReview
+                      requestId={request.id}
+                      docType={doc.type}
+                      submission={sub}
+                      locked={locked}
+                      verifying={verify.isPending}
+                      onVerify={fields => runVerify(doc.type, 'Verified', undefined, fields)}
+                    />
+                  )}
 
                   {!locked && rejecting === doc.type && (
                     <div className="mt-2 flex items-center gap-2">

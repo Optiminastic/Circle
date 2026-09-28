@@ -3,8 +3,12 @@
  * documents client it talks to the API directly rather than via the JSON
  * HttpClient. These calls are unauthenticated by design — the unguessable,
  * expiring token in the URL is the credential.
+ *
+ * The two HR calls at the bottom are the exception: they send the session cookie
+ * and the server requires it, because the token alone must never be enough to
+ * approve an identity document.
  */
-import { DocRequest, DocSubmission, ReferenceContact } from '@/types';
+import { DocExtraction, DocRequest, DocSubmission, ReferenceContact } from '@/types';
 import { apiBase } from '@/lib/api-base';
 
 /** Fetch a request by its public token (used by the portal page). */
@@ -32,6 +36,23 @@ export async function uploadRequestDocument(params: {
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(detail || `Upload failed (${res.status})`);
+  }
+  return res.json();
+}
+
+/** The candidate confirms the values read off their own document.
+ *  Token-gated like the upload. Records a timestamp only - it cannot verify. */
+export async function confirmSubmission(
+  token: string,
+  docType: string,
+): Promise<DocSubmission> {
+  const res = await fetch(
+    `${apiBase()}/api/doc-requests/${encodeURIComponent(token)}/submissions/${encodeURIComponent(docType)}/confirm`,
+    { method: 'POST' },
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not confirm the details (${res.status})`);
   }
   return res.json();
 }
@@ -66,6 +87,61 @@ export async function saveDocRequestConsent(
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(detail || `Could not save consent (${res.status})`);
+  }
+  return res.json();
+}
+
+// --- HR-only (session required) ----------------------------------------------
+
+function submissionUrl(requestId: string, docType: string, action: string): string {
+  return `${apiBase()}/api/doc-requests/${encodeURIComponent(requestId)}/submissions/${encodeURIComponent(docType)}/${action}`;
+}
+
+export interface ExtractResponse {
+  ok: boolean;
+  reason?: 'ocr_not_configured';
+  extraction?: DocExtraction;
+}
+
+/** Read the uploaded document and pre-fill its values. Runs OCR server-side, so
+ *  it can take a few seconds on first call. */
+export async function extractSubmissionFields(
+  requestId: string,
+  docType: string,
+): Promise<ExtractResponse> {
+  const res = await fetch(submissionUrl(requestId, docType, 'extract'), {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not read the document (${res.status})`);
+  }
+  return res.json();
+}
+
+/** HR's decision on one document, plus any corrections to its extracted values.
+ *  Correcting and approving are one call so values can't be approved unsaved. */
+export async function reviewSubmission(params: {
+  requestId: string;
+  docType: string;
+  status: 'Verified' | 'Rejected';
+  reason?: string;
+  fields?: Record<string, string>;
+}): Promise<DocRequest> {
+  const res = await fetch(submissionUrl(params.requestId, params.docType, 'review'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      status: params.status,
+      reason: params.reason,
+      fields: params.fields,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not save the review (${res.status})`);
   }
   return res.json();
 }

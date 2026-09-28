@@ -5,6 +5,7 @@ import { BankDetails, DocRequest } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
 import { sendTestEmail } from '@/lib/api/notifications';
+import { extractSubmissionFields, reviewSubmission } from '@/lib/api/doc-requests';
 import { nowISO, randomToken } from '@/lib/utils';
 import {
   DEFAULT_REQUIRED_DOC_TYPES,
@@ -186,29 +187,36 @@ export function useDocRequestMutations() {
     onSuccess: invalidate,
   });
 
-  // HR marks one submitted document Verified or Rejected (with a reason).
+  // HR marks one submitted document Verified or Rejected (with a reason), and
+  // saves any corrections to its OCR-extracted values in the same call.
+  //
+  // This goes through a session-guarded endpoint rather than the generic PATCH:
+  // that route is public (the request id IS the candidate's portal token), so
+  // approving a document there would be something the candidate could do too.
+  // The server also owns the "all required docs verified" recompute now.
   const verify = useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       request: DocRequest;
       docType: string;
       status: 'Verified' | 'Rejected';
       reason?: string;
-    }) => {
-      const submissions = input.request.submissions.map(s =>
-        s.docType === input.docType
-          ? { ...s, status: input.status, reviewReason: input.reason, reviewedAt: nowISO() }
-          : s,
-      );
-      const allVerified = requiredFileDocTypes(input.request.requiredDocs).every(
-        rt => submissions.find(s => s.docType === rt)?.status === 'Verified',
-      );
-      const bankOk =
-        !needsBank(input.request.requiredDocs) || input.request.bankDetails?.status === 'Verified';
-      return repositories.docRequests.patch(input.request.id, {
-        submissions,
-        status: allVerified && bankOk ? 'Verified' : input.request.status,
-      });
-    },
+      fields?: Record<string, string>;
+    }) =>
+      reviewSubmission({
+        requestId: input.request.id,
+        docType: input.docType,
+        status: input.status,
+        reason: input.reason,
+        fields: input.fields,
+      }),
+    onSuccess: invalidate,
+  });
+
+  // Reads the uploaded image and pre-fills its values. On demand rather than at
+  // upload time - OCR is CPU-heavy and the upload endpoint is public.
+  const extract = useMutation({
+    mutationFn: (input: { requestId: string; docType: string }) =>
+      extractSubmissionFields(input.requestId, input.docType),
     onSuccess: invalidate,
   });
 
@@ -247,5 +255,5 @@ export function useDocRequestMutations() {
     onSuccess: invalidate,
   });
 
-  return { create, verify, verifyBank, reactivate };
+  return { create, verify, verifyBank, reactivate, extract };
 }

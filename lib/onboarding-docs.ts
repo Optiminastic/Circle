@@ -139,6 +139,21 @@ export const needsReferences = (types: string[] | undefined): boolean =>
 export const isSubmissionLocked = (sub?: { status?: string } | null): boolean =>
   sub?.status === 'Verified';
 
+/**
+ * Document types the backend can read values out of. A UI affordance only -
+ * `doc_fields.supports()` on the server is the authoritative list, and this
+ * just decides whether to offer the "Review details" button.
+ */
+const EXTRACTABLE_DOC_TYPES = [
+  'Aadhaar card',
+  'PAN card',
+  'Address proof',
+  'Education certificates',
+].map(type => type.toLowerCase());
+
+export const supportsExtraction = (docType: string): boolean =>
+  EXTRACTABLE_DOC_TYPES.includes((docType || '').trim().toLowerCase());
+
 /** Link a candidate uses to reach their upload portal. */
 export const docPortalPath = (token: string) => `/onboarding-docs/${token}`;
 
