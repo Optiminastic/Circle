@@ -2,7 +2,13 @@
 
 import React, { useState } from 'react';
 import { X, Loader2, Fingerprint, AlertTriangle, ArrowLeft, ScanLine } from 'lucide-react';
-import { BGV_CATALOG, bgvCheckLabel, type BgvCheck } from '@/lib/bgv-services';
+import {
+  BGV_CATALOG,
+  BGV_UNAVAILABLE_REASON,
+  bgvCheckLabel,
+  isBgvCheckRunnable,
+  type BgvCheck,
+} from '@/lib/bgv-services';
 import {
   Accordion,
   AccordionItem,
@@ -59,15 +65,31 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
 
   const CheckRow = ({ check }: { check: BgvCheck }) => {
     const on = selected.includes(check.code);
+    // Offering a check Circle cannot start just produces a failure row after
+    // the fact, so say so here instead.
+    const runnable = isBgvCheckRunnable(check.code);
+    const reason = BGV_UNAVAILABLE_REASON[check.code];
     return (
       <label
-        className={`flex cursor-pointer items-center gap-2 rounded-sm border px-2 py-1.5 transition ${
-          on ? 'border-accent-300 bg-accent-50' : 'border-line bg-surface hover:bg-surface-muted'
+        title={runnable ? bgvCheckLabel(check) : `${bgvCheckLabel(check)} - ${reason ?? 'Not available from Circle.'}`}
+        className={`flex items-center gap-2 rounded-sm border px-2 py-1.5 transition ${
+          !runnable
+            ? 'cursor-not-allowed border-line bg-surface-sunken opacity-60'
+            : on
+              ? 'cursor-pointer border-accent-300 bg-accent-50'
+              : 'cursor-pointer border-line bg-surface hover:bg-surface-muted'
         }`}
       >
-        <Checkbox checked={on} onCheckedChange={() => toggle(check.code)} />
-        <span className="truncate text-[11.5px] leading-tight text-gray-800" title={bgvCheckLabel(check)}>
-          {check.name} <span className="font-mono text-[10px] text-gray-400">({check.code})</span>
+        <Checkbox checked={on} disabled={!runnable} onCheckedChange={() => runnable && toggle(check.code)} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[11.5px] leading-tight text-gray-800">
+            {check.name} <span className="font-mono text-[10px] text-gray-400">({check.code})</span>
+          </span>
+          {!runnable && (
+            <span className="block truncate text-[10px] leading-tight text-gray-500">
+              Portal only - {reason ?? 'not available from Circle'}
+            </span>
+          )}
         </span>
       </label>
     );

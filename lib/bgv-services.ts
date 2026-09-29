@@ -42,11 +42,36 @@ export const BGV_CATALOG: BgvCatalogNode[] = [
       { code: 'PAV', name: 'Permanent Address Verification' },
     ],
   },
+  { kind: 'check', check: { code: 'CCRV', name: 'Criminal Court Record Verification' } },
   { kind: 'check', check: { code: 'EDUV', name: 'Education Verification' } },
   { kind: 'check', check: { code: 'EMPV', name: 'Employment Verification' } },
   { kind: 'check', check: { code: 'PRC', name: 'Professional Reference Check' } },
   { kind: 'check', check: { code: 'EHC', name: 'Employment History Check' } },
 ];
+
+/**
+ * Checks Circle can start over the API today. Everything else in the catalogue
+ * is agreed with OnGrid but has to be started in their portal - either it has
+ * no API endpoint (AV), needs a record Circle does not collect (EDUV, EMPV),
+ * needs configuration on OnGrid's side (PRC, PAV), or is erroring there (EHC).
+ *
+ * The backend is authoritative and re-checks this; the list exists so the
+ * dialog doesn't offer HR a check that cannot run.
+ */
+export const RUNNABLE_BGV_CODES: readonly string[] = ['PANV', 'CCRV', 'LAV'];
+
+export const isBgvCheckRunnable = (code: string): boolean =>
+  RUNNABLE_BGV_CODES.includes(code);
+
+/** Why a check can't be started from Circle, for the ones that can't. */
+export const BGV_UNAVAILABLE_REASON: Record<string, string> = {
+  AV: 'No API endpoint - run this from the OnGrid portal.',
+  PAV: 'Needs a permanent address on the OnGrid profile.',
+  EDUV: 'Needs the qualification details, which Circle does not collect yet.',
+  EMPV: 'Needs an employment record created in OnGrid.',
+  PRC: 'Needs a reference schema configured in OnGrid.',
+  EHC: 'Currently failing inside OnGrid.',
+};
 
 /** Option label as shown to HR: "PAN Card (PANV)". */
 export const bgvCheckLabel = (c: BgvCheck): string => `${c.name} (${c.code})`;
