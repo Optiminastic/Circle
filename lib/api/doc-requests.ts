@@ -79,6 +79,20 @@ export async function saveDocRequestBankDetails(
   return res.json();
 }
 
+/** Save the candidate's EPFO UAN, used by OnGrid's employment history check. */
+export async function saveDocRequestUan(token: string, uan: string): Promise<DocRequest> {
+  const res = await fetch(`${apiBase()}/api/doc-requests/${encodeURIComponent(token)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uan }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not save your UAN (${res.status})`);
+  }
+  return res.json();
+}
+
 /** Save the candidate's OnGrid consent onto the request. */
 export async function saveDocRequestConsent(
   token: string,

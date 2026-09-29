@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
-import { BankDetails, DocSubmission, ReferenceContact } from '@/types';
+import { BankDetails, DocSubmission, ReferenceContact, ReferenceType } from '@/types';
 import {
   docDefsFor,
   requiredFileDocTypes,
@@ -34,6 +34,7 @@ import {
   getDocRequest,
   uploadRequestDocument,
   saveDocRequestBankDetails,
+  saveDocRequestUan,
   saveDocRequestReferences,
   saveDocRequestConsent,
 } from '@/lib/api/doc-requests';
@@ -95,11 +96,13 @@ export default function OnboardingDocsPortal() {
   }, [request?.id]);
 
   // Starts with one reference; the candidate adds as many as they want.
+  const [uan, setUan] = useState('');
   const [refs, setRefs] = useState<ReferenceContact[]>(() =>
     Array.from({ length: REFERENCE_COUNT }, () => ({ organization: '', email: '', phone: '' })),
   );
   const [refsSaved, setRefsSaved] = useState(false);
   useEffect(() => {
+    if (request?.uan) setUan(request.uan);
     if (request?.references?.length) {
       setRefs(request.references);
       setRefsSaved(true);
@@ -142,6 +145,12 @@ export default function OnboardingDocsPortal() {
       setUploading(null);
       qc.invalidateQueries({ queryKey: portalKey(token) });
     },
+  });
+
+  const saveUan = useMutation({
+    mutationFn: () => saveDocRequestUan(token, uan.trim()),
+    onError: (e: unknown) => setErrorMsg(e instanceof Error ? e.message : 'Could not save your UAN.'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: portalKey(token) }),
   });
 
   const saveBank = useMutation({
@@ -442,6 +451,44 @@ export default function OnboardingDocsPortal() {
             />
           </div>
         </div>
+
+        {/* UAN sits here rather than with the documents: it is a number the
+            candidate looks up, not a file. Optional - not everyone has one, and
+            it must never block the rest of onboarding. Background verification
+            checks employment history against EPFO records using it.
+            Deliberately not gated by `bankLocked`: HR verifying bank details
+            says nothing about a number the candidate may look up later. */}
+        <div className="space-y-1 border-t border-line-soft pt-3">
+          <Label htmlFor="uan">UAN (optional)</Label>
+          <Input
+            id="uan"
+            inputMode="numeric"
+            maxLength={12}
+            value={uan}
+            onChange={e => setUan(e.target.value.replace(/\D/g, '').slice(0, 12))}
+            placeholder="12-digit Universal Account Number"
+          />
+          <p className="text-[11px] text-gray-500">
+            Your EPFO Universal Account Number, on your payslip or the EPFO member portal. It lets
+            us verify your employment history without contacting past employers.
+          </p>
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              type="button"
+              disabled={uan.length !== 12 || saveUan.isPending}
+              onClick={() => saveUan.mutate()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saveUan.isPending ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+              Save UAN
+            </button>
+            {request?.uan && !saveUan.isPending && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+                <CheckCircle2 size={13} /> Saved
+              </span>
+            )}
+          </div>
+        </div>
         {!bankLocked && (
           <div className="flex items-center gap-3">
             <button
@@ -488,7 +535,50 @@ export default function OnboardingDocsPortal() {
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor={`ref-name-${i}`}>Reference&apos;s full name</Label>
+                  <Input
+                    id={`ref-name-${i}`}
+                    value={r.name ?? ''}
+                    onChange={e =>
+                      setRefs(prev => prev.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                    }
+                    placeholder="e.g. Rakesh Sharma"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`ref-rel-${i}`}>How they knew you</Label>
+                  <select
+                    id={`ref-rel-${i}`}
+                    value={r.referenceType ?? ''}
+                    onChange={e =>
+                      setRefs(prev =>
+                        prev.map((x, j) =>
+                          j === i ? { ...x, referenceType: e.target.value as ReferenceType } : x,
+                        ),
+                      )
+                    }
+                    className="h-9 w-full rounded-md border border-line bg-surface px-2.5 text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                  >
+                    <option value="">Select…</option>
+                    <option value="Reporting manager">Reporting manager</option>
+                    <option value="Colleague">Colleague</option>
+                    <option value="HR">HR</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`ref-desig-${i}`}>Their designation</Label>
+                  <Input
+                    id={`ref-desig-${i}`}
+                    value={r.designation ?? ''}
+                    onChange={e =>
+                      setRefs(prev => prev.map((x, j) => (j === i ? { ...x, designation: e.target.value } : x)))
+                    }
+                    placeholder="e.g. Finance Manager"
+                  />
+                </div>
                 <div className="space-y-1">
                   <Label htmlFor={`ref-org-${i}`}>Organization name</Label>
                   <Input

@@ -58,7 +58,7 @@ export const BGV_CATALOG: BgvCatalogNode[] = [
  * The backend is authoritative and re-checks this; the list exists so the
  * dialog doesn't offer HR a check that cannot run.
  */
-export const RUNNABLE_BGV_CODES: readonly string[] = ['PANV', 'CCRV', 'LAV'];
+export const RUNNABLE_BGV_CODES: readonly string[] = ['PANV', 'CCRV', 'LAV', 'EHC'];
 
 export const isBgvCheckRunnable = (code: string): boolean =>
   RUNNABLE_BGV_CODES.includes(code);
@@ -70,7 +70,6 @@ export const BGV_UNAVAILABLE_REASON: Record<string, string> = {
   EDUV: 'Needs the qualification details, which Circle does not collect yet.',
   EMPV: 'Needs an employment record created in OnGrid.',
   PRC: 'Needs a reference schema configured in OnGrid.',
-  EHC: 'Currently failing inside OnGrid.',
 };
 
 /** Option label as shown to HR: "PAN Card (PANV)". */

@@ -395,14 +395,27 @@ export type RequiredDocType =
   | 'Appointment letter';
 
 /**
- * A past-employer reference the candidate supplies through the portal. Only
+ * A past-employer referee the candidate supplies through the portal. Only
  * collected when HR requests 'Reference contacts'.
+ *
+ * The fields beyond organization/email are what OnGrid's professional reference
+ * check (PRC) requires: it contacts this person directly, so it needs to know
+ * who they are and what they were to the candidate, not just where they worked.
  */
 export interface ReferenceContact {
   organization: string;
   email: string;
   phone: string;
+  /** The referee's own name - PRC addresses them by it. */
+  name?: string;
+  /** Their job title at that organization. */
+  designation?: string;
+  /** Were they the candidate's reporting manager, or a colleague? */
+  referenceType?: ReferenceType;
 }
+
+/** How the referee knew the candidate. Mirrors what PRC asks for. */
+export type ReferenceType = 'Reporting manager' | 'Colleague' | 'HR' | 'Other';
 
 export interface BankDetails {
   accountHolderName?: string;
@@ -497,6 +510,14 @@ export interface DocRequest {
   bankDetails?: BankDetails;
   /** Past-employer references, when 'Reference contacts' was requested. */
   references?: ReferenceContact[];
+  /**
+   * The candidate's EPFO Universal Account Number. OnGrid's employment history
+   * check (EHC) verifies against EPFO records rather than by contacting
+   * employers, so this number is the whole input - without it the check cannot
+   * run at all. Optional: not everyone has one, and it must not block the rest
+   * of onboarding.
+   */
+  uan?: string;
   /** Candidate's consent to share their data/documents with OnGrid for BGV.
    *  Required before the candidate can be onboarded to OnGrid. */
   consent?: { agreed: boolean; text: string; at: string };
