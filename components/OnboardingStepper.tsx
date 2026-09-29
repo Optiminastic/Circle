@@ -37,7 +37,7 @@ import {
   useJoiningConfirmations,
 } from '@/features/candidates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
-import { useOngridOnboard } from '@/features/bgv/hooks';
+import { useOngridOnboard, useOngridVerify } from '@/features/bgv/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from './Select';
@@ -205,6 +205,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const updateBgv = useUpdateBgv();
   const startBgv = useStartBgv();
   const ongridOnboard = useOngridOnboard();
+  const ongridVerify = useOngridVerify();
   const promote = usePromoteFromOnboarding();
 
   // Only one step accordion is open at a time. `null` = the user hasn't chosen
@@ -806,15 +807,34 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       toast.error('Could not save the selected verifications — try again.');
       return;
     }
-    // Send everything to OnGrid (identity + accepted documents).
+    // Two calls, and both matter. Onboard records the person and uploads their
+    // documents; it does NOT ask for any check - that endpoint ignores the
+    // verifications entirely. The second call is what actually starts them.
     ongridOnboard.mutate(candidate.id, {
       onSuccess: res => {
         if (res.ok) {
           const up = (res.documents ?? []).filter(d => d.status === 'uploaded').length;
-          toast.success(
-            `Sent to OnGrid for verification — individual ${res.individualId}, ${up} document(s) uploaded.`,
+          ongridVerify.mutate(
+            { candidateId: candidate.id, services },
+            {
+              onSuccess: v => {
+                if (v.ok) {
+                  toast.success(
+                    `Sent to OnGrid — ${v.requested?.length ?? 0} check(s) requested, ${up} document(s) uploaded.`,
+                  );
+                  setStartBgvOpen(false);
+                } else if (v.reason === 'no_services') {
+                  toast.error('No checks were selected.');
+                } else {
+                  // OnGrid names what it is missing, e.g. "No PAN found to
+                  // initiate PANV." - surface it rather than a generic failure.
+                  toast.error(`OnGrid could not start the checks: ${v.reason ?? 'unknown error'}.`);
+                }
+              },
+              onError: () =>
+                toast.error('Documents were uploaded, but the checks could not be started.'),
+            },
           );
-          setStartBgvOpen(false);
         } else if (res.reason === 'no_consent') {
           toast.error('Candidate has not given verification consent yet.');
         } else if (res.reason === 'no_gender') {
@@ -1245,6 +1265,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       )}
       {startBgvOpen && (
         <StartBgvModal
+          extracted={bgv?.extractedFields}
           candidateName={checklist.candidateName}
           pending={startBgv.isPending || updateBgv.isPending || ongridOnboard.isPending}
           onStart={confirmBgv}
@@ -1863,6 +1884,22 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             className="inline-flex h-8 items-center gap-1.5 rounded-md bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700"
                           >
                             <XCircle size={13} /> Invalid
+                          </button>
+                          {/* Onboarding alone never asked OnGrid to check anything, so
+                              a candidate can be "sent" with no checks running. This
+                              starts them (or adds more) without leaving the step. */}
+                          <button
+                            onClick={() => setStartBgvOpen(true)}
+                            disabled={ongridVerify.isPending}
+                            title="Choose checks, confirm the extracted details, and send them to OnGrid"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-accent-300 bg-accent-50 px-3 text-[12px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
+                          >
+                            {ongridVerify.isPending ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Fingerprint size={13} />
+                            )}
+                            Execute BGV
                           </button>
                           <span className="text-[11px] text-gray-400">
                             Check the candidate on OnGrid, then confirm Verify (verified) or Invalid.

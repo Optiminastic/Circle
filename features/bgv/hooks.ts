@@ -45,3 +45,47 @@ export function useOngridOnboard() {
   });
 }
 
+
+/** Result of asking OnGrid to actually run the selected checks. */
+export interface OngridVerifyResult {
+  ok: boolean;
+  individualId?: string;
+  requested?: string[];
+  reason?: string;
+}
+
+async function ongridVerify(
+  candidateId: string,
+  services: string[],
+): Promise<OngridVerifyResult> {
+  const res = await fetch(
+    `${apiBase()}/api/bgv/${encodeURIComponent(candidateId)}/ongrid-verify`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ services }),
+    },
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not reach OnGrid (${res.status})`);
+  }
+  return res.json();
+}
+
+/**
+ * Request the background checks from OnGrid.
+ *
+ * Distinct from `useOngridOnboard`, which only records the person and uploads
+ * their documents - that endpoint silently ignores the checks, so onboarding
+ * alone never asked OnGrid to verify anything.
+ */
+export function useOngridVerify() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ candidateId, services }: { candidateId: string; services: string[] }) =>
+      ongridVerify(candidateId, services),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.bgvs.all }),
+  });
+}

@@ -627,6 +627,18 @@ export interface BGVRequirement {
   /** Document id of the OnGrid PDF report HR uploaded as evidence when marking
    *  BGV verified (see documents.id) — set by the "Mark BGV verified" modal. */
   reportDocId?: string;
+  /**
+   * Values read off the candidate's documents, keyed by document type, with
+   * identity numbers masked. This is what the UI shows.
+   *
+   * The unmasked numbers live alongside as `identityValues` (session-guarded,
+   * never on the public doc-request record) because OnGrid needs them complete
+   * to run a check. Deliberately not typed here: nothing in the UI should read
+   * them, and leaving them untyped keeps that honest.
+   */
+  extractedFields?: Record<string, Record<string, string>>;
+  /** When HR requested the checks from OnGrid (as opposed to just onboarding). */
+  ongridVerificationsSentAt?: string;
 }
 
 export type BGVDocumentType =
