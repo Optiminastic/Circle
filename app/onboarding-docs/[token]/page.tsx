@@ -34,11 +34,11 @@ import {
   getDocRequest,
   uploadRequestDocument,
   saveDocRequestBankDetails,
-  saveDocRequestUan,
   saveDocRequestReferences,
   saveDocRequestConsent,
 } from '@/lib/api/doc-requests';
 import { ExtractedDetailsCheck } from '@/components/onboarding-docs/ExtractedDetailsCheck';
+import { BackgroundCheckTab } from '@/components/onboarding-docs/BackgroundCheckTab';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -96,13 +96,11 @@ export default function OnboardingDocsPortal() {
   }, [request?.id]);
 
   // Starts with one reference; the candidate adds as many as they want.
-  const [uan, setUan] = useState('');
   const [refs, setRefs] = useState<ReferenceContact[]>(() =>
     Array.from({ length: REFERENCE_COUNT }, () => ({ organization: '', email: '', phone: '' })),
   );
   const [refsSaved, setRefsSaved] = useState(false);
   useEffect(() => {
-    if (request?.uan) setUan(request.uan);
     if (request?.references?.length) {
       setRefs(request.references);
       setRefsSaved(true);
@@ -145,12 +143,6 @@ export default function OnboardingDocsPortal() {
       setUploading(null);
       qc.invalidateQueries({ queryKey: portalKey(token) });
     },
-  });
-
-  const saveUan = useMutation({
-    mutationFn: () => saveDocRequestUan(token, uan.trim()),
-    onError: (e: unknown) => setErrorMsg(e instanceof Error ? e.message : 'Could not save your UAN.'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: portalKey(token) }),
   });
 
   const saveBank = useMutation({
@@ -305,6 +297,12 @@ export default function OnboardingDocsPortal() {
               <Users size={13} /> Reference contact
             </TabsTrigger>
           )}
+          {/* Always offered, unlike the tabs above: HR decides which background
+              checks to run after the documents are in, so there is nothing in
+              `requiredDocs` to key this off. Everything in it is optional. */}
+          <TabsTrigger value="background" className="flex items-center gap-1.5">
+            <ShieldCheck size={13} /> Background check
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents" className="space-y-2.5">
@@ -452,43 +450,6 @@ export default function OnboardingDocsPortal() {
           </div>
         </div>
 
-        {/* UAN sits here rather than with the documents: it is a number the
-            candidate looks up, not a file. Optional - not everyone has one, and
-            it must never block the rest of onboarding. Background verification
-            checks employment history against EPFO records using it.
-            Deliberately not gated by `bankLocked`: HR verifying bank details
-            says nothing about a number the candidate may look up later. */}
-        <div className="space-y-1 border-t border-line-soft pt-3">
-          <Label htmlFor="uan">UAN (optional)</Label>
-          <Input
-            id="uan"
-            inputMode="numeric"
-            maxLength={12}
-            value={uan}
-            onChange={e => setUan(e.target.value.replace(/\D/g, '').slice(0, 12))}
-            placeholder="12-digit Universal Account Number"
-          />
-          <p className="text-[11px] text-gray-500">
-            Your EPFO Universal Account Number, on your payslip or the EPFO member portal. It lets
-            us verify your employment history without contacting past employers.
-          </p>
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="button"
-              disabled={uan.length !== 12 || saveUan.isPending}
-              onClick={() => saveUan.mutate()}
-              className="inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saveUan.isPending ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
-              Save UAN
-            </button>
-            {request?.uan && !saveUan.isPending && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-                <CheckCircle2 size={13} /> Saved
-              </span>
-            )}
-          </div>
-        </div>
         {!bankLocked && (
           <div className="flex items-center gap-3">
             <button
@@ -657,6 +618,18 @@ export default function OnboardingDocsPortal() {
           </div>
         </TabsContent>
         )}
+
+        <TabsContent value="background">
+          <BackgroundCheckTab
+            token={token}
+            queryKey={portalKey(token)}
+            uan={request.uan}
+            education={request.education}
+            employment={request.employment}
+            permanentAddress={request.permanentAddress}
+            onError={setErrorMsg}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Consent — required before we can share anything with our verification

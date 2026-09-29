@@ -417,6 +417,96 @@ export interface ReferenceContact {
 /** How the referee knew the candidate. Mirrors what PRC asks for. */
 export type ReferenceType = 'Reporting manager' | 'Colleague' | 'HR' | 'Other';
 
+/**
+ * OnGrid's education levels, spelled exactly as their API expects.
+ *
+ * `POT_GRADUATE_DIPLOMA` is misspelled at their end. It is sent as-is because
+ * the correct spelling is rejected - do not "fix" it.
+ */
+export const EDUCATION_LEVELS = [
+  { value: 'TENTH_STD', label: 'Class 10' },
+  { value: 'TWELFTH_STD', label: 'Class 12' },
+  { value: 'DIPLOMA', label: 'Diploma' },
+  { value: 'GRADUATE', label: "Bachelor's degree" },
+  { value: 'POT_GRADUATE_DIPLOMA', label: 'Post-graduate diploma' },
+  { value: 'MASTERS', label: "Master's degree" },
+  { value: 'PROFESSIONAL_COURSE', label: 'Professional course' },
+  { value: 'PHD', label: 'PhD' },
+  { value: 'POST_DOC', label: 'Post-doctoral' },
+  { value: 'OTHER', label: 'Other' },
+] as const;
+
+export type EducationLevel = (typeof EDUCATION_LEVELS)[number]['value'];
+
+/**
+ * The qualification the candidate claims, which education verification (EDUV)
+ * confirms with the institute.
+ *
+ * The certificate they upload is evidence, not the source: OnGrid does not read
+ * it, so these values are what actually gets verified. One qualification is
+ * collected - the one being verified - rather than their whole history, because
+ * each one is a separately billed check.
+ */
+export interface EducationRecord {
+  level?: EducationLevel;
+  institute?: string;
+  degree?: string;
+  /** Their name as printed on the certificate, which may differ from ours. */
+  nameAsPerDocument?: string;
+  registrationNumber?: string;
+  /** yyyy-MM-dd, straight from the date input. */
+  issueDate?: string;
+  boardUniversity?: string;
+  yearOfPassing?: string;
+  fieldOfStudy?: string;
+  grade?: string;
+}
+
+/**
+ * A past employment the candidate claims, which employment verification (EMPV)
+ * confirms with that employer.
+ *
+ * Distinct from the UAN-based EHC check, which reads EPFO records instead of
+ * contacting anyone: EMPV needs a person to reach, which is what the manager
+ * and HR fields are for.
+ */
+export interface EmploymentRecord {
+  employerName?: string;
+  /** Their name on the employer's records, which may differ from ours. */
+  nameAsPerEmployerRecords?: string;
+  employeeId?: string;
+  designation?: string;
+  city?: string;
+  /** yyyy-MM-dd. */
+  joiningDate?: string;
+  /** yyyy-MM-dd. */
+  lastWorkingDate?: string;
+  managerName?: string;
+  managerEmail?: string;
+  managerPhone?: string;
+  hrName?: string;
+  hrEmail?: string;
+  hrPhone?: string;
+}
+
+/**
+ * Where the candidate permanently lives, which permanent address verification
+ * (PAV) confirms by sending someone there.
+ *
+ * Separate from the current address captured at onboarding - OnGrid keeps the
+ * two as different records, and PAV visits this one.
+ */
+export interface PermanentAddress {
+  line1?: string;
+  line2?: string;
+  locality?: string;
+  landmark?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+}
+
 export interface BankDetails {
   accountHolderName?: string;
   bankName?: string;
@@ -518,6 +608,11 @@ export interface DocRequest {
    * of onboarding.
    */
   uan?: string;
+  /** Claims the candidate makes that background verification then confirms with
+   *  a third party. All optional - each only gates its own check. */
+  education?: EducationRecord;
+  employment?: EmploymentRecord;
+  permanentAddress?: PermanentAddress;
   /** Candidate's consent to share their data/documents with OnGrid for BGV.
    *  Required before the candidate can be onboarded to OnGrid. */
   consent?: { agreed: boolean; text: string; at: string };

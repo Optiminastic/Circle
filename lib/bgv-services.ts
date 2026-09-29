@@ -58,18 +58,23 @@ export const BGV_CATALOG: BgvCatalogNode[] = [
  * The backend is authoritative and re-checks this; the list exists so the
  * dialog doesn't offer HR a check that cannot run.
  */
-export const RUNNABLE_BGV_CODES: readonly string[] = ['PANV', 'CCRV', 'LAV', 'EHC'];
+export const RUNNABLE_BGV_CODES: readonly string[] = [
+  'PANV',
+  'CCRV',
+  'LAV',
+  'EHC',
+  'EDUV',
+  'EMPV',
+  'PAV',
+];
 
 export const isBgvCheckRunnable = (code: string): boolean =>
   RUNNABLE_BGV_CODES.includes(code);
 
 /** Why a check can't be started from Circle, for the ones that can't. */
 export const BGV_UNAVAILABLE_REASON: Record<string, string> = {
-  AV: 'No API endpoint - run this from the OnGrid portal.',
-  PAV: 'Needs a permanent address on the OnGrid profile.',
-  EDUV: 'Needs the qualification details, which Circle does not collect yet.',
-  EMPV: 'Needs an employment record created in OnGrid.',
-  PRC: 'Needs a reference schema configured in OnGrid.',
+  AV: 'No API endpoint - UIDAI needs the candidate’s OTP consent, so run this from the OnGrid portal.',
+  PRC: 'Needs a reference schema selected in OnGrid, and the schema ids are not exposed by the API.',
 };
 
 /** Option label as shown to HR: "PAN Card (PANV)". */

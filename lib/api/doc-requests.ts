@@ -8,7 +8,15 @@
  * and the server requires it, because the token alone must never be enough to
  * approve an identity document.
  */
-import { DocExtraction, DocRequest, DocSubmission, ReferenceContact } from '@/types';
+import {
+  DocExtraction,
+  DocRequest,
+  DocSubmission,
+  EducationRecord,
+  EmploymentRecord,
+  PermanentAddress,
+  ReferenceContact,
+} from '@/types';
 import { apiBase } from '@/lib/api-base';
 
 /** Fetch a request by its public token (used by the portal page). */
@@ -63,52 +71,64 @@ export async function confirmSubmission(
 }
 
 /** Save the candidate's bank details onto the request (PATCH the JSONB record). */
-export async function saveDocRequestBankDetails(
+export const saveDocRequestBankDetails = (
   token: string,
   bankDetails: DocRequest['bankDetails'],
+): Promise<DocRequest> =>
+  patchDocRequest(token, { bankDetails }, 'Could not save bank details');
+
+/** Patch one of the candidate's own fields on their request.
+ *
+ *  The backend allowlists which keys an unauthenticated (token-only) PATCH may
+ *  touch, so this cannot reach `submissions` or `status` however it is called.
+ */
+async function patchDocRequest(
+  token: string,
+  changes: Partial<DocRequest>,
+  failure: string,
 ): Promise<DocRequest> {
   const res = await fetch(`${apiBase()}/api/doc-requests/${encodeURIComponent(token)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bankDetails }),
+    body: JSON.stringify(changes),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not save bank details (${res.status})`);
+    throw new Error(detail || `${failure} (${res.status})`);
   }
   return res.json();
 }
 
 /** Save the candidate's EPFO UAN, used by OnGrid's employment history check. */
-export async function saveDocRequestUan(token: string, uan: string): Promise<DocRequest> {
-  const res = await fetch(`${apiBase()}/api/doc-requests/${encodeURIComponent(token)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uan }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not save your UAN (${res.status})`);
-  }
-  return res.json();
-}
+export const saveDocRequestUan = (token: string, uan: string): Promise<DocRequest> =>
+  patchDocRequest(token, { uan }, 'Could not save your UAN');
+
+/** Save the qualification that education verification will confirm. */
+export const saveDocRequestEducation = (
+  token: string,
+  education: EducationRecord,
+): Promise<DocRequest> =>
+  patchDocRequest(token, { education }, 'Could not save your qualification details');
+
+/** Save the past employment that employment verification will confirm. */
+export const saveDocRequestEmployment = (
+  token: string,
+  employment: EmploymentRecord,
+): Promise<DocRequest> =>
+  patchDocRequest(token, { employment }, 'Could not save your employment details');
+
+/** Save the permanent address that address verification will visit. */
+export const saveDocRequestPermanentAddress = (
+  token: string,
+  permanentAddress: PermanentAddress,
+): Promise<DocRequest> =>
+  patchDocRequest(token, { permanentAddress }, 'Could not save your permanent address');
 
 /** Save the candidate's OnGrid consent onto the request. */
-export async function saveDocRequestConsent(
+export const saveDocRequestConsent = (
   token: string,
   consent: { agreed: boolean; text: string; at: string },
-): Promise<DocRequest> {
-  const res = await fetch(`${apiBase()}/api/doc-requests/${encodeURIComponent(token)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ consent }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not save consent (${res.status})`);
-  }
-  return res.json();
-}
+): Promise<DocRequest> => patchDocRequest(token, { consent }, 'Could not save consent');
 
 // --- HR-only (session required) ----------------------------------------------
 
@@ -166,18 +186,7 @@ export async function reviewSubmission(params: {
 }
 
 /** Save the candidate's past-employer references onto the request. */
-export async function saveDocRequestReferences(
+export const saveDocRequestReferences = (
   token: string,
   references: ReferenceContact[],
-): Promise<DocRequest> {
-  const res = await fetch(`${apiBase()}/api/doc-requests/${encodeURIComponent(token)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ references }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not save references (${res.status})`);
-  }
-  return res.json();
-}
+): Promise<DocRequest> => patchDocRequest(token, { references }, 'Could not save references');
