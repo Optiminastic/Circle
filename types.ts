@@ -414,8 +414,20 @@ export interface ReferenceContact {
   referenceType?: ReferenceType;
 }
 
-/** How the referee knew the candidate. Mirrors what PRC asks for. */
-export type ReferenceType = 'Reporting manager' | 'Colleague' | 'HR' | 'Other';
+/**
+ * How the referee knew the candidate.
+ *
+ * OnGrid's own enum has only two members, Professional and Academic. These are
+ * the more useful question to ask a candidate and the backend folds them onto
+ * the two, keeping "was this your reporting manager?" separate because OnGrid
+ * does too.
+ */
+export type ReferenceType =
+  | 'Reporting manager'
+  | 'Colleague'
+  | 'HR'
+  | 'Academic referee'
+  | 'Other';
 
 /**
  * OnGrid's education levels, spelled exactly as their API expects.

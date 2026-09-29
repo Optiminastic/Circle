@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { X, Loader2, Fingerprint, AlertTriangle, ArrowLeft, ScanLine } from 'lucide-react';
 import {
   BGV_CATALOG,
-  BGV_UNAVAILABLE_REASON,
   bgvCheckLabel,
   isBgvCheckRunnable,
   type BgvCheck,
@@ -68,10 +67,9 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
     // Offering a check Circle cannot start just produces a failure row after
     // the fact, so say so here instead.
     const runnable = isBgvCheckRunnable(check.code);
-    const reason = BGV_UNAVAILABLE_REASON[check.code];
     return (
       <label
-        title={runnable ? bgvCheckLabel(check) : `${bgvCheckLabel(check)} - ${reason ?? 'Not available from Circle.'}`}
+        title={runnable ? bgvCheckLabel(check) : `${bgvCheckLabel(check)} - not available from Circle`}
         className={`flex items-center gap-2 rounded-sm border px-2 py-1.5 transition ${
           !runnable
             ? 'cursor-not-allowed border-line bg-surface-sunken opacity-60'
@@ -87,7 +85,7 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
           </span>
           {!runnable && (
             <span className="block truncate text-[10px] leading-tight text-gray-500">
-              Portal only - {reason ?? 'not available from Circle'}
+              Portal only
             </span>
           )}
         </span>

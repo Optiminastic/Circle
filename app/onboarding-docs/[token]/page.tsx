@@ -526,6 +526,7 @@ export default function OnboardingDocsPortal() {
                     <option value="Reporting manager">Reporting manager</option>
                     <option value="Colleague">Colleague</option>
                     <option value="HR">HR</option>
+                    <option value="Academic referee">Professor or academic referee</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>

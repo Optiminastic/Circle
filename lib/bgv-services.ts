@@ -29,10 +29,12 @@ export const BGV_CATALOG: BgvCatalogNode[] = [
   {
     kind: 'group',
     label: 'ID Verification',
-    checks: [
-      { code: 'PANV', name: 'PAN Card' },
-      { code: 'AV', name: 'Aadhaar Card' },
-    ],
+    // Aadhaar is deliberately absent. OnGrid has no Aadhaar verification
+    // offering - their ID checks are PAN, Driving Licence, Passport and Voter
+    // ID. An 'AV' entry here once read "Aadhaar Card", but AV is OnGrid's
+    // *address* verification family (beside LAV, PAV, BAV, XAV), and
+    // `/v1/individual/{id}/av` answers 404 because no such route exists.
+    checks: [{ code: 'PANV', name: 'PAN Card' }],
   },
   {
     kind: 'group',
@@ -50,13 +52,14 @@ export const BGV_CATALOG: BgvCatalogNode[] = [
 ];
 
 /**
- * Checks Circle can start over the API today. Everything else in the catalogue
- * is agreed with OnGrid but has to be started in their portal - either it has
- * no API endpoint (AV), needs a record Circle does not collect (EDUV, EMPV),
- * needs configuration on OnGrid's side (PRC, PAV), or is erroring there (EHC).
+ * Checks Circle can start over the API. Every check in the catalogue is now on
+ * this list, so the dialog offers all of them.
  *
- * The backend is authoritative and re-checks this; the list exists so the
- * dialog doesn't offer HR a check that cannot run.
+ * It is kept rather than deleted because it is the one place that says what
+ * Circle can start, and the answer has changed several times. The backend is
+ * authoritative either way: it re-checks, and it is what reports a check that
+ * cannot run for want of data (no UAN, no qualification details, no configured
+ * reference schema).
  */
 export const RUNNABLE_BGV_CODES: readonly string[] = [
   'PANV',
@@ -66,16 +69,11 @@ export const RUNNABLE_BGV_CODES: readonly string[] = [
   'EDUV',
   'EMPV',
   'PAV',
+  'PRC',
 ];
 
 export const isBgvCheckRunnable = (code: string): boolean =>
   RUNNABLE_BGV_CODES.includes(code);
-
-/** Why a check can't be started from Circle, for the ones that can't. */
-export const BGV_UNAVAILABLE_REASON: Record<string, string> = {
-  AV: 'No API endpoint - UIDAI needs the candidate’s OTP consent, so run this from the OnGrid portal.',
-  PRC: 'Needs a reference schema selected in OnGrid, and the schema ids are not exposed by the API.',
-};
 
 /** Option label as shown to HR: "PAN Card (PANV)". */
 export const bgvCheckLabel = (c: BgvCheck): string => `${c.name} (${c.code})`;
