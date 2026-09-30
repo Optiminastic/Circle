@@ -1273,6 +1273,11 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
             employment: docRequest?.employment,
             permanentAddress: docRequest?.permanentAddress,
           }}
+          uploadedDocTypes={(docRequest?.submissions ?? []).map(sub => sub.docType)}
+          onRequestDocuments={() => {
+            setStartBgvOpen(false);
+            requestDocs();
+          }}
           candidateName={checklist.candidateName}
           pending={startBgv.isPending || updateBgv.isPending || ongridOnboard.isPending}
           onStart={confirmBgv}

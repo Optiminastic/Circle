@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Loader2, Fingerprint, AlertTriangle, ArrowLeft, ScanLine } from 'lucide-react';
+import { X, Loader2, Fingerprint, AlertTriangle, ArrowLeft, ScanLine, Send } from 'lucide-react';
 import {
   BGV_CATALOG,
   bgvCheckLabel,
@@ -18,7 +18,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   CLAIM_SECTIONS,
   checksNeeding,
+  describeNeed,
   isSectionComplete,
+  missingDocuments,
   sectionsFor,
   toClaimValue,
   type ClaimDetails,
@@ -43,6 +45,14 @@ interface Props {
    * than re-entering everything - and can correct anything that looks wrong.
    */
   claims?: ClaimDetails;
+  /**
+   * Document types the candidate has actually uploaded. Some checks cannot run
+   * without one, and HR cannot supply it by typing - so the dialog blocks
+   * rather than spending a billed check that is going to fail.
+   */
+  uploadedDocTypes?: string[];
+  /** Opens the "request documents" flow, when something is missing. */
+  onRequestDocuments?: () => void;
   /** The selected shortforms plus the claim values the chosen checks need. */
   onStart: (services: string[], claims: ClaimDetails) => void;
   onClose: () => void;
@@ -70,6 +80,8 @@ export function StartBgvModal({
   pending,
   extracted,
   claims,
+  uploadedDocTypes,
+  onRequestDocuments,
   onStart,
   onClose,
 }: Props) {
@@ -89,6 +101,7 @@ export function StartBgvModal({
 
   // Only the claims the chosen checks actually need are asked for.
   const neededSections = sectionsFor(selected);
+  const missingDocs = missingDocuments(selected, uploadedDocTypes ?? []);
   const incomplete = neededSections.filter(s => !isSectionComplete(s, values[s]));
 
   const claimDetails = (): ClaimDetails => ({
@@ -157,6 +170,12 @@ export function StartBgvModal({
   };
 
   const start = () => {
+    if (missingDocs.length > 0) {
+      toast.error(
+        `${missingDocs[0].code} needs ${describeNeed(missingDocs[0].need)} uploaded first.`,
+      );
+      return;
+    }
     if (!dataConfirmed) {
       toast.error('Confirm the extracted details are accurate before sending.');
       return;
@@ -237,6 +256,21 @@ export function StartBgvModal({
           Other checks
         </p>
         <CheckGrid checks={singles} />
+
+        {/* Said here as well as on the last step, so a long form isn't filled
+            in for a check that cannot run yet. */}
+        {missingDocs.length > 0 && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+            <p className="text-[11.5px] text-red-800">
+              {missingDocs.map(({ code, need }) => (
+                <span key={code} className="block">
+                  <span className="font-mono text-[10.5px] font-bold">{code}</span> needs{' '}
+                  {describeNeed(need)} uploaded first.
+                </span>
+              ))}
+            </p>
+          </div>
+        )}
         </>
         )}
 
@@ -291,15 +325,46 @@ export function StartBgvModal({
                 <AlertTriangle size={13} /> Check these details before sending
               </p>
               <p className="mt-1 text-[11.5px] text-amber-800">
-                OnGrid runs the checks against these values, not against the document images.
-                A wrong digit means a failed check on a real person, and the check is still billed.
+                A wrong value means a failed check on a real person, and the check is still billed.
               </p>
             </div>
 
+            {/* Documents only the candidate can supply. HR cannot type their way
+                past this, so the way out is to send the link, not to continue. */}
+            {missingDocs.length > 0 && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-900">
+                  <AlertTriangle size={13} /> Waiting on the candidate
+                </p>
+                <ul className="mt-1.5 space-y-1">
+                  {missingDocs.map(({ code, need }) => (
+                    <li key={code} className="text-[11.5px] text-red-800">
+                      <span className="font-mono text-[10.5px] font-bold">{code}</span> needs{' '}
+                      {describeNeed(need)}, which has not been uploaded.
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-[11px] text-red-700">
+                  Only the candidate can upload these. Send them the documents link and run these
+                  checks once the files are in — sending now just buys a failed check.
+                </p>
+                {onRequestDocuments && (
+                  <button
+                    type="button"
+                    onClick={onRequestDocuments}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-surface px-3 py-1.5 text-[12px] font-semibold text-red-700 transition hover:bg-red-100"
+                  >
+                    <Send size={12} /> Send documents link
+                  </button>
+                )}
+              </div>
+            )}
+
             {documents.length === 0 ? (
               <p className="rounded-md border border-line bg-surface-sunken px-3 py-2.5 text-[11.5px] text-gray-600">
-                No details were read from this candidate&apos;s documents. OnGrid needs the identity
-                numbers to run these checks, so it will likely reject them.
+                Nothing was read off this candidate&apos;s documents by Circle. That does not stop
+                these checks: OnGrid reads identity documents itself, and the rest run against the
+                details above.
               </p>
             ) : (
               documents.map(([docType, fields]) => (
@@ -391,7 +456,7 @@ export function StartBgvModal({
             ) : (
               <button
                 onClick={start}
-                disabled={pending || !dataConfirmed}
+                disabled={pending || !dataConfirmed || missingDocs.length > 0}
                 className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 {pending && <Loader2 size={13} className="animate-spin" />}

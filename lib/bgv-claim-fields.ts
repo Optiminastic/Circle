@@ -186,6 +186,55 @@ export const SECTIONS_FOR_CHECK: Record<string, ClaimSection[]> = {
   PAV: ['permanentAddress'],
 };
 
+/**
+ * Documents a check cannot run without, by our own document type.
+ *
+ * Separate from the claims above because HR cannot supply these by typing -
+ * only the candidate can upload them. When one is missing the answer is to send
+ * the documents link and wait, not to fill a form.
+ *
+ * `anyOf` means one of the listed types is enough: OnGrid wants a scanned proof
+ * of employment and does not care which.
+ */
+export interface DocumentNeed {
+  docTypes: string[];
+  anyOf?: boolean;
+}
+
+export const DOCUMENTS_FOR_CHECK: Record<string, DocumentNeed> = {
+  // OnGrid reads the PAN number off the card itself, so the card must be there.
+  PANV: { docTypes: ['PAN card'] },
+  EDUV: { docTypes: ['Education certificates'] },
+  EMPV: {
+    docTypes: ['Experience letter', 'Offer/appraisal letter', 'Salary slips'],
+    anyOf: true,
+  },
+};
+
+/** What the chosen checks need uploaded that isn't there yet. */
+export function missingDocuments(
+  codes: string[],
+  uploaded: string[],
+): { code: string; need: DocumentNeed }[] {
+  const have = new Set(uploaded);
+  return codes.flatMap(code => {
+    const need = DOCUMENTS_FOR_CHECK[code];
+    if (!need) return [];
+    const satisfied = need.anyOf
+      ? need.docTypes.some(t => have.has(t))
+      : need.docTypes.every(t => have.has(t));
+    return satisfied ? [] : [{ code, need }];
+  });
+}
+
+/** "a PAN card" / "an experience letter, offer/appraisal letter or salary slip" */
+export function describeNeed(need: DocumentNeed): string {
+  const names = need.docTypes.map(t => t.toLowerCase());
+  if (!need.anyOf) return names.join(' and ');
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
 /** Every claim the chosen checks need, in a stable order and without repeats. */
 export function sectionsFor(codes: string[]): ClaimSection[] {
   const order: ClaimSection[] = ['uan', 'education', 'employment', 'permanentAddress'];
