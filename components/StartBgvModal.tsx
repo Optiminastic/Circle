@@ -15,6 +15,17 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  CLAIM_SECTIONS,
+  checksNeeding,
+  isSectionComplete,
+  sectionsFor,
+  toClaimValue,
+  type ClaimDetails,
+  type ClaimSection,
+  type ClaimValue,
+} from '@/lib/bgv-claim-fields';
+import { ClaimFields, MissingNote } from '@/components/bgv/ClaimFields';
 import { useToast } from './Toaster';
 
 interface Props {
@@ -26,8 +37,14 @@ interface Props {
    * these values, and a wrong digit means a failed check against a real person.
    */
   extracted?: Record<string, Record<string, string>>;
-  /** Receives the selected check shortforms, e.g. ["PANV", "LAV", "EDUV"]. */
-  onStart: (services: string[]) => void;
+  /**
+   * What the candidate already filled in on their documents portal. It
+   * pre-fills the claim step, so HR types only what is still missing rather
+   * than re-entering everything - and can correct anything that looks wrong.
+   */
+  claims?: ClaimDetails;
+  /** The selected shortforms plus the claim values the chosen checks need. */
+  onStart: (services: string[], claims: ClaimDetails) => void;
   onClose: () => void;
 }
 
@@ -48,12 +65,40 @@ const FIELD_LABELS: Record<string, string> = {
  * "Start verification" — HR picks which checks to run. Grouped checks render as
  * accordions; only each check's shortform (`code`) is stored on the BGV record.
  */
-export function StartBgvModal({ candidateName, pending, extracted, onStart, onClose }: Props) {
+export function StartBgvModal({
+  candidateName,
+  pending,
+  extracted,
+  claims,
+  onStart,
+  onClose,
+}: Props) {
   const toast = useToast();
   const [selected, setSelected] = useState<string[]>([]);
-  // Two steps: pick the checks, then confirm the data they will run against.
-  const [step, setStep] = useState<'pick' | 'confirm'>('pick');
+  // Three steps: pick the checks, fill in what they need, confirm and send.
+  // The middle one is skipped when nothing the candidate can state is required.
+  const [step, setStep] = useState<'pick' | 'details' | 'confirm'>('pick');
   const [dataConfirmed, setDataConfirmed] = useState(false);
+  // Seeded from the candidate's portal answers; HR edits from there.
+  const [values, setValues] = useState<Record<ClaimSection, ClaimValue>>(() => ({
+    uan: claims?.uan ? { uan: claims.uan } : {},
+    education: toClaimValue(claims?.education),
+    employment: toClaimValue(claims?.employment),
+    permanentAddress: toClaimValue(claims?.permanentAddress),
+  }));
+
+  // Only the claims the chosen checks actually need are asked for.
+  const neededSections = sectionsFor(selected);
+  const incomplete = neededSections.filter(s => !isSectionComplete(s, values[s]));
+
+  const claimDetails = (): ClaimDetails => ({
+    ...(neededSections.includes('uan') ? { uan: String(values.uan.uan ?? '').trim() } : {}),
+    ...(neededSections.includes('education') ? { education: values.education } : {}),
+    ...(neededSections.includes('employment') ? { employment: values.employment } : {}),
+    ...(neededSections.includes('permanentAddress')
+      ? { permanentAddress: values.permanentAddress }
+      : {}),
+  });
 
   const documents = Object.entries(extracted ?? {}).filter(
     ([, fields]) => Object.keys(fields ?? {}).length > 0,
@@ -98,6 +143,16 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
       toast.error('Select at least one verification check.');
       return;
     }
+    setStep(neededSections.length > 0 ? 'details' : 'confirm');
+  };
+
+  const toConfirm = () => {
+    if (incomplete.length > 0) {
+      toast.error(
+        `Fill in the ${CLAIM_SECTIONS[incomplete[0]].title.toLowerCase()} — the check cannot run without it.`,
+      );
+      return;
+    }
     setStep('confirm');
   };
 
@@ -106,7 +161,7 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
       toast.error('Confirm the extracted details are accurate before sending.');
       return;
     }
-    onStart(selected);
+    onStart(selected, claimDetails());
   };
 
   const CheckGrid = ({ checks }: { checks: BgvCheck[] }) => (
@@ -131,14 +186,22 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
         <div className="mb-1 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
             <Fingerprint size={15} className="text-accent-600" />
-            {step === 'pick' ? 'Execute background verification' : 'Confirm the details to send'}
+            {step === 'pick'
+              ? 'Execute background verification'
+              : step === 'details'
+                ? 'Details these checks need'
+                : 'Confirm the details to send'}
           </h3>
           <button onClick={onClose} aria-label="Close" className="rounded p-1 text-gray-400 hover:bg-gray-100">
             <X size={16} />
           </button>
         </div>
         <p className="mb-3 text-[11.5px] text-gray-500">
-          {step === 'pick' ? 'Select the checks to run for ' : 'These values will be sent to OnGrid for '}
+          {step === 'pick'
+            ? 'Select the checks to run for '
+            : step === 'details'
+              ? 'Anything already filled in came from the documents portal. Correct or complete it for '
+              : 'These values will be sent to OnGrid for '}
           <span className="font-semibold text-gray-700">{candidateName}</span>.
         </p>
 
@@ -175,6 +238,50 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
         </p>
         <CheckGrid checks={singles} />
         </>
+        )}
+
+        {step === 'details' && (
+          <div className="space-y-3">
+            <p className="rounded-md border border-line-soft bg-surface-muted px-3 py-2 text-[11px] leading-relaxed text-gray-600">
+              These checks verify what the candidate states, not what is printed on their
+              documents, so OnGrid needs the values themselves. Fields marked{' '}
+              <span className="text-red-500">*</span> are required — without them the check is
+              refused rather than run.
+            </p>
+
+            {neededSections.map(section => {
+              const def = CLAIM_SECTIONS[section];
+              const asked = checksNeeding(section, selected);
+              const done = isSectionComplete(section, values[section]);
+              return (
+                <section key={section} className="space-y-2.5 rounded-md border border-line bg-surface p-3">
+                  <header className="space-y-0.5">
+                    <h4 className="flex flex-wrap items-center gap-1.5 text-[12px] font-bold text-gray-900">
+                      {def.title}
+                      <span className="font-mono text-[9.5px] font-bold text-accent-700">
+                        {asked.join(' · ')}
+                      </span>
+                      {done && (
+                        <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-700">
+                          complete
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-[11px] leading-relaxed text-gray-500">{def.explains}</p>
+                  </header>
+                  <ClaimFields
+                    section={section}
+                    value={values[section]}
+                    onChange={nextValue =>
+                      setValues(prev => ({ ...prev, [section]: nextValue }))
+                    }
+                    idPrefix="hr"
+                  />
+                  <MissingNote section={section} value={values[section]} />
+                </section>
+              );
+            })}
+          </div>
         )}
 
         {step === 'confirm' && (
@@ -247,9 +354,13 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
             >
               Cancel
             </button>
-            {step === 'confirm' && (
+            {step !== 'pick' && (
               <button
-                onClick={() => setStep('pick')}
+                onClick={() =>
+                  setStep(
+                    step === 'confirm' && neededSections.length > 0 ? 'details' : 'pick',
+                  )
+                }
                 disabled={pending}
                 className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-gray-600 hover:bg-surface-sunken disabled:opacity-60"
               >
@@ -260,6 +371,19 @@ export function StartBgvModal({ candidateName, pending, extracted, onStart, onCl
               <button
                 onClick={next}
                 disabled={selected.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
+              >
+                {neededSections.length > 0 ? 'Add details' : 'Review details'}
+              </button>
+            ) : step === 'details' ? (
+              <button
+                onClick={toConfirm}
+                disabled={incomplete.length > 0}
+                title={
+                  incomplete.length > 0
+                    ? `Still needed: ${incomplete.map(s => CLAIM_SECTIONS[s].title.toLowerCase()).join(', ')}`
+                    : undefined
+                }
                 className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
                 Review details

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ClaimDetails } from '@/lib/bgv-claim-fields';
 import { apiBase } from '@/lib/api-base';
 import { qk } from '@/lib/query/keys';
 
@@ -57,6 +58,7 @@ export interface OngridVerifyResult {
 async function ongridVerify(
   candidateId: string,
   services: string[],
+  details?: ClaimDetails,
 ): Promise<OngridVerifyResult> {
   const res = await fetch(
     `${apiBase()}/api/bgv/${encodeURIComponent(candidateId)}/ongrid-verify`,
@@ -64,7 +66,7 @@ async function ongridVerify(
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ services }),
+      body: JSON.stringify({ services, details }),
     },
   );
   if (!res.ok) {
@@ -84,8 +86,17 @@ async function ongridVerify(
 export function useOngridVerify() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ candidateId, services }: { candidateId: string; services: string[] }) =>
-      ongridVerify(candidateId, services),
+    mutationFn: ({
+      candidateId,
+      services,
+      details,
+    }: {
+      candidateId: string;
+      services: string[];
+      /** What HR filled in for the claim-backed checks; wins over whatever the
+       *  candidate saved, since HR has just reviewed it. */
+      details?: ClaimDetails;
+    }) => ongridVerify(candidateId, services, details),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.bgvs.all }),
   });
 }

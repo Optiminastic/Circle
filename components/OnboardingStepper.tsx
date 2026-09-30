@@ -61,6 +61,7 @@ import {
   OnboardingEmailKind,
 } from '@/features/onboarding/hooks';
 import { nowISO } from '@/lib/utils';
+import type { ClaimDetails } from '@/lib/bgv-claim-fields';
 import { useToast } from '@/components/Toaster';
 import { OnboardingEmailComposer, type ComposerSeed } from '@/components/OnboardingEmailComposer';
 import { SendOfferLetterModal } from '@/components/SendOfferLetterModal';
@@ -793,7 +794,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     if (!candidate) return;
     setStartBgvOpen(true);
   };
-  const confirmBgv = async (services: string[]) => {
+  const confirmBgv = async (services: string[], details: ClaimDetails) => {
     if (!candidate) return;
     try {
       // Record which verifications HR selected (create the record or update it on
@@ -815,7 +816,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         if (res.ok) {
           const up = (res.documents ?? []).filter(d => d.status === 'uploaded').length;
           ongridVerify.mutate(
-            { candidateId: candidate.id, services },
+            { candidateId: candidate.id, services, details },
             {
               onSuccess: v => {
                 if (v.ok) {
@@ -1266,6 +1267,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       {startBgvOpen && (
         <StartBgvModal
           extracted={bgv?.extractedFields}
+          claims={{
+            uan: docRequest?.uan,
+            education: docRequest?.education,
+            employment: docRequest?.employment,
+            permanentAddress: docRequest?.permanentAddress,
+          }}
           candidateName={checklist.candidateName}
           pending={startBgv.isPending || updateBgv.isPending || ongridOnboard.isPending}
           onStart={confirmBgv}
