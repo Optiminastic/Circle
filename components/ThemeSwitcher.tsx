@@ -40,7 +40,7 @@ export function ThemeSwitcher() {
         <Popover.Content
           align="end"
           sideOffset={8}
-          className={cn(ui.surface, ui.motion, 'z-50 w-80 p-0 text-xs')}
+          className={cn(ui.surface, ui.motion, 'z-50 w-80 max-w-[calc(100vw-1rem)] p-0 text-xs')}
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-gray-500">

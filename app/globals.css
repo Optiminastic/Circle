@@ -271,6 +271,82 @@
   --color-gray-900: oklch(96.7% 0.003 264.542);
   --color-gray-950: oklch(98.5% 0.001 264.542);
 
+  /* Status scales, inverted on the same principle as gray-* above.
+
+     These carry every success/warning/danger state in the app -- ~720 uses of
+     text-/bg-/border- red, emerald, amber, green and yellow -- and until now
+     none of them were remapped here, so dark mode kept the light values: a
+     near-white bg-emerald-50 chip with dark emerald text, sitting on charcoal.
+
+     The ramp is flipped so the roles survive the swap. The low steps are
+     backgrounds and land dark; the 600-700 steps are text and land light;
+     200-300 stay in between so borders remain visible against their own fill.
+     Chroma is pulled back from Tailwind's light-mode values, which are far too
+     saturated to sit on a dark surface. */
+  --color-red-50: oklch(22% 0.04 27);
+  --color-red-100: oklch(26% 0.055 27);
+  --color-red-200: oklch(32% 0.075 27);
+  --color-red-300: oklch(42% 0.105 27);
+  --color-red-400: oklch(55% 0.135 27);
+  --color-red-500: oklch(65% 0.15 27);
+  --color-red-600: oklch(74% 0.14 27);
+  --color-red-700: oklch(82% 0.11 27);
+  --color-red-800: oklch(88% 0.08 27);
+  --color-red-900: oklch(92% 0.05 27);
+  --color-red-950: oklch(96% 0.03 27);
+
+  --color-emerald-50: oklch(22% 0.04 163);
+  --color-emerald-100: oklch(26% 0.055 163);
+  --color-emerald-200: oklch(32% 0.075 163);
+  --color-emerald-300: oklch(42% 0.105 163);
+  --color-emerald-400: oklch(55% 0.13 163);
+  --color-emerald-500: oklch(65% 0.145 163);
+  --color-emerald-600: oklch(74% 0.135 163);
+  --color-emerald-700: oklch(82% 0.105 163);
+  --color-emerald-800: oklch(88% 0.075 163);
+  --color-emerald-900: oklch(92% 0.05 163);
+  --color-emerald-950: oklch(96% 0.03 163);
+
+  --color-amber-50: oklch(22% 0.04 75);
+  --color-amber-100: oklch(26% 0.055 75);
+  --color-amber-200: oklch(32% 0.075 75);
+  --color-amber-300: oklch(42% 0.1 75);
+  --color-amber-400: oklch(55% 0.125 75);
+  --color-amber-500: oklch(65% 0.14 75);
+  --color-amber-600: oklch(74% 0.13 75);
+  --color-amber-700: oklch(82% 0.105 75);
+  --color-amber-800: oklch(88% 0.075 75);
+  --color-amber-900: oklch(92% 0.05 75);
+  --color-amber-950: oklch(96% 0.03 75);
+
+  /* green and yellow are near-duplicates of emerald and amber in this codebase
+     (34 and 29 uses against 248 and 101). They are kept in step so a screen
+     that mixes them does not look broken; the duplication is a cleanup for
+     later, not something to leave visibly wrong in dark mode now. */
+  --color-green-50: oklch(22% 0.04 145);
+  --color-green-100: oklch(26% 0.055 145);
+  --color-green-200: oklch(32% 0.075 145);
+  --color-green-300: oklch(42% 0.105 145);
+  --color-green-400: oklch(55% 0.13 145);
+  --color-green-500: oklch(65% 0.145 145);
+  --color-green-600: oklch(74% 0.135 145);
+  --color-green-700: oklch(82% 0.105 145);
+  --color-green-800: oklch(88% 0.075 145);
+  --color-green-900: oklch(92% 0.05 145);
+  --color-green-950: oklch(96% 0.03 145);
+
+  --color-yellow-50: oklch(22% 0.04 95);
+  --color-yellow-100: oklch(26% 0.055 95);
+  --color-yellow-200: oklch(32% 0.075 95);
+  --color-yellow-300: oklch(42% 0.1 95);
+  --color-yellow-400: oklch(55% 0.125 95);
+  --color-yellow-500: oklch(65% 0.14 95);
+  --color-yellow-600: oklch(74% 0.13 95);
+  --color-yellow-700: oklch(82% 0.105 95);
+  --color-yellow-800: oklch(88% 0.075 95);
+  --color-yellow-900: oklch(92% 0.05 95);
+  --color-yellow-950: oklch(96% 0.03 95);
+
   /* Neutral scale, dark. One redefinition each, replacing the ~60 per-class
      hex overrides this block used to carry -- including the hover:/focus:
      duplicates and the one-selector-per-rule minifier workaround, both of
@@ -368,6 +444,87 @@ h4 {
   .logo-loader-path {
     animation: none;
     stroke-dashoffset: 0;
+  }
+}
+
+/* Slide-in for the full-height profile panels (candidate, employee). These
+   carried `animate-slide-in` for a long time with nothing defining it, so they
+   appeared instantly -- the class was silently doing nothing. */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-slide-in {
+  animation: slide-in-right 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* A shimmer for skeleton placeholders, so a loading table reads as "content is
+   coming" rather than "this row is empty". */
+@keyframes skeleton-sheen {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Accordion open/close. Radix measures the panel and exposes its height as
+   --radix-accordion-content-height; without these the panel simply appeared,
+   which made a long section look like a layout jump rather than an expansion. */
+@keyframes accordion-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+}
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+/* Motion is opt-out globally, not per-component.
+
+   Every animation here -- tw-animate's dialog/sheet/popover entrances, the
+   spinners, the count-ups, the panels above -- was previously unguarded, and
+   only `.logo-loader-path` honoured the preference. Rather than add a
+   `motion-reduce:` variant at each of several hundred call sites, motion is
+   cut to a near-zero duration at the root. Durations are not set to 0 so that
+   `animationend`/`transitionend` handlers still fire and nothing waiting on
+   them hangs. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Loaders are the exception, and have to be. The clamp above would let a
+     spinner turn once and stop, which reads as a hung screen rather than a
+     calm one. They keep running, just slower: a small spinner is not the
+     vestibular-trigger this preference exists to prevent, and it is the only
+     thing telling someone the app is still working. */
+  .animate-spin {
+    animation: spin 1.8s linear infinite !important;
+  }
+  .animate-pulse {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
   }
 }
 

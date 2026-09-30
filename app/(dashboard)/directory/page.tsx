@@ -18,8 +18,12 @@ export default function DirectoryPage() {
 // Next.js requires a Suspense boundary around.
 function DirectoryPageInner() {
   const router = useRouter();
-  const { data: employees = [] } = useEmployees();
+  const { data: employees = [], isLoading } = useEmployees();
   const { create, update, remove } = useEmployeeMutations();
+
+  // As on the candidates page: the Suspense fallback is for `useSearchParams`,
+  // not for the data, so without this the directory flashes empty on load.
+  if (isLoading) return <PageLoading />;
 
   return (
     <EmployeeDirectoryView

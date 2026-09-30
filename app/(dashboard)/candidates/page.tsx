@@ -20,8 +20,14 @@ export default function CandidatesPage() {
 function CandidatesPageInner() {
   const router = useRouter();
   const { openSchedule } = useScheduler();
-  const { data: candidates = [] } = useCandidates();
+  const { data: candidates = [], isLoading } = useCandidates();
   const { create, update, remove, setFit } = useCandidateMutations();
+
+  // The Suspense boundary above only covers `useSearchParams`, which resolves
+  // at once - it never waited for the candidates themselves. Without this the
+  // list renders empty first, so every visit opened on "No candidates yet"
+  // before the real rows replaced it.
+  if (isLoading) return <PageLoading />;
 
   return (
     <CandidateListView

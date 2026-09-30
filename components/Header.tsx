@@ -184,7 +184,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileNav }: H
             <Popover.Content
               align="end"
               sideOffset={8}
-              className={cn(ui.surface, ui.motion, 'z-50 w-80 p-0 text-xs')}
+              className={cn(ui.surface, ui.motion, 'z-50 w-80 max-w-[calc(100vw-1rem)] p-0 text-xs')}
             >
               <div className="flex items-center justify-between border-b border-border px-4 py-2 font-semibold text-gray-900">
                 <span>System Notifications</span>

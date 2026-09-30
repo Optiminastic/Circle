@@ -56,6 +56,10 @@ export function Sidebar({
       <Link
         href={href}
         onClick={onCloseMobile}
+        // Which section you are in was conveyed by colour and weight alone, so
+        // it did not exist for a screen reader. `page` is the right token here:
+        // the link points at the page currently shown.
+        aria-current={isActive ? 'page' : undefined}
         className={`group flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-all duration-150 ${
           isActive
             ? 'bg-surface text-gray-900 font-semibold shadow-2xs ring-1 ring-line-soft'

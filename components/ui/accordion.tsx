@@ -52,7 +52,14 @@ function AccordionContent({
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Content>) {
   return (
-    <AccordionPrimitive.Content data-slot="accordion-content" className="overflow-hidden" {...props}>
+    <AccordionPrimitive.Content
+      data-slot="accordion-content"
+      // Height is animated from Radix's measured value (see globals.css).
+      // Without it the panel appeared at full size, which reads as the page
+      // jumping rather than the section opening.
+      className="overflow-hidden data-[state=closed]:animate-[accordion-up_180ms_cubic-bezier(0.32,0.72,0,1)] data-[state=open]:animate-[accordion-down_200ms_cubic-bezier(0.32,0.72,0,1)]"
+      {...props}
+    >
       <div className={cn('border-t border-line-soft bg-surface-subtle px-2.5 py-2', className)}>{children}</div>
     </AccordionPrimitive.Content>
   );

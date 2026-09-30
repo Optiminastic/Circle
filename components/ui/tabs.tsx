@@ -42,7 +42,18 @@ function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPr
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn('outline-none', ui.focusRing, className)}
+      className={cn(
+        'outline-none',
+        // Panels used to swap with no transition at all, which made a tab
+        // change read as a page reload. A short fade and 2px rise is enough to
+        // connect the click to the result; the global reduced-motion guard
+        // removes it. Only the entrance animates - Radix unmounts the outgoing
+        // panel immediately, so an exit would never be seen.
+        'data-[state=active]:animate-in data-[state=active]:fade-in-0',
+        'data-[state=active]:slide-in-from-bottom-1 data-[state=active]:duration-200',
+        ui.focusRing,
+        className,
+      )}
       {...props}
     />
   );

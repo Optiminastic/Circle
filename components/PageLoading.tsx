@@ -9,7 +9,9 @@
  */
 export function PageLoading() {
   return (
-    <div className="space-y-5 animate-pulse" aria-busy="true" aria-label="Loading">
+    // `role="status"` matters: without it the aria-label on a bare div is not
+    // announced, so the screen went quiet while loading.
+    <div className="space-y-5 animate-pulse" role="status" aria-busy="true" aria-label="Loading">
       {/* Page header */}
       <div className="space-y-2">
         <div className="h-4 w-56 bg-surface-faint rounded" />
