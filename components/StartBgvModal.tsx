@@ -51,6 +51,12 @@ interface Props {
    * rather than spending a billed check that is going to fail.
    */
   uploadedDocTypes?: string[];
+  /**
+   * Checks OnGrid is already running. Offering them again does not restart
+   * anything useful - it requests a second, separately billed check - so they
+   * are shown as running and cannot be selected.
+   */
+  alreadyStarted?: string[];
   /** Opens the "request documents" flow, when something is missing. */
   onRequestDocuments?: () => void;
   /** The selected shortforms plus the claim values the chosen checks need. */
@@ -81,6 +87,7 @@ export function StartBgvModal({
   extracted,
   claims,
   uploadedDocTypes,
+  alreadyStarted,
   onRequestDocuments,
   onStart,
   onClose,
@@ -102,6 +109,7 @@ export function StartBgvModal({
   // Only the claims the chosen checks actually need are asked for.
   const neededSections = sectionsFor(selected);
   const missingDocs = missingDocuments(selected, uploadedDocTypes ?? []);
+  const running = new Set(alreadyStarted ?? []);
   const incomplete = neededSections.filter(s => !isSectionComplete(s, values[s]));
 
   const claimDetails = (): ClaimDetails => ({
@@ -124,10 +132,17 @@ export function StartBgvModal({
     const on = selected.includes(check.code);
     // Offering a check Circle cannot start just produces a failure row after
     // the fact, so say so here instead.
-    const runnable = isBgvCheckRunnable(check.code);
+    const isRunning = running.has(check.code);
+    const runnable = isBgvCheckRunnable(check.code) && !isRunning;
     return (
       <label
-        title={runnable ? bgvCheckLabel(check) : `${bgvCheckLabel(check)} - not available from Circle`}
+        title={
+          isRunning
+            ? `${bgvCheckLabel(check)} - already running at OnGrid`
+            : runnable
+              ? bgvCheckLabel(check)
+              : `${bgvCheckLabel(check)} - not available from Circle`
+        }
         className={`flex items-center gap-2 rounded-sm border px-2 py-1.5 transition ${
           !runnable
             ? 'cursor-not-allowed border-line bg-surface-sunken opacity-60'
@@ -143,7 +158,7 @@ export function StartBgvModal({
           </span>
           {!runnable && (
             <span className="block truncate text-[10px] leading-tight text-gray-500">
-              Portal only
+              {isRunning ? 'Already running' : 'Portal only'}
             </span>
           )}
         </span>

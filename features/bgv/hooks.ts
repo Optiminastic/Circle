@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ClaimDetails } from '@/lib/bgv-claim-fields';
 import { apiBase } from '@/lib/api-base';
 import { qk } from '@/lib/query/keys';
@@ -98,5 +98,52 @@ export function useOngridVerify() {
       details?: ClaimDetails;
     }) => ongridVerify(candidateId, services, details),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.bgvs.all }),
+  });
+}
+
+/** One check OnGrid is actually running, with OnGrid's own state for it. */
+export interface OngridCheckStatus {
+  code: string;
+  status: string;
+}
+
+export interface OngridStatusResult {
+  ok: boolean;
+  individualId?: string;
+  overallStatus?: string;
+  checks?: OngridCheckStatus[];
+  reportUrl?: string;
+  reason?: string;
+}
+
+async function ongridStatus(candidateId: string): Promise<OngridStatusResult> {
+  const res = await fetch(
+    `${apiBase()}/api/bgv/${encodeURIComponent(candidateId)}/ongrid-status`,
+    { credentials: 'include' },
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(detail || `Could not read the verification status (${res.status})`);
+  }
+  return res.json();
+}
+
+/**
+ * What OnGrid is actually running for this candidate.
+ *
+ * Read from OnGrid rather than from our own record, because the two disagree:
+ * `bgv.services` is what HR asked for, and checks chosen before the
+ * per-offering endpoints existed were saved there without ever being started.
+ * This is what decides whether verification is under way, so it has to be the
+ * side that is true.
+ */
+export function useOngridStatus(candidateId?: string, enabled = true) {
+  return useQuery({
+    queryKey: ['ongrid-status', candidateId] as const,
+    queryFn: () => ongridStatus(candidateId as string),
+    enabled: Boolean(candidateId) && enabled,
+    // Checks take days; polling hard would spend OnGrid calls for nothing.
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }

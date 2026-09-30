@@ -37,7 +37,7 @@ import {
   useJoiningConfirmations,
 } from '@/features/candidates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
-import { useOngridOnboard, useOngridVerify } from '@/features/bgv/hooks';
+import { useOngridOnboard, useOngridStatus, useOngridVerify } from '@/features/bgv/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Select } from './Select';
@@ -282,6 +282,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     );
   };
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
+  // What OnGrid is actually running, which is not the same as what was asked
+  // for - only fetched once the candidate exists over there.
+  const ongridStatus = useOngridStatus(candidate?.id, Boolean(bgv?.ongridIndividualId));
+  const liveChecks = ongridStatus.data?.ok ? (ongridStatus.data.checks ?? []) : [];
+  const startedCodes = liveChecks.map(c => c.code);
+  const bgvReportUrl = ongridStatus.data?.reportUrl;
+  const bgvRunning = startedCodes.length > 0;
   // A candidate accumulates one record per "send joining date" -- re-sends add
   // more, and only the one the candidate actually opened carries their answers.
   // `.find()` returned whichever happened to be first, which is usually an
@@ -1274,6 +1281,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
             permanentAddress: docRequest?.permanentAddress,
           }}
           uploadedDocTypes={(docRequest?.submissions ?? []).map(sub => sub.docType)}
+          alreadyStarted={startedCodes}
           onRequestDocuments={() => {
             setStartBgvOpen(false);
             requestDocs();
@@ -1754,31 +1762,49 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               </span>
                             </p>
 
-                            {/* The verifications this candidate's data was sent for. */}
-                            {!!bgv.services?.length && (
-                              <div className="mt-2">
-                                <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-700/70">
-                                  Sent for verification
-                                </p>
+                            {/* What OnGrid says is running, with its own state per
+                                check. Deliberately not `bgv.services`: that is what
+                                HR selected, and selections made before the
+                                per-offering endpoints existed were recorded without
+                                ever starting, so it claims verifications that were
+                                never requested. */}
+                            <div className="mt-2">
+                              <p className="mb-1 flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-700/70">
+                                Verification status
+                                {ongridStatus.isFetching && (
+                                  <Loader2 size={9} className="animate-spin" />
+                                )}
+                              </p>
+                              {liveChecks.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
-                                  {bgv.services.map(code => {
+                                  {liveChecks.map(({ code, status }) => {
                                     const check = bgvCheckByCode(code);
                                     return (
                                       <span
                                         key={code}
-                                        title={check?.name}
+                                        title={check?.name ?? code}
                                         className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-surface px-1.5 py-0.5 text-[10.5px] text-gray-700"
                                       >
                                         <span className="font-mono text-[9.5px] font-bold text-accent-700">
                                           {code}
                                         </span>
-                                        {check?.name && <span className="text-gray-500">· {check.name}</span>}
+                                        <span className="font-mono text-[9px] uppercase text-gray-500">
+                                          {status}
+                                        </span>
                                       </span>
                                     );
                                   })}
                                 </div>
-                              </div>
-                            )}
+                              ) : (
+                                <p className="text-[10.5px] text-gray-500">
+                                  {ongridStatus.isLoading
+                                    ? 'Checking with OnGrid…'
+                                    : ongridStatus.data?.ok === false
+                                      ? `Could not read the status from OnGrid${ongridStatus.data.reason ? ` — ${ongridStatus.data.reason}` : ''}.`
+                                      : 'No checks are running yet. The documents are uploaded; use Execute BGV to start them.'}
+                                </p>
+                              )}
+                            </div>
 
                             {/* Documents pushed to OnGrid. */}
                             {!!bgv.ongridDocuments?.length && (
@@ -1898,21 +1924,48 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             <XCircle size={13} /> Invalid
                           </button>
                           {/* Onboarding alone never asked OnGrid to check anything, so
-                              a candidate can be "sent" with no checks running. This
-                              starts them (or adds more) without leaving the step. */}
+                              a candidate can be "sent" with no checks running. What
+                              this button offers depends on what OnGrid says is
+                              actually running - re-sending a check that is already
+                              under way just pays for it twice. */}
+                          {bgvReportUrl && (
+                            <a
+                              href={bgvReportUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700"
+                            >
+                              <Download size={13} /> Download report
+                            </a>
+                          )}
                           <button
                             onClick={() => setStartBgvOpen(true)}
                             disabled={ongridVerify.isPending}
-                            title="Choose checks, confirm the extracted details, and send them to OnGrid"
-                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-accent-300 bg-accent-50 px-3 text-[12px] font-semibold text-accent-700 transition hover:bg-accent-100 disabled:opacity-60"
+                            title={
+                              bgvRunning
+                                ? `Already running: ${startedCodes.join(', ')}. Opens the dialog to start the ones that aren't.`
+                                : 'Choose checks, confirm the details, and send them to OnGrid'
+                            }
+                            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-semibold transition disabled:opacity-60 ${
+                              bgvRunning
+                                ? 'border-line bg-surface text-gray-700 hover:bg-surface-sunken'
+                                : 'border-accent-300 bg-accent-50 text-accent-700 hover:bg-accent-100'
+                            }`}
                           >
                             {ongridVerify.isPending ? (
                               <Loader2 size={13} className="animate-spin" />
                             ) : (
                               <Fingerprint size={13} />
                             )}
-                            Execute BGV
+                            {bgvRunning ? 'Run more checks' : 'Execute BGV'}
                           </button>
+                          {bgvRunning && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                              <Loader2 size={11} className="animate-spin" />
+                              {startedCodes.length} check{startedCodes.length === 1 ? '' : 's'} in
+                              progress
+                            </span>
+                          )}
                           <span className="text-[11px] text-gray-400">
                             Check the candidate on OnGrid, then confirm Verify (verified) or Invalid.
                           </span>
