@@ -17,6 +17,8 @@ import {
   Users,
   Plus,
   Trash2,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
@@ -99,6 +101,7 @@ export default function OnboardingDocsPortal() {
   const [refs, setRefs] = useState<ReferenceContact[]>(() =>
     Array.from({ length: REFERENCE_COUNT }, () => ({ organization: '', email: '', phone: '' })),
   );
+  const [tab, setTab] = useState('documents');
   const [refsSaved, setRefsSaved] = useState(false);
   useEffect(() => {
     if (request?.references?.length) {
@@ -180,6 +183,17 @@ export default function OnboardingDocsPortal() {
   const wantBank = needsBank(request?.requiredDocs);
   const wantRefs = needsReferences(request?.requiredDocs);
   const docCards = docDefsFor(request?.requiredDocs).filter(d => d.kind === 'file');
+
+  // The portal is a sequence, not a set of tabs to hunt through: documents,
+  // then whatever HR asked for, then the background-check details last. The
+  // tabs stay clickable so nobody is trapped - Next is just the obvious path.
+  const steps: { value: string; label: string }[] = [
+    { value: 'documents', label: 'Documents' },
+    ...(wantBank ? [{ value: 'bank', label: 'Bank details' }] : []),
+    ...(wantRefs ? [{ value: 'reference', label: 'Reference contact' }] : []),
+    { value: 'background', label: 'Background check' },
+  ];
+  const stepIndex = Math.max(0, steps.findIndex(s => s.value === tab));
 
   // Per-reference validation: complete fields, a valid email that is neither the
   // candidate's own nor a duplicate of another reference, and a 10-digit phone.
@@ -282,7 +296,7 @@ export default function OnboardingDocsPortal() {
       )}
 
       {/* Documents / Bank details / Reference contact — one tab each. */}
-      <Tabs defaultValue="documents">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="documents" className="flex items-center gap-1.5">
             <FileText size={13} /> Documents
@@ -394,6 +408,7 @@ export default function OnboardingDocsPortal() {
             </div>
           );
         })}
+        <StepNav steps={steps} index={stepIndex} onGo={setTab} />
         </TabsContent>
 
         {/* Bank details — only when HR requested them */}
@@ -471,6 +486,7 @@ export default function OnboardingDocsPortal() {
             )}
           </div>
         )}
+        <StepNav steps={steps} index={stepIndex} onGo={setTab} />
         </TabsContent>
         )}
 
@@ -617,6 +633,7 @@ export default function OnboardingDocsPortal() {
               </span>
             )}
           </div>
+        <StepNav steps={steps} index={stepIndex} onGo={setTab} />
         </TabsContent>
         )}
 
@@ -630,6 +647,7 @@ export default function OnboardingDocsPortal() {
             permanentAddress={request.permanentAddress}
             onError={setErrorMsg}
           />
+          <StepNav steps={steps} index={stepIndex} onGo={setTab} />
         </TabsContent>
       </Tabs>
 
@@ -702,6 +720,51 @@ function Notice({ icon, title, body }: { icon: React.ReactNode; title: string; b
       {icon}
       <p className="text-base font-bold text-gray-900">{title}</p>
       <p className="max-w-sm text-[12.5px] text-gray-500">{body}</p>
+    </div>
+  );
+}
+
+/** Back / Next between the portal's steps, plus "step N of M".
+ *  The last step has no Next: there is nothing after the background-check
+ *  details, and offering one would imply a submission that doesn't exist. */
+function StepNav({
+  steps,
+  index,
+  onGo,
+}: {
+  steps: { value: string; label: string }[];
+  index: number;
+  onGo: (value: string) => void;
+}) {
+  const prev = index > 0 ? steps[index - 1] : undefined;
+  const next = index < steps.length - 1 ? steps[index + 1] : undefined;
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
+      <span className="font-mono text-[10.5px] text-gray-400">
+        Step {index + 1} of {steps.length}
+      </span>
+      <div className="flex items-center gap-2">
+        {prev && (
+          <button
+            type="button"
+            onClick={() => onGo(prev.value)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
+          >
+            <ArrowLeft size={13} /> {prev.label}
+          </button>
+        )}
+        {next ? (
+          <button
+            type="button"
+            onClick={() => onGo(next.value)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700"
+          >
+            Next: {next.label} <ArrowRight size={13} />
+          </button>
+        ) : (
+          <span className="text-[11px] text-gray-400">That&apos;s everything — thank you.</span>
+        )}
+      </div>
     </div>
   );
 }
