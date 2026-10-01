@@ -28,6 +28,15 @@ export interface RequiredDocDef {
    *  fixed list regardless of this flag — it exists so employee-only items
    *  don't clutter the candidate picker. */
   scope?: 'employee';
+  /**
+   * Only exists for someone who has been employed before.
+   *
+   * A first-time employee has no relieving letter, no payslips and no past
+   * colleagues to name, so asking is asking for the impossible. Marking them
+   * here lets the request picker drop them in one move rather than relying on
+   * whoever is sending the link to remember which is which.
+   */
+  employmentOnly?: boolean;
 }
 
 /** The non-file items, referenced by both the picker and the portal. */
@@ -45,11 +54,11 @@ export const REQUIRED_DOCS: RequiredDocDef[] = [
   { type: 'Passport photo', label: 'Passport-size photo', hint: 'Recent, plain background', kind: 'file', defaultSelected: true },
   { type: BANK_DOC_TYPE, label: 'Bank details', hint: 'Account number & IFSC, for salary', kind: 'bank', defaultSelected: true },
 
-  { type: 'Experience letter', label: 'Experience / relieving letter', hint: 'From your last employer', kind: 'file', defaultSelected: false },
+  { type: 'Experience letter', label: 'Experience / relieving letter', hint: 'From your last employer', kind: 'file', defaultSelected: false, employmentOnly: true },
   { type: 'Cancelled cheque', label: 'Cancelled cheque', hint: 'Matching your bank details', kind: 'file', defaultSelected: false },
-  { type: 'Offer/appraisal letter', label: 'Current company offer / appraisal letter', hint: 'Most recent one', kind: 'file', defaultSelected: false },
-  { type: 'Salary slips', label: 'Last 3 months salary slips', hint: 'From your current employer', kind: 'file', defaultSelected: false },
-  { type: 'Resignation letter', label: 'Resignation letter / acceptance mail', hint: 'Proof of resignation', kind: 'file', defaultSelected: false },
+  { type: 'Offer/appraisal letter', label: 'Current company offer / appraisal letter', hint: 'Most recent one', kind: 'file', defaultSelected: false, employmentOnly: true },
+  { type: 'Salary slips', label: 'Last 3 months salary slips', hint: 'From your current employer', kind: 'file', defaultSelected: false, employmentOnly: true },
+  { type: 'Resignation letter', label: 'Resignation letter / acceptance mail', hint: 'Proof of resignation', kind: 'file', defaultSelected: false, employmentOnly: true },
   { type: 'Current offer letter', label: 'Current offer letter (if any)', hint: 'Any other offer in hand', kind: 'file', defaultSelected: false, optional: true },
   {
     type: REFERENCES_DOC_TYPE,
@@ -57,6 +66,7 @@ export const REQUIRED_DOCS: RequiredDocDef[] = [
     hint: 'Organization name, email & contact number',
     kind: 'references',
     defaultSelected: false,
+    employmentOnly: true,
   },
 
   // Employee-directory "Request docs" only — not shown in the candidate

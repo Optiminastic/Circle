@@ -59,6 +59,21 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
   const [docs, setDocs] = useState<string[]>(
     prior?.requiredDocs?.length ? prior.requiredDocs : DEFAULT_REQUIRED_DOC_TYPES,
   );
+  // Set here when HR already knows. The candidate can still correct it in the
+  // portal, which is why this is a starting point rather than the final word.
+  const [isFresher, setIsFresher] = useState(Boolean(prior?.isFresher));
+
+  // Ticking it drops the documents that only exist for someone with prior
+  // employment, so HR does not have to know which of the eleven those are.
+  const setFresher = (next: boolean) => {
+    setIsFresher(next);
+    if (next) {
+      const employmentOnly = new Set(
+        REQUIRED_DOCS.filter(d => d.employmentOnly).map(d => d.type as string),
+      );
+      setDocs(prev => prev.filter(t => !employmentOnly.has(t)));
+    }
+  };
 
   const toggleDoc = (type: string) =>
     setDocs(prev => (prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]));
@@ -132,6 +147,7 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
         role,
         prior,
         requiredDocs: docs,
+        isFresher,
         skipEmail: true,
       });
 
@@ -255,8 +271,29 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
                 </span>
               </AccordionTrigger>
               <AccordionContent>
+                {/* Asked above the list because it decides what the list
+                    contains - five of these documents only exist for someone
+                    who has been employed before. */}
+                <label className="mb-2 flex cursor-pointer items-start gap-2 rounded-md border border-line bg-surface-subtle px-2.5 py-2">
+                  <input
+                    type="checkbox"
+                    checked={isFresher}
+                    onChange={e => setFresher(e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-accent-600"
+                  />
+                  <span className="text-[11.5px] leading-snug text-gray-700">
+                    This is their first job
+                    <span className="mt-0.5 block text-[11px] text-gray-500">
+                      Hides the documents only a previous employer can produce - relieving letter,
+                      payslips, resignation and past-employer references - and skips the EPFO and
+                      previous-employer questions in their portal.
+                    </span>
+                  </span>
+                </label>
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                  {REQUIRED_DOCS.filter(d => d.scope !== 'employee').map(d => (
+                  {REQUIRED_DOCS.filter(
+                    d => d.scope !== 'employee' && !(isFresher && d.employmentOnly),
+                  ).map(d => (
                     <DocRow key={d.type} type={d.type} label={d.label} />
                   ))}
                 </div>

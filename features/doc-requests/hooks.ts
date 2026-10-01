@@ -50,6 +50,9 @@ export function useDocRequestMutations() {
       prior?: DocRequest;
       /** Items HR ticked in the picker; defaults to the standard set. */
       requiredDocs?: string[];
+      /** HR's answer to "is this their first job". Seeds the portal, where the
+       *  candidate can still correct it. */
+      isFresher?: boolean;
       // When true, only create/reuse the request + return the link — the caller
       // sends its own (editable) email instead of the built-in template.
       skipEmail?: boolean;
@@ -110,17 +113,20 @@ export function useDocRequestMutations() {
       } else if (live) {
         // Re-requesting also updates what's asked for, so HR can add or drop
         // items on an existing link.
+        const isFresher = input.isFresher ?? live.isFresher;
         request = {
           ...live,
           email: input.email || live.email,
           role: input.role ?? live.role,
           requiredDocs,
+          isFresher,
           expiresAt,
         };
         await repositories.docRequests.patch(live.id, {
           email: request.email,
           role: request.role,
           requiredDocs,
+          isFresher,
           expiresAt,
         });
       } else if (input.entityType === 'employee') {
@@ -158,6 +164,9 @@ export function useDocRequestMutations() {
           email: input.email,
           role: input.role,
           requiredDocs,
+          // Carried from the previous link when HR did not say either way, so
+          // a resend never silently un-declares a fresher.
+          isFresher: input.isFresher ?? prior?.isFresher,
           submissions: carried,
           bankDetails: bank,
           references: prior?.references,
