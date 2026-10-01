@@ -4,6 +4,7 @@ import React from 'react';
 import { format, parse, isValid } from 'date-fns';
 import type { OfferLetterData } from '@/types';
 import { computeBreakup, formatINRNumber, numberToIndianWords } from '@/lib/offer-letter';
+import { SIGNATURE_HEIGHT, SIGNATURE_IMG } from '@/lib/letter-signature';
 
 /** Format the picked joining date (yyyy-MM-dd) as "12th March 2026" — date only. */
 function formatJoining(value?: string): string {
@@ -213,6 +214,12 @@ export function OfferLetterDocument({ data }: { data: OfferLetterData }) {
 
         <p className="mb-0">Yours faithfully,</p>
         <p className="mb-0 font-bold">For Optiminastic Infomedia</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={SIGNATURE_IMG}
+          alt="Authorised signature"
+          style={{ height: SIGNATURE_HEIGHT, display: 'block' }}
+        />
         <p className="mb-0 font-bold">{data.signatoryName}</p>
         <p className="mb-4 font-bold">{data.signatoryTitle}</p>
 

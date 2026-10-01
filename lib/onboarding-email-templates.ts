@@ -93,8 +93,8 @@ export function buildOnboardingEmailDraft(
           '',
           'Yours faithfully,',
           'For Optiminastic Infomedia',
-          'Sakshi Jain',
-          'CFO',
+          'Sakshi Sawant',
+          'HR',
         ].join('\n'),
       };
 

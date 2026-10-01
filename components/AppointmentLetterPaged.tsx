@@ -7,8 +7,7 @@ import { parseLetterBlocks } from '@/lib/letter-body';
 import { letterBrand } from '@/lib/letter-company';
 import { renderLetterBlock } from './letter-body';
 import { LetterFoot, LetterHead, PAGE_H, PAGE_W, letterheadHeights } from './letterhead';
-
-const SIGNATURE_IMG = '/signature-sakshi-jain.png';
+import { SIGNATURE_HEIGHT, SIGNATURE_IMG } from '@/lib/letter-signature';
 
 const PAD_X = 72;
 const PAD_Y = 18;
@@ -26,10 +25,14 @@ function letterBlocks(d: AppointmentLetterData): React.ReactNode[] {
       <div>
         <p className="mb-1">Yours truly,</p>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={SIGNATURE_IMG} alt="Signature" style={{ height: 56, display: 'block' }} />
+        <img
+          src={SIGNATURE_IMG}
+          alt="Authorised signature"
+          style={{ height: SIGNATURE_HEIGHT, display: 'block' }}
+        />
         <p className="mb-0 font-bold">For, {letterBrand(d.company).legalName}</p>
-        <p className="mb-0 font-bold">Sakshi Jain</p>
-        <p className="mb-0 font-bold">CFO</p>
+        <p className="mb-0 font-bold">Sakshi Sawant</p>
+        <p className="mb-0 font-bold">HR</p>
       </div>
       <div>
         <p className="mb-6">I hereby acknowledge, agree and confirm</p>

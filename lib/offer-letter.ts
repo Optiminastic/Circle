@@ -10,6 +10,7 @@
 import { format, parse, isValid } from 'date-fns';
 import type { Candidate, OfferLetterData } from '@/types';
 import { DEFAULT_LETTER_COMPANY, letterBrand } from '@/lib/letter-company';
+import { SIGNATURE_MARKER } from '@/lib/letter-signature';
 
 export type { OfferLetterData };
 
@@ -212,7 +213,7 @@ export function renderOfferLetterBody(d: OfferLetterData): string {
     CTC_TABLE_MARKER,
     `**Medical Insurance**: Coverage for self up to INR ${formatINRNumber(d.medicalInsurance)} (after completion of your probation period)`,
     `In case you have any further clarifications, please contact (${d.hrEmail}).`,
-    `Yours faithfully,\n**For ${brandLegalName}**\n**${d.signatoryName}**\n**${d.signatoryTitle}**`,
+    `Yours faithfully,\n**For ${brandLegalName}**\n${SIGNATURE_MARKER}\n**${d.signatoryName}**\n**${d.signatoryTitle}**`,
     `**I, ${d.candidateName || '[name]'}, confirm my acceptance of the offer and the terms and conditions mentioned herein.**`,
     '**Signature:**\n**Date: _______________**\n**Place: _______________**',
   ].join('\n\n');
@@ -260,8 +261,8 @@ export function blankOfferLetter(
     pfEmployer: 0,
     pfEmployee: 0,
     professionalTax: 0,
-    signatoryName: 'Sakshi Jain',
-    signatoryTitle: 'CFO',
+    signatoryName: 'Sakshi Sawant',
+    signatoryTitle: 'HR',
     hrEmail: 'hr@optiminastic.com',
     createdAt: nowIso,
   };

@@ -432,8 +432,8 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
       '',
       'Yours faithfully,',
       'For Optiminastic Infomedia',
-      'Sakshi Jain',
-      'CFO',
+      'Sakshi Sawant',
+      'HR',
     ].join('\n'),
   },
   {

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { LetterBodyBlock } from '@/lib/letter-body';
+import { SIGNATURE_HEIGHT, SIGNATURE_IMG, SIGNATURE_MARKER } from '@/lib/letter-signature';
 
 /** Inline `**bold**` within a single line of wording. */
 export function renderInline(line: string, key: React.Key): React.ReactNode {
@@ -33,11 +34,21 @@ export function renderLetterBlock(block: LetterBodyBlock, key: React.Key): React
   }
   return (
     <div key={key} className="space-y-1">
-      {block.lines.map((line, i) => (
-        <p key={i} className="mb-0">
-          {renderInline(line, i)}
-        </p>
-      ))}
+      {block.lines.map((line, i) =>
+        line.trim() === SIGNATURE_MARKER ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={SIGNATURE_IMG}
+            alt="Authorised signature"
+            style={{ height: SIGNATURE_HEIGHT, display: 'block' }}
+          />
+        ) : (
+          <p key={i} className="mb-0">
+            {renderInline(line, i)}
+          </p>
+        ),
+      )}
     </div>
   );
 }
