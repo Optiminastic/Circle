@@ -740,6 +740,7 @@ export function ApplyForm({ job }: { job: Job }) {
                           <p className="text-xs text-gray-700">{q.text}</p>
                           {qType === 'text' ? (
                             <input
+                              aria-label={q.text}
                               className={inputCls}
                               value={responses[q.id] ?? ''}
                               onChange={e => setResponses(r => ({ ...r, [q.id]: e.target.value }))}
@@ -789,6 +790,7 @@ export function ApplyForm({ job }: { job: Job }) {
                               </div>
                               {qType === 'choice' && q.allowOther && otherActive[q.id] && (
                                 <input
+                                  aria-label={`${q.text} - please specify`}
                                   className={inputCls}
                                   value={responses[q.id] ?? ''}
                                   onChange={e => setResponses(r => ({ ...r, [q.id]: e.target.value }))}
@@ -893,6 +895,7 @@ export function ApplyForm({ job }: { job: Job }) {
                   ref={el => {
                     otpRefs.current[i] = el;
                   }}
+                  aria-label={`Verification code, digit ${i + 1} of ${otpDigits.length}`}
                   inputMode="numeric"
                   autoComplete={i === 0 ? 'one-time-code' : undefined}
                   maxLength={1}
