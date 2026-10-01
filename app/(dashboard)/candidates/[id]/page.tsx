@@ -84,6 +84,7 @@ import { INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
 import { useInterviewBanks, useInterviewKitSends } from '@/features/question-banks/hooks';
 import { saveInterviewSheet } from '@/lib/interview-sheet';
 import { PageLoading } from '@/components/PageLoading';
+import { QueryError } from '@/components/ui/query-error';
 import { Select } from '@/components/Select';
 import { Tip } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -203,7 +204,7 @@ export default function CandidateDetailPage() {
   // both routes above without hardcoding either one.
   const backHref = pathname.replace(/\/[^/]+$/, '') || '/candidates';
 
-  const { data: candidates = [], isLoading } = useCandidates();
+  const { data: candidates = [], isLoading, isError, refetch, isFetching } = useCandidates();
   const { data: schedules = [] } = useSchedules();
   const { data: interviews = [] } = useInterviews();
   const { data: iqTests = [] } = useIqTests();
@@ -359,6 +360,19 @@ export default function CandidateDetailPage() {
   });
 
   if (isLoading) return <PageLoading />;
+  // A failed fetch used to fall through to "Candidate not found", which tells
+  // someone their record is gone when the server merely could not be reached.
+  // The two need separating: one is recoverable by retrying, the other is not.
+  if (isError)
+    return (
+      <QueryError
+        title="Could not load this candidate"
+        description="Their record could not be fetched. It has not been deleted - this is a problem reaching the server."
+        onRetry={() => refetch()}
+        retrying={isFetching}
+        className="mx-auto max-w-md"
+      />
+    );
   if (!candidate) {
     return (
       <div className="mx-auto max-w-md py-20 text-center">
