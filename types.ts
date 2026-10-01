@@ -620,6 +620,18 @@ export interface DocRequest {
    * of onboarding.
    */
   uan?: string;
+  /**
+   * The candidate has never been employed before.
+   *
+   * A first-time employee has no UAN and no previous employer: EPFO issues the
+   * number on first employment, so both the EPFO and past-employer sections are
+   * not merely empty for them but impossible, and the checks that read them
+   * (EHC, EMPV) have nothing to verify.
+   *
+   * Declared by the candidate rather than derived from `totalExperienceYears`,
+   * which is HR's estimate and is often left at zero.
+   */
+  isFresher?: boolean;
   /** Claims the candidate makes that background verification then confirms with
    *  a third party. All optional - each only gates its own check. */
   education?: EducationRecord;

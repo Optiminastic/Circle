@@ -642,6 +642,7 @@ export default function OnboardingDocsPortal() {
             token={token}
             queryKey={portalKey(token)}
             uan={request.uan}
+            isFresher={request.isFresher}
             education={request.education}
             employment={request.employment}
             permanentAddress={request.permanentAddress}

@@ -58,6 +58,12 @@ interface Props {
    * are shown as running and cannot be selected.
    */
   alreadyStarted?: string[];
+  /**
+   * The candidate stated this is their first job. EHC reads EPFO records and
+   * EMPV contacts a past employer, so for them there is nothing on either side
+   * to check - offering them would spend two billed checks on a known answer.
+   */
+  isFresher?: boolean;
   /** Opens the "request documents" flow, when something is missing. */
   onRequestDocuments?: () => void;
   /** The selected shortforms plus the claim values the chosen checks need. */
@@ -89,6 +95,7 @@ export function StartBgvModal({
   claims,
   uploadedDocTypes,
   alreadyStarted,
+  isFresher,
   onRequestDocuments,
   onStart,
   onClose,
@@ -111,6 +118,7 @@ export function StartBgvModal({
   const neededSections = sectionsFor(selected);
   const missingDocs = missingDocuments(selected, uploadedDocTypes ?? []);
   const running = new Set(alreadyStarted ?? []);
+  const notApplicable = new Set(isFresher ? ['EHC', 'EMPV'] : []);
   const incomplete = neededSections.filter(s => !isSectionComplete(s, values[s]));
 
   const claimDetails = (): ClaimDetails => ({
@@ -134,15 +142,18 @@ export function StartBgvModal({
     // Offering a check Circle cannot start just produces a failure row after
     // the fact, so say so here instead.
     const isRunning = running.has(check.code);
-    const runnable = isBgvCheckRunnable(check.code) && !isRunning;
+    const isNotApplicable = notApplicable.has(check.code);
+    const runnable = isBgvCheckRunnable(check.code) && !isRunning && !isNotApplicable;
     return (
       <label
         title={
           isRunning
             ? `${bgvCheckLabel(check)} - already running at OnGrid`
-            : runnable
-              ? bgvCheckLabel(check)
-              : `${bgvCheckLabel(check)} - not available from Circle`
+            : isNotApplicable
+              ? `${bgvCheckLabel(check)} - the candidate has no previous employment`
+              : runnable
+                ? bgvCheckLabel(check)
+                : `${bgvCheckLabel(check)} - not available from Circle`
         }
         className={`flex items-center gap-2 rounded-sm border px-2 py-1.5 transition ${
           !runnable
@@ -159,7 +170,11 @@ export function StartBgvModal({
           </span>
           {!runnable && (
             <span className="block truncate text-[10px] leading-tight text-gray-500">
-              {isRunning ? 'Already running' : 'Portal only'}
+              {isRunning
+                ? 'Already running'
+                : isNotApplicable
+                  ? 'No previous employment'
+                  : 'Portal only'}
             </span>
           )}
         </span>

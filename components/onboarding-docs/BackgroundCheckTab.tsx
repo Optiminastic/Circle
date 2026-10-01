@@ -31,6 +31,7 @@ import {
 import { ClaimFields, MissingNote } from '@/components/bgv/ClaimFields';
 import {
   saveDocRequestEducation,
+  saveDocRequestIsFresher,
   saveDocRequestEmployment,
   saveDocRequestPermanentAddress,
   saveDocRequestUan,
@@ -42,6 +43,8 @@ export interface BackgroundCheckTabProps {
   /** Invalidated after each save so the portal reflects what was stored. */
   queryKey: readonly unknown[];
   uan?: string;
+  /** Declared by the candidate: they have never been employed. */
+  isFresher?: boolean;
   education?: EducationRecord;
   employment?: EmploymentRecord;
   permanentAddress?: PermanentAddress;
@@ -52,12 +55,14 @@ export function BackgroundCheckTab({
   token,
   queryKey,
   uan: savedUan,
+  isFresher: savedIsFresher,
   education: savedEducation,
   employment: savedEmployment,
   permanentAddress: savedAddress,
   onError,
 }: BackgroundCheckTabProps) {
   const qc = useQueryClient();
+  const [fresher, setFresher] = useState(false);
   const [values, setValues] = useState<Record<ClaimSection, ClaimValue>>({
     uan: {},
     education: {},
@@ -72,6 +77,9 @@ export function BackgroundCheckTab({
   useEffect(() => {
     if (savedUan) seed('uan', { uan: savedUan });
   }, [savedUan]);
+  useEffect(() => {
+    if (savedIsFresher !== undefined) setFresher(savedIsFresher);
+  }, [savedIsFresher]);
   useEffect(() => {
     if (savedEducation) seed('education', savedEducation);
   }, [savedEducation]);
@@ -100,7 +108,18 @@ export function BackgroundCheckTab({
     permanentAddress: Boolean(savedAddress?.pincode),
   };
 
-  const order: ClaimSection[] = ['uan', 'education', 'employment', 'permanentAddress'];
+  const declareFresher = useMutation({
+    mutationFn: (next: boolean) => saveDocRequestIsFresher(token, next),
+    onError: fail('Could not save your answer.'),
+    onSuccess: settled,
+  });
+
+  // A first job means no EPFO number and no previous employer, so asking for
+  // either is asking for something that cannot exist. Both sections come out
+  // rather than being shown empty with a required marker on them.
+  const order: ClaimSection[] = fresher
+    ? ['education', 'permanentAddress']
+    : ['uan', 'education', 'employment', 'permanentAddress'];
 
   return (
     <div className="space-y-3">
@@ -108,6 +127,28 @@ export function BackgroundCheckTab({
         All of this is optional and none of it holds up your onboarding. Each section is only
         needed for its own background check, so fill in what applies to you and leave the rest.
       </p>
+
+      {/* Asked first, because the answer decides whether two of the sections
+          below are shown at all. */}
+      <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-line bg-surface px-3 py-2.5">
+        <input
+          type="checkbox"
+          checked={fresher}
+          onChange={e => {
+            setFresher(e.target.checked);
+            declareFresher.mutate(e.target.checked);
+          }}
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-accent-600"
+        />
+        <span className="text-[11.5px] leading-snug text-gray-700">
+          This is my first job — I have not been employed before.
+          <span className="mt-0.5 block text-[11px] text-gray-500">
+            Tick this and we will stop asking for your EPFO number and previous employer. Both
+            are created by your first employer, so you will not have either yet.
+          </span>
+        </span>
+        {declareFresher.isPending && <Loader2 size={13} className="mt-0.5 animate-spin text-gray-400" />}
+      </label>
 
       {order.map(section => (
         <Section

@@ -1282,6 +1282,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           }}
           uploadedDocTypes={(docRequest?.submissions ?? []).map(sub => sub.docType)}
           alreadyStarted={startedCodes}
+          isFresher={docRequest?.isFresher}
           onRequestDocuments={() => {
             setStartBgvOpen(false);
             requestDocs();

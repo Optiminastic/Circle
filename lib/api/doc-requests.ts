@@ -103,6 +103,14 @@ async function patchDocRequest(
 export const saveDocRequestUan = (token: string, uan: string): Promise<DocRequest> =>
   patchDocRequest(token, { uan }, 'Could not save your UAN');
 
+/** Record that this is the candidate's first job, so the employment-history and
+ *  past-employer sections stop being asked for. */
+export const saveDocRequestIsFresher = (
+  token: string,
+  isFresher: boolean,
+): Promise<DocRequest> =>
+  patchDocRequest(token, { isFresher }, 'Could not save your answer');
+
 /** Save the qualification that education verification will confirm. */
 export const saveDocRequestEducation = (
   token: string,
