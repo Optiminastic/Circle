@@ -11,6 +11,7 @@ import { offerLetterFileBaseName } from '@/lib/offer-letter';
 import { DatePicker } from '@/components/ui/date-picker';
 import { OfferLetterPaged } from './OfferLetterPaged';
 import { useToast } from './Toaster';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface Props {
   candidate?: Candidate;
@@ -185,11 +186,8 @@ export function SendOfferLetterModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <>
+    <ModalShell onClose={onClose} size="lg" label="Send offer letter" className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">Send offer letter</h3>
           <button onClick={onClose} aria-label="Close" className="rounded p-1 text-gray-400 hover:bg-gray-100">
@@ -306,7 +304,7 @@ export function SendOfferLetterModal({
             </div>
           </div>
         )}
-      </div>
+    </ModalShell>
 
       {/* Off-screen render of the created letter — captured to a PDF for the attachment. */}
       {offerLetter && (
@@ -314,7 +312,7 @@ export function SendOfferLetterModal({
           <OfferLetterPaged data={offerLetter} rootRef={pagesRef} />
         </div>
       )}
-    </div>
+    </>
   );
 }
 

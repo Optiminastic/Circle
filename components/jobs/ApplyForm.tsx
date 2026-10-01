@@ -14,6 +14,7 @@ import { APPLICATION_SOURCES, REFERRAL_SOURCE, type ApplicationSource } from '@/
 import { useToast } from '@/components/Toaster';
 import { Tip } from '@/components/ui/tooltip';
 import { CheckCircle2, Loader2, UploadCloud, FileText, X } from 'lucide-react';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 const EMPTY = {
   fullName: '',
@@ -854,14 +855,12 @@ export function ApplyForm({ job }: { job: Job }) {
 
       {/* Email OTP verification modal */}
       {otpOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setOtpOpen(false)}
+        <ModalShell
+          onClose={() => setOtpOpen(false)}
+          size="xs"
+          label="Verify your email"
+          className="p-6"
         >
-          <div
-            className="w-full max-w-sm rounded-lg bg-surface p-6 shadow-xl"
-            onClick={e => e.stopPropagation()}
-          >
             <div className="mb-1 flex items-center justify-between">
               <h3 className="text-base font-bold text-gray-900">Verify your email</h3>
               <button
@@ -935,8 +934,7 @@ export function ApplyForm({ job }: { job: Job }) {
             >
               {otpSending ? 'Sending…' : 'Resend code'}
             </button>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </section>
   );

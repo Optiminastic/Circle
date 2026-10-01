@@ -4,6 +4,7 @@ import React from 'react';
 import { Building2, X } from 'lucide-react';
 import type { LetterCompany } from '@/types';
 import { LETTER_COMPANY_OPTIONS } from '@/lib/letter-company';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface LetterCompanyPickerProps {
   /** Shown above the options, e.g. "Issue letter under which company?". */
@@ -30,8 +31,7 @@ export function LetterCompanyPicker({
   onClose,
 }: LetterCompanyPickerProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg bg-surface p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+    <ModalShell onClose={onClose} size="sm" label={title} className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">{title}</h3>
           <button
@@ -64,8 +64,7 @@ export function LetterCompanyPicker({
             </button>
           ))}
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

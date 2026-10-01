@@ -7,6 +7,7 @@ import { repositories } from '@/lib/api/repositories';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { EXIT_HANDOVER_TTL_HOURS, exitHandoverPath, newHandoverToken } from '@/lib/exit-handover';
 import { useToast } from './Toaster';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface ExitHandoverModalProps {
   employeeId: string;
@@ -116,11 +117,7 @@ export function ExitHandoverModal({
     'w-full rounded-sm border border-line bg-surface px-2.5 py-2 text-[13px] text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} size="md" label="Exit handover" className="p-6">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">Send exit-handover link</h3>
           <button
@@ -194,8 +191,7 @@ export function ExitHandoverModal({
             Send link
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

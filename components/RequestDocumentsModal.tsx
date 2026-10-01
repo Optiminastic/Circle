@@ -33,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from './Toaster';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface Props {
   candidateId: string;
@@ -188,11 +189,7 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} size="lg" label="Request documents" className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">Request joining documents</h3>
           <button onClick={onClose} aria-label="Close" className="rounded p-1 text-gray-400 hover:bg-gray-100">
@@ -287,8 +284,7 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

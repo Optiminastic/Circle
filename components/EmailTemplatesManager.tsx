@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from './Toaster';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 /**
  * Settings → Email templates. Every transactional email HR sends, editable in
@@ -191,11 +192,7 @@ function TemplateEditor({
   const busy = save.isPending || reset.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-5 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} size="xl" label="Email templates" className="p-5">
         <div className="mb-1 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
             <Mail size={15} className="text-accent-600" /> {def.label}
@@ -273,8 +270,7 @@ function TemplateEditor({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

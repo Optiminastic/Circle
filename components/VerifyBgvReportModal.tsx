@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, Loader2, ShieldCheck } from 'lucide-react';
 import { FileDropzone, PickedFile } from '@/components/ui/file-dropzone';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface Props {
   candidateName: string;
@@ -24,11 +25,7 @@ export function VerifyBgvReportModal({ candidateName, pending, onSubmit, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-lg bg-surface p-5 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} size="sm" label="Mark BGV verified" className="p-5">
         <div className="mb-1 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
             <ShieldCheck size={15} className="text-accent-600" /> Mark BGV verified
@@ -67,8 +64,7 @@ export function VerifyBgvReportModal({ candidateName, pending, onSubmit, onClose
             {pending ? 'Marking verified…' : 'Mark verified'}
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

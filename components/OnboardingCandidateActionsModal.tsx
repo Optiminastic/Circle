@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Ban, UserCheck, X } from 'lucide-react';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface OnboardingCandidateActionsModalProps {
   candidateName: string;
@@ -58,11 +59,13 @@ export function OnboardingCandidateActionsModal({
 
   if (askingReason) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-        onClick={busy ? undefined : onClose}
+      <ModalShell
+        onClose={onClose}
+        size="sm"
+        label="Blacklist candidate"
+        dismissOnBackdrop={!busy}
+        className="p-6"
       >
-        <div className="w-full max-w-md rounded-lg bg-surface p-6 shadow-xl" onClick={e => e.stopPropagation()}>
           <div className="mb-1 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-base font-bold text-red-700">
               <Ban size={17} /> Blacklist candidate
@@ -108,14 +111,18 @@ export function OnboardingCandidateActionsModal({
               {pending === 'blacklist' ? 'Blacklisting…' : 'Confirm blacklist'}
             </button>
           </div>
-        </div>
-      </div>
+      </ModalShell>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={busy ? undefined : onClose}>
-      <div className="w-full max-w-md rounded-lg bg-surface p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+    <ModalShell
+      onClose={onClose}
+      size="sm"
+      label="Manage candidate"
+      dismissOnBackdrop={!busy}
+      className="p-6"
+    >
         <div className="mb-1 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">Manage candidate</h3>
           <button
@@ -162,8 +169,7 @@ export function OnboardingCandidateActionsModal({
             </div>
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

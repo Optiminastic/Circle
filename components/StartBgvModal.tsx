@@ -29,6 +29,7 @@ import {
 } from '@/lib/bgv-claim-fields';
 import { ClaimFields, MissingNote } from '@/components/bgv/ClaimFields';
 import { useToast } from './Toaster';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface Props {
   candidateName: string;
@@ -212,11 +213,7 @@ export function StartBgvModal({
   const singles = BGV_CATALOG.flatMap(n => (n.kind === 'check' ? [n.check] : []));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-5 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} size="lg" label="Execute background verification" className="p-5">
         <div className="mb-1 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
             <Fingerprint size={15} className="text-accent-600" />
@@ -480,8 +477,7 @@ export function StartBgvModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

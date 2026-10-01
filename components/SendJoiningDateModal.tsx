@@ -12,6 +12,7 @@ import {
 } from '@/lib/joining-confirmation';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useToast } from './Toaster';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface Props {
   candidateId: string;
@@ -157,11 +158,7 @@ export function SendJoiningDateModal({ candidateId, candidateName, email, propos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} size="lg" label="Send joining date" className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-bold text-gray-900">Send joining date</h3>
           <button onClick={onClose} aria-label="Close" className="rounded p-1 text-gray-400 hover:bg-gray-100">
@@ -258,8 +255,7 @@ export function SendJoiningDateModal({ candidateId, candidateName, email, propos
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 

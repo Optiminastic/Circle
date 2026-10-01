@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Ban, RotateCcw, X } from 'lucide-react';
 import { Candidate } from '@/types';
+import { ModalShell } from '@/components/ui/modal-shell';
 
 interface BlacklistedCandidatesModalProps {
   /** Pre-filtered to status === 'Blacklisted'. */
@@ -31,11 +32,7 @@ export function BlacklistedCandidatesModal({ candidates, onRestore, onClose }: B
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg bg-surface p-6 shadow-xl"
-        onClick={e => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose} size="md" label="Blacklisted candidates" className="p-6">
         <div className="mb-1 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-base font-bold text-gray-900">
             <Ban size={16} className="text-red-600" /> Blacklisted candidates
@@ -78,8 +75,7 @@ export function BlacklistedCandidatesModal({ candidates, onRestore, onClose }: B
             ))
           )}
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 
