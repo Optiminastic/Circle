@@ -113,19 +113,28 @@ export function useDocRequestMutations() {
       } else if (live) {
         // Re-requesting also updates what's asked for, so HR can add or drop
         // items on an existing link.
+        //
+        // Dropping one the candidate has ALREADY uploaded is the exception. The
+        // panel renders a card per requiredDocs and looks a submission up for
+        // each, so a type that is no longer asked for has nothing to render
+        // into and its upload becomes invisible - the file is still on the
+        // record and still in storage, but nobody can see or verify it. Keeping
+        // those types is what the employee branch above already does.
+        const uploaded = (live.submissions ?? []).map(s => s.docType);
+        const keptDocs = Array.from(new Set([...requiredDocs, ...uploaded]));
         const isFresher = input.isFresher ?? live.isFresher;
         request = {
           ...live,
           email: input.email || live.email,
           role: input.role ?? live.role,
-          requiredDocs,
+          requiredDocs: keptDocs,
           isFresher,
           expiresAt,
         };
         await repositories.docRequests.patch(live.id, {
           email: request.email,
           role: request.role,
-          requiredDocs,
+          requiredDocs: keptDocs,
           isFresher,
           expiresAt,
         });
@@ -145,17 +154,32 @@ export function useDocRequestMutations() {
         };
         await repositories.docRequests.create(request);
       } else {
-        // New link: carry over already-verified (locked) documents + bank details
-        // from the previous request so the candidate isn't asked to re-upload what
-        // has already been cleared.
+        // New link: carry the previous request's uploads + bank details across,
+        // so the candidate isn't asked to re-upload what they already sent.
+        //
+        // Every submission moves, not only the verified ones. Carrying verified
+        // uploads alone stranded the rest on the old record: still stored, but
+        // reachable from no screen, because both the panel and the stepper show
+        // a single request. A candidate who uploaded eight documents and had
+        // one verified before the link was re-issued appeared to have sent one.
         const prior = input.prior ?? existing[0];
-        const carried = (prior?.submissions ?? []).filter(s => s.status === 'Verified');
+        const carried = prior?.submissions ?? [];
         const bank = prior?.bankDetails;
+        // Carried uploads keep their types asked for, for the same reason as
+        // the live branch above: a type with no card is a file nobody can see.
+        const carriedDocs = Array.from(
+          new Set([...requiredDocs, ...carried.map(s => s.docType)]),
+        );
         // Only the required file items gate completion (optional ones like the
         // "current offer letter" don't); bank is judged separately, when requested.
+        // Status is checked explicitly - `carried` holds every submission now,
+        // not just the verified ones, so presence alone no longer means cleared.
         const fileDocs = requiredFileDocTypes(requiredDocs);
         const allVerified =
-          fileDocs.length > 0 && fileDocs.every(rt => carried.some(s => s.docType === rt));
+          fileDocs.length > 0 &&
+          fileDocs.every(rt =>
+            carried.some(s => s.docType === rt && s.status === 'Verified'),
+          );
         const bankOk = !requiredDocs.includes(BANK_DOC_TYPE) || bank?.status === 'Verified';
         request = {
           id: randomToken('DOC'),
@@ -163,7 +187,7 @@ export function useDocRequestMutations() {
           candidateName: input.candidateName,
           email: input.email,
           role: input.role,
-          requiredDocs,
+          requiredDocs: carriedDocs,
           // Carried from the previous link when HR did not say either way, so
           // a resend never silently un-declares a fresher.
           isFresher: input.isFresher ?? prior?.isFresher,

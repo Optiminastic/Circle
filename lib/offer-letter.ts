@@ -219,6 +219,28 @@ export function renderOfferLetterBody(d: OfferLetterData): string {
   ].join('\n\n');
 }
 
+/**
+ * True when the saved wording no longer agrees with the CTC on the form.
+ *
+ * Edited wording is deliberately frozen - that is the point of editing it - but
+ * the freeze is silent, and the CTC table beside it keeps recomputing. So a
+ * letter whose wording was written before the CTC was entered goes on showing
+ * "INR 0/-" in the salary sentence while the table underneath reads correctly,
+ * and nothing says they disagree.
+ *
+ * The test is deliberately crude: the current CTC figure should appear
+ * somewhere in the wording. A false positive is cheap (a warning HR can
+ * dismiss by resetting); the thing being prevented is an offer letter stating
+ * the wrong salary to a real candidate.
+ */
+export function offerBodyContradictsCtc(d: OfferLetterData): boolean {
+  const body = d.customBody?.trim();
+  // Nothing saved means the wording is generated, and so always current. A CTC
+  // of zero is the form's own empty state, not a contradiction.
+  if (!body || !d.ctcAnnual) return false;
+  return !body.includes(formatINRNumber(d.ctcAnnual));
+}
+
 /** The letter wording actually in effect: HR's edited text if they saved one,
  *  else the auto-generated default (always current with the form's fields). */
 export function effectiveOfferLetterBody(d: OfferLetterData): string {

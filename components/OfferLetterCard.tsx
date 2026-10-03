@@ -5,12 +5,13 @@ import { Select } from './Select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2 } from 'lucide-react';
+import { FileText, Eye, Pencil, Plus, X, Printer, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import type { Candidate, LetterCompany, OfferLetterData } from '@/types';
 import {
   blankOfferLetter,
   computeBreakup,
   formatINRNumber,
+  offerBodyContradictsCtc,
   offerLetterFileBaseName,
   renderOfferLetterBody,
 } from '@/lib/offer-letter';
@@ -328,6 +329,34 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
                   </p>
                 )}
               </div>
+
+              {/* The wording freezes the moment it is edited, and the CTC table
+                  beside it does not - so a letter written before the CTC was
+                  entered keeps saying "INR 0/-" with a correct table under it.
+                  Said here rather than only in the accordion, which is closed by
+                  default and so is exactly where this gets missed. */}
+              {offerBodyContradictsCtc(draft) && (
+                <div className="flex flex-wrap items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11.5px] font-semibold text-amber-900">
+                      The saved wording does not mention the current CTC
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-amber-800">
+                      This letter has edited wording, which does not update when the fields above
+                      change. The salary sentence may still show an older figure even though the
+                      breakdown is correct. Check it under &quot;Letter wording&quot;, or reset it.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => set('customBody', '')}
+                    className="shrink-0 rounded-md border border-amber-300 bg-surface px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+                  >
+                    Reset wording
+                  </button>
+                </div>
+              )}
 
               <Accordion type="single" collapsible>
                 <AccordionItem value="wording">
