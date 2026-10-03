@@ -111,6 +111,7 @@ const EMPTY_FORM = {
   location: 'Mumbai',
   employmentType: 'Full-time' as Job['employmentType'],
   minExperienceYears: 3,
+  asksEmploymentDetails: true,
   salaryMin: '',
   salaryMax: '',
   description: '',
@@ -165,6 +166,8 @@ export function JobListView({
       location: job.location,
       employmentType: job.employmentType,
       minExperienceYears: job.minExperienceYears,
+      // Undefined on a job posted before this existed, which kept asking.
+      asksEmploymentDetails: job.asksEmploymentDetails ?? true,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
       description: job.description,
@@ -310,6 +313,7 @@ export function JobListView({
       location: form.location,
       employmentType: form.employmentType,
       minExperienceYears: Number(form.minExperienceYears),
+      asksEmploymentDetails: form.asksEmploymentDetails,
       salaryMin: form.salaryMin,
       salaryMax: form.salaryMax,
       description: form.description,
@@ -903,7 +907,16 @@ export function JobListView({
                       <Select
                         value={form.employmentType}
                         onChange={e =>
-                          setForm({ ...form, employmentType: e.target.value as Job['employmentType'] })
+                          setForm(prev => {
+                            const employmentType = e.target.value as Job['employmentType'];
+                            // Choosing Internship turns the employment questions
+                            // off, since an intern has no current title, CTC or
+                            // notice period to give. Still a default, not a rule:
+                            // the tick below stays editable either way.
+                            return employmentType === 'Internship'
+                              ? { ...prev, employmentType, asksEmploymentDetails: false }
+                              : { ...prev, employmentType };
+                          })
                         }
                         className="mt-2 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm shadow-xs"
                       >
@@ -927,6 +940,25 @@ export function JobListView({
                         className="mt-2"
                         required
                       />
+                      {/* Sits with the experience field because it decides
+                          whether applicants are asked about theirs at all. */}
+                      <label className="mt-2 flex cursor-pointer items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={form.asksEmploymentDetails}
+                          onChange={e =>
+                            setForm({ ...form, asksEmploymentDetails: e.target.checked })
+                          }
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-accent-600"
+                        />
+                        <span className="text-[11px] leading-snug text-gray-600">
+                          Ask applicants for current employment
+                          <span className="mt-0.5 block text-[10.5px] text-gray-400">
+                            Current title, CTC, experience and notice period. Untick for an
+                            internship or any role open to people with no work history.
+                          </span>
+                        </span>
+                      </label>
                     </div>
                     <div>
                       <Label htmlFor="job-smin" className="text-sm font-medium">

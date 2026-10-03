@@ -87,6 +87,12 @@ export function ApplyForm({ job }: { job: Job }) {
   // this stays correct across devices without the public page ever fetching the
   // library from the browser.
   const screeningQuestions = job.screeningQuestions ?? [];
+  // Whether this posting asks about current employment. Off for an internship
+  // and any other role open to people with no work history: an applicant who
+  // has never worked has no current title, no CTC and nothing to serve notice
+  // on, so asking either turns them away or collects invented numbers.
+  // Undefined on a job posted before the option existed, which kept asking.
+  const asksEmployment = job.asksEmploymentDetails ?? true;
 
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -284,21 +290,25 @@ export function ApplyForm({ job }: { job: Job }) {
     if (!form.source) return 'Please select how you heard about this role.';
     if (form.source === REFERRAL_SOURCE && !form.referredBy.trim())
       return "Please enter the name of the person who referred you.";
-    if (!form.currentDesignation.trim()) return 'Please enter your current title.';
-    const currentCtcErr = ctcError(String(form.currentCtc), 'current CTC');
-    if (currentCtcErr) return currentCtcErr;
-    const expectedCtcErr = ctcError(String(form.expectedCtc), 'expected CTC');
-    if (expectedCtcErr) return expectedCtcErr;
-    if (String(form.totalExperienceYears).trim() === '') return 'Please enter your total experience.';
-    if (!(Number(form.totalExperienceYears) >= 0) || Number(form.totalExperienceYears) > MAX_EXPERIENCE_YEARS)
-      return `Please enter your total experience as a number between 0 and ${MAX_EXPERIENCE_YEARS} years.`;
-    if (String(form.noticePeriodDays).trim() === '') return 'Please enter your notice period.';
-    if (!(Number(form.noticePeriodDays) >= 0) || Number(form.noticePeriodDays) > MAX_NOTICE_DAYS)
-      return `Please enter your notice period as a number of days between 0 and ${MAX_NOTICE_DAYS}.`;
-    // The server stores notice period as a whole number of days and rejects a
-    // decimal outright.
-    if (!Number.isInteger(Number(form.noticePeriodDays)))
-      return 'Please enter your notice period as a whole number of days.';
+    // Only when the posting asks. These fields are not rendered otherwise, so
+    // demanding them would block the form on inputs nobody can see.
+    if (asksEmployment) {
+      if (!form.currentDesignation.trim()) return 'Please enter your current title.';
+      const currentCtcErr = ctcError(String(form.currentCtc), 'current CTC');
+      if (currentCtcErr) return currentCtcErr;
+      const expectedCtcErr = ctcError(String(form.expectedCtc), 'expected CTC');
+      if (expectedCtcErr) return expectedCtcErr;
+      if (String(form.totalExperienceYears).trim() === '') return 'Please enter your total experience.';
+      if (!(Number(form.totalExperienceYears) >= 0) || Number(form.totalExperienceYears) > MAX_EXPERIENCE_YEARS)
+        return `Please enter your total experience as a number between 0 and ${MAX_EXPERIENCE_YEARS} years.`;
+      if (String(form.noticePeriodDays).trim() === '') return 'Please enter your notice period.';
+      if (!(Number(form.noticePeriodDays) >= 0) || Number(form.noticePeriodDays) > MAX_NOTICE_DAYS)
+        return `Please enter your notice period as a number of days between 0 and ${MAX_NOTICE_DAYS}.`;
+      // The server stores notice period as a whole number of days and rejects a
+      // decimal outright.
+      if (!Number.isInteger(Number(form.noticePeriodDays)))
+        return 'Please enter your notice period as a whole number of days.';
+    }
     if (!resumeFile) return 'Please upload your resume.';
     if (form.resumeUrl.trim() && !DRIVE_RE.test(form.resumeUrl.trim()))
       return 'Please enter a valid Google Drive link (e.g. https://drive.google.com/…).';
@@ -563,6 +573,8 @@ export function ApplyForm({ job }: { job: Job }) {
                   </Field>
                 )}
               </div>
+              {asksEmployment && (
+              <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Previous company">
                   <input
@@ -639,6 +651,8 @@ export function ApplyForm({ job }: { job: Job }) {
                   />
                 </Field>
               </div>
+              </>
+              )}
               <Field label="Resume *">
                 {resumeFile ? (
                   <div className="flex items-center gap-2.5 border border-line rounded-md px-3 py-2.5 bg-accent-50/50">
