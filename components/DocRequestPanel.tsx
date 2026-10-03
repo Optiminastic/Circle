@@ -19,13 +19,14 @@ import {
   ScanLine,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { DocRequest } from '@/types';
+import { DocRequest, RequiredDocType } from '@/types';
 import { qk } from '@/lib/query/keys';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useDocRequests, useDocRequestMutations, isDocRequestLive } from '@/features/doc-requests/hooks';
 import { openDocument, downloadDocument } from '@/features/documents/hooks';
 import {
   docDefsFor,
+  docDefByType,
   needsBank,
   needsReferences,
   isSubmissionLocked,
@@ -94,11 +95,39 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
+  /**
+   * Every upload this candidate has made, across every link they were sent -
+   * not only the request shown above.
+   *
+   * Re-issuing a link moves the candidate's uploads, and anything not yet
+   * verified used to be left behind on the old record. Reading a single request
+   * then made those files invisible: still stored, still on a record, but on no
+   * screen. The backend has always resolved documents this way (`_document_for`
+   * searches every request); this is the panel catching up.
+   *
+   * The owning request travels with each one, because verifying a document
+   * posts to the request it actually belongs to.
+   */
   const submittedFor = useMemo(() => {
-    const map = new Map<string, NonNullable<DocRequest['submissions']>[number]>();
-    request?.submissions?.forEach(s => map.set(s.docType, s));
+    type Held = { sub: NonNullable<DocRequest['submissions']>[number]; requestId: string };
+    const map = new Map<string, Held>();
+    const rank = (s: Held['sub']) => (s.status === 'Verified' ? 1 : 0);
+    requests
+      .filter(r => r.candidateId === candidateId && r.kind !== 'signed-offer')
+      .forEach(r =>
+        (r.submissions ?? []).forEach(sub => {
+          const held = map.get(sub.docType);
+          // A verified upload wins; between equals, the most recent one does.
+          const wins =
+            !held ||
+            rank(sub) > rank(held.sub) ||
+            (rank(sub) === rank(held.sub) &&
+              (sub.uploadedAt ?? '') >= (held.sub.uploadedAt ?? ''));
+          if (wins) map.set(sub.docType, { sub, requestId: r.id });
+        }),
+      );
     return map;
-  }, [request]);
+  }, [requests, candidateId]);
 
   const requestLink = request ? `${window.location.origin}/onboarding-docs/${request.id}` : '';
 
@@ -146,9 +175,22 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
 
   const live = request ? isDocRequestLive(request) : false;
   const bank = request?.bankDetails;
-  const fileDocs = docDefsFor(request?.requiredDocs).filter(d => d.kind === 'file');
+  // Asked-for documents, plus any the candidate uploaded that are no longer
+  // asked for. Rendering only `requiredDocs` meant narrowing a re-request hid
+  // whatever had already been sent, so a card is kept for anything on file.
+  const fileDocs = (() => {
+    const asked = docDefsFor(request?.requiredDocs).filter(d => d.kind === 'file');
+    const shown = new Set<string>(asked.map(d => d.type));
+    const extra = [...submittedFor.keys()]
+      .filter(type => !shown.has(type))
+      // `docDefByType` takes the union; a stored docType is a plain string, and
+      // an unrecognised one simply yields nothing and is skipped below.
+      .map(type => docDefByType(type as RequiredDocType))
+      .filter((d): d is NonNullable<typeof d> => Boolean(d) && d!.kind === 'file');
+    return [...asked, ...extra];
+  })();
   const verifiedCount = fileDocs.filter(
-    d => submittedFor.get(d.type)?.status === 'Verified',
+    d => submittedFor.get(d.type)?.sub.status === 'Verified',
   ).length;
   // Whatever the candidate saved through the public link — however many.
   const references = request?.references ?? [];
@@ -266,7 +308,11 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
               <AccordionContent>
           <div className="space-y-2">
             {fileDocs.map(doc => {
-              const sub = submittedFor.get(doc.type);
+              const held = submittedFor.get(doc.type);
+              const sub = held?.sub;
+              // Verifying posts to the request the upload actually belongs to,
+              // which is not always the one shown above.
+              const subRequestId = held?.requestId ?? request.id;
               const locked = isSubmissionLocked(sub);
               return (
                 <div
@@ -348,7 +394,7 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
 
                   {sub && reviewing === doc.type && (
                     <DocExtractionReview
-                      requestId={request.id}
+                      requestId={subRequestId}
                       docType={doc.type}
                       submission={sub}
                       locked={locked}
