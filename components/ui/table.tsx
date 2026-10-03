@@ -249,6 +249,18 @@ const DOT: Record<DotColor, string> = {
   accent: 'bg-accent-500',
 };
 
+/** The same scale as text, for where an icon carries the colour instead of a dot. */
+export const DOT_TEXT: Record<DotColor, string> = {
+  green: 'text-emerald-600',
+  red: 'text-red-600',
+  blue: 'text-blue-600',
+  amber: 'text-amber-600',
+  pink: 'text-pink-600',
+  purple: 'text-purple-600',
+  gray: 'text-gray-500',
+  accent: 'text-accent-600',
+};
+
 /** Categorical value rendered as a chip with a leading colour dot. */
 export function TagPill({ children, color = 'gray', className }: { children: React.ReactNode; color?: DotColor; className?: string }) {
   return (

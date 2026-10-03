@@ -103,7 +103,13 @@ import {
   Award,
   MoreVertical,
   Ban,
+  PenLine,
+  FolderCheck,
+  Fingerprint,
+  CalendarCheck,
+  DoorOpen,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Candidate,
   Interview,
@@ -128,11 +134,13 @@ import {
   Tr,
   Td,
   TagPill,
+  DOT_TEXT,
   StatusPill,
   SelectionBar,
   useTableSelection,
   type DotColor,
 } from '@/components/ui/table';
+import { Tip } from '@/components/ui/tooltip';
 
 // Shared dot colours for department/status chips across the SubViews tables.
 const DEPT_DOT: Record<string, DotColor> = {
@@ -885,26 +893,34 @@ interface OnboardingViewProps {
 /** One tag per onboarding milestone actually reached — in journey order — so
  *  the table shows exactly which steps are done for that candidate without
  *  opening their page. */
+type MilestoneTag = { label: string; color: DotColor; icon: LucideIcon };
+
 function onboardingTags(
   o: OnboardingChecklist,
   bgv: BGVRequirement | undefined,
   docRequests: DocRequest[],
-): { label: string; color: DotColor }[] {
-  const tags: { label: string; color: DotColor }[] = [];
-  if (o.offerLetterSentAt) tags.push({ label: 'Offer Letter Sent', color: 'blue' });
+): MilestoneTag[] {
+  const tags: MilestoneTag[] = [];
+  if (o.offerLetterSentAt)
+    tags.push({ label: 'Offer Letter Sent', color: 'blue', icon: Send });
   const signedOffer = docRequests.find(d => d.candidateId === o.candidateId && d.kind === 'signed-offer');
   if (o.offerSignedReceivedAt || signedOffer?.status === 'Submitted' || signedOffer?.status === 'Verified') {
-    tags.push({ label: 'Signed Offer Received', color: 'green' });
+    tags.push({ label: 'Signed Offer Received', color: 'green', icon: PenLine });
   }
   const joiningDocs = docRequests.find(d => d.candidateId === o.candidateId && !d.kind);
   if (joiningDocs?.status === 'Submitted' || joiningDocs?.status === 'Verified') {
-    tags.push({ label: 'Joining Docs Received', color: 'green' });
+    tags.push({ label: 'Joining Docs Received', color: 'green', icon: FolderCheck });
   }
-  if (bgv?.overallStatus === 'Verified') tags.push({ label: 'BGV Verified', color: 'green' });
-  else if (bgv && bgv.overallStatus !== 'Pending') tags.push({ label: 'BGV In Progress', color: 'amber' });
-  if (o.appointmentLetterSentAt) tags.push({ label: 'Appointment Letter Sent', color: 'blue' });
-  if (o.joiningDateConfirmedAt) tags.push({ label: 'Joining Day Confirmed', color: 'purple' });
-  if (o.firstDayArrivedAt) tags.push({ label: 'First Day Arrived', color: 'green' });
+  if (bgv?.overallStatus === 'Verified')
+    tags.push({ label: 'BGV Verified', color: 'green', icon: ShieldCheck });
+  else if (bgv && bgv.overallStatus !== 'Pending')
+    tags.push({ label: 'BGV In Progress', color: 'amber', icon: Fingerprint });
+  if (o.appointmentLetterSentAt)
+    tags.push({ label: 'Appointment Letter Sent', color: 'blue', icon: Mail });
+  if (o.joiningDateConfirmedAt)
+    tags.push({ label: 'Joining Day Confirmed', color: 'purple', icon: CalendarCheck });
+  if (o.firstDayArrivedAt)
+    tags.push({ label: 'First Day Arrived', color: 'green', icon: DoorOpen });
   return tags;
 }
 
@@ -1066,11 +1082,21 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
                     {tags.length === 0 ? (
                       <span className="text-[11px] text-gray-400">—</span>
                     ) : (
-                      <div className="flex flex-wrap gap-1">
+                      // Icons rather than worded pills: eight milestones spelled
+                      // out wrapped every row onto two lines and pushed the
+                      // columns either side out of view. The name is on hover
+                      // and on focus, and is read out either way.
+                      <div className="flex flex-wrap items-center gap-1">
                         {tags.map(t => (
-                          <TagPill key={t.label} color={t.color}>
-                            {t.label}
-                          </TagPill>
+                          <Tip key={t.label} label={t.label}>
+                            <span
+                              tabIndex={0}
+                              aria-label={t.label}
+                              className="inline-flex size-6 items-center justify-center rounded-full border border-line-soft bg-surface-sunken text-gray-600 transition hover:border-accent-300 hover:text-accent-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                            >
+                              <t.icon size={12} className={DOT_TEXT[t.color]} />
+                            </span>
+                          </Tip>
                         ))}
                       </div>
                     )}
