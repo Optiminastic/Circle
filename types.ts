@@ -75,6 +75,10 @@ export interface Candidate {
    */
   stageDecisions?: Record<string, StageDecision>;
 
+  /** Answers to the job's extra application questions, if any were configured
+   *  (see Job.extraQuestions). Purely informational — never scored. */
+  extraAnswers?: ExtraAnswer[];
+
   /** Set when HR blacklists this candidate from the Onboarding row menu.
    *  Blacklisted candidates are hidden everywhere except the dedicated
    *  "Blacklisted candidates" view — their uploaded documents are left
@@ -139,6 +143,34 @@ export interface ScreeningAnswer {
   answer: string;
   /** Whether it counts as a pass (text questions are informational → always true). */
   passed: boolean;
+}
+
+/** Answer format for an extra application question. */
+export type ExtraQuestionType = 'text' | 'dropdown' | 'radio' | 'checkbox' | 'truefalse';
+
+/**
+ * An extra, free-form application question attached to a job posting — off by
+ * default, separate from screeningQuestions. These are purely informational:
+ * HR reviews the answers directly on the candidate, and they never feed the
+ * auto-computed Fit/Borderline/Unfit rating.
+ */
+export interface ExtraQuestion {
+  id: string;
+  text: string;
+  type: ExtraQuestionType;
+  /** dropdown/radio/checkbox: the choices offered. */
+  options?: string[];
+  /** Whether the applicant must answer before submitting. */
+  required?: boolean;
+}
+
+/** A candidate's answer to one extra application question. Never scored. */
+export interface ExtraAnswer {
+  questionId: string;
+  text: string;
+  type: ExtraQuestionType;
+  /** Normalised: typed text, the chosen option, or comma-joined selections (checkbox). */
+  answer: string;
 }
 
 /** A planned recruitment event (call/test/assessment/interview) shown on the calendar. */
@@ -239,6 +271,11 @@ export interface Job {
   postedDate: string;
   /** Yes/No screening questions candidates answer when applying. */
   screeningQuestions?: ScreeningQuestion[];
+  /** Extra, free-form application questions — off by default, separate from
+   *  screeningQuestions. Any format (text/dropdown/radio/checkbox/true-false),
+   *  as many as HR likes; purely informational and never affects Fit rating. */
+  extraQuestionsEnabled?: boolean;
+  extraQuestions?: ExtraQuestion[];
   /** Skill/tech terms an applicant's resume is checked against on apply (see
    *  Candidate.keywordMatches). HR-entered, optionally seeded by scanning
    *  description/requirements via lib/keyword-extraction.ts. */

@@ -39,4 +39,6 @@ export interface ApplicationInput {
   referredBy?: string;
   resumeUrl?: string;
   responses?: Record<string, string>;
+  /** Answers to the job's extra application questions, keyed by question id. */
+  extraResponses?: Record<string, string>;
 }

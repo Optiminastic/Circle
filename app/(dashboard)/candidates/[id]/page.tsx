@@ -819,6 +819,7 @@ export default function CandidateDetailPage() {
 
   const mustHaves = (candidate.screeningAnswers ?? []).filter(a => a.importance === 'Must Have');
   const goodToHaves = (candidate.screeningAnswers ?? []).filter(a => a.importance === 'Good to Have');
+  const extraAnswers = candidate.extraAnswers ?? [];
 
   const schedOf = (t: string) =>
     mySchedules.filter(s => s.type === t).sort((a, b) => +new Date(a.dateTime) - +new Date(b.dateTime));
@@ -835,6 +836,24 @@ export default function CandidateDetailPage() {
           <KV k="Source" v={candidate.sourceOfApplication} />
           {candidate.referralDetails && <KV k="Reference" v={candidate.referralDetails} />}
           <KV k="Location" v={candidate.location || '—'} />
+          {extraAnswers.length > 0 && (
+            <div className="pt-1">
+              <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-wider text-accent-600">
+                Additional questions
+              </p>
+              <div className="space-y-1.5">
+                {extraAnswers.map(a => (
+                  <div key={a.questionId} className="flex items-start gap-2">
+                    <FileText size={13} className="mt-0.5 shrink-0 text-gray-400" />
+                    <div className="min-w-0">
+                      <p className="text-[12px] text-gray-700">{a.text}</p>
+                      <p className="text-[11px] font-semibold text-gray-500">{a.answer || '—'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
 

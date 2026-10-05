@@ -87,6 +87,9 @@ export function ApplyForm({ job }: { job: Job }) {
   // this stays correct across devices without the public page ever fetching the
   // library from the browser.
   const screeningQuestions = job.screeningQuestions ?? [];
+  // Extra, free-form application questions — off by default, separate from
+  // screening. Purely informational; never affects Fit/Borderline/Unfit.
+  const extraQuestions = job.extraQuestionsEnabled ? (job.extraQuestions ?? []) : [];
   // Whether this posting asks about current employment. Off for an
   // internship: an applicant who has never worked has no current title, no
   // CTC and nothing to serve notice on, so asking either turns them away or
@@ -98,6 +101,22 @@ export function ApplyForm({ job }: { job: Job }) {
   const [form, setForm] = useState(EMPTY);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [responses, setResponses] = useState<Record<string, string>>({});
+  // Extra-question answers, keyed by question id. Checkbox (multi-select)
+  // questions store their selections as a comma-joined string, same shape
+  // as every other answer here.
+  const [extraResponses, setExtraResponses] = useState<Record<string, string>>({});
+  const toggleExtraCheckbox = (questionId: string, option: string) => {
+    setExtraResponses(r => {
+      const current = (r[questionId] ?? '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      const next = current.includes(option)
+        ? current.filter(o => o !== option)
+        : [...current, option];
+      return { ...r, [questionId]: next.join(', ') };
+    });
+  };
   // Choice questions with allowOther: tracks which have the "Other" free-text
   // box active (so it stays open even before the applicant types anything).
   const [otherActive, setOtherActive] = useState<Record<string, boolean>>({});
@@ -309,6 +328,9 @@ export function ApplyForm({ job }: { job: Job }) {
       if (!Number.isInteger(Number(form.noticePeriodDays)))
         return 'Please enter your notice period as a whole number of days.';
     }
+    // Extra questions marked Required must be answered; everything else is optional.
+    if (extraQuestions.some(q => q.required && !extraResponses[q.id]?.trim()))
+      return 'Please answer all the required questions.';
     if (!resumeFile) return 'Please upload your resume.';
     if (form.resumeUrl.trim() && !DRIVE_RE.test(form.resumeUrl.trim()))
       return 'Please enter a valid Google Drive link (e.g. https://drive.google.com/…).';
@@ -375,6 +397,7 @@ export function ApplyForm({ job }: { job: Job }) {
           referredBy: form.source === REFERRAL_SOURCE ? form.referredBy.trim() : '',
           resumeUrl: form.resumeUrl,
           responses,
+          extraResponses,
         },
         resumeFile,
       );
@@ -397,6 +420,8 @@ export function ApplyForm({ job }: { job: Job }) {
   };
 
   const busy = submitting;
+  // Only screening questions get their own step — extra questions are
+  // rendered inline on the details step, right before the resume upload.
   const hasQuestions = screeningQuestions.length > 0;
 
   // Step 1 (details) → next: validate the basics, then move to the questions.
@@ -653,6 +678,86 @@ export function ApplyForm({ job }: { job: Job }) {
               </div>
               </>
               )}
+
+              {extraQuestions.map(q => {
+                const value = extraResponses[q.id] ?? '';
+                const selected = value
+                  .split(',')
+                  .map(s => s.trim())
+                  .filter(Boolean);
+                return (
+                  <Field key={q.id} label={`${q.text}${q.required ? ' *' : ''}`}>
+                    {q.type === 'text' && (
+                      <input
+                        aria-label={q.text}
+                        className={inputCls}
+                        value={value}
+                        onChange={e => setExtraResponses(r => ({ ...r, [q.id]: e.target.value }))}
+                        placeholder="Your answer…"
+                      />
+                    )}
+                    {q.type === 'dropdown' && (
+                      <Select
+                        value={value}
+                        onChange={e => setExtraResponses(r => ({ ...r, [q.id]: e.target.value }))}
+                        className={inputCls}
+                      >
+                        <option value="">Select…</option>
+                        {(q.options ?? []).filter(Boolean).map(opt => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                    {(q.type === 'radio' || q.type === 'truefalse') && (
+                      <div className="flex flex-wrap gap-2">
+                        {(q.type === 'truefalse' ? ['True', 'False'] : (q.options ?? []).filter(Boolean)).map(
+                          opt => {
+                            const active = value === opt;
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setExtraResponses(r => ({ ...r, [q.id]: opt }))}
+                                className={`min-w-[6rem] flex-1 rounded-md border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                                  active
+                                    ? 'border-accent-500 bg-accent-50 text-accent-700'
+                                    : 'border-line bg-surface text-gray-600 hover:border-accent-300'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          },
+                        )}
+                      </div>
+                    )}
+                    {q.type === 'checkbox' && (
+                      <div className="flex flex-wrap gap-2">
+                        {(q.options ?? []).filter(Boolean).map(opt => {
+                          const active = selected.includes(opt);
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => toggleExtraCheckbox(q.id, opt)}
+                              className={`min-w-[6rem] flex-1 rounded-md border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                                active
+                                  ? 'border-accent-500 bg-accent-50 text-accent-700'
+                                  : 'border-line bg-surface text-gray-600 hover:border-accent-300'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Field>
+                );
+              })}
+
               <Field label="Resume *">
                 {resumeFile ? (
                   <div className="flex items-center gap-2.5 border border-line rounded-md px-3 py-2.5 bg-accent-50/50">

@@ -29,6 +29,8 @@ import {
   QuestionCategory,
   QuestionImportance,
   QuestionType,
+  ExtraQuestion,
+  ExtraQuestionType,
 } from '../types';
 import {
   Briefcase,
@@ -94,6 +96,13 @@ const newQuestion = (importance: QuestionImportance): ScreeningQuestion => ({
   expectedAnswer: true,
 });
 
+let eqSeq = 0;
+const newExtraQuestion = (): ExtraQuestion => ({
+  id: `EQ${Date.now().toString(36)}${eqSeq++}`,
+  text: '',
+  type: 'text',
+});
+
 type SortKey = 'title' | 'exp' | 'salary' | 'status' | 'applicants';
 
 interface JobListViewProps {
@@ -117,6 +126,8 @@ const EMPTY_FORM = {
   keyResponsibilities: '',
   requirements: '',
   screeningQuestions: [] as ScreeningQuestion[],
+  extraQuestionsEnabled: false,
+  extraQuestions: [] as ExtraQuestion[],
   keywords: [] as string[],
 };
 
@@ -171,6 +182,8 @@ export function JobListView({
       keyResponsibilities: job.keyResponsibilities ?? '',
       requirements: job.requirements,
       screeningQuestions: job.screeningQuestions ?? [],
+      extraQuestionsEnabled: job.extraQuestionsEnabled ?? false,
+      extraQuestions: job.extraQuestions ?? [],
       keywords: job.keywords ?? [],
     });
     setShowAddForm(true);
@@ -309,6 +322,10 @@ export function JobListView({
       screeningQuestions: form.screeningQuestions
         .map(q => ({ ...q, text: q.text.trim() }))
         .filter(q => q.text),
+      extraQuestionsEnabled: form.extraQuestionsEnabled,
+      extraQuestions: form.extraQuestions
+        .map(q => ({ ...q, text: q.text.trim() }))
+        .filter(q => q.text),
       keywords,
     };
 
@@ -350,6 +367,16 @@ export function JobListView({
     }));
   const removeQuestion = (id: string) =>
     setForm(f => ({ ...f, screeningQuestions: f.screeningQuestions.filter(q => q.id !== id) }));
+
+  const addExtraQuestion = () =>
+    setForm(f => ({ ...f, extraQuestions: [...f.extraQuestions, newExtraQuestion()] }));
+  const updateExtraQuestion = (id: string, patch: Partial<ExtraQuestion>) =>
+    setForm(f => ({
+      ...f,
+      extraQuestions: f.extraQuestions.map(q => (q.id === id ? { ...q, ...patch } : q)),
+    }));
+  const removeExtraQuestion = (id: string) =>
+    setForm(f => ({ ...f, extraQuestions: f.extraQuestions.filter(q => q.id !== id) }));
 
   // One question editor row (importance is set by the group it lives in).
   const renderQuestion = (q: ScreeningQuestion, idx: number) => (
@@ -485,6 +512,110 @@ export function JobListView({
           </p>
         )}
       </div>
+    </div>
+  );
+
+  // One extra-question editor row — any answer format, never scored.
+  const renderExtraQuestion = (q: ExtraQuestion, idx: number) => (
+    <div key={q.id} className="space-y-2.5 rounded-md border border-border bg-secondary/30 p-3">
+      <div className="flex items-start gap-2">
+        <span className="mt-2.5 font-mono text-[11px] text-muted-foreground">{idx + 1}.</span>
+        <Input
+          value={q.text}
+          onChange={e => updateExtraQuestion(q.id, { text: e.target.value })}
+          placeholder="e.g. Which shift can you work?"
+          className="flex-1"
+        />
+        <button
+          type="button"
+          onClick={() => removeExtraQuestion(q.id)}
+          aria-label="Remove question"
+          className="mt-1.5 rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-red-600"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2 pl-5 sm:grid-cols-2">
+        <label className="block">
+          <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+            Answer type
+          </span>
+          <Select
+            value={q.type}
+            onChange={e => {
+              const type = e.target.value as ExtraQuestionType;
+              const needsOptions = type === 'dropdown' || type === 'radio' || type === 'checkbox';
+              const patch: Partial<ExtraQuestion> = { type };
+              if (needsOptions && !(q.options && q.options.length)) patch.options = ['', ''];
+              updateExtraQuestion(q.id, patch);
+            }}
+            className="mt-1 h-8 w-full rounded-sm border border-input bg-secondary/50 px-2 text-xs"
+          >
+            <option value="text">Short text</option>
+            <option value="dropdown">Dropdown</option>
+            <option value="radio">Multiple choice (pick one)</option>
+            <option value="checkbox">Checkboxes (pick multiple)</option>
+            <option value="truefalse">True / False</option>
+          </Select>
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 pb-1.5 pt-5">
+          <input
+            type="checkbox"
+            checked={q.required ?? false}
+            onChange={e => updateExtraQuestion(q.id, { required: e.target.checked })}
+            className="h-3.5 w-3.5 shrink-0 accent-accent-600"
+          />
+          <span className="text-[11px] text-muted-foreground">Required</span>
+        </label>
+      </div>
+
+      {(q.type === 'dropdown' || q.type === 'radio' || q.type === 'checkbox') && (
+        <div className="space-y-1.5 pl-5">
+          <span className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">Options</span>
+          {(q.options ?? []).map((opt, oi) => (
+            <div key={oi} className="flex items-center gap-2">
+              <Input
+                value={opt}
+                onChange={e =>
+                  updateExtraQuestion(q.id, {
+                    options: (q.options ?? []).map((o, j) => (j === oi ? e.target.value : o)),
+                  })
+                }
+                placeholder={`Option ${oi + 1}`}
+                className="h-8 flex-1 text-xs"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  updateExtraQuestion(q.id, { options: (q.options ?? []).filter((_, j) => j !== oi) })
+                }
+                aria-label="Remove option"
+                className="rounded-sm p-1.5 text-muted-foreground hover:bg-accent hover:text-red-600"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => updateExtraQuestion(q.id, { options: [...(q.options ?? []), ''] })}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-600 hover:text-accent-700"
+          >
+            <Plus size={12} /> Add option
+          </button>
+        </div>
+      )}
+
+      {q.type === 'text' && (
+        <p className="pl-5 text-[11px] text-muted-foreground">
+          Open text — the candidate types a short answer.
+        </p>
+      )}
+      {q.type === 'truefalse' && (
+        <p className="pl-5 text-[11px] text-muted-foreground">
+          The candidate picks True or False.
+        </p>
+      )}
     </div>
   );
 
@@ -1107,6 +1238,52 @@ export function JobListView({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Extra questions — off by default, separate from screening.
+                  Any answer format, any number, never scored. */}
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                  <h2 className="font-semibold text-foreground">Extra questions</h2>
+                  <p className="mt-1 text-xs leading-6 text-muted-foreground">
+                    Off by default. Add any extra questions this role needs on the apply form —
+                    purely informational, these never affect the auto-computed Fit rating.
+                  </p>
+                </div>
+                <div className="space-y-3 md:col-span-2">
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-secondary/20 p-3">
+                    <input
+                      type="checkbox"
+                      checked={form.extraQuestionsEnabled}
+                      onChange={e => setForm({ ...form, extraQuestionsEnabled: e.target.checked })}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-accent-600"
+                    />
+                    <span className="text-xs font-semibold text-foreground">
+                      Ask applicants extra questions
+                      <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                        Text, dropdown, multiple choice, checkboxes or true/false — any format, as
+                        many questions as you like.
+                      </span>
+                    </span>
+                  </label>
+
+                  {form.extraQuestionsEnabled && (
+                    <div className="space-y-2.5">
+                      {form.extraQuestions.length === 0 ? (
+                        <p className="rounded-md border border-dashed border-border bg-secondary/20 px-3 py-3 text-center text-xs text-muted-foreground">
+                          No extra questions yet.
+                        </p>
+                      ) : (
+                        form.extraQuestions.map((q, idx) => renderExtraQuestion(q, idx))
+                      )}
+                      <Button type="button" variant="outline" size="sm" onClick={addExtraQuestion}>
+                        <Plus size={14} /> Add question
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
