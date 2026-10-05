@@ -7,6 +7,7 @@ import {
   BrainCircuit,
   ClipboardList,
   CalendarDays,
+  FileUp,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -48,6 +49,13 @@ export const QUESTION_CATEGORIES: QuestionCategory[] = [
     subtitle: 'Interview rounds',
     description: 'Structured questions for HR and technical interview rounds.',
     Icon: CalendarDays,
+  },
+  {
+    slug: 'assignment-files',
+    title: 'Assignment File Upload',
+    subtitle: 'Take-home file',
+    description: 'Reusable assignment files per role, for sending take-home assignments.',
+    Icon: FileUp,
   },
 ];
 

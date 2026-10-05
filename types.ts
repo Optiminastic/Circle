@@ -194,10 +194,16 @@ export interface ScheduleEvent {
  */
 export interface TestInvite {
   id: string; // e.g. 'TIV-8F3K2P'
-  /** 'iq' = MCQ reasoning test. 'assignment' = take-home task the candidate
-   *  submits a file for, graded manually by HR. ('assessment' is the legacy
-   *  MCQ stage, superseded by 'assignment'.) */
-  kind: 'iq' | 'assessment' | 'assignment';
+  /**
+   * 'iq' = MCQ reasoning test. 'assessment'/'assignment' are both the
+   * MCQ role-skills test (used interchangeably — see candidateStageStatus
+   * in lib/pipeline.ts and the candidate page's asgInvite lookup, which
+   * treat them as aliases of the same pipeline stage; kept both rather than
+   * migrating historical records). 'take-home' is the genuinely distinct
+   * file-based assignment: HR sends a brief/file, the candidate uploads
+   * their completed work, HR grades it manually — no MCQ questions involved.
+   */
+  kind: 'iq' | 'assessment' | 'assignment' | 'take-home';
   candidateId: string;
   candidateName: string;
   email: string;
@@ -209,11 +215,16 @@ export interface TestInvite {
   status: 'Pending' | 'In Progress' | 'Completed' | 'Auto-Submitted' | 'Submitted' | 'Graded';
   startedAt?: string;
   completedAt?: string;
-  /* ----- assignment (take-home) fields ----- */
+  /* ----- take-home fields (kind === 'take-home') ----- */
   /** Brief shown to the candidate on the submission page. */
   instructions?: string;
   /** ISO deadline for the take-home assignment. */
   deadlineIso?: string;
+  /** The assignment file HR sent — either freshly uploaded or picked from the
+   *  Assignment File Upload library (see AssignmentBank). Document id in the
+   *  documents store; the candidate downloads this on the submission page. */
+  briefDocId?: string;
+  briefFileName?: string;
   /** Document id (in the documents store) of the candidate's uploaded work. */
   submissionDocId?: string;
   submissionFileName?: string;

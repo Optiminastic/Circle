@@ -6,20 +6,16 @@ import { useQuery } from '@tanstack/react-query';
 import { Logo } from '@/components/Logo';
 import { QuizRunner } from '@/components/QuizRunner';
 import { BRAND } from '@/lib/brand';
-import { TestInvite, IQTest } from '@/types';
-import { repositories } from '@/lib/api/repositories';
-import { startTest, flagTestViolation, submitTest } from '@/lib/api/public-test';
-import { qk } from '@/lib/query/keys';
-import { nowISO, randomId } from '@/lib/utils';
 import {
-  TestQuestion,
-  IQ_QUESTIONS,
-  assessmentBankFor,
-  iqScoreFromCorrect,
-  IQ_PASS_SCORE,
-  IQ_TOTAL_MARKS,
-  ASSESSMENT_PASS_PERCENT,
-} from '@/data/test-banks';
+  getTest,
+  startTest,
+  flagTestViolation,
+  submitTest,
+  submitAssignmentFile,
+  type PublicTest,
+} from '@/lib/api/public-test';
+import { documentPreviewUrl } from '@/lib/api/documents';
+import { qk } from '@/lib/query/keys';
 import {
   BrainCircuit,
   ClipboardList,
@@ -37,6 +33,9 @@ import {
   Sparkles,
   ArrowRight,
   ArrowLeft,
+  FileUp,
+  Download,
+  File as FileIcon,
 } from 'lucide-react';
 
 const MAX_VIOLATIONS = 3;
@@ -80,13 +79,15 @@ export default function PublicTestPage() {
   const params = useParams<{ inviteId: string }>();
   const inviteId = params?.inviteId ?? '';
 
+  // Reads the PROJECTED public endpoint — questions arrive without the answer
+  // key (the generic invite read used to leak it straight to the browser).
   const {
     data: invite,
     isLoading,
     isError,
   } = useQuery({
     queryKey: qk.testInvites.detail(inviteId),
-    queryFn: () => repositories.testInvites.get(inviteId),
+    queryFn: () => getTest(inviteId),
     enabled: Boolean(inviteId),
     retry: false,
     refetchOnWindowFocus: false,
@@ -126,32 +127,229 @@ export default function PublicTestPage() {
     );
   }
 
-  return <TestFlow invite={invite} />;
+  // Take-home is a file submission, not an MCQ run — a separate flow entirely
+  // (no proctoring/timer/questions), so it never touches TestFlow's logic.
+  return invite.kind === 'take-home' ? <TakeHomeFlow invite={invite} /> : <TestFlow invite={invite} />;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Take-home flow (download brief → upload completed work)            */
+/* ------------------------------------------------------------------ */
+
+function TakeHomeFlow({ invite }: { invite: PublicTest }) {
+  const alreadySubmitted = invite.status === 'Submitted' || invite.status === 'Graded';
+  const [file, setFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(alreadySubmitted);
+  const [submittedName, setSubmittedName] = useState(invite.submissionFileName ?? '');
+  const [remainingMs, setRemainingMs] = useState<number | null>(
+    invite.deadlineIso ? new Date(invite.deadlineIso).getTime() - Date.now() : null,
+  );
+
+  useEffect(() => {
+    if (!invite.deadlineIso || done) return;
+    const deadline = new Date(invite.deadlineIso).getTime();
+    const tick = () => setRemainingMs(deadline - Date.now());
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [invite.deadlineIso, done]);
+
+  const expired = remainingMs !== null && remainingMs <= 0 && !done;
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const pick = (f: File | null) => {
+    setError(null);
+    if (f && f.size > 15 * 1024 * 1024) {
+      setError('File must be 15 MB or smaller.');
+      return;
+    }
+    setFile(f);
+  };
+
+  const submit = async () => {
+    if (!file) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await submitAssignmentFile(invite.id, file);
+      setSubmittedName(res.fileName);
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not submit your file — try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <Shell>
+        <Card>
+          <div className="flex flex-col items-center gap-4 px-6 py-14 text-center sm:px-8">
+            <span className="grid h-16 w-16 place-items-center rounded-lg bg-emerald-50 text-emerald-500 ring-8 ring-emerald-50/40">
+              <CheckCircle2 size={30} />
+            </span>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Assignment submitted!</h1>
+              <p className="mt-1.5 max-w-sm text-sm text-gray-500">
+                Thanks{invite.candidateName ? `, ${invite.candidateName}` : ''} — we've received{' '}
+                {submittedName ? <span className="font-semibold text-gray-700">{submittedName}</span> : 'your file'}
+                . Our HR team will review it and get back to you.
+              </p>
+            </div>
+          </div>
+        </Card>
+      </Shell>
+    );
+  }
+
+  if (expired) {
+    return (
+      <Shell>
+        <Card>
+          <div className="flex flex-col items-center gap-4 px-6 py-14 text-center sm:px-8">
+            <span className="grid h-16 w-16 place-items-center rounded-lg bg-red-50 text-red-500 ring-8 ring-red-50/40">
+              <Clock4 size={30} />
+            </span>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Submission window closed</h1>
+              <p className="mt-1.5 max-w-sm text-sm text-gray-500">
+                The link to submit this assignment has expired. Please contact the HR team if you
+                need more time.
+              </p>
+            </div>
+          </div>
+        </Card>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell>
+      <Card>
+        <div className="space-y-6 px-6 py-8 sm:px-8">
+          <div className="flex items-start gap-4">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-accent-50 to-accent-100 text-accent-600 ring-1 ring-accent-200/60">
+              <ClipboardList size={24} />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900">{invite.position || 'Your'} Assignment</h1>
+              <p className="mt-0.5 text-sm text-gray-500">
+                Hi <span className="font-semibold text-gray-700">{invite.candidateName}</span> — download
+                the brief, complete the task, and upload your work before the deadline.
+              </p>
+            </div>
+          </div>
+
+          {remainingMs !== null && (
+            <div className="flex items-center justify-center gap-2 rounded-lg border border-line bg-surface-muted py-3">
+              <Timer size={15} className="text-accent-600" />
+              <span className="font-mono text-lg font-bold tabular-nums text-gray-900">
+                {fmtClock(Math.max(0, remainingMs))}
+              </span>
+              <span className="text-[11px] text-gray-500">left to submit</span>
+            </div>
+          )}
+
+          {invite.briefDocId && (
+            <a
+              href={documentPreviewUrl(invite.briefDocId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-lg border border-line bg-surface/70 px-4 py-3 transition hover:border-accent-300"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent-50 text-accent-600">
+                <Download size={16} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900">Download the assignment</p>
+                <p className="truncate text-[11px] text-gray-500">
+                  {invite.briefFileName || 'assignment file'}
+                </p>
+              </div>
+            </a>
+          )}
+
+          <div>
+            <p className="mb-2 text-sm font-bold text-gray-900">Upload your completed work</p>
+            <div
+              onDragOver={e => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={e => {
+                e.preventDefault();
+                setDragging(false);
+                pick(e.dataTransfer.files?.[0] ?? null);
+              }}
+              onClick={() => inputRef.current?.click()}
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-6 py-8 text-center transition ${
+                dragging ? 'border-accent-400 bg-accent-50/40' : 'border-line hover:border-accent-300'
+              }`}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
+                onChange={e => pick(e.target.files?.[0] ?? null)}
+              />
+              {file ? (
+                <>
+                  <FileIcon size={22} className="text-accent-600" />
+                  <p className="text-sm font-semibold text-gray-900">{file.name}</p>
+                  <p className="text-[11px] text-gray-500">Click to choose a different file</p>
+                </>
+              ) : (
+                <>
+                  <FileUp size={22} className="text-accent-500" />
+                  <p className="text-sm font-semibold text-gray-700">Click or drag a file here</p>
+                  <p className="text-[11px] text-gray-500">Word, Excel, PowerPoint, PDF or ZIP — up to 15 MB</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+
+          <button
+            onClick={submit}
+            disabled={!file || submitting}
+            className="group flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent-600 to-accent-700 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Submitting…
+              </>
+            ) : (
+              <>
+                Submit assignment
+                <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+              </>
+            )}
+          </button>
+        </div>
+      </Card>
+    </Shell>
+  );
 }
 
 /* ------------------------------------------------------------------ */
 /*  Test flow (intro → running → result)                               */
 /* ------------------------------------------------------------------ */
 
-function TestFlow({ invite }: { invite: TestInvite }) {
+function TestFlow({ invite }: { invite: PublicTest }) {
   const isIq = invite.kind === 'iq';
-  // Variable-option question shape shared by IQ banks and HR-picked assessment
-  // questions (whose option count isn't fixed at four).
-  type RunnerQuestion = { id: string; q: string; options: string[]; answer: number };
+  // Questions come from the server WITHOUT the answer key — the browser has no
+  // way to know (or assert) which option is correct.
+  type RunnerQuestion = { id: string; q: string; options: string[] };
   const questions: RunnerQuestion[] = useMemo(
-    () =>
-      isIq
-        ? IQ_QUESTIONS
-        : invite.assessmentQuestions && invite.assessmentQuestions.length > 0
-          ? // Manual "Send Assessment": score against the exact questions HR picked.
-            invite.assessmentQuestions.map((aq, i) => ({
-              id: `asm-${i}`,
-              q: aq.text,
-              options: aq.options,
-              answer: aq.answer,
-            }))
-          : assessmentBankFor(invite.department, invite.position),
-    [isIq, invite.assessmentQuestions, invite.department, invite.position],
+    () => invite.questions.map(q => ({ id: q.key, q: q.text, options: q.options })),
+    [invite.questions],
   );
 
   // The invite is the source of truth for completion + start time, so a
@@ -200,7 +398,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
 
   /* ----------------------------- start ----------------------------- */
   const start = async () => {
-    const started = nowISO();
+    const started = new Date().toISOString();
     setStartedAt(started);
     setPhase('running');
     await enterFullscreen();
@@ -218,68 +416,24 @@ function TestFlow({ invite }: { invite: TestInvite }) {
       setPhase('submitting');
 
       const auto = reason !== 'manual';
-      const disqualified = reason === 'violation';
-
       const finalAnswers = answersRef.current;
-      const total = questions.length;
-      const correct = questions.reduce(
-        (acc, q) => acc + (finalAnswers[q.id] === q.answer ? 1 : 0),
-        0,
-      );
-      const rawScore = isIq ? iqScoreFromCorrect(correct, total) : Math.round((correct / total) * 100);
-      // Disqualified attempts are never a pass and carry no usable score.
-      const score = disqualified ? 0 : rawScore;
-      const passed = disqualified
-        ? false
-        : isIq
-          ? rawScore >= IQ_PASS_SCORE
-          : rawScore >= ASSESSMENT_PASS_PERCENT;
-      const completedAt = nowISO();
       const timeTakenMin = startedAt
         ? Math.max(1, Math.round((Date.now() - new Date(startedAt).getTime()) / 60_000))
         : invite.durationMin;
 
-      // IQ tests carry a detailed result row; the server persists it and binds it
-      // to the invite's candidate. Assessments just record the invite result.
-      const iqRecord: IQTest | undefined = isIq
-        ? {
-            id: randomId('IQT', 9000, 1000),
-            candidateId: invite.candidateId,
-            candidateName: invite.candidateName,
-            appliedRole: invite.position,
-            testDate: completedAt.split('T')[0],
-            totalQuestions: total,
-            questionsAttempted: Object.keys(finalAnswers).length,
-            correctAnswers: correct,
-            incorrectAnswers: total - correct,
-            scorePercentage: Math.round((correct / total) * 100),
-            timeTakenMinutes: timeTakenMin,
-            qualificationStatus: passed ? 'Passed' : 'Failed',
-            remarks: disqualified
-              ? `Disqualified · ${violationsRef.current} rule violation(s) — attempt voided`
-              : `IQ score ${score} · ${violationsRef.current} violation(s)${auto ? ' · auto-submitted' : ''}`,
-          }
-        : undefined;
-
+      // We send ONLY the chosen options. The server grades against its own copy
+      // of the answer key and returns the outcome — the browser never computes
+      // (or asserts) a score, so a tampered request can't manufacture a pass.
+      let graded: { score: number; passed: boolean; disqualified: boolean } = {
+        score: 0,
+        passed: false,
+        disqualified: reason === 'violation',
+      };
       try {
-        // Write-once submit: the server rejects a resubmission and only accepts
-        // the known result fields. HR reviews the result and decides manually.
-        await submitTest(
-          invite.id,
-          {
-            status: auto ? 'Auto-Submitted' : 'Completed',
-            correct,
-            total,
-            score,
-            passed,
-            disqualified,
-            violations: violationsRef.current,
-            answers: finalAnswers, // per-question record for HR analysis
-          },
-          iqRecord,
-        );
+        const res = await submitTest(invite.id, finalAnswers, timeTakenMin);
+        graded = { score: res.score, passed: res.passed, disqualified: res.disqualified };
       } catch {
-        /* show the result anyway; a resubmit is blocked server-side */
+        /* show a result anyway; a resubmit is blocked server-side */
       } finally {
         try {
           localStorage.removeItem(answersKey(invite.id));
@@ -287,11 +441,11 @@ function TestFlow({ invite }: { invite: TestInvite }) {
           /* ignore */
         }
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-        setResult({ score, passed, autoSubmitted: auto, disqualified });
+        setResult({ ...graded, autoSubmitted: auto });
         setPhase('done');
       }
     },
-    [invite, isIq, questions, startedAt],
+    [invite, startedAt],
   );
 
   /* ----------------------------- timer ----------------------------- */
@@ -480,7 +634,7 @@ function TestFlow({ invite }: { invite: TestInvite }) {
                 { icon: Timer, value: `${invite.durationMin} min`, label: 'Time limit' },
                 {
                   icon: CheckCircle2,
-                  value: isIq ? IQ_PASS_SCORE : `${ASSESSMENT_PASS_PERCENT}%`,
+                  value: isIq ? invite.passMark : `${invite.passMark}%`,
                   label: 'To qualify',
                 },
               ].map(({ icon: Icon, value, label }) => (

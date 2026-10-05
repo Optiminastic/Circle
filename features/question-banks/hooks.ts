@@ -7,6 +7,7 @@ import {
   ScreeningBank,
   IqBank,
   IQ_BANK_ID,
+  AssignmentFileBank,
 } from '@/lib/question-banks';
 import type { TestQuestion } from '@/data/test-banks';
 import { repositories } from '@/lib/api/repositories';
@@ -141,4 +142,35 @@ export function useSaveIqBank() {
       repositories.iqBank.create({ id: IQ_BANK_ID, questions }),
     onSettled: () => qc.invalidateQueries({ queryKey: qk.iqBank.all }),
   });
+}
+
+/* --------------------------- Assignment files ---------------------------- */
+export function useAssignmentBanks() {
+  return useQuery({
+    queryKey: qk.assignmentBanks.all,
+    queryFn: () => repositories.assignmentBanks.list(),
+  });
+}
+
+export function useAssignmentBankMutations() {
+  const qc = useQueryClient();
+  const create = useMutation({
+    mutationFn: (bank: AssignmentFileBank) => repositories.assignmentBanks.create(bank),
+    ...optimisticOptions<AssignmentFileBank, AssignmentFileBank>(qc, qk.assignmentBanks.all, b =>
+      listOps.prepend(b),
+    ),
+  });
+  const update = useMutation({
+    mutationFn: (bank: AssignmentFileBank) => repositories.assignmentBanks.update(bank.id, bank),
+    ...optimisticOptions<AssignmentFileBank, AssignmentFileBank>(qc, qk.assignmentBanks.all, b =>
+      listOps.replaceBy(x => x.id === b.id, b),
+    ),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => repositories.assignmentBanks.remove(id),
+    ...optimisticOptions<string, AssignmentFileBank>(qc, qk.assignmentBanks.all, id =>
+      listOps.removeBy(x => x.id === id),
+    ),
+  });
+  return { create, update, remove };
 }

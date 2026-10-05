@@ -19,6 +19,9 @@ export interface TestQuestion {
 
 export const IQ_DURATION_MIN = 30;
 export const ASSESSMENT_DURATION_MIN = 60;
+/** Minutes the candidate gets to submit a take-home assignment, from send
+ *  time — the submission link expires once this window closes. */
+export const TAKE_HOME_DURATION_MIN = 60;
 /** Days the candidate gets to submit the take-home assignment. */
 export const ASSIGNMENT_DEADLINE_DAYS = 3;
 /** Marks the assignment is graded out of; pass at 60%. */

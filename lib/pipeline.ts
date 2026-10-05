@@ -76,8 +76,21 @@ export function pipelineFlags(candidate: Candidate, ctx: PipelineContext): Pipel
   const iqDone = myIq.length > 0 || Boolean(iqInvite && ['Completed', 'Auto-Submitted'].includes(iqInvite.status));
   const iqReached = iqDone || Boolean(iqInvite) || mySchedules.some(s => s.type === 'IQ Test');
 
-  const asgInvite = myInvites.find(i => i.kind === 'assessment');
-  const asgDone = Boolean(asgInvite && ['Completed', 'Auto-Submitted'].includes(asgInvite.status));
+  // 'assignment'/'assessment' are aliases of the same MCQ stage (see
+  // candidateStageStatus below); 'take-home' is the separate file-based
+  // assignment flow, which HR can send instead of an MCQ for this same stage.
+  const asgInvite = myInvites.find(
+    i => i.kind === 'assessment' || i.kind === 'assignment' || i.kind === 'take-home',
+  );
+  // Take-home has no auto-score at submit time — 'Submitted' only means HR's
+  // manual grading is pending, not done; only 'Graded' (or, for MCQ,
+  // Completed/Auto-Submitted which score immediately) counts as finished.
+  const asgDone = Boolean(
+    asgInvite &&
+      (asgInvite.kind === 'take-home'
+        ? asgInvite.status === 'Graded'
+        : ['Completed', 'Auto-Submitted'].includes(asgInvite.status)),
+  );
   const asgReached = Boolean(asgInvite) || mySchedules.some(s => s.type === 'Assessment');
 
   const interviewDone = myInterviews.some(iv => iv.status === 'Completed');
@@ -168,7 +181,8 @@ export function candidateStageStatus(candidate: Candidate, ctx: PipelineContext)
   // completed or feedback is recorded; the assessment stage accepts either the
   // 'assignment' or 'assessment' invite kind.
   const interviewConducted = f.interviewDone || myInterviews.some(iv => Boolean(iv.grading));
-  const asgReached = f.asgReached || myInvites.some(i => i.kind === 'assignment');
+  const asgReached =
+    f.asgReached || myInvites.some(i => i.kind === 'assignment' || i.kind === 'take-home');
 
   // Highest reached stage wins (checked top-down).
   if (interviewConducted || accepted('Assessment')) return 'Physical Interview';

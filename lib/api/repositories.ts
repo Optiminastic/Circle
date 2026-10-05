@@ -25,6 +25,7 @@ import type {
   InterviewKitSend,
   ScreeningBank,
   IqBank,
+  AssignmentFileBank,
 } from '@/lib/question-banks';
 import { RESOURCES } from './resources';
 import { ResourceRepository } from './resource-repository';
@@ -54,5 +55,6 @@ export const repositories = {
   interviewKitSends: new ResourceRepository<InterviewKitSend>(RESOURCES.interviewKitSends.slug),
   screeningBanks: new ResourceRepository<ScreeningBank>(RESOURCES.screeningBanks.slug),
   iqBank: new ResourceRepository<IqBank>(RESOURCES.iqBank.slug),
+  assignmentBanks: new ResourceRepository<AssignmentFileBank>(RESOURCES.assignmentBanks.slug),
   joiningConfirmations: new ResourceRepository<JoiningConfirmation>(RESOURCES.joiningConfirmations.slug),
 } as const;

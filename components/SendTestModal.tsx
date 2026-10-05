@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Send, Link2 } from 'lucide-react';
+import { Send, Link2, FileUp, Library } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -16,9 +16,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select } from './Select';
+import { FileDropzone, PickedFile, pickedName } from '@/components/ui/file-dropzone';
 import { BRAND } from '@/lib/brand';
 import { Candidate, AssessmentQuestion } from '@/types';
-import { useAssessmentBanks } from '@/features/question-banks/hooks';
+import { useAssessmentBanks, useAssignmentBanks } from '@/features/question-banks/hooks';
 import { useHrIdentity } from '@/features/employees/hooks';
 import { emailTemplateById } from '@/lib/email-templates-catalog';
 import {
@@ -26,6 +27,10 @@ import {
   resolveTemplate,
   renderTemplate,
 } from '@/features/email-templates/hooks';
+import { TAKE_HOME_DURATION_MIN } from '@/data/test-banks';
+import { blobToBase64 } from '@/lib/offer-letter-pdf';
+import { uploadDocument, getDocumentUrl } from '@/lib/api/documents';
+import { useToast } from './Toaster';
 
 export interface SendTestResult {
   to: string;
@@ -36,6 +41,18 @@ export interface SendTestResult {
   links: { label: string; url: string }[];
   /** Selected assessment questions (assessment only). */
   questions?: AssessmentQuestion[];
+  /** Set when HR chose "Assignment" instead of "MCQ Questions" for a non-IQ
+   *  send. The caller creates the TestInvite with kind: 'take-home' instead
+   *  of the `kind` prop, and persists these onto it. No generic `instructions`
+   *  text — the assignment file itself carries the brief, so the public page
+   *  doesn't duplicate it. */
+  takeHome?: {
+    deadlineIso: string;
+    briefDocId: string;
+    briefFileName: string;
+  };
+  /** Email attachment (the assignment brief), take-home sends only. */
+  attachment?: { name: string; base64: string; type: string };
 }
 
 interface SendTestModalProps {
@@ -43,17 +60,33 @@ interface SendTestModalProps {
   kind: 'iq' | 'assignment';
   /** The candidate-facing link to the IQ / Assessment module (already generated). */
   testUrl: string;
+  /** The TestInvite id the caller already minted — needed to scope the
+   *  take-home brief-file upload before the invite record itself exists. */
+  inviteId: string;
   onClose: () => void;
   onConfirm: (result: SendTestResult) => void;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// "You will have 1 hour to complete and submit the assessment. The
+// submission link will expire once the 1-hour duration is completed." —
+// the take-home deadline is fixed, not a multi-day window (unlike the
+// unused ASSIGNMENT_DEADLINE_DAYS scaffold).
+const TAKE_HOME_WINDOW_MIN = TAKE_HOME_DURATION_MIN;
 
-export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: SendTestModalProps) {
+export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onConfirm }: SendTestModalProps) {
+  const toast = useToast();
   const isIq = kind === 'iq';
-  const what = isIq ? 'IQ Test' : 'Assessment';
   const position = candidate.appliedRole || candidate.department || 'the role';
   const hr = useHrIdentity();
+
+  // MCQ Questions vs Assignment — only offered for the non-IQ send (IQ stays
+  // its own single-purpose flow, unchanged). No default: HR must explicitly
+  // pick one before anything else — link, candidate email, subject/message —
+  // is generated or shown, since only the chosen type is ever actually sent.
+  const [mode, setMode] = useState<'mcq' | 'take-home' | null>(isIq ? 'mcq' : null);
+  const isTakeHome = !isIq && mode === 'take-home';
+  const what = isIq ? 'IQ Test' : isTakeHome ? 'Assignment' : 'Assessment';
 
   // Candidate's email is pre-filled but HR can change it before sending.
   const [to, setTo] = useState(candidate.email || '');
@@ -77,17 +110,70 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
         .map(q => ({ text: q.q.trim(), options: [...q.options], answer: q.answer }))
     : [];
 
+  // Take-home: either a fresh upload or a file picked from the "Assignment
+  // File Upload" library (Question Library), auto-matched by role like the
+  // MCQ bank picker above.
+  const { data: assignmentBanks = [] } = useAssignmentBanks();
+  const [fileSource, setFileSource] = useState<'upload' | 'library'>('upload');
+  const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
+  const [libraryBankId, setLibraryBankId] = useState('');
+  const matchingAssignmentBanks = assignmentBanks.filter(
+    b => b.jobTitle.trim().toLowerCase() === position.trim().toLowerCase(),
+  );
+  const libraryOptions = matchingAssignmentBanks.length > 0 ? matchingAssignmentBanks : assignmentBanks;
+  useEffect(() => {
+    if (!isTakeHome) return;
+    if (matchingAssignmentBanks.length > 0 && !libraryBankId) {
+      setFileSource('library');
+      setLibraryBankId(matchingAssignmentBanks[0].id);
+    }
+    // Re-run only when entering take-home mode or the match set changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTakeHome, matchingAssignmentBanks.length]);
+  const [sending, setSending] = useState(false);
+
   // The link itself is sent as a labelled button (see `linkLabel` below), so the
   // body only references it — no raw URL is ever pasted into the message.
-  const linkLabel = isIq ? 'Start IQ Test' : 'Start Assessment';
+  const linkLabel = isIq ? 'Start IQ Test' : isTakeHome ? 'Submit Assignment' : 'Start Assessment';
 
   // Copy comes from Settings → Email templates, so HR's saved edits show here
   // and are what gets sent. The template embeds the link itself via
   // [[Start IQ Test|{{test_url}}]], so no separate link button is attached.
+  // Take-home has its own fixed copy (not Settings-editable — see HR's exact
+  // wording below), same edit-before-send textarea either way.
   const { data: overrides } = useEmailTemplateOverrides();
   const templateDef = emailTemplateById(isIq ? 'iq_invite' : 'assessment_invite');
 
+  const takeHomeBody = useMemo(
+    () =>
+      [
+        `Hi ${candidate.fullName},`,
+        '',
+        'As part of the next round of the selection process, please find the assignment attached.',
+        `You will have ${TAKE_HOME_WINDOW_MIN / 60} hour to complete and submit the assessment. The submission link will expire once the ${TAKE_HOME_WINDOW_MIN / 60}-hour duration is completed.`,
+        '',
+        'You may submit your assignment in any of the following formats:',
+        '',
+        'Word Document',
+        'Excel',
+        'PowerPoint',
+        '',
+        'Please go through the assignment carefully and feel free to be as creative and innovative as possible with your approach.',
+        '',
+        `[[${linkLabel}|${testUrl}]]`,
+        '',
+        'All the best!',
+        '',
+        'Regards,',
+        'HR Team',
+        'Optiminastic Media',
+      ].join('\n'),
+    [candidate.fullName, testUrl, linkLabel],
+  );
+  const takeHomeSubject = `Your ${position} assignment at Optiminastic — submit your work`;
+
   const composed = useMemo(() => {
+    if (isTakeHome) return takeHomeBody;
     if (!templateDef) return '';
     const { body: tpl } = resolveTemplate(templateDef, overrides);
     return renderTemplate(tpl, {
@@ -96,13 +182,14 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
       test_url: testUrl,
       hr_signoff: hr.signoff,
     });
-  }, [templateDef, overrides, candidate.fullName, position, testUrl, hr.signoff]);
+  }, [isTakeHome, takeHomeBody, templateDef, overrides, candidate.fullName, position, testUrl, hr.signoff]);
 
   const composedSubject = useMemo(() => {
+    if (isTakeHome) return takeHomeSubject;
     if (!templateDef) return '';
     const { subject: tpl } = resolveTemplate(templateDef, overrides);
     return renderTemplate(tpl, { candidate_name: candidate.fullName, role: position });
-  }, [templateDef, overrides, candidate.fullName, position]);
+  }, [isTakeHome, takeHomeSubject, templateDef, overrides, candidate.fullName, position]);
 
   const [body, setBody] = useState(composed);
   const [edited, setEdited] = useState(false);
@@ -112,16 +199,85 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
       setBody(composed);
     }
   }, [composed, composedSubject, edited]);
+  // Switching modes always resets to that mode's template, even if the
+  // previous mode's text was hand-edited — carrying an MCQ-edited draft over
+  // to Assignment (or vice-versa) would be more confusing than helpful.
+  useEffect(() => {
+    setEdited(false);
+  }, [mode]);
 
   const error = !to.trim()
     ? 'Candidate email is required.'
     : !EMAIL_RE.test(to.trim())
       ? 'Please enter a valid email address.'
-      : !isIq && assessmentBanks.length === 0
+      : !isIq && !isTakeHome && assessmentBanks.length === 0
         ? 'No assessment question sets — create one in Question Library → Assessment Questions.'
-        : !isIq && selectedQuestions.length === 0
+        : !isIq && !isTakeHome && selectedQuestions.length === 0
           ? 'Select an assessment question set to send.'
-          : null;
+          : isTakeHome && fileSource === 'upload' && !pickedFile
+            ? 'Upload the assignment file to send.'
+            : isTakeHome && fileSource === 'library' && !libraryBankId
+              ? 'Select an assignment file from the library.'
+              : null;
+
+  // Resolve the brief file (upload it fresh, or reuse the library doc) and
+  // base64-encode it for the email attachment, then hand everything to the
+  // caller to create the TestInvite + send the email.
+  const confirmTakeHome = async () => {
+    setSending(true);
+    try {
+      let briefDocId: string;
+      let briefFileName: string;
+      let attachmentBlob: Blob;
+      if (fileSource === 'upload' && pickedFile) {
+        if (pickedFile.kind !== 'local') {
+          toast.error('Please upload a file directly (Drive import is not supported for assignments yet).');
+          return;
+        }
+        const doc = await uploadDocument({
+          entityType: 'test-invite',
+          entityId: inviteId,
+          category: 'assignment-brief',
+          file: pickedFile.file,
+        });
+        briefDocId = doc.id;
+        briefFileName = doc.fileName;
+        attachmentBlob = pickedFile.file;
+      } else {
+        const bank = assignmentBanks.find(b => b.id === libraryBankId);
+        if (!bank) {
+          toast.error('Select an assignment file from the library.');
+          return;
+        }
+        briefDocId = bank.fileDocId;
+        briefFileName = bank.fileName;
+        const { url } = await getDocumentUrl(bank.fileDocId);
+        const res = await fetch(url);
+        attachmentBlob = await res.blob();
+      }
+      const base64 = await blobToBase64(attachmentBlob);
+      onConfirm({
+        to: to.trim(),
+        subject: subject.trim(),
+        body,
+        links: [],
+        takeHome: {
+          deadlineIso: new Date(Date.now() + TAKE_HOME_WINDOW_MIN * 60_000).toISOString(),
+          briefDocId,
+          briefFileName,
+        },
+        attachment: {
+          name: briefFileName,
+          base64,
+          type: attachmentBlob.type || 'application/octet-stream',
+        },
+      });
+    } catch {
+      toast.error('Could not prepare the assignment file — try again.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <Sheet open onOpenChange={o => !o && onClose()}>
@@ -135,6 +291,41 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
           </SheetDescription>
         </SheetHeader>
 
+        {mode === null ? (
+          <SheetBody className="space-y-3 text-xs">
+            <p className="text-[11px] font-medium text-gray-600">
+              What do you want to send — pick one. Everything below (the candidate email, link,
+              subject and message) is set up for whichever you choose, not both.
+            </p>
+            <button
+              type="button"
+              onClick={() => setMode('mcq')}
+              className="flex w-full items-center gap-3 rounded-md border border-line p-3.5 text-left transition hover:border-accent-400 hover:bg-accent-50"
+            >
+              <Link2 size={18} className="shrink-0 text-accent-600" />
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-gray-900">MCQ Questions</p>
+                <p className="text-[11px] text-gray-500">
+                  A timed, proctored multiple-choice test — the candidate opens a secure link.
+                </p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('take-home')}
+              className="flex w-full items-center gap-3 rounded-md border border-line p-3.5 text-left transition hover:border-accent-400 hover:bg-accent-50"
+            >
+              <FileUp size={18} className="shrink-0 text-accent-600" />
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-gray-900">Assignment</p>
+                <p className="text-[11px] text-gray-500">
+                  A take-home file the candidate downloads, completes and uploads back.
+                </p>
+              </div>
+            </button>
+          </SheetBody>
+        ) : (
+          <>
         <SheetBody className="space-y-4 text-xs">
           <div>
             <Label htmlFor="st-to" className="text-[11px] font-medium text-gray-600">
@@ -151,6 +342,43 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
           </div>
 
           {!isIq && (
+            <div>
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] font-medium text-gray-600">Test type</Label>
+                <button
+                  type="button"
+                  onClick={() => setMode(null)}
+                  className="text-[10px] font-semibold text-accent-600 hover:underline"
+                >
+                  Change
+                </button>
+              </div>
+              <div className="mt-1 flex items-center gap-1 rounded-md border border-input bg-secondary/30 p-1">
+                <button
+                  type="button"
+                  onClick={() => setMode('mcq')}
+                  className={`flex-1 rounded px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                    mode === 'mcq' ? 'bg-surface text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  MCQ Questions
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('take-home')}
+                  className={`flex-1 rounded px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                    mode === 'take-home'
+                      ? 'bg-surface text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Assignment
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isIq && !isTakeHome && (
             <div>
               <Label className="text-[11px] font-medium text-gray-600">
                 Assessment questions{' '}
@@ -188,19 +416,80 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
             </div>
           )}
 
-          <div>
-            <Label className="flex items-center gap-1 text-[11px] font-medium text-gray-600">
-              <Link2 size={12} /> {what} link
-            </Label>
-            <a
-              href={testUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 block truncate rounded-sm border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
-            >
-              {testUrl}
-            </a>
-          </div>
+          {isTakeHome && (
+            <div>
+              <Label className="text-[11px] font-medium text-gray-600">Assignment file</Label>
+              <div className="mt-1 flex items-center gap-1 rounded-md border border-input bg-secondary/30 p-1">
+                <button
+                  type="button"
+                  onClick={() => setFileSource('upload')}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                    fileSource === 'upload'
+                      ? 'bg-surface text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  <FileUp size={12} /> Upload a file
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFileSource('library')}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                    fileSource === 'library'
+                      ? 'bg-surface text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  <Library size={12} /> Select from library
+                </button>
+              </div>
+
+              {fileSource === 'upload' ? (
+                <div className="mt-2">
+                  <FileDropzone
+                    value={pickedFile}
+                    onChange={setPickedFile}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip"
+                    hint="PDF, Word, Excel, PowerPoint or ZIP up to 15 MB"
+                  />
+                </div>
+              ) : libraryOptions.length === 0 ? (
+                <p className="mt-2 rounded-sm border border-dashed border-input bg-secondary/20 px-3 py-2 text-[11px] text-gray-500">
+                  No assignment files found. Add one in Question Library → Assignment File Upload.
+                </p>
+              ) : (
+                <Select
+                  value={libraryBankId}
+                  onChange={e => setLibraryBankId(e.target.value)}
+                  className="mt-2 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm"
+                  placeholder="Select an assignment file"
+                >
+                  <option value="">— Select a file —</option>
+                  {libraryOptions.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.jobTitle} — {b.fileName}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+          )}
+
+          {!isTakeHome && (
+            <div>
+              <Label className="flex items-center gap-1 text-[11px] font-medium text-gray-600">
+                <Link2 size={12} /> {what} link
+              </Label>
+              <a
+                href={testUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 block truncate rounded-sm border border-input bg-secondary/40 px-3 py-2 text-sm text-accent-600 hover:underline"
+              >
+                {testUrl}
+              </a>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="st-subject" className="text-[11px] font-medium text-gray-600">
@@ -252,13 +541,17 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
         </SheetBody>
 
         <SheetFooter className="justify-end">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={sending}>
             Cancel
           </Button>
           <Button
             type="button"
-            disabled={!!error}
-            onClick={() =>
+            disabled={!!error || sending}
+            onClick={() => {
+              if (isTakeHome) {
+                confirmTakeHome();
+                return;
+              }
               onConfirm({
                 to: to.trim(),
                 subject: subject.trim(),
@@ -266,12 +559,14 @@ export function SendTestModal({ candidate, kind, testUrl, onClose, onConfirm }: 
                 // The link is embedded in the template body, not appended here.
                 links: [],
                 ...(isIq ? {} : { questions: selectedQuestions }),
-              })
-            }
+              });
+            }}
           >
-            <Send size={14} /> Send {what}
+            <Send size={14} /> {sending ? 'Preparing…' : `Send ${what}`}
           </Button>
         </SheetFooter>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );

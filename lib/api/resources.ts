@@ -31,6 +31,7 @@ export const RESOURCES = {
   interviewKitSends: { slug: 'interview-kit-sends', idField: 'id' },
   screeningBanks: { slug: 'screening-banks', idField: 'id' },
   iqBank: { slug: 'iq-bank', idField: 'id' },
+  assignmentBanks: { slug: 'assignment-banks', idField: 'id' },
   joiningConfirmations: { slug: 'joining-confirmations', idField: 'id' },
 } as const;
 

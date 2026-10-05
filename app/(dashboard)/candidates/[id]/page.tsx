@@ -74,6 +74,7 @@ import {
   ASSIGNMENT_PASS_MARKS,
   IQ_DURATION_MIN,
   ASSESSMENT_DURATION_MIN,
+  TAKE_HOME_DURATION_MIN,
 } from '@/data/test-banks';
 import { randomId, randomToken, nowISO, formatCtc } from '@/lib/utils';
 import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
@@ -544,16 +545,20 @@ export default function CandidateDetailPage() {
   const iqReached = iqDone || Boolean(iqInvite) || mySchedules.some(s => s.type === 'IQ Test');
   // "assignment" and "assessment" are used interchangeably across the flows that
   // create the role-skills test — accept either so the stage resolves regardless.
+  // "take-home" is the separate file-based assignment HR can send instead.
   const asgInvite = myInvites
-    .filter(i => i.kind === 'assignment' || i.kind === 'assessment')
+    .filter(i => i.kind === 'assignment' || i.kind === 'assessment' || i.kind === 'take-home')
     .sort(byCreatedDesc)[0];
   // The proctored runner (/test) finishes an assessment as Completed/Auto-Submitted
   // (with a score), while the simple runner (/assessment) marks it Graded. Treat any
   // of those — or any recorded score — as done, so HR can act on the result.
+  // Take-home has no auto-score at submit time — 'Submitted' only means HR's
+  // manual grading is pending, not done.
   const asgDone =
     !!asgInvite &&
-    (['Graded', 'Completed', 'Auto-Submitted'].includes(asgInvite.status) ||
-      asgInvite.score != null);
+    (asgInvite.kind === 'take-home'
+      ? asgInvite.status === 'Graded' || asgInvite.score != null
+      : ['Graded', 'Completed', 'Auto-Submitted'].includes(asgInvite.status) || asgInvite.score != null);
   const asgReached = Boolean(asgInvite) || mySchedules.some(s => s.type === 'Assessment');
   // A completed IQ / Assessment that the candidate did NOT clear (failed or
   // disqualified). Drives the "Reject & email" action on those stages.
@@ -735,9 +740,18 @@ export default function CandidateDetailPage() {
     }),
   );
   myInvites
-    .filter(i => i.kind === 'assessment' || i.kind === 'assignment')
+    .filter(i => i.kind === 'assessment' || i.kind === 'assignment' || i.kind === 'take-home')
     .forEach(i => {
-      if (['Completed', 'Auto-Submitted', 'Graded'].includes(i.status))
+      if (i.kind === 'take-home' && i.status === 'Graded')
+        events.push({
+          date: i.completedAt ?? i.createdAt,
+          title: `Assignment — ${i.passed ? 'passed' : 'failed'}`,
+          detail: i.score != null ? `${i.score}%` : undefined,
+          tone: i.passed ? 'green' : 'red',
+        });
+      else if (i.kind === 'take-home' && i.status === 'Submitted')
+        events.push({ date: i.completedAt ?? i.createdAt, title: 'Assignment submitted', tone: 'accent' });
+      else if (['Completed', 'Auto-Submitted', 'Graded'].includes(i.status))
         events.push({
           date: i.completedAt ?? i.createdAt,
           title: `Assessment — ${i.passed ? 'passed' : 'failed'}`,
@@ -747,7 +761,7 @@ export default function CandidateDetailPage() {
               : undefined,
           tone: i.passed ? 'green' : 'red',
         });
-      else events.push({ date: i.createdAt, title: 'Assessment sent', tone: 'gray' });
+      else events.push({ date: i.createdAt, title: i.kind === 'take-home' ? 'Assignment sent' : 'Assessment sent', tone: 'gray' });
     });
   myInterviews.forEach(iv =>
     events.push({
@@ -1437,7 +1451,12 @@ export default function CandidateDetailPage() {
 
   const confirmSendTest = async (r: SendTestResult) => {
     if (!sendTest) return;
-    const { kind, id } = sendTest;
+    const { id } = sendTest;
+    // HR's "MCQ Questions" vs "Assignment" choice inside the modal overrides
+    // the kind the button opened with — 'assignment' here is still the
+    // existing MCQ pipeline stage (see TestInvite.kind's doc comment);
+    // 'take-home' is the new, genuinely distinct file-based flow.
+    const kind = r.takeHome ? 'take-home' : sendTest.kind;
     const position = candidate.appliedRole || candidate.department || 'the role';
     const invite: TestInvite = {
       id,
@@ -1448,11 +1467,13 @@ export default function CandidateDetailPage() {
       position,
       department: candidate.department,
       jobId: candidate.jobId,
-      durationMin: kind === 'iq' ? IQ_DURATION_MIN : ASSESSMENT_DURATION_MIN,
+      durationMin:
+        kind === 'iq' ? IQ_DURATION_MIN : kind === 'take-home' ? TAKE_HOME_DURATION_MIN : ASSESSMENT_DURATION_MIN,
       status: 'Pending',
       // Assessment carries Question-Library questions the candidate answers on the
       // public assessment link (auto-scored), not a take-home upload.
       ...(kind === 'assignment' && r.questions ? { assessmentQuestions: r.questions } : {}),
+      ...(r.takeHome ? r.takeHome : {}),
       createdAt: nowISO(),
     };
     setSendTest(null);
@@ -1464,13 +1485,20 @@ export default function CandidateDetailPage() {
     }
     qc.invalidateQueries({ queryKey: qk.testInvites.all });
 
-    const label = kind === 'iq' ? 'IQ test' : 'Assessment';
+    const label = kind === 'iq' ? 'IQ test' : kind === 'take-home' ? 'Assignment' : 'Assessment';
     try {
       const res = await sendCustomEmail({
         to: r.to,
         subject: r.subject,
         body: r.body,
         links: r.links,
+        ...(r.attachment
+          ? {
+              attachmentName: r.attachment.name,
+              attachmentBase64: r.attachment.base64,
+              attachmentType: r.attachment.type,
+            }
+          : {}),
       });
       repositories.sentEmails
         .create({
@@ -3589,6 +3617,7 @@ export default function CandidateDetailPage() {
           candidate={candidate}
           kind={sendTest.kind}
           testUrl={sendTest.url}
+          inviteId={sendTest.id}
           onClose={() => setSendTest(null)}
           onConfirm={confirmSendTest}
         />

@@ -126,6 +126,25 @@ export function emptyInterviewModules(): Record<InterviewModule, InterviewItem[]
 
 export const blankInterviewItem = (id: string): InterviewItem => ({ id, text: '' });
 
+// ---------------------------------------------------------------------------
+// Assignment file banks — per role, an uploaded take-home assignment file
+// (brief/spec) HR can reuse when sending a take-home invite, instead of
+// uploading a fresh file every time. Multiple files per role are allowed
+// (e.g. variants) — the Send Assessment modal's library picker filters to
+// the candidate's role but shows all matches.
+// ---------------------------------------------------------------------------
+
+export interface AssignmentFileBank {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  department: string;
+  /** The uploaded file (documents store). */
+  fileDocId: string;
+  fileName: string;
+  uploadedAt: string;
+}
+
 /** Backfill older saved items (pre-options) so they always have 2–4 options. */
 export const normalizeScreeningItem = (it: ScreeningItem): ScreeningItem => {
   const options = Array.isArray(it.options) ? [...it.options] : [];
