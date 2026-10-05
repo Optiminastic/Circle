@@ -87,12 +87,12 @@ export function ApplyForm({ job }: { job: Job }) {
   // this stays correct across devices without the public page ever fetching the
   // library from the browser.
   const screeningQuestions = job.screeningQuestions ?? [];
-  // Whether this posting asks about current employment. Off for an internship
-  // and any other role open to people with no work history: an applicant who
-  // has never worked has no current title, no CTC and nothing to serve notice
-  // on, so asking either turns them away or collects invented numbers.
-  // Undefined on a job posted before the option existed, which kept asking.
-  const asksEmployment = job.asksEmploymentDetails ?? true;
+  // Whether this posting asks about current employment. Off for an
+  // internship: an applicant who has never worked has no current title, no
+  // CTC and nothing to serve notice on, so asking either turns them away or
+  // collects invented numbers. Derived purely from the employment type —
+  // there's no separate per-job override, so this can never go stale.
+  const asksEmployment = job.employmentType !== 'Internship';
 
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(EMPTY);

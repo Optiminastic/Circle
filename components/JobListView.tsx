@@ -111,7 +111,6 @@ const EMPTY_FORM = {
   location: 'Mumbai',
   employmentType: 'Full-time' as Job['employmentType'],
   minExperienceYears: 3,
-  asksEmploymentDetails: true,
   salaryMin: '',
   salaryMax: '',
   description: '',
@@ -166,8 +165,6 @@ export function JobListView({
       location: job.location,
       employmentType: job.employmentType,
       minExperienceYears: job.minExperienceYears,
-      // Undefined on a job posted before this existed, which kept asking.
-      asksEmploymentDetails: job.asksEmploymentDetails ?? true,
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
       description: job.description,
@@ -182,11 +179,6 @@ export function JobListView({
   // shareable, and "open a job → back" restores exactly what you left.
   const [f, setF] = useUrlState({
     search: '',
-    // Experience filter — matches a posting's required years (minExperienceYears)
-    // against an inclusive [min, max] range. Stored as strings so an empty box
-    // means "no bound"; digits-only so a stray letter can't NaN out the filter.
-    expMin: '',
-    expMax: '',
     sortKey: 'title' as SortKey,
     sortDir: 'asc' as 'asc' | 'desc',
     page: 1,
@@ -194,10 +186,6 @@ export function JobListView({
   });
   const search = f.search;
   const setSearch = (v: string) => setF({ search: v, page: 1 });
-  const expMin = f.expMin;
-  const setExpMin = (v: string) => setF({ expMin: v.replace(/[^0-9]/g, ''), page: 1 });
-  const expMax = f.expMax;
-  const setExpMax = (v: string) => setF({ expMax: v.replace(/[^0-9]/g, ''), page: 1 });
   // Reusable Must-have/Good-to-have sets from the Question Library (DB-backed).
   const { data: screeningBanks = [] } = useScreeningBanks();
   const { create: createScreeningBank, update: updateScreeningBank } =
@@ -313,7 +301,6 @@ export function JobListView({
       location: form.location,
       employmentType: form.employmentType,
       minExperienceYears: Number(form.minExperienceYears),
-      asksEmploymentDetails: form.asksEmploymentDetails,
       salaryMin: form.salaryMin,
       salaryMax: form.salaryMax,
       description: form.description,
@@ -506,18 +493,14 @@ export function JobListView({
   const totalApplicants = Object.values(applicantCounts).reduce((a, b) => a + b, 0);
 
   const q = search.trim().toLowerCase();
-  // Empty bound = open-ended; the range is inclusive on both ends.
-  const expLo = expMin === '' ? -Infinity : Number(expMin);
-  const expHi = expMax === '' ? Infinity : Number(expMax);
   const visibleJobs = jobs.filter(j => {
-    const matchesSearch =
+    return (
       !q ||
       j.title.toLowerCase().includes(q) ||
       j.department.toLowerCase().includes(q) ||
       j.location.toLowerCase().includes(q) ||
-      j.id.toLowerCase().includes(q);
-    const exp = j.minExperienceYears ?? 0;
-    return matchesSearch && exp >= expLo && exp <= expHi;
+      j.id.toLowerCase().includes(q)
+    );
   });
 
   const sortedJobs = [...visibleJobs].sort((a, b) => {
@@ -619,46 +602,6 @@ export function JobListView({
               placeholder="Search jobs…"
               className="w-44 sm:w-56 pl-8 pr-3 py-2 text-xs bg-surface border border-line rounded-md focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 transition"
             />
-          </div>
-          {/* Experience filter — postings whose required years fall in [min, max]. */}
-          <div
-            className="flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1"
-            title="Filter postings by required experience (years)"
-          >
-            <Gauge size={13} className="shrink-0 text-gray-500" />
-            <span className="hidden font-mono text-[9px] uppercase tracking-wider text-gray-500 sm:inline">
-              Exp
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={expMin}
-              onChange={e => setExpMin(e.target.value)}
-              placeholder="Min"
-              aria-label="Minimum experience (years)"
-              className="w-11 rounded-sm bg-transparent px-1 py-0.5 text-center font-mono text-xs text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500"
-            />
-            <span className="text-xs text-gray-400">–</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={expMax}
-              onChange={e => setExpMax(e.target.value)}
-              placeholder="Max"
-              aria-label="Maximum experience (years)"
-              className="w-11 rounded-sm bg-transparent px-1 py-0.5 text-center font-mono text-xs text-gray-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-500"
-            />
-            <span className="font-mono text-[9px] uppercase text-gray-400">yrs</span>
-            {(expMin !== '' || expMax !== '') && (
-              <button
-                type="button"
-                onClick={() => setF({ expMin: '', expMax: '', page: 1 })}
-                aria-label="Clear experience filter"
-                className="rounded-full p-0.5 text-gray-400 hover:bg-surface-hover hover:text-gray-700"
-              >
-                <X size={12} />
-              </button>
-            )}
           </div>
           <button
             id="btn-post-job"
@@ -907,16 +850,7 @@ export function JobListView({
                       <Select
                         value={form.employmentType}
                         onChange={e =>
-                          setForm(prev => {
-                            const employmentType = e.target.value as Job['employmentType'];
-                            // Choosing Internship turns the employment questions
-                            // off, since an intern has no current title, CTC or
-                            // notice period to give. Still a default, not a rule:
-                            // the tick below stays editable either way.
-                            return employmentType === 'Internship'
-                              ? { ...prev, employmentType, asksEmploymentDetails: false }
-                              : { ...prev, employmentType };
-                          })
+                          setForm({ ...form, employmentType: e.target.value as Job['employmentType'] })
                         }
                         className="mt-2 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm shadow-xs"
                       >
@@ -926,6 +860,16 @@ export function JobListView({
                         <option value="Internship">Internship</option>
                         <option value="Temporary">Temporary</option>
                       </Select>
+                      {/* No manual override — Internship always drops the
+                          employment-history fields on the apply form (see
+                          ApplyForm.tsx); a stale checkbox value could never go
+                          out of sync with the employment type this way. */}
+                      {form.employmentType === 'Internship' && (
+                        <p className="mt-1.5 text-[10.5px] leading-snug text-gray-500">
+                          Interns aren&apos;t asked for current title, CTC, experience or notice
+                          period on the apply form.
+                        </p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="job-exp" className="text-sm font-medium">
@@ -940,25 +884,6 @@ export function JobListView({
                         className="mt-2"
                         required
                       />
-                      {/* Sits with the experience field because it decides
-                          whether applicants are asked about theirs at all. */}
-                      <label className="mt-2 flex cursor-pointer items-start gap-2">
-                        <input
-                          type="checkbox"
-                          checked={form.asksEmploymentDetails}
-                          onChange={e =>
-                            setForm({ ...form, asksEmploymentDetails: e.target.checked })
-                          }
-                          className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-accent-600"
-                        />
-                        <span className="text-[11px] leading-snug text-gray-600">
-                          Ask applicants for current employment
-                          <span className="mt-0.5 block text-[10.5px] text-gray-400">
-                            Current title, CTC, experience and notice period. Untick for an
-                            internship or any role open to people with no work history.
-                          </span>
-                        </span>
-                      </label>
                     </div>
                     <div>
                       <Label htmlFor="job-smin" className="text-sm font-medium">

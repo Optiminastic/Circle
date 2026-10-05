@@ -237,17 +237,6 @@ export interface Job {
   status: JobStatus;
   postedBy: string;
   postedDate: string;
-  /**
-   * Whether the apply form asks about the applicant's current employment -
-   * previous company, current title, current CTC, experience and notice period.
-   *
-   * Off for a role open to people with no work history. An intern has no
-   * current title, no CTC and nothing to serve notice on, so requiring them
-   * means either turning applicants away or collecting invented numbers.
-   *
-   * Undefined means on, so every job posted before this existed keeps asking.
-   */
-  asksEmploymentDetails?: boolean;
   /** Yes/No screening questions candidates answer when applying. */
   screeningQuestions?: ScreeningQuestion[];
   /** Skill/tech terms an applicant's resume is checked against on apply (see
