@@ -414,7 +414,8 @@ export default function EmployeeDetailPage() {
 
               <Card icon={<Mail size={14} />} title="Contact & personal">
                 <div className="space-y-2">
-                  <Detail icon={<Mail size={13} />} value={employee.email} />
+                  <Detail icon={<Mail size={13} />} value={`Work: ${employee.email || '—'}`} />
+                  <Detail icon={<Mail size={13} />} value={`Personal: ${employee.personalEmail || '—'}`} />
                   <Detail icon={<Phone size={13} />} value={employee.phone || '—'} />
                   <Detail icon={<MapPin size={13} />} value={employee.personalDetails?.address || '—'} />
                   <Detail
@@ -617,7 +618,8 @@ export default function EmployeeDetailPage() {
 
           <Card icon={<ScrollText size={14} />} title="Additional details">
             <div className="space-y-3.5">
-              <InfoRow icon={<Mail size={13} />} label="Email" value={employee.email} />
+              <InfoRow icon={<Mail size={13} />} label="Work email" value={employee.email} />
+              <InfoRow icon={<Mail size={13} />} label="Personal email" value={employee.personalEmail || '—'} />
               <InfoRow icon={<Phone size={13} />} label="Phone" value={employee.phone || '—'} />
               <InfoRow icon={<MapPin size={13} />} label="Work location" value={employee.workLocation || '—'} />
               <InfoRow icon={<Building2 size={13} />} label="Department" value={employee.department} />

@@ -78,8 +78,16 @@ export function EditEmployeeDialog({ open, employee, onClose, onSave }: EditEmpl
               />
             </div>
             <div className="space-y-1">
-              <Label className={labelCls}>Email</Label>
+              <Label className={labelCls}>Work email</Label>
               <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className={labelCls}>Personal email</Label>
+              <Input
+                type="email"
+                value={form.personalEmail ?? ''}
+                onChange={e => set('personalEmail', e.target.value)}
+              />
             </div>
             <div className="space-y-1">
               <Label className={labelCls}>Phone</Label>
