@@ -1028,6 +1028,9 @@ export interface Employee {
   department: string;
   role: string;
   reportingManager: string;
+  /** The manager's employee code, set by the manager picker. Older records
+   *  only have the typed `reportingManager` name. */
+  reportingManagerId?: string;
   joiningDate: string;
   workLocation: string;
   status: 'Active' | 'On Leave' | 'Suspended' | 'Offboarded';

@@ -26,6 +26,8 @@ import { AddOnboardingCandidateModal } from '@/components/AddOnboardingCandidate
 import { OnboardingCandidateActionsModal } from '@/components/OnboardingCandidateActionsModal';
 import { BlacklistedCandidatesModal } from '@/components/BlacklistedCandidatesModal';
 import { uploadDocument, importDriveDocument } from '@/lib/api/documents';
+import { allocateEmployeeCode } from '@/lib/api/employee-codes';
+import { ManagerSelect } from '@/components/ManagerSelect';
 import { PickedFile } from '@/components/ui/file-dropzone';
 import { useScheduler } from '@/store/schedule-store';
 import {
@@ -1201,7 +1203,8 @@ const EMPTY_EMPLOYEE_FORM = {
   department: 'Engineering',
   role: '',
   employmentType: 'Full-time' as NonNullable<Employee['employmentType']>,
-  reportingManager: 'Akshae Golekar',
+  reportingManager: '',
+  reportingManagerId: '',
   joiningDate: new Date().toISOString().split('T')[0],
   workLocation: 'Mumbai, India',
   status: 'Active' as Employee['status'],
@@ -1238,16 +1241,25 @@ export function EmployeeDirectoryView({
 
   const departments = ['All', ...org.departments];
 
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!empForm.fullName.trim() || !empForm.role.trim()) {
       toast.error('Full name and role are required.');
       return;
     }
+    // The code comes from the server-side sequence: a random one can collide
+    // and overwrite another employee (and every system keyed on the code).
+    let employeeCode: string;
+    try {
+      ({ employeeCode } = await allocateEmployeeCode());
+    } catch {
+      toast.error('Could not allocate an employee code. Try again.');
+      return;
+    }
     const acct = empForm.accountNumber.trim();
     const ifsc = empForm.ifsc.trim();
     const created: Employee = {
-      id: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: employeeCode,
       fullName: empForm.fullName.trim(),
       email: empForm.email.trim(),
       phone: empForm.phone.trim(),
@@ -1255,6 +1267,7 @@ export function EmployeeDirectoryView({
       role: empForm.role.trim(),
       employmentType: empForm.employmentType,
       reportingManager: empForm.reportingManager.trim() || '—',
+      reportingManagerId: empForm.reportingManagerId || undefined,
       joiningDate: empForm.joiningDate,
       workLocation: empForm.workLocation.trim(),
       status: empForm.status,
@@ -1601,11 +1614,12 @@ export function EmployeeDirectoryView({
 
             <div className="space-y-1">
               <label className="font-semibold text-gray-700">Reporting Manager</label>
-              <input
-                type="text"
-                placeholder="e.g. Akshae (Director)"
-                value={empForm.reportingManager}
-                onChange={e => setEmpForm({ ...empForm, reportingManager: e.target.value })}
+              <ManagerSelect
+                managerId={empForm.reportingManagerId || undefined}
+                managerName={empForm.reportingManager}
+                onChange={m =>
+                  setEmpForm({ ...empForm, reportingManagerId: m.id ?? '', reportingManager: m.name })
+                }
                 className="w-full px-2.5 py-1.5 border border-line rounded text-xs bg-surface-hover focus:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
               />
             </div>

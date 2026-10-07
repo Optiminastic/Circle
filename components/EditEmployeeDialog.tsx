@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/Select';
 import { EditableSelect } from '@/components/ui/editable-select';
 import { DatePicker } from '@/components/ui/date-picker';
+import { ManagerSelect } from '@/components/ManagerSelect';
 import { useOrgSettings } from '@/store/org-settings';
 import { Employee } from '@/types';
 
@@ -96,9 +97,12 @@ export function EditEmployeeDialog({ open, employee, onClose, onSave }: EditEmpl
             </div>
             <div className="space-y-1">
               <Label className={labelCls}>Reporting manager</Label>
-              <Input
-                value={form.reportingManager}
-                onChange={e => set('reportingManager', e.target.value)}
+              <ManagerSelect
+                className={selectCls}
+                employeeId={form.id}
+                managerId={form.reportingManagerId}
+                managerName={form.reportingManager}
+                onChange={m => setForm(prev => ({ ...prev, reportingManagerId: m.id, reportingManager: m.name }))}
               />
             </div>
             <div className="space-y-1">
