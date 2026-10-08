@@ -92,10 +92,6 @@ export function AddAssignmentFileModal({ jobs, pending, onSubmit, onClose }: Add
               placeholder="https://drive.google.com/drive/folders/..."
               className="h-9 w-full rounded-sm border border-line bg-surface px-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             />
-            <p className="mt-1 text-[11px] text-gray-500">
-              For assignments answered with a video or anything over 15 MB. Candidates upload
-              there and send back the link, so the file never passes through Circle.
-            </p>
           </div>
         </div>
 
