@@ -29,7 +29,7 @@ import {
 } from '@/features/email-templates/hooks';
 import { TAKE_HOME_DURATION_MIN } from '@/data/test-banks';
 import { blobToBase64 } from '@/lib/offer-letter-pdf';
-import { uploadDocument, getDocumentUrl } from '@/lib/api/documents';
+import { uploadDocument, documentPreviewUrl } from '@/lib/api/documents';
 import { useToast } from './Toaster';
 
 export interface SendTestResult {
@@ -279,8 +279,18 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
         }
         briefDocId = bank.fileDocId;
         briefFileName = bank.fileName;
-        const { url } = await getDocumentUrl(bank.fileDocId);
-        const res = await fetch(url);
+        // Read it back through our own API rather than the presigned object-store
+        // URL. That URL points at a different origin, so the browser needs the
+        // bucket to allow ours before it will hand over the bytes - and when it
+        // does not, the fetch fails with nothing useful to show HR. `/preview`
+        // proxies the same bytes from an origin we control.
+        const res = await fetch(documentPreviewUrl(bank.fileDocId), {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          throw new Error(`Could not read "${bank.fileName}" (${res.status}).`);
+        }
         attachmentBlob = await res.blob();
       }
       const base64 = await blobToBase64(attachmentBlob);
@@ -301,8 +311,15 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
           type: attachmentBlob.type || 'application/octet-stream',
         },
       });
-    } catch {
-      toast.error('Could not prepare the assignment file — try again.');
+    } catch (err) {
+      // The whole block is wrapped, so this used to report a file problem even
+      // when the failure was elsewhere. Show what actually happened.
+      console.error('Sending the assignment failed:', err);
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Could not send the assignment — try again.',
+      );
     } finally {
       setSending(false);
     }
