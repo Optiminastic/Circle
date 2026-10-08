@@ -142,6 +142,17 @@ export interface AssignmentFileBank {
   /** The uploaded file (documents store). */
   fileDocId: string;
   fileName: string;
+  /**
+   * A Drive folder candidates upload their finished work into.
+   *
+   * Kept with the assignment rather than typed on every send: the folder
+   * belongs to the task, not the candidate. A video answer runs to several
+   * hundred MB, well past what the uploader takes, so for those assignments
+   * the work never passes through Circle at all - only the link to it does.
+   *
+   * Optional, since an assignment answered with a document needs none.
+   */
+  driveUploadUrl?: string;
   uploadedAt: string;
 }
 

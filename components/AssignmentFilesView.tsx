@@ -51,7 +51,11 @@ export function AssignmentFilesView() {
   const [replacing, setReplacing] = useState<AssignmentFileBank | null>(null);
   const [replacingBusy, setReplacingBusy] = useState(false);
 
-  const addFile = async (job: (typeof jobs)[number], file: PickedFile) => {
+  const addFile = async (
+    job: (typeof jobs)[number],
+    file: PickedFile,
+    driveUploadUrl: string,
+  ) => {
     setUploading(true);
     try {
       const doc = await uploadPicked(file, `ASGBANK-${Date.now()}`);
@@ -62,6 +66,9 @@ export function AssignmentFilesView() {
         department: job.department,
         fileDocId: doc.id,
         fileName: doc.fileName,
+        // Omitted rather than stored empty, so "has a folder" is a plain
+        // truthiness check everywhere downstream.
+        ...(driveUploadUrl ? { driveUploadUrl } : {}),
         uploadedAt: doc.uploadedAt,
       };
       create.mutate(bank);

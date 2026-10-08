@@ -91,6 +91,9 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
   // Where the candidate puts work too large to upload here - a video answer
   // runs to several hundred MB. Optional: a document-sized task needs none.
   const [driveUploadUrl, setDriveUploadUrl] = useState('');
+  // Tracks whether HR has typed here, so re-picking a library file refreshes
+  // the suggestion but never discards something they wrote themselves.
+  const [driveUrlEdited, setDriveUrlEdited] = useState(false);
   const isTakeHome = !isIq && mode === 'take-home';
   const what = isIq ? 'IQ Test' : isTakeHome ? 'Assignment' : 'Assessment';
 
@@ -123,6 +126,15 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
   const [fileSource, setFileSource] = useState<'upload' | 'library'>('upload');
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
   const [libraryBankId, setLibraryBankId] = useState('');
+  // The folder saved with the chosen library assignment. It fills the field
+  // below so HR does not retype it, and stays editable for a one-off change.
+  const pickedBankDriveUrl = assignmentBanks.find(b => b.id === libraryBankId)?.driveUploadUrl;
+
+  // Fill from the chosen library assignment, unless HR has typed their own.
+  useEffect(() => {
+    if (driveUrlEdited) return;
+    setDriveUploadUrl(pickedBankDriveUrl ?? '');
+  }, [pickedBankDriveUrl, driveUrlEdited]);
   const matchingAssignmentBanks = assignmentBanks.filter(
     b => b.jobTitle.trim().toLowerCase() === position.trim().toLowerCase(),
   );
@@ -504,7 +516,10 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
                 <Input
                   id="drive-upload-url"
                   value={driveUploadUrl}
-                  onChange={e => setDriveUploadUrl(e.target.value)}
+                  onChange={e => {
+                    setDriveUrlEdited(true);
+                    setDriveUploadUrl(e.target.value);
+                  }}
                   placeholder="https://drive.google.com/drive/folders/..."
                   className="mt-2"
                 />
