@@ -50,6 +50,8 @@ export interface SendTestResult {
     deadlineIso: string;
     briefDocId: string;
     briefFileName: string;
+    /** How long the candidate gets, chosen by HR when sending. */
+    durationMin: number;
     /** A Drive folder the candidate uploads large work into. Empty when the
      *  task produces something small enough to upload here directly. */
     driveUploadUrl?: string;
@@ -71,11 +73,25 @@ interface SendTestModalProps {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// "You will have 1 hour to complete and submit the assessment. The
-// submission link will expire once the 1-hour duration is completed." —
-// the take-home deadline is fixed, not a multi-day window (unlike the
-// unused ASSIGNMENT_DEADLINE_DAYS scaffold).
-const TAKE_HOME_WINDOW_MIN = TAKE_HOME_DURATION_MIN;
+// How long the candidate gets. HR chooses per send, because the right window
+// is a property of the task: a short exercise is not a brand campaign. The
+// first option is the default, matching what every send used before this.
+const TAKE_HOME_WINDOWS = [
+  { min: TAKE_HOME_DURATION_MIN, label: '1 hour' },
+  { min: 30, label: '30 minutes' },
+  { min: 90, label: '1 hour 30 minutes' },
+  { min: 120, label: '2 hours' },
+  { min: 240, label: '4 hours' },
+  { min: 60 * 24, label: '1 day' },
+  { min: 60 * 24 * 2, label: '2 days' },
+  { min: 60 * 24 * 3, label: '3 days' },
+  { min: 60 * 24 * 7, label: '1 week' },
+] as const;
+
+/** The window as it reads in a sentence: "You will have 2 days to ...". */
+function windowLabel(min: number): string {
+  return TAKE_HOME_WINDOWS.find(w => w.min === min)?.label ?? `${min} minutes`;
+}
 
 export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onConfirm }: SendTestModalProps) {
   const toast = useToast();
@@ -90,6 +106,7 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
   const [mode, setMode] = useState<'mcq' | 'take-home' | null>(isIq ? 'mcq' : null);
   // Where the candidate puts work too large to upload here - a video answer
   // runs to several hundred MB. Optional: a document-sized task needs none.
+  const [windowMin, setWindowMin] = useState<number>(TAKE_HOME_DURATION_MIN);
   const [driveUploadUrl, setDriveUploadUrl] = useState('');
   // Tracks whether HR has typed here, so re-picking a library file refreshes
   // the suggestion but never discards something they wrote themselves.
@@ -168,7 +185,7 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
         `Hi ${candidate.fullName},`,
         '',
         'As part of the next round of the selection process, please find the assignment attached.',
-        `You will have ${TAKE_HOME_WINDOW_MIN / 60} hour to complete and submit the assessment. The submission link will expire once the ${TAKE_HOME_WINDOW_MIN / 60}-hour duration is completed.`,
+        `You will have ${windowLabel(windowMin)} to complete and submit the assessment. The submission link will expire once that time is up.`,
         '',
         'You may submit your assignment in any of the following formats:',
         '',
@@ -196,7 +213,7 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
         'HR Team',
         'Optiminastic Media',
       ].join('\n'),
-    [candidate.fullName, testUrl, linkLabel, driveUploadUrl],
+    [candidate.fullName, testUrl, linkLabel, driveUploadUrl, windowMin],
   );
   const takeHomeSubject = `Your ${position} assignment at Optiminastic — submit your work`;
 
@@ -300,7 +317,8 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
         body,
         links: [],
         takeHome: {
-          deadlineIso: new Date(Date.now() + TAKE_HOME_WINDOW_MIN * 60_000).toISOString(),
+          deadlineIso: new Date(Date.now() + windowMin * 60_000).toISOString(),
+          durationMin: windowMin,
           briefDocId,
           briefFileName,
           driveUploadUrl: driveUploadUrl.trim() || undefined,
@@ -519,7 +537,29 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
                 </Select>
               )}
 
-              {/* Work that is too large to upload here - a video answer can run
+              <div>
+            <Label htmlFor="take-home-window" className="text-[11px] font-medium text-gray-600">
+              Time to complete
+            </Label>
+            <Select
+              id="take-home-window"
+              value={String(windowMin)}
+              onChange={e => setWindowMin(Number(e.target.value))}
+              className="mt-2 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm"
+            >
+              {TAKE_HOME_WINDOWS.map(w => (
+                <option key={w.min} value={w.min}>
+                  {w.label}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-[11px] text-gray-500">
+              Counts from when this is sent. The email says so, and the link stops accepting work
+              once it is up.
+            </p>
+          </div>
+
+          {/* Work that is too large to upload here - a video answer can run
                   to several hundred MB. The file never passes through Circle:
                   the candidate puts it in this folder and hands back a link. */}
               <div className="mt-3">
