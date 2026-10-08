@@ -45,12 +45,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
 
 const portalKey = (token: string) => ['doc-request-portal', token] as const;
 
@@ -129,6 +123,13 @@ export default function OnboardingDocsPortal() {
     onSuccess: () => qc.invalidateQueries({ queryKey: portalKey(token) }),
   });
   const consentSaved = Boolean(request?.consent?.agreed);
+  // Consent is a gate on this step, not a footnote beside it: everything the
+  // candidate uploads here exists to be shared with our verification partner,
+  // who rejects a verification that carries no recorded consent. An employee
+  // request is for someone already hired and already verified, so it has
+  // nothing to consent to.
+  const needsConsent = request?.entityType !== 'employee';
+  const consentMissing = needsConsent && !consentSaved;
 
   const [uploading, setUploading] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -320,6 +321,55 @@ export default function OnboardingDocsPortal() {
         </TabsList>
 
         <TabsContent value="documents" className="space-y-2.5">
+        {/* Asked before the uploads, not after them - consent given once the
+            documents are already in would be consent asked too late. The
+            wording is our partner's and is shown in full rather than hidden
+            behind a disclosure, since this is what the candidate agrees to. */}
+        {needsConsent && (
+          <section
+            className={`rounded-md border p-3 ${
+              consentMissing ? 'border-amber-300 bg-amber-50' : 'border-emerald-200 bg-emerald-50/50'
+            }`}
+          >
+            <h2 className="mb-1.5 flex items-center gap-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-gray-600">
+              <ShieldCheck size={12} /> Consent
+              <span className="font-sans text-[10px] font-bold normal-case tracking-normal text-red-600">
+                Required
+              </span>
+            </h2>
+            <p className="mb-2.5 max-h-28 overflow-y-auto rounded-sm border border-line bg-surface px-2.5 py-2 text-[10.5px] leading-relaxed text-gray-600">
+              {ONGRID_CONSENT_TEXT}
+            </p>
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <Checkbox
+                className="mt-0.5"
+                checked={consentChecked}
+                disabled={saveConsent.isPending}
+                onCheckedChange={v => {
+                  const agreed = v === true;
+                  setConsentChecked(agreed);
+                  saveConsent.mutate(agreed);
+                }}
+              />
+              <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug text-gray-800">
+                I have read the above and consent to background verification.
+                {saveConsent.isPending && (
+                  <Loader2 size={11} className="ml-1.5 inline animate-spin align-middle text-gray-400" />
+                )}
+                {consentSaved && !saveConsent.isPending && (
+                  <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 align-middle font-mono text-[8.5px] font-bold uppercase tracking-wide text-emerald-700">
+                    <CheckCircle2 size={9} /> Saved
+                  </span>
+                )}
+              </span>
+            </label>
+            {consentMissing && (
+              <p className="mt-1.5 text-[10.5px] text-amber-800">
+                Tick this to unlock the uploads below. We cannot accept your documents without it.
+              </p>
+            )}
+          </section>
+        )}
         {docCards.map(doc => {
           const sub = submittedFor.get(doc.type);
           const isUploading = uploading === doc.type;
@@ -376,9 +426,10 @@ export default function OnboardingDocsPortal() {
                     />
                     <button
                       type="button"
-                      disabled={isUploading}
+                      disabled={isUploading || consentMissing}
+                      title={consentMissing ? 'Give consent above to upload' : undefined}
                       onClick={() => fileInputs.current[doc.type]?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 transition hover:border-accent-400 hover:text-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isUploading ? (
                         <Loader2 size={13} className="animate-spin" />
@@ -408,7 +459,12 @@ export default function OnboardingDocsPortal() {
             </div>
           );
         })}
-        <StepNav steps={steps} index={stepIndex} onGo={setTab} />
+        <StepNav
+          steps={steps}
+          index={stepIndex}
+          onGo={setTab}
+          nextBlockedReason={consentMissing ? 'Consent first' : undefined}
+        />
         </TabsContent>
 
         {/* Bank details — only when HR requested them */}
@@ -652,46 +708,6 @@ export default function OnboardingDocsPortal() {
         </TabsContent>
       </Tabs>
 
-      {/* Consent — required before we can share anything with our verification
-          partner. Only shown for candidate joining-doc requests — an employee
-          request is for an already-hired, already-verified person, so there's
-          nothing to consent to background verification for. */}
-      {request.entityType !== 'employee' && (
-        <section className="mt-6">
-          <h2 className="mb-2 flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-gray-500">
-            <ShieldCheck size={13} /> Consent
-          </h2>
-          <div className="flex items-center gap-2.5 rounded-md border border-line bg-surface px-3.5">
-            <Checkbox
-              checked={consentChecked}
-              disabled={saveConsent.isPending}
-              onCheckedChange={v => {
-                const agreed = v === true;
-                setConsentChecked(agreed);
-                saveConsent.mutate(agreed);
-              }}
-            />
-            <Accordion type="single" collapsible className="min-w-0 flex-1">
-              <AccordionItem value="consent" className="rounded-none border-0 bg-transparent">
-                <AccordionTrigger className="px-0 py-2.5 text-[12.5px]">
-                  <span className="flex items-center gap-1.5">
-                    I consent to background verification
-                    {consentSaved && !saveConsent.isPending && (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 font-mono text-[8.5px] font-bold uppercase tracking-wide text-emerald-700">
-                        <CheckCircle2 size={9} /> Saved
-                      </span>
-                    )}
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="border-0 bg-transparent px-0 pb-3 pt-0">
-                  <span className="block text-[11px] leading-relaxed text-gray-500">{ONGRID_CONSENT_TEXT}</span>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
-        </section>
-      )}
-
       <p className="mt-6 text-center text-[11px] text-gray-400">
         Your information is encrypted in transit and used only for employment verification.
       </p>
@@ -732,10 +748,13 @@ function StepNav({
   steps,
   index,
   onGo,
+  nextBlockedReason,
 }: {
   steps: { value: string; label: string }[];
   index: number;
   onGo: (value: string) => void;
+  /** When set, Next is disabled and this is shown beside it as the reason. */
+  nextBlockedReason?: string;
 }) {
   const prev = index > 0 ? steps[index - 1] : undefined;
   const next = index < steps.length - 1 ? steps[index + 1] : undefined;
@@ -755,13 +774,19 @@ function StepNav({
           </button>
         )}
         {next ? (
-          <button
-            type="button"
-            onClick={() => onGo(next.value)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700"
-          >
-            Next: {next.label} <ArrowRight size={13} />
-          </button>
+          <>
+            {nextBlockedReason && (
+              <span className="text-[10.5px] font-semibold text-amber-700">{nextBlockedReason}</span>
+            )}
+            <button
+              type="button"
+              disabled={Boolean(nextBlockedReason)}
+              onClick={() => onGo(next.value)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next: {next.label} <ArrowRight size={13} />
+            </button>
+          </>
         ) : (
           <span className="text-[11px] text-gray-400">That&apos;s everything — thank you.</span>
         )}
