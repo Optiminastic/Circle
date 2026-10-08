@@ -48,6 +48,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const portalKey = (token: string) => ['doc-request-portal', token] as const;
 
+/** Consent counts only against the current wording: it is sent verbatim to our
+ *  verification partner, who checks it against the text configured for the
+ *  community, so agreement to a superseded version is not agreement to this. */
+const consentGivenFor = (consent?: { agreed: boolean; text: string }) =>
+  Boolean(consent?.agreed) && consent?.text === ONGRID_CONSENT_TEXT;
+
 function fmtTimeLeft(ms: number): string {
   if (ms <= 0) return 'expired';
   const h = Math.floor(ms / 3_600_000);
@@ -110,7 +116,7 @@ export default function OnboardingDocsPortal() {
   // OnGrid consent — must be given before HR can onboard the candidate to OnGrid.
   const [consentChecked, setConsentChecked] = useState(false);
   useEffect(() => {
-    if (request?.consent?.agreed) setConsentChecked(true);
+    if (consentGivenFor(request?.consent)) setConsentChecked(true);
   }, [request?.id]);
   const saveConsent = useMutation({
     mutationFn: (agreed: boolean) =>
@@ -122,7 +128,12 @@ export default function OnboardingDocsPortal() {
     onError: (e: unknown) => setErrorMsg(e instanceof Error ? e.message : 'Could not save consent.'),
     onSuccess: () => qc.invalidateQueries({ queryKey: portalKey(token) }),
   });
-  const consentSaved = Boolean(request?.consent?.agreed);
+  const consentSaved = consentGivenFor(request?.consent);
+  // Our partner updates the wording from time to time, and they validate what
+  // we send against the version configured for the community. Someone who
+  // agreed to the old text has not agreed to this one.
+  const consentIsStale =
+    Boolean(request?.consent?.agreed) && request?.consent?.text !== ONGRID_CONSENT_TEXT;
   // Consent is a gate on this step, not a footnote beside it: everything the
   // candidate uploads here exists to be shared with our verification partner,
   // who rejects a verification that carries no recorded consent. An employee
@@ -365,7 +376,9 @@ export default function OnboardingDocsPortal() {
             </label>
             {consentMissing && (
               <p className="mt-1.5 text-[10.5px] text-amber-800">
-                Tick this to unlock the uploads below. We cannot accept your documents without it.
+                {consentIsStale
+                  ? 'This wording has been updated since you last agreed, so please confirm it again.'
+                  : 'Tick this to unlock the uploads below. We cannot accept your documents without it.'}
               </p>
             )}
           </section>
