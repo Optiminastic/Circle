@@ -19,6 +19,9 @@ export interface OngridOnboardResult {
     currentAddress?: string;
   };
   reason?: string;
+  /** The candidate already had an OnGrid individual, so this re-sent their
+   *  documents to it rather than creating a second record of the same person. */
+  reused?: boolean;
 }
 
 async function ongridOnboard(candidateId: string): Promise<OngridOnboardResult> {

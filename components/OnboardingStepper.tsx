@@ -828,7 +828,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
               onSuccess: v => {
                 if (v.ok) {
                   toast.success(
-                    `Sent to OnGrid — ${v.requested?.length ?? 0} check(s) requested, ${up} document(s) uploaded.`,
+                    `Sent to OnGrid${res.reused ? ' (existing record)' : ''} — ${
+                      v.requested?.length ?? 0
+                    } check(s) requested, ${up} document(s) uploaded.`,
                   );
                   setStartBgvOpen(false);
                 } else if (v.reason === 'no_services') {
