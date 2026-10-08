@@ -174,7 +174,9 @@ export const DOC_REQUEST_TTL_HOURS = 24;
  * Consent the candidate must give before we share their data/documents with
  * OnGrid for background verification. This exact wording is what OnGrid expects
  * as `consentText` — it must match their configured string verbatim (they reject
- * a mismatch), so do not reword it.
+ * a mismatch), so do not reword it. This is the string OnGrid issued for the
+ * production community - it reads awkwardly in places, and that is theirs,
+ * not a typo to correct.
  */
 export const ONGRID_CONSENT_TEXT =
-  "The Individual does not and will not have any objection to Optiminastic sharing the Individual's personal information and/or documents, including but not limited to name, gender, date of birth, addresses, mobile number, email, education record, employment record, Aadhaar number, other government-issued IDs such as Voter ID, PAN card, driving license, etc. (collectively Proprietary Information) with OnGrid (Handy Online Solutions Private Limited) for the purpose of background checks and verification. The individual understands that OnGrid maintains Proprietary Information on its platform in a secure manner, and it will only be accessible Optiminastic it's associates/partners/affiliates, and will not be shared with any other individual or organization without the Individual's explicit consent.";
+  "The Individual does not and will not have any objection to Optiminastic sharing the Individual's personal information and/or documents, including but not limited to name, gender, date of birth, addresses, mobile number, email, education record, employment record, Aadhaar number, other government-issued IDs such as Voter ID, PAN card, driving license, etc. (collectively Proprietary Information) with OnGrid (Handy Online Solutions Private Limited) for the purpose of background checks and verification. The individual understands that OnGrid maintains Proprietary Information on its platform in a secure manner, and it will only be accessible to Optiminastic and it's associates/partners/affiliates, and will not be shared with any other individual or organization without the Individual's explicit consent.";
