@@ -33,6 +33,9 @@ export interface PublicTest {
   // the candidate uploaded back.
   briefDocId?: string | null;
   briefFileName?: string | null;
+  /** Folder HR opened for work too large to upload here. */
+  driveUploadUrl?: string | null;
+  submissionUrl?: string | null;
   submissionDocId?: string | null;
   submissionFileName?: string | null;
   score?: number | null;
@@ -94,6 +97,36 @@ export async function submitAssignmentFile(
   const res = await fetch(`${apiBase()}/api/public/test/${encodeURIComponent(token)}/submit-file`, {
     method: 'POST',
     body: fd,
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const parsed = await res.json();
+      detail = parsed?.detail ?? detail;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(res.status, detail);
+  }
+  return res.json();
+}
+
+/**
+ * Hand in a take-home as a link rather than a file.
+ *
+ * For work that is too large to move through the app - a video answer runs to
+ * several hundred MB. The candidate uploads it to the folder HR shared and
+ * gives us the link, so nothing is stored here but the pointer.
+ */
+export async function submitAssignmentLink(
+  token: string,
+  url: string,
+): Promise<{ ok: boolean; status: string }> {
+  const res = await fetch(`${apiBase()}/api/public/test/${encodeURIComponent(token)}/submit-link`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
     cache: 'no-store',
   });
   if (!res.ok) {

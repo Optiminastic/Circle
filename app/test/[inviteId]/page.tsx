@@ -12,6 +12,7 @@ import {
   flagTestViolation,
   submitTest,
   submitAssignmentFile,
+  submitAssignmentLink,
   type PublicTest,
 } from '@/lib/api/public-test';
 import { documentPreviewUrl } from '@/lib/api/documents';
@@ -139,6 +140,9 @@ export default function PublicTestPage() {
 function TakeHomeFlow({ invite }: { invite: PublicTest }) {
   const alreadySubmitted = invite.status === 'Submitted' || invite.status === 'Graded';
   const [file, setFile] = useState<File | null>(null);
+  // Work too large to upload here lives wherever HR's folder is; we record the
+  // link to it rather than the bytes. One or the other, never both.
+  const [link, setLink] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(alreadySubmitted);
@@ -169,16 +173,25 @@ function TakeHomeFlow({ invite }: { invite: PublicTest }) {
     setFile(f);
   };
 
+  const trimmedLink = link.trim();
+  const canSubmit = Boolean(file) || trimmedLink.length > 0;
+
   const submit = async () => {
-    if (!file) return;
+    if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
     try {
-      const res = await submitAssignmentFile(invite.id, file);
-      setSubmittedName(res.fileName);
+      // A file wins if somehow both are filled: it is the one we can keep.
+      if (file) {
+        const res = await submitAssignmentFile(invite.id, file);
+        setSubmittedName(res.fileName);
+      } else {
+        await submitAssignmentLink(invite.id, trimmedLink);
+        setSubmittedName(trimmedLink);
+      }
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not submit your file — try again.');
+      setError(err instanceof Error ? err.message : 'Could not submit your work — try again.');
     } finally {
       setSubmitting(false);
     }
@@ -314,11 +327,47 @@ function TakeHomeFlow({ invite }: { invite: PublicTest }) {
             </div>
           </div>
 
+          {/* Anything bigger than the uploader takes - a video answer runs to
+              several hundred MB. It goes to the folder HR opened, and we keep
+              the link rather than the file. */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-line" />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                or send a link
+              </span>
+              <span className="h-px flex-1 bg-line" />
+            </div>
+            {invite.driveUploadUrl && (
+              <a
+                href={invite.driveUploadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-md border border-accent-200 bg-accent-50/60 px-3 py-2.5 text-[12px] font-semibold text-accent-700 transition hover:bg-accent-50"
+              >
+                <FileUp size={14} className="shrink-0" />
+                Upload your video here, then paste the link below
+              </a>
+            )}
+            <input
+              type="url"
+              value={link}
+              onChange={e => setLink(e.target.value)}
+              placeholder="https://drive.google.com/..."
+              aria-label="Link to your submitted work"
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            />
+            <p className="text-[11px] text-gray-500">
+              For a video or anything over 15 MB. Make sure the link is viewable by anyone with
+              it, or we will not be able to open your work.
+            </p>
+          </div>
+
           {error && <p className="text-xs font-medium text-red-600">{error}</p>}
 
           <button
             onClick={submit}
-            disabled={!file || submitting}
+            disabled={!canSubmit || submitting}
             className="group flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent-600 to-accent-700 py-3.5 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? (

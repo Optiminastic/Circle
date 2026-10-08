@@ -50,6 +50,9 @@ export interface SendTestResult {
     deadlineIso: string;
     briefDocId: string;
     briefFileName: string;
+    /** A Drive folder the candidate uploads large work into. Empty when the
+     *  task produces something small enough to upload here directly. */
+    driveUploadUrl?: string;
   };
   /** Email attachment (the assignment brief), take-home sends only. */
   attachment?: { name: string; base64: string; type: string };
@@ -85,6 +88,9 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
   // pick one before anything else — link, candidate email, subject/message —
   // is generated or shown, since only the chosen type is ever actually sent.
   const [mode, setMode] = useState<'mcq' | 'take-home' | null>(isIq ? 'mcq' : null);
+  // Where the candidate puts work too large to upload here - a video answer
+  // runs to several hundred MB. Optional: a document-sized task needs none.
+  const [driveUploadUrl, setDriveUploadUrl] = useState('');
   const isTakeHome = !isIq && mode === 'take-home';
   const what = isIq ? 'IQ Test' : isTakeHome ? 'Assignment' : 'Assessment';
 
@@ -158,6 +164,16 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
         'Excel',
         'PowerPoint',
         '',
+        // Only when HR opened a folder. Without one the paragraph would point
+        // the candidate at nowhere.
+        ...(driveUploadUrl.trim()
+          ? [
+              'If your work is a video or is larger than 15 MB, upload it to this folder instead and paste the link on the submission page:',
+              '',
+              driveUploadUrl.trim(),
+              '',
+            ]
+          : []),
         'Please go through the assignment carefully and feel free to be as creative and innovative as possible with your approach.',
         '',
         `[[${linkLabel}|${testUrl}]]`,
@@ -168,7 +184,7 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
         'HR Team',
         'Optiminastic Media',
       ].join('\n'),
-    [candidate.fullName, testUrl, linkLabel],
+    [candidate.fullName, testUrl, linkLabel, driveUploadUrl],
   );
   const takeHomeSubject = `Your ${position} assignment at Optiminastic — submit your work`;
 
@@ -265,6 +281,7 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
           deadlineIso: new Date(Date.now() + TAKE_HOME_WINDOW_MIN * 60_000).toISOString(),
           briefDocId,
           briefFileName,
+          driveUploadUrl: driveUploadUrl.trim() || undefined,
         },
         attachment: {
           name: briefFileName,
@@ -472,6 +489,30 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
                   ))}
                 </Select>
               )}
+
+              {/* Work that is too large to upload here - a video answer can run
+                  to several hundred MB. The file never passes through Circle:
+                  the candidate puts it in this folder and hands back a link. */}
+              <div className="mt-3">
+                <Label
+                  htmlFor="drive-upload-url"
+                  className="flex items-center gap-1 text-[11px] font-medium text-gray-600"
+                >
+                  <Link2 size={12} /> Drive upload folder
+                  <span className="font-normal text-gray-400">(optional)</span>
+                </Label>
+                <Input
+                  id="drive-upload-url"
+                  value={driveUploadUrl}
+                  onChange={e => setDriveUploadUrl(e.target.value)}
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  className="mt-2"
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  For a video or anything over 15 MB. Share a folder that allows uploads; the
+                  candidate uploads there and sends back the link instead of a file.
+                </p>
+              </div>
             </div>
           )}
 

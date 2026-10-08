@@ -225,9 +225,21 @@ export interface TestInvite {
    *  documents store; the candidate downloads this on the submission page. */
   briefDocId?: string;
   briefFileName?: string;
+  /**
+   * A Drive folder HR opens for the candidate to upload large work into.
+   *
+   * A video brief can run to several hundred MB, which is far past what the
+   * app accepts and not worth pushing through it. HR shares a folder instead,
+   * the candidate uploads there, and Circle records the link rather than the
+   * bytes.
+   */
+  driveUploadUrl?: string;
   /** Document id (in the documents store) of the candidate's uploaded work. */
   submissionDocId?: string;
   submissionFileName?: string;
+  /** Where the candidate put their work when it was too large to upload. Set
+   *  instead of `submissionDocId`, never alongside it. */
+  submissionUrl?: string;
   /** HR grading notes recorded when the assignment is graded. */
   gradeComments?: string;
   correct?: number;

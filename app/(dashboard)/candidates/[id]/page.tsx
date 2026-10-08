@@ -3209,6 +3209,20 @@ export default function CandidateDetailPage() {
                   </div>
                 )}
 
+                {/* Handed in as a link instead - work too large to upload, so
+                    it lives in the Drive folder and this is the pointer. */}
+                {asgInvite?.submissionUrl && (
+                  <a
+                    href={asgInvite.submissionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary"
+                  >
+                    <Link2 size={14} className="shrink-0" />
+                    <span className="truncate">Open submitted link</span>
+                  </a>
+                )}
+
                 {/* Candidate's MCQ answers — selected option marked, correct in green */}
                 {asgInvite?.assessmentQuestions && asgInvite.assessmentQuestions.length > 0 && (
                   <div className="space-y-2">
