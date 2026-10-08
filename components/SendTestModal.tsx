@@ -75,11 +75,20 @@ interface SendTestModalProps {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // How long the candidate gets. HR chooses per send, because the right window
-// is a property of the task: a short exercise is not a brand campaign. The
-// first option is the default, matching what every send used before this.
+// is a property of the task: a short exercise is not a brand campaign.
+// Listed shortest first; the default is TAKE_HOME_DURATION_MIN, which is what
+// every send used before this was a choice.
 const TAKE_HOME_WINDOWS = [
-  { min: TAKE_HOME_DURATION_MIN, label: '1 hour' },
+  // The first few are re-send windows, not time to do the work: someone whose
+  // upload failed or who ran out of time by a minute gets a short second
+  // chance, without being handed another full hour.
+  { min: 2, label: '2 minutes' },
+  { min: 5, label: '5 minutes' },
+  { min: 10, label: '10 minutes' },
+  { min: 15, label: '15 minutes' },
   { min: 30, label: '30 minutes' },
+  { min: 45, label: '45 minutes' },
+  { min: 60, label: '1 hour' },
   { min: 90, label: '1 hour 30 minutes' },
   { min: 120, label: '2 hours' },
   { min: 240, label: '4 hours' },
