@@ -1467,14 +1467,14 @@ export default function CandidateDetailPage() {
       position,
       department: candidate.department,
       jobId: candidate.jobId,
-      // A take-home's window is HR's choice, made in the send dialog; the
-      // constant is only the fallback for an older client that sends none.
+      // HR picks the window in the send dialog for both an assessment and a
+      // take-home; the constants are the fallback for a payload without one.
+      // The IQ test keeps its own fixed length and is not offered a choice.
       durationMin:
         kind === 'iq'
           ? IQ_DURATION_MIN
-          : kind === 'take-home'
-            ? (r.takeHome?.durationMin ?? TAKE_HOME_DURATION_MIN)
-            : ASSESSMENT_DURATION_MIN,
+          : (r.durationMin ??
+            (kind === 'take-home' ? TAKE_HOME_DURATION_MIN : ASSESSMENT_DURATION_MIN)),
       status: 'Pending',
       // Assessment carries Question-Library questions the candidate answers on the
       // public assessment link (auto-scored), not a take-home upload.

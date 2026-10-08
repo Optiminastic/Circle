@@ -39,6 +39,9 @@ export interface SendTestResult {
   /** The test link, rendered in the email as a labelled anchor button (never a
    *  raw URL in the body). */
   links: { label: string; url: string }[];
+  /** How long the candidate gets, chosen by HR. Applies to both an MCQ
+   *  assessment and a take-home; the IQ test keeps its own fixed length. */
+  durationMin?: number;
   /** Selected assessment questions (assessment only). */
   questions?: AssessmentQuestion[];
   /** Set when HR chose "Assignment" instead of "MCQ Questions" for a non-IQ
@@ -50,8 +53,6 @@ export interface SendTestResult {
     deadlineIso: string;
     briefDocId: string;
     briefFileName: string;
-    /** How long the candidate gets, chosen by HR when sending. */
-    durationMin: number;
     /** A Drive folder the candidate uploads large work into. Empty when the
      *  task produces something small enough to upload here directly. */
     driveUploadUrl?: string;
@@ -316,9 +317,9 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
         subject: subject.trim(),
         body,
         links: [],
+        durationMin: windowMin,
         takeHome: {
           deadlineIso: new Date(Date.now() + windowMin * 60_000).toISOString(),
-          durationMin: windowMin,
           briefDocId,
           briefFileName,
           driveUploadUrl: driveUploadUrl.trim() || undefined,
@@ -480,6 +481,31 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
             </div>
           )}
 
+          {!isIq && (
+          <div>
+            <Label htmlFor="take-home-window" className="text-[11px] font-medium text-gray-600">
+              Time to complete
+            </Label>
+            <Select
+              id="take-home-window"
+              value={String(windowMin)}
+              onChange={e => setWindowMin(Number(e.target.value))}
+              className="mt-2 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm"
+            >
+              {TAKE_HOME_WINDOWS.map(w => (
+                <option key={w.min} value={w.min}>
+                  {w.label}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-[11px] text-gray-500">
+              {isTakeHome
+                ? 'Counts from when this is sent. The email says so, and the link stops accepting work once it is up.'
+                : 'How long the candidate has once they start the test.'}
+            </p>
+          </div>
+          )}
+
           {isTakeHome && (
             <div>
               <Label className="text-[11px] font-medium text-gray-600">Assignment file</Label>
@@ -537,29 +563,7 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
                 </Select>
               )}
 
-              <div>
-            <Label htmlFor="take-home-window" className="text-[11px] font-medium text-gray-600">
-              Time to complete
-            </Label>
-            <Select
-              id="take-home-window"
-              value={String(windowMin)}
-              onChange={e => setWindowMin(Number(e.target.value))}
-              className="mt-2 h-9 w-full rounded-sm border border-input bg-secondary/50 px-3 text-sm"
-            >
-              {TAKE_HOME_WINDOWS.map(w => (
-                <option key={w.min} value={w.min}>
-                  {w.label}
-                </option>
-              ))}
-            </Select>
-            <p className="mt-1 text-[11px] text-gray-500">
-              Counts from when this is sent. The email says so, and the link stops accepting work
-              once it is up.
-            </p>
-          </div>
-
-          {/* Work that is too large to upload here - a video answer can run
+              {/* Work that is too large to upload here - a video answer can run
                   to several hundred MB. The file never passes through Circle:
                   the candidate puts it in this folder and hands back a link. */}
               <div className="mt-3">
@@ -671,7 +675,7 @@ export function SendTestModal({ candidate, kind, testUrl, inviteId, onClose, onC
                 body,
                 // The link is embedded in the template body, not appended here.
                 links: [],
-                ...(isIq ? {} : { questions: selectedQuestions }),
+                ...(isIq ? {} : { durationMin: windowMin, questions: selectedQuestions }),
               });
             }}
           >
