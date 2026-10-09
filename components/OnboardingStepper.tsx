@@ -228,6 +228,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // persisted: it unblocks this session, and the next person to open the step
   // sees the gate again rather than inheriting someone else's decision.
   const [validationOverridden, setValidationOverridden] = useState(false);
+  const [selectChecksOpen, setSelectChecksOpen] = useState(false);
   // The offer letter uses a richer modal (attachment + signed-copy upload link).
   const [sendOfferOpen, setSendOfferOpen] = useState(false);
   const [sendAppointmentOpen, setSendAppointmentOpen] = useState(false);
@@ -305,7 +306,6 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const nothingToValidate = extractableSubs.length === 0;
   // OnGrid runs its checks against these values, so a digit the candidate never
   // looked at is a failed check against a real person - and a paid one.
-  const canExecuteBgv = candidateValidated || nothingToValidate || validationOverridden;
 
   // Live/expiry status of the joining-documents upload link, and a copy-link
   // action — shown on the Joining Documents step until it's fully verified.
@@ -326,6 +326,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     );
   };
   const bgv = bgvs.find(b => b.candidateId === checklist.candidateId);
+
+  // Which checks HR has chosen to run. Chosen first, because the choice is
+  // what decides which documents and claims the candidate is asked to
+  // confirm - asking them to vet everything before anyone has decided what
+  // will be verified is asking for work that may not be needed.
+  const chosenChecks = bgv?.services ?? [];
+  const checksChosen = chosenChecks.length > 0;
+  const validatedOrWaived = candidateValidated || nothingToValidate || validationOverridden;
+  const canExecuteBgv = checksChosen && validatedOrWaived;
   // What OnGrid is actually running, which is not the same as what was asked
   // for - only fetched once the candidate exists over there.
   const ongridStatus = useOngridStatus(candidate?.id, Boolean(bgv?.ongridIndividualId));
@@ -1012,6 +1021,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         '',
         'Before we send your background verification, please confirm that the details we read from your documents are correct.',
         '',
+        ...(chosenChecks.length
+          ? ['These are the checks we will run: ' + chosenChecks.join(', ') + '.', '']
+          : []),
         'Open your documents link and check each one:',
         link,
         '',
@@ -1347,8 +1359,42 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           onClose={() => setRequestDocsOpen(false)}
         />
       )}
+      {/* Step one: which verifications to run. Kept to the picker alone — the
+          details and the send happen later, after the candidate has confirmed
+          what these particular checks will be run against. */}
+      {selectChecksOpen && (
+        <StartBgvModal
+          selectOnly
+          preselected={chosenChecks}
+          onSelect={codes => {
+            setSelectChecksOpen(false);
+            if (!bgv) return;
+            updateBgv.mutate(
+              { ...bgv, services: codes },
+              {
+                onSuccess: () =>
+                  toast.success(
+                    `${codes.length} check(s) selected — ask the candidate to confirm their details next.`,
+                  ),
+                onError: () => toast.error('Could not save the selection — try again.'),
+              },
+            );
+          }}
+          extracted={bgv?.extractedFields}
+          claims={claims}
+          submissions={allSubmissions}
+          uploadedDocTypes={allSubmissions.map(sub => sub.docType)}
+          alreadyStarted={startedCodes}
+          isFresher={claims.isFresher}
+          candidateName={checklist.candidateName}
+          pending={updateBgv.isPending}
+          onStart={confirmBgv}
+          onClose={() => setSelectChecksOpen(false)}
+        />
+      )}
       {startBgvOpen && (
         <StartBgvModal
+          preselected={chosenChecks}
           extracted={bgv?.extractedFields}
           claims={claims}
           submissions={allSubmissions}
@@ -2013,6 +2059,22 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           {/* The candidate signs off on what OCR read before any of it
                               reaches OnGrid. Once they have, this turns into the badge
                               and Execute BGV unlocks. */}
+                          <button
+                            onClick={() => setSelectChecksOpen(true)}
+                            title={
+                              checksChosen
+                                ? `Chosen: ${chosenChecks.join(', ')}. Click to change.`
+                                : 'Choose which verifications to run — it decides what the candidate is asked to confirm'
+                            }
+                            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-semibold transition ${
+                              checksChosen
+                                ? 'border-line bg-surface text-gray-700 hover:bg-surface-sunken'
+                                : 'border-accent-300 bg-accent-50 text-accent-700 hover:bg-accent-100'
+                            }`}
+                          >
+                            <ShieldCheck size={13} />
+                            {checksChosen ? `${chosenChecks.length} check(s) selected` : 'Select checks'}
+                          </button>
                           {candidateValidated ? (
                             <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700">
                               <Check size={13} /> Validated by candidate
@@ -2020,11 +2082,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           ) : (
                             <button
                               onClick={openValidateEmail}
-                              disabled={nothingToValidate}
+                              disabled={nothingToValidate || !checksChosen}
                               title={
-                                nothingToValidate
-                                  ? 'No documents with extracted details yet — nothing for the candidate to confirm'
-                                  : `Email the candidate their existing link to confirm ${awaitingValidation.length} document(s)`
+                                !checksChosen
+                                  ? 'Select the checks first — they decide what the candidate confirms'
+                                  : nothingToValidate
+                                    ? 'No documents with extracted details yet — nothing for the candidate to confirm'
+                                    : `Email the candidate their existing link to confirm ${awaitingValidation.length} document(s)`
                               }
                               className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                             >
@@ -2055,8 +2119,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             onClick={() => setStartBgvOpen(true)}
                             disabled={ongridVerify.isPending || !canExecuteBgv}
                             title={
-                              !canExecuteBgv
-                                ? 'The candidate has not confirmed their document details yet'
+                              !checksChosen
+                                ? 'Select the checks first'
+                                : !validatedOrWaived
+                                  ? 'The candidate has not confirmed their document details yet'
                                 : bgvRunning
                                   ? `Already running: ${startedCodes.join(', ')}. Opens the dialog to start the ones that aren't.`
                                   : 'Choose checks, confirm the details, and send them to OnGrid'
@@ -2099,7 +2165,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               Mark verified
                             </button>
                           )}
-                          {!canExecuteBgv && (
+                          {checksChosen && !validatedOrWaived && (
                             <button
                               onClick={() =>
                                 toast.confirm({
@@ -2116,13 +2182,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             </button>
                           )}
                           <span className="text-[11px] text-gray-400">
-                            {candidateValidated
-                              ? 'The candidate confirmed their details — safe to send.'
-                              : nothingToValidate
-                                ? 'No extracted details to confirm.'
-                                : validationOverridden
-                                  ? 'Proceeding without the candidate’s confirmation.'
-                                  : 'Ask the candidate to confirm their details before sending.'}
+                            {!checksChosen
+                              ? 'Select the checks, have the candidate confirm their details, then send.'
+                              : candidateValidated
+                                ? 'The candidate confirmed their details — safe to send.'
+                                : nothingToValidate
+                                  ? 'No extracted details to confirm.'
+                                  : validationOverridden
+                                    ? 'Proceeding without the candidate’s confirmation.'
+                                    : 'Ask the candidate to confirm their details before sending.'}
                           </span>
                         </div>
                       )}

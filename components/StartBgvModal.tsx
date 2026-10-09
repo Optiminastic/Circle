@@ -51,6 +51,17 @@ interface Props {
    *  reviewed yet. `extracted` only fills once a document is verified. */
   submissions?: DocSubmission[];
   /**
+   * Show only the first step and hand the chosen codes back.
+   *
+   * Choosing the checks is what decides which documents and claims matter, so
+   * it happens before the candidate is asked to confirm anything - not buried
+   * at the end of the send.
+   */
+  selectOnly?: boolean;
+  /** Checks already chosen, so reopening the picker does not start blank. */
+  preselected?: string[];
+  onSelect?: (codes: string[]) => void;
+  /**
    * What the candidate already filled in on their documents portal. It
    * pre-fills the claim step, so HR types only what is still missing rather
    * than re-entering everything - and can correct anything that looks wrong.
@@ -103,6 +114,9 @@ export function StartBgvModal({
   pending,
   extracted,
   submissions,
+  selectOnly,
+  preselected,
+  onSelect,
   claims,
   uploadedDocTypes,
   alreadyStarted,
@@ -112,7 +126,7 @@ export function StartBgvModal({
   onClose,
 }: Props) {
   const toast = useToast();
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(preselected ?? []);
   // Three steps: pick the checks, fill in what they need, confirm and send.
   // The middle one is skipped when nothing the candidate can state is required.
   const [step, setStep] = useState<'pick' | 'details' | 'confirm'>('pick');
@@ -486,11 +500,25 @@ export function StartBgvModal({
             )}
             {step === 'pick' ? (
               <button
-                onClick={next}
+                onClick={() => {
+                  if (selected.length === 0) {
+                    toast.error('Select at least one verification check.');
+                    return;
+                  }
+                  if (selectOnly) {
+                    onSelect?.(selected);
+                    return;
+                  }
+                  next();
+                }}
                 disabled={selected.length === 0}
                 className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-1.5 text-[12.5px] font-semibold text-white transition hover:bg-accent-700 disabled:opacity-60"
               >
-                {neededSections.length > 0 ? 'Add details' : 'Review details'}
+                {selectOnly
+                  ? `Save ${selected.length || ''} selection`.replace('  ', ' ')
+                  : neededSections.length > 0
+                    ? 'Add details'
+                    : 'Review details'}
               </button>
             ) : step === 'details' ? (
               <button
