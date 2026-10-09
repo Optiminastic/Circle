@@ -37,7 +37,11 @@ import {
   useJoiningConfirmations,
 } from '@/features/candidates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
-import { claimsAcrossRequests, submissionsAcrossRequests } from '@/lib/onboarding-docs';
+import {
+  claimsAcrossRequests,
+  submissionsAcrossRequests,
+  supportsExtraction,
+} from '@/lib/onboarding-docs';
 import { useOngridOnboard, useOngridStatus, useOngridVerify } from '@/features/bgv/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -217,8 +221,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     null,
   );
   // Separate composer for the "documents invalid" email sent when HR rejects a BGV.
-  const [invalidEmail, setInvalidEmail] = useState<ComposerSeed | null>(null);
-  const [sendingInvalid, setSendingInvalid] = useState(false);
+  const [validateEmail, setValidateEmail] = useState<ComposerSeed | null>(null);
+  const [sendingValidate, setSendingValidate] = useState(false);
+  // HR's escape hatch for the candidate who never responds. Deliberately not
+  // persisted: it unblocks this session, and the next person to open the step
+  // sees the gate again rather than inheriting someone else's decision.
+  const [validationOverridden, setValidationOverridden] = useState(false);
   // The offer letter uses a richer modal (attachment + signed-copy upload link).
   const [sendOfferOpen, setSendOfferOpen] = useState(false);
   const [sendAppointmentOpen, setSendAppointmentOpen] = useState(false);
@@ -279,6 +287,24 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       ),
     [requests, checklist.candidateId],
   );
+
+  // Only the documents OCR can read are the candidate's to check: the rest
+  // carry no extracted values to be wrong about. With none of them uploaded
+  // there is nothing to validate, and the gate below must not invent a reason
+  // to block.
+  const extractableSubs = useMemo(
+    () => allSubmissions.filter(sub => supportsExtraction(sub.docType) && sub.extraction),
+    [allSubmissions],
+  );
+  const awaitingValidation = useMemo(
+    () => extractableSubs.filter(sub => !sub.extraction?.candidateConfirmedAt),
+    [extractableSubs],
+  );
+  const candidateValidated = extractableSubs.length > 0 && awaitingValidation.length === 0;
+  const nothingToValidate = extractableSubs.length === 0;
+  // OnGrid runs its checks against these values, so a digit the candidate never
+  // looked at is a failed check against a real person - and a paid one.
+  const canExecuteBgv = candidateValidated || nothingToValidate || validationOverridden;
 
   // Live/expiry status of the joining-documents upload link, and a copy-link
   // action — shown on the Joining Documents step until it's fully verified.
@@ -949,21 +975,35 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
 
   // Reject a BGV: open an editable email telling the candidate their documents /
   // details are invalid. Records the rejection on the BGV once the email is sent.
-  const openInvalidEmail = () => {
+  /** Ask the candidate to check what we read off their documents.
+   *
+   *  Sends their existing link rather than minting a new one: a fresh request
+   *  is a fresh record, and their uploads and answers would be left behind on
+   *  the old one. */
+  const openValidateEmail = () => {
     if (!candidate) return;
-    const role = candidate.appliedRole || 'the role';
-    setInvalidEmail({
-      title: 'Documents invalid',
+    if (!docRequest) {
+      toast.error('No documents link for this candidate yet — request documents first.');
+      return;
+    }
+    const link = `${window.location.origin}/onboarding-docs/${docRequest.id}`;
+    const pending = awaitingValidation.map(sub => sub.docType);
+    setValidateEmail({
+      title: 'Ask the candidate to validate',
       to: candidate.email || checklist.candidateEmail || '',
-      subject: 'Issue with your submitted documents — Optiminastic',
+      subject: 'Please confirm your document details — Optiminastic',
       body: [
         `Dear ${candidate.fullName || 'Candidate'},`,
         '',
-        `Thank you for submitting your documents for ${role}.`,
+        'Before we send your background verification, please confirm that the details we read from your documents are correct.',
         '',
-        'During verification, we found that some of the documents or details you provided could not be validated. This may be due to unclear scans, mismatched information, or missing documents.',
+        'Open your documents link and check each one:',
+        link,
         '',
-        'Please re-check and re-share the correct documents/details so we can proceed with your onboarding. If you have any questions, just reply to this email.',
+        ...(pending.length
+          ? ['Still to confirm: ' + pending.join(', '), '']
+          : []),
+        'Correct anything that is wrong and confirm it. These exact values are what the verification is run against, so a small mistake there means a check comes back failed.',
         '',
         'Warm regards,',
         'Optiminastic HR Team',
@@ -971,35 +1011,37 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     });
   };
 
-  const sendInvalidEmail = async (subject: string, body: string) => {
-    if (!invalidEmail) return;
-    const to = invalidEmail.to.trim();
+  const sendValidateEmail = async (subject: string, body: string) => {
+    if (!validateEmail) return;
+    const to = validateEmail.to.trim();
     if (!to) {
       toast.error('No candidate email on file to send to.');
       return;
     }
-    setSendingInvalid(true);
+    setSendingValidate(true);
     try {
       const res = await sendCustomEmail({ to, subject, body });
       if (res.sent) toast.success(`Sent to ${to}.`);
       else if (res.reason === 'not_configured') toast.info('Email not sent — SMTP is not configured.');
       else toast.info('The email could not be sent.');
-      // Record the rejection on the BGV record for the timeline.
       if (bgv) {
         updateBgv.mutate({
           ...bgv,
-          overallStatus: 'Rejected',
           verificationTimeline: [
             ...bgv.verificationTimeline,
-            { date: nowISO(), action: 'Documents marked invalid — candidate emailed', performedBy: 'HR' },
+            {
+              date: nowISO(),
+              action: 'Asked the candidate to confirm their document details',
+              performedBy: 'HR',
+            },
           ],
         });
       }
-      setInvalidEmail(null);
+      setValidateEmail(null);
     } catch {
       toast.error('Could not send the email — try again.');
     } finally {
-      setSendingInvalid(false);
+      setSendingValidate(false);
     }
   };
 
@@ -1226,13 +1268,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         onClose={() => setComposer(null)}
         onSend={sendFromComposer}
       />
-      {/* "Documents invalid" email, opened by the red Invalid button on the BGV step. */}
+      {/* "Please confirm your details" email, opened from the BGV step. */}
       <OnboardingEmailComposer
-        open={!!invalidEmail}
-        seed={invalidEmail}
-        sending={sendingInvalid}
-        onClose={() => setInvalidEmail(null)}
-        onSend={sendInvalidEmail}
+        open={!!validateEmail}
+        seed={validateEmail}
+        sending={sendingValidate}
+        onClose={() => setValidateEmail(null)}
+        onSend={sendValidateEmail}
       />
       {/* "Please re-upload your signed letter" email, opened by the Request
           re-upload button on either signed-letter step. */}
@@ -1920,25 +1962,32 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                       !!bgv?.ongridIndividualId &&
                       !bgvVerified && (
                         <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={() => setBgvReportModalOpen(true)}
-                            disabled={updateBgv.isPending}
-                            title="Confirm you've checked OnGrid and the candidate is verified"
-                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                          >
-                            {updateBgv.isPending ? (
-                              <Loader2 size={13} className="animate-spin" />
-                            ) : (
-                              <Check size={13} />
-                            )}
-                            Verify
-                          </button>
-                          <button
-                            onClick={openInvalidEmail}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-red-600 px-3 text-[12px] font-semibold text-white transition hover:bg-red-700"
-                          >
-                            <XCircle size={13} /> Invalid
-                          </button>
+                          {/* The candidate signs off on what OCR read before any of it
+                              reaches OnGrid. Once they have, this turns into the badge
+                              and Execute BGV unlocks. */}
+                          {candidateValidated ? (
+                            <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700">
+                              <Check size={13} /> Validated by candidate
+                            </span>
+                          ) : (
+                            <button
+                              onClick={openValidateEmail}
+                              disabled={nothingToValidate}
+                              title={
+                                nothingToValidate
+                                  ? 'No documents with extracted details yet — nothing for the candidate to confirm'
+                                  : `Email the candidate their existing link to confirm ${awaitingValidation.length} document(s)`
+                              }
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            >
+                              <Send size={13} /> Validate
+                            </button>
+                          )}
+                          {!candidateValidated && !nothingToValidate && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                              {awaitingValidation.length} awaiting the candidate
+                            </span>
+                          )}
                           {/* Onboarding alone never asked OnGrid to check anything, so
                               a candidate can be "sent" with no checks running. What
                               this button offers depends on what OnGrid says is
@@ -1956,11 +2005,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           )}
                           <button
                             onClick={() => setStartBgvOpen(true)}
-                            disabled={ongridVerify.isPending}
+                            disabled={ongridVerify.isPending || !canExecuteBgv}
                             title={
-                              bgvRunning
-                                ? `Already running: ${startedCodes.join(', ')}. Opens the dialog to start the ones that aren't.`
-                                : 'Choose checks, confirm the details, and send them to OnGrid'
+                              !canExecuteBgv
+                                ? 'The candidate has not confirmed their document details yet'
+                                : bgvRunning
+                                  ? `Already running: ${startedCodes.join(', ')}. Opens the dialog to start the ones that aren't.`
+                                  : 'Choose checks, confirm the details, and send them to OnGrid'
                             }
                             className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[12px] font-semibold transition disabled:opacity-60 ${
                               bgvRunning
@@ -1982,8 +2033,48 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               progress
                             </span>
                           )}
+                          {/* Recording the outcome belongs after the checks, not before
+                              them: there is nothing to verify until OnGrid has run
+                              something. This is also what closes the step. */}
+                          {startedCodes.length > 0 && (
+                            <button
+                              onClick={() => setBgvReportModalOpen(true)}
+                              disabled={updateBgv.isPending}
+                              title="Record the OnGrid outcome and attach the report"
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
+                            >
+                              {updateBgv.isPending ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <Check size={13} />
+                              )}
+                              Mark verified
+                            </button>
+                          )}
+                          {!canExecuteBgv && (
+                            <button
+                              onClick={() =>
+                                toast.confirm({
+                                  title: 'Run the checks without the candidate confirming?',
+                                  description:
+                                    'OnGrid runs against the values read off their documents. If one was misread, the check comes back failed against a real person and still costs.',
+                                  confirmLabel: 'Run anyway',
+                                  onConfirm: () => setValidationOverridden(true),
+                                })
+                              }
+                              className="text-[11px] font-semibold text-gray-500 underline underline-offset-2 transition hover:text-gray-700"
+                            >
+                              Run without waiting
+                            </button>
+                          )}
                           <span className="text-[11px] text-gray-400">
-                            Check the candidate on OnGrid, then confirm Verify (verified) or Invalid.
+                            {candidateValidated
+                              ? 'The candidate confirmed their details — safe to send.'
+                              : nothingToValidate
+                                ? 'No extracted details to confirm.'
+                                : validationOverridden
+                                  ? 'Proceeding without the candidate’s confirmation.'
+                                  : 'Ask the candidate to confirm their details before sending.'}
                           </span>
                         </div>
                       )}
