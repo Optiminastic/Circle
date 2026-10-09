@@ -86,3 +86,20 @@ export const ALL_BGV_CHECKS: BgvCheck[] = BGV_CATALOG.flatMap(n =>
 /** Look a check up by its stored shortform. */
 export const bgvCheckByCode = (code: string): BgvCheck | undefined =>
   ALL_BGV_CHECKS.find(c => c.code === code);
+
+/**
+ * The one status word we have actually seen OnGrid return for a check that has
+ * not finished.
+ *
+ * Everything else is passed through untranslated, here as everywhere else: a
+ * finished check's word is OnGrid's to define, and mapping an unseen value
+ * onto "passed" or "failed" would be inventing a verdict. Until a real check
+ * completes against the production community, "running" and "finished" is the
+ * most this can honestly say.
+ */
+export const ONGRID_IN_PROGRESS = 'INPROGRESS';
+
+/** Is this check still with OnGrid? Spelling is normalised because the same
+ *  state has arrived as "INPROGRESS" and "IN_PROGRESS" from their side. */
+export const isCheckRunning = (status: string | undefined): boolean =>
+  (status ?? '').trim().toUpperCase().replace(/[\s_-]/g, '') === ONGRID_IN_PROGRESS;

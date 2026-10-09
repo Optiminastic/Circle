@@ -76,7 +76,7 @@ import { RequestDocumentsModal } from '@/components/RequestDocumentsModal';
 import { StartBgvModal } from '@/components/StartBgvModal';
 import { VerifyBgvReportModal } from '@/components/VerifyBgvReportModal';
 import { RefreshButton } from '@/components/RefreshButton';
-import { bgvCheckByCode } from '@/lib/bgv-services';
+import { bgvCheckByCode, isCheckRunning } from '@/lib/bgv-services';
 import {
   buildOnboardingEmailDraft,
   buildBuddyEmailDraft,
@@ -1832,21 +1832,52 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 {ongridStatus.isFetching && (
                                   <Loader2 size={9} className="animate-spin" />
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={() => ongridStatus.refetch()}
+                                  disabled={ongridStatus.isFetching}
+                                  title="Read the latest from OnGrid now"
+                                  className="font-sans text-[9.5px] font-semibold normal-case tracking-normal text-accent-700 underline underline-offset-2 transition hover:text-accent-800 disabled:opacity-50"
+                                >
+                                  Refresh
+                                </button>
+                                {ongridStatus.dataUpdatedAt > 0 && (
+                                  <span className="font-sans text-[9.5px] font-normal normal-case tracking-normal text-gray-400">
+                                    read{' '}
+                                    {new Date(ongridStatus.dataUpdatedAt).toLocaleTimeString([], {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                )}
                               </p>
                               {liveChecks.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
                                   {liveChecks.map(({ code, status }) => {
                                     const check = bgvCheckByCode(code);
+                                    // Running or finished is all this can honestly say
+                                    // — what a finished check's word means is OnGrid's
+                                    // to define, so it is shown verbatim rather than
+                                    // coloured into a verdict we invented.
+                                    const running = isCheckRunning(status);
                                     return (
                                       <span
                                         key={code}
-                                        title={check?.name ?? code}
-                                        className="inline-flex items-center gap-1 rounded-sm border border-emerald-200 bg-surface px-1.5 py-0.5 text-[10.5px] text-gray-700"
+                                        title={`${check?.name ?? code} — OnGrid says ${status}`}
+                                        className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10.5px] ${
+                                          running
+                                            ? 'border-amber-200 bg-amber-50 text-amber-900'
+                                            : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                                        }`}
                                       >
                                         <span className="font-mono text-[9.5px] font-bold text-accent-700">
                                           {code}
                                         </span>
-                                        <span className="font-mono text-[9px] uppercase text-gray-500">
+                                        <span
+                                          className={`font-mono text-[9px] uppercase ${
+                                            running ? 'text-amber-700' : 'font-bold text-emerald-800'
+                                          }`}
+                                        >
                                           {status}
                                         </span>
                                       </span>

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ClaimDetails } from '@/lib/bgv-claim-fields';
+import { isCheckRunning } from '@/lib/bgv-services';
 import { apiBase } from '@/lib/api-base';
 import { qk } from '@/lib/query/keys';
 
@@ -140,13 +141,26 @@ async function ongridStatus(candidateId: string): Promise<OngridStatusResult> {
  * This is what decides whether verification is under way, so it has to be the
  * side that is true.
  */
+/** Slow on purpose: a background check takes days, and every poll is a call to
+ *  OnGrid. This is only to spare HR a manual reload, not to catch a result the
+ *  second it lands. */
+const ONGRID_STATUS_POLL_MS = 120_000;
+
 export function useOngridStatus(candidateId?: string, enabled = true) {
   return useQuery({
     queryKey: ['ongrid-status', candidateId] as const,
     queryFn: () => ongridStatus(candidateId as string),
     enabled: Boolean(candidateId) && enabled,
-    // Checks take days; polling hard would spend OnGrid calls for nothing.
+    // Checks take days; polling hard would spend OnGrid calls for nothing. So
+    // poll only while something is actually with them, and stop the moment the
+    // last one finishes - otherwise a result sits unseen until someone happens
+    // to reload the page.
     staleTime: 60_000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: query => {
+      const data = query.state.data;
+      const running = data?.ok ? (data.checks ?? []).some(c => isCheckRunning(c.status)) : false;
+      return running ? ONGRID_STATUS_POLL_MS : false;
+    },
   });
 }
