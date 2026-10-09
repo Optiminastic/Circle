@@ -8,7 +8,7 @@
  * file uploads (`kind: 'file'`); 'Bank details' and 'Reference contacts' are
  * forms instead.
  */
-import { RequiredDocType } from '@/types';
+import type { DocRequest, DocSubmission, RequiredDocType } from '@/types';
 
 /** How the portal collects the item. */
 export type DocItemKind = 'file' | 'bank' | 'references';
@@ -180,3 +180,83 @@ export const DOC_REQUEST_TTL_HOURS = 24;
  */
 export const ONGRID_CONSENT_TEXT =
   "The Individual does not and will not have any objection to Optiminastic sharing the Individual's personal information and/or documents, including but not limited to name, gender, date of birth, addresses, mobile number, email, education record, employment record, Aadhaar number, other government-issued IDs such as Voter ID, PAN card, driving license, etc. (collectively Proprietary Information) with OnGrid (Handy Online Solutions Private Limited) for the purpose of background checks and verification. The individual understands that OnGrid maintains Proprietary Information on its platform in a secure manner, and it will only be accessible to Optiminastic and it's associates/partners/affiliates, and will not be shared with any other individual or organization without the Individual's explicit consent.";
+
+// ---------------------------------------------------------------------------
+// Reading a candidate across every link they were sent.
+//
+// Re-issuing a request mints a brand new record, so one candidate's answers and
+// uploads end up spread over several. Reading a single request - even "the
+// fullest one" - silently loses whatever lives on the others: a qualification
+// typed on the first link disappears the moment a second link collects the
+// documents, and HR is asked to type it again with no sign it was ever there.
+// ---------------------------------------------------------------------------
+
+/** Every joining-documents request this candidate was sent. */
+export const requestsForCandidate = (requests: DocRequest[], candidateId: string): DocRequest[] =>
+  requests.filter(r => r.candidateId === candidateId && r.kind !== 'signed-offer');
+
+/** How many of a claim record's fields the candidate actually filled in. */
+const filledCount = (record: object | undefined): number =>
+  Object.values(record ?? {}).filter(v => String(v ?? '').trim()).length;
+
+/**
+ * The fullest version of one claim across every link.
+ *
+ * Picked whole rather than merged field by field: two links may hold two
+ * different qualifications, and stitching them together would invent a third
+ * that the candidate never stated.
+ */
+function fullestClaim<T extends object>(
+  requests: DocRequest[],
+  pick: (request: DocRequest) => T | undefined,
+): T | undefined {
+  let best: { value: T; filled: number; at: string } | undefined;
+  requests.forEach(request => {
+    const value = pick(request);
+    const filled = filledCount(value);
+    if (!value || filled === 0) return;
+    const at = request.updatedAt ?? request.createdAt ?? '';
+    // More complete wins; between equals, the more recent one does.
+    if (!best || filled > best.filled || (filled === best.filled && at >= best.at)) {
+      best = { value, filled, at };
+    }
+  });
+  return best?.value;
+}
+
+/** What the candidate has stated about themselves, from wherever they stated it. */
+export function claimsAcrossRequests(requests: DocRequest[], candidateId: string) {
+  // Newest first, so a plain "first one set" answers with the latest.
+  const mine = requestsForCandidate(requests, candidateId).sort((a, b) =>
+    (b.createdAt ?? '').localeCompare(a.createdAt ?? ''),
+  );
+  return {
+    uan: mine.map(r => r.uan).find(v => String(v ?? '').trim()),
+    isFresher: mine.map(r => r.isFresher).find(v => v !== undefined),
+    education: fullestClaim(mine, r => r.education),
+    employment: fullestClaim(mine, r => r.employment),
+    permanentAddress: fullestClaim(mine, r => r.permanentAddress),
+  };
+}
+
+/** One submission per document type, across every link, with the request that
+ *  owns it - reviewing a document has to post back to its own record. */
+export function submissionsAcrossRequests(
+  requests: DocRequest[],
+  candidateId: string,
+): Map<string, { sub: DocSubmission; requestId: string }> {
+  const map = new Map<string, { sub: DocSubmission; requestId: string }>();
+  const rank = (s: DocSubmission) => (s.status === 'Verified' ? 1 : 0);
+  requestsForCandidate(requests, candidateId).forEach(request =>
+    (request.submissions ?? []).forEach(sub => {
+      const held = map.get(sub.docType);
+      // A verified upload wins; between equals, the most recent one does.
+      const wins =
+        !held ||
+        rank(sub) > rank(held.sub) ||
+        (rank(sub) === rank(held.sub) && (sub.uploadedAt ?? '') >= (held.sub.uploadedAt ?? ''));
+      if (wins) map.set(sub.docType, { sub, requestId: request.id });
+    }),
+  );
+  return map;
+}

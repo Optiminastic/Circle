@@ -30,6 +30,7 @@ import {
   needsBank,
   needsReferences,
   isSubmissionLocked,
+  submissionsAcrossRequests,
   supportsExtraction,
 } from '@/lib/onboarding-docs';
 import { DocExtractionReview } from '@/components/DocExtractionReview';
@@ -108,26 +109,10 @@ export function DocRequestPanel({ candidateId, candidateName, email }: DocReques
    * The owning request travels with each one, because verifying a document
    * posts to the request it actually belongs to.
    */
-  const submittedFor = useMemo(() => {
-    type Held = { sub: NonNullable<DocRequest['submissions']>[number]; requestId: string };
-    const map = new Map<string, Held>();
-    const rank = (s: Held['sub']) => (s.status === 'Verified' ? 1 : 0);
-    requests
-      .filter(r => r.candidateId === candidateId && r.kind !== 'signed-offer')
-      .forEach(r =>
-        (r.submissions ?? []).forEach(sub => {
-          const held = map.get(sub.docType);
-          // A verified upload wins; between equals, the most recent one does.
-          const wins =
-            !held ||
-            rank(sub) > rank(held.sub) ||
-            (rank(sub) === rank(held.sub) &&
-              (sub.uploadedAt ?? '') >= (held.sub.uploadedAt ?? ''));
-          if (wins) map.set(sub.docType, { sub, requestId: r.id });
-        }),
-      );
-    return map;
-  }, [requests, candidateId]);
+  const submittedFor = useMemo(
+    () => submissionsAcrossRequests(requests, candidateId),
+    [requests, candidateId],
+  );
 
   const requestLink = request ? `${window.location.origin}/onboarding-docs/${request.id}` : '';
 

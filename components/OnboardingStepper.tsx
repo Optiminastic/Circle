@@ -37,6 +37,7 @@ import {
   useJoiningConfirmations,
 } from '@/features/candidates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
+import { claimsAcrossRequests, submissionsAcrossRequests } from '@/lib/onboarding-docs';
 import { useOngridOnboard, useOngridStatus, useOngridVerify } from '@/features/bgv/hooks';
 import { sendCustomEmail } from '@/lib/api/notifications';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -263,6 +264,22 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         ((a.submissions?.length ?? 0) + (a.bankDetails?.accountNumber ? 1 : 0)) ||
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )[0];
+  // What the candidate stated and uploaded, gathered across every link they
+  // were sent rather than off the one request shown above. A re-issued link
+  // leaves the earlier answers behind, and reading a single record is what put
+  // HR in front of a blank form next to documents the candidate had filled in.
+  const claims = useMemo(
+    () => claimsAcrossRequests(requests, checklist.candidateId),
+    [requests, checklist.candidateId],
+  );
+  const allSubmissions = useMemo(
+    () =>
+      Array.from(submissionsAcrossRequests(requests, checklist.candidateId).values()).map(
+        held => held.sub,
+      ),
+    [requests, checklist.candidateId],
+  );
+
   // Live/expiry status of the joining-documents upload link, and a copy-link
   // action — shown on the Joining Documents step until it's fully verified.
   const docReqLive = docRequest ? isDocRequestLive(docRequest) : false;
@@ -1276,16 +1293,11 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       {startBgvOpen && (
         <StartBgvModal
           extracted={bgv?.extractedFields}
-          claims={{
-            uan: docRequest?.uan,
-            education: docRequest?.education,
-            employment: docRequest?.employment,
-            permanentAddress: docRequest?.permanentAddress,
-          }}
-          submissions={docRequest?.submissions}
-          uploadedDocTypes={(docRequest?.submissions ?? []).map(sub => sub.docType)}
+          claims={claims}
+          submissions={allSubmissions}
+          uploadedDocTypes={allSubmissions.map(sub => sub.docType)}
           alreadyStarted={startedCodes}
-          isFresher={docRequest?.isFresher}
+          isFresher={claims.isFresher}
           onRequestDocuments={() => {
             setStartBgvOpen(false);
             requestDocs();
