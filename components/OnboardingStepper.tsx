@@ -39,6 +39,7 @@ import {
 import { useSentEmails } from '@/features/email/hooks';
 import {
   claimsAcrossRequests,
+  requiredFileDocTypes,
   submissionsAcrossRequests,
   supportsExtraction,
 } from '@/lib/onboarding-docs';
@@ -390,8 +391,18 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     (Boolean(signedAppointmentDoc) && !signedAppointmentRejected);
 
 
-  const verifiedCount = docRequest?.submissions?.filter(s => s.status === 'Verified').length ?? 0;
-  const requiredCount = docRequest?.requiredDocs?.length ?? 0;
+  // Counted over the documents still being asked for, on both sides of the
+  // fraction. Counting every verified upload against the required list made
+  // "7 of 5 verified" possible the moment HR narrowed a re-request, and
+  // counting bank details and references as files overstated the denominator.
+  const requiredFileTypes = useMemo(
+    () => requiredFileDocTypes(docRequest?.requiredDocs),
+    [docRequest?.requiredDocs],
+  );
+  const requiredCount = requiredFileTypes.length;
+  const verifiedCount = requiredFileTypes.filter(type =>
+    allSubmissions.some(sub => sub.docType === type && sub.status === 'Verified'),
+  ).length;
   const docsRequested = Boolean(docRequest);
   const docsVerified = docRequest?.status === 'Verified';
   // HR can explicitly proceed past this step without every doc verified — an

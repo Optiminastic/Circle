@@ -114,27 +114,26 @@ export function useDocRequestMutations() {
         // Re-requesting also updates what's asked for, so HR can add or drop
         // items on an existing link.
         //
-        // Dropping one the candidate has ALREADY uploaded is the exception. The
-        // panel renders a card per requiredDocs and looks a submission up for
-        // each, so a type that is no longer asked for has nothing to render
-        // into and its upload becomes invisible - the file is still on the
-        // record and still in storage, but nobody can see or verify it. Keeping
-        // those types is what the employee branch above already does.
-        const uploaded = (live.submissions ?? []).map(s => s.docType);
-        const keptDocs = Array.from(new Set([...requiredDocs, ...uploaded]));
+        // Including dropping one the candidate has already uploaded. That used
+        // to be forced back in, because the panel rendered a card per
+        // requiredDocs and a dropped type had nothing to render into - the file
+        // stayed on the record and in storage, visible on no screen. The panel
+        // now keeps a card for anything on file whether it is still asked for
+        // or not, so the selection can be taken at face value: what HR ticks is
+        // what the link asks for, and what was already sent stays reviewable.
         const isFresher = input.isFresher ?? live.isFresher;
         request = {
           ...live,
           email: input.email || live.email,
           role: input.role ?? live.role,
-          requiredDocs: keptDocs,
+          requiredDocs,
           isFresher,
           expiresAt,
         };
         await repositories.docRequests.patch(live.id, {
           email: request.email,
           role: request.role,
-          requiredDocs: keptDocs,
+          requiredDocs,
           isFresher,
           expiresAt,
         });
@@ -165,11 +164,10 @@ export function useDocRequestMutations() {
         const prior = input.prior ?? existing[0];
         const carried = prior?.submissions ?? [];
         const bank = prior?.bankDetails;
-        // Carried uploads keep their types asked for, for the same reason as
-        // the live branch above: a type with no card is a file nobody can see.
-        const carriedDocs = Array.from(
-          new Set([...requiredDocs, ...carried.map(s => s.docType)]),
-        );
+        // The uploads travel to the new link, but they no longer drag their
+        // types back into requiredDocs - see the live branch above. A carried
+        // upload of something HR has since dropped stays on the record and
+        // stays reviewable; it is simply not asked for again.
         // Only the required file items gate completion (optional ones like the
         // "current offer letter" don't); bank is judged separately, when requested.
         // Status is checked explicitly - `carried` holds every submission now,
@@ -187,7 +185,7 @@ export function useDocRequestMutations() {
           candidateName: input.candidateName,
           email: input.email,
           role: input.role,
-          requiredDocs: carriedDocs,
+          requiredDocs,
           // Carried from the previous link when HR did not say either way, so
           // a resend never silently un-declares a fresher.
           isFresher: input.isFresher ?? prior?.isFresher,
