@@ -1282,6 +1282,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
             employment: docRequest?.employment,
             permanentAddress: docRequest?.permanentAddress,
           }}
+          submissions={docRequest?.submissions}
           uploadedDocTypes={(docRequest?.submissions ?? []).map(sub => sub.docType)}
           alreadyStarted={startedCodes}
           isFresher={docRequest?.isFresher}

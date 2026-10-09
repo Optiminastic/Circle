@@ -58,28 +58,66 @@ export interface ClaimPrefill {
 
 const EMPTY: ClaimPrefill = { values: {}, sources: {} };
 
-/** What the uploaded documents can answer on the candidate's behalf. */
-export function claimPrefill(submissions: DocSubmission[] | undefined): ClaimPrefill {
-  if (!submissions?.length) return EMPTY;
+/** Read values keyed by document type, the way HR's `bgv.extractedFields` is. */
+export type ExtractedByDocType = Record<string, Record<string, string>>;
 
-  const extracted = new Map<string, DocSubmission>();
-  submissions.forEach(submission => {
-    if (submission.extraction?.fields) {
-      extracted.set((submission.docType || '').trim().toLowerCase(), submission);
+/**
+ * The core mapping, over whatever has been read off the documents.
+ *
+ * Both screens that ask for these claims go through here - the candidate's
+ * portal and HR's dialog - so neither can end up asking for something the
+ * other already knows.
+ */
+export function claimPrefillFrom(extracted: ExtractedByDocType | undefined): ClaimPrefill {
+  const byType = new Map<string, { label: string; fields: Record<string, string> }>();
+  Object.entries(extracted ?? {}).forEach(([docType, fields]) => {
+    if (fields && Object.keys(fields).length) {
+      byType.set((docType || '').trim().toLowerCase(), { label: docType, fields });
     }
   });
-  if (extracted.size === 0) return EMPTY;
+  if (byType.size === 0) return EMPTY;
 
   const prefill: ClaimPrefill = { values: {}, sources: {} };
   MAPPINGS.forEach(({ docType, from, section, to }) => {
-    const submission = extracted.get(docType.toLowerCase());
-    const value = (submission?.extraction?.fields ?? {})[from];
-    if (!submission || !String(value ?? '').trim()) return;
+    const document = byType.get(docType.toLowerCase());
+    const value = document?.fields[from];
+    if (!document || !String(value ?? '').trim()) return;
 
     prefill.values[section] = { ...(prefill.values[section] ?? {}), [to]: value };
-    prefill.sources[section] = { ...(prefill.sources[section] ?? {}), [to]: submission.docType };
+    prefill.sources[section] = { ...(prefill.sources[section] ?? {}), [to]: document.label };
   });
   return prefill;
+}
+
+/** What the uploaded documents can answer on the candidate's behalf. */
+export function claimPrefill(submissions: DocSubmission[] | undefined): ClaimPrefill {
+  if (!submissions?.length) return EMPTY;
+  return claimPrefillFrom(extractedByDocType(submissions));
+}
+
+/**
+ * Flatten submissions to the keyed shape, optionally letting values HR has
+ * already reviewed override the raw read of the same document.
+ *
+ * A reviewed value is a person's correction of OCR, so it wins; the raw read
+ * still matters because extraction runs as soon as a document is opened, while
+ * `bgv.extractedFields` is only written once HR verifies one.
+ */
+export function extractedByDocType(
+  submissions: DocSubmission[] | undefined,
+  reviewed?: ExtractedByDocType,
+): ExtractedByDocType {
+  const byType: ExtractedByDocType = {};
+  (submissions ?? []).forEach(submission => {
+    const fields = submission.extraction?.fields;
+    if (fields && Object.keys(fields).length) byType[submission.docType] = { ...fields };
+  });
+  Object.entries(reviewed ?? {}).forEach(([docType, fields]) => {
+    if (fields && Object.keys(fields).length) {
+      byType[docType] = { ...(byType[docType] ?? {}), ...fields };
+    }
+  });
+  return byType;
 }
 
 /**

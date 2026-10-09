@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X, Loader2, Fingerprint, AlertTriangle, ArrowLeft, ScanLine, Send } from 'lucide-react';
 import {
   BGV_CATALOG,
@@ -27,6 +27,13 @@ import {
   type ClaimSection,
   type ClaimValue,
 } from '@/lib/bgv-claim-fields';
+import {
+  claimPrefillFrom,
+  extractedByDocType,
+  visibleSources,
+  withPrefill,
+} from '@/lib/bgv-prefill';
+import type { DocSubmission } from '@/types';
 import { ClaimFields, MissingNote } from '@/components/bgv/ClaimFields';
 import { useToast } from './Toaster';
 import { ModalShell } from '@/components/ui/modal-shell';
@@ -40,6 +47,9 @@ interface Props {
    * these values, and a wrong digit means a failed check against a real person.
    */
   extracted?: Record<string, Record<string, string>>;
+  /** The candidate's uploaded documents, for values OCR read but HR has not
+   *  reviewed yet. `extracted` only fills once a document is verified. */
+  submissions?: DocSubmission[];
   /**
    * What the candidate already filled in on their documents portal. It
    * pre-fills the claim step, so HR types only what is still missing rather
@@ -92,6 +102,7 @@ export function StartBgvModal({
   candidateName,
   pending,
   extracted,
+  submissions,
   claims,
   uploadedDocTypes,
   alreadyStarted,
@@ -106,12 +117,21 @@ export function StartBgvModal({
   // The middle one is skipped when nothing the candidate can state is required.
   const [step, setStep] = useState<'pick' | 'details' | 'confirm'>('pick');
   const [dataConfirmed, setDataConfirmed] = useState(false);
-  // Seeded from the candidate's portal answers; HR edits from there.
+  // Three sources, in order of authority: what the candidate stated on their
+  // portal, then what HR reviewed off a document, then the raw read. HR should
+  // never retype something one of the three already knows.
+  const prefill = useMemo(
+    () => claimPrefillFrom(extractedByDocType(submissions, extracted)),
+    [submissions, extracted],
+  );
   const [values, setValues] = useState<Record<ClaimSection, ClaimValue>>(() => ({
-    uan: claims?.uan ? { uan: claims.uan } : {},
-    education: toClaimValue(claims?.education),
-    employment: toClaimValue(claims?.employment),
-    permanentAddress: toClaimValue(claims?.permanentAddress),
+    uan: withPrefill(prefill.values.uan, claims?.uan ? { uan: claims.uan } : {}),
+    education: withPrefill(prefill.values.education, toClaimValue(claims?.education)),
+    employment: withPrefill(prefill.values.employment, toClaimValue(claims?.employment)),
+    permanentAddress: withPrefill(
+      prefill.values.permanentAddress,
+      toClaimValue(claims?.permanentAddress),
+    ),
   }));
 
   // Only the claims the chosen checks actually need are asked for.
@@ -337,6 +357,11 @@ export function StartBgvModal({
                       setValues(prev => ({ ...prev, [section]: nextValue }))
                     }
                     idPrefix="hr"
+                    sources={visibleSources(
+                      prefill.sources[section],
+                      prefill.values[section],
+                      values[section],
+                    )}
                   />
                   <MissingNote section={section} value={values[section]} />
                 </section>
