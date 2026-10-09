@@ -876,6 +876,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     } check(s) requested, ${up} document(s) uploaded.`,
                   );
                   setStartBgvOpen(false);
+                } else if (v.reason === 'different_ongrid_community') {
+                  toast.error(
+                    'This candidate belongs to a different OnGrid community — clear the old link before running checks here.',
+                  );
                 } else if (v.reason === 'no_services') {
                   toast.error('No checks were selected.');
                 } else {
@@ -1888,8 +1892,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 <p className="text-[10.5px] text-gray-500">
                                   {ongridStatus.isLoading
                                     ? 'Checking with OnGrid…'
-                                    : ongridStatus.data?.ok === false
-                                      ? `Could not read the status from OnGrid${ongridStatus.data.reason ? ` — ${ongridStatus.data.reason}` : ''}.`
+                                    : ongridStatus.data?.reason === 'different_ongrid_community'
+                                      ? 'This candidate was sent to a different OnGrid community (the staging one). That id means someone else here, so nothing is read from it — run Execute BGV to send them to this community.'
+                                      : ongridStatus.data?.ok === false
+                                        ? `Could not read the status from OnGrid${ongridStatus.data.reason ? ` — ${ongridStatus.data.reason}` : ''}.`
                                       : 'No checks are running yet. The documents are uploaded; use Execute BGV to start them.'}
                                 </p>
                               )}
