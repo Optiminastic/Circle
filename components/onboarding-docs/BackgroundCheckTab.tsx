@@ -18,7 +18,7 @@
  * dialog so the two screens ask for exactly the same things.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, Save } from 'lucide-react';
 import {
@@ -28,6 +28,7 @@ import {
   type ClaimSection,
   type ClaimValue,
 } from '@/lib/bgv-claim-fields';
+import { claimPrefill, visibleSources, withPrefill } from '@/lib/bgv-prefill';
 import { ClaimFields, MissingNote } from '@/components/bgv/ClaimFields';
 import {
   saveDocRequestEducation,
@@ -36,7 +37,7 @@ import {
   saveDocRequestPermanentAddress,
   saveDocRequestUan,
 } from '@/lib/api/doc-requests';
-import { EducationRecord, EmploymentRecord, PermanentAddress } from '@/types';
+import { DocSubmission, EducationRecord, EmploymentRecord, PermanentAddress } from '@/types';
 
 export interface BackgroundCheckTabProps {
   token: string;
@@ -48,6 +49,8 @@ export interface BackgroundCheckTabProps {
   education?: EducationRecord;
   employment?: EmploymentRecord;
   permanentAddress?: PermanentAddress;
+  /** The candidate's uploaded documents, for what OCR read off them. */
+  submissions?: DocSubmission[];
   onError: (message: string) => void;
 }
 
@@ -59,9 +62,13 @@ export function BackgroundCheckTab({
   education: savedEducation,
   employment: savedEmployment,
   permanentAddress: savedAddress,
+  submissions,
   onError,
 }: BackgroundCheckTabProps) {
   const qc = useQueryClient();
+  // What the uploaded documents already answer. Only ever fills a gap - see
+  // `withPrefill` - so it cannot overwrite a saved value or one being typed.
+  const prefill = useMemo(() => claimPrefill(submissions), [submissions]);
   const [fresher, setFresher] = useState(false);
   const [values, setValues] = useState<Record<ClaimSection, ClaimValue>>({
     uan: {},
@@ -73,10 +80,27 @@ export function BackgroundCheckTab({
   // Seed each section from whatever was saved before, once it arrives. Guarded
   // on the saved value so a later refetch can't overwrite what is being typed.
   const seed = (section: ClaimSection, saved: object | undefined) =>
-    setValues(prev => ({ ...prev, [section]: toClaimValue(saved) }));
+    setValues(prev => ({
+      ...prev,
+      [section]: withPrefill(prefill.values[section], toClaimValue(saved)),
+    }));
   useEffect(() => {
     if (savedUan) seed('uan', { uan: savedUan });
   }, [savedUan]);
+  // Nothing saved yet is the common case on a first visit, and the seeds above
+  // only run when there is. Apply the suggestions on their own so the form
+  // opens part-filled rather than blank.
+  useEffect(() => {
+    setValues(prev =>
+      (Object.keys(prefill.values) as ClaimSection[]).reduce(
+        (next, section) => ({
+          ...next,
+          [section]: withPrefill(prefill.values[section], prev[section]),
+        }),
+        prev,
+      ),
+    );
+  }, [prefill]);
   useEffect(() => {
     if (savedIsFresher !== undefined) setFresher(savedIsFresher);
   }, [savedIsFresher]);
@@ -156,6 +180,11 @@ export function BackgroundCheckTab({
           section={section}
           value={values[section]}
           onChange={next => setValues(prev => ({ ...prev, [section]: next }))}
+          sources={visibleSources(
+            prefill.sources[section],
+            prefill.values[section],
+            values[section],
+          )}
           save={savers[section]}
           saved={savedAlready[section]}
           onError={fail(`Could not save your ${CLAIM_SECTIONS[section].title.toLowerCase()}.`)}
@@ -170,6 +199,7 @@ function Section({
   section,
   value,
   onChange,
+  sources,
   save,
   saved,
   onError,
@@ -178,6 +208,8 @@ function Section({
   section: ClaimSection;
   value: ClaimValue;
   onChange: (next: ClaimValue) => void;
+  /** Fields still showing what a document said, keyed to that document. */
+  sources: Record<string, string>;
   save: () => Promise<unknown>;
   saved: boolean;
   onError: (e: unknown) => void;
@@ -194,7 +226,13 @@ function Section({
         <p className="text-[11px] leading-relaxed text-gray-500">{def.explains}</p>
       </header>
 
-      <ClaimFields section={section} value={value} onChange={onChange} idPrefix="portal" />
+      <ClaimFields
+        section={section}
+        value={value}
+        onChange={onChange}
+        idPrefix="portal"
+        sources={sources}
+      />
 
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <button

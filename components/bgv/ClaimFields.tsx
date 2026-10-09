@@ -9,6 +9,7 @@
  */
 
 import React from 'react';
+import { ScanLine } from 'lucide-react';
 import {
   CLAIM_SECTIONS,
   digitsOnly,
@@ -72,6 +73,13 @@ export interface ClaimFieldsProps {
   idPrefix?: string;
   /** One column reads better inside a narrow dialog. */
   columns?: 1 | 2;
+  /**
+   * Fields still holding a value read off a document, mapped to the document
+   * it came from. Shown as a note under the input: a read is a suggestion, and
+   * the candidate can only check it against the certificate if they are told
+   * it is one. See `lib/bgv-prefill`.
+   */
+  sources?: Record<string, string>;
 }
 
 export function ClaimFields({
@@ -80,6 +88,7 @@ export function ClaimFields({
   onChange,
   idPrefix = 'claim',
   columns = 2,
+  sources,
 }: ClaimFieldsProps) {
   const { fields } = CLAIM_SECTIONS[section];
   return (
@@ -100,6 +109,12 @@ export function ClaimFields({
               value={String(value[field.key] ?? '')}
               onChange={next => onChange({ ...value, [field.key]: next })}
             />
+            {sources?.[field.key] && (
+              <p className="flex items-center gap-1 text-[10.5px] text-accent-700">
+                <ScanLine size={10} className="shrink-0" />
+                Read from your {sources[field.key].toLowerCase()} - check it against the document.
+              </p>
+            )}
           </div>
         );
       })}

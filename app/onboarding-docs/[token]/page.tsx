@@ -715,6 +715,7 @@ export default function OnboardingDocsPortal() {
             education={request.education}
             employment={request.employment}
             permanentAddress={request.permanentAddress}
+            submissions={request.submissions}
             onError={setErrorMsg}
           />
           <StepNav steps={steps} index={stepIndex} onGo={setTab} />
