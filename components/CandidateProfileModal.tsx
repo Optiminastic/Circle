@@ -1,4 +1,5 @@
 'use client';
+import { iqScoreLabel } from '@/data/test-banks';
 import { Select } from './Select';
 import { DocumentsPanel } from './DocumentsPanel';
 import { useToast } from './Toaster';
@@ -818,7 +819,9 @@ export function CandidateProfileModal({
                       <div className="space-y-1 text-gray-600">
                         <div className="flex justify-between">
                           <span>Acu-Score:</span>
-                          <span className="font-bold text-gray-850">{candidateIq.scorePercentage}%</span>
+                          <span className="font-bold text-gray-850">
+                            {iqScoreLabel(candidateIq.scorePercentage, candidateIq.totalQuestions)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Questions Attempted:</span>

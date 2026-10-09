@@ -1,4 +1,5 @@
 'use client';
+import { iqScoreLabel } from '@/data/test-banks';
 import { Select } from './Select';
 import { OnboardingStatusHover } from '@/components/StatusHoverCard';
 import { SendInterviewKitTab } from './SendInterviewKitTab';
@@ -765,7 +766,9 @@ export function IQTestAssignmentsView({
                   <Td className="font-mono">
                     {idx.questionsAttempted} / {idx.totalQuestions}
                   </Td>
-                  <Td className="font-bold text-accent-600">{idx.scorePercentage}%</Td>
+                  <Td className="font-bold text-accent-600">
+                    {iqScoreLabel(idx.scorePercentage, idx.totalQuestions)}
+                  </Td>
                   <Td>
                     <StatusPill
                       active={idx.qualificationStatus === 'Passed'}

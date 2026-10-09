@@ -425,6 +425,11 @@ export interface IQTest {
   questionsAttempted: number;
   correctAnswers: number;
   incorrectAnswers: number;
+  /**
+   * Marks, not a percentage, whatever the name says: 4 per correct answer, so
+   * 0-200 over a 50-question bank, passing at 100. Render it with
+   * `iqScoreLabel` rather than appending a `%`.
+   */
   scorePercentage: number;
   timeTakenMinutes: number;
   qualificationStatus: 'Passed' | 'Failed' | 'Borderline' | 'Retest Required';

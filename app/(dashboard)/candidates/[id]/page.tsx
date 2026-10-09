@@ -75,6 +75,7 @@ import {
   IQ_DURATION_MIN,
   ASSESSMENT_DURATION_MIN,
   TAKE_HOME_DURATION_MIN,
+  iqScoreLabel,
 } from '@/data/test-banks';
 import { randomId, randomToken, nowISO, formatCtc } from '@/lib/utils';
 import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
@@ -626,7 +627,7 @@ export default function CandidateDetailPage() {
       reached: iqReached || candidate.stageDecisions?.['Interview Schedule'] === 'Accepted',
       done: iqDone,
       desc: latestIq
-        ? `${latestIq.qualificationStatus} · ${latestIq.scorePercentage}%`
+        ? `${latestIq.qualificationStatus} · ${iqScoreLabel(latestIq.scorePercentage, latestIq.totalQuestions)}`
         : iqReached
           ? 'Scheduled'
           : 'Pending',
@@ -735,7 +736,7 @@ export default function CandidateDetailPage() {
     events.push({
       date: t.testDate,
       title: `IQ Test — ${t.qualificationStatus}`,
-      detail: `${t.scorePercentage}% · ${t.correctAnswers}/${t.totalQuestions}`,
+      detail: `${iqScoreLabel(t.scorePercentage, t.totalQuestions)} · ${t.correctAnswers}/${t.totalQuestions} correct`,
       tone: t.qualificationStatus === 'Passed' ? 'green' : 'red',
     }),
   );
@@ -1006,7 +1007,7 @@ export default function CandidateDetailPage() {
         return (
           <div className="space-y-2.5">
             <KV k="Result" v={t.qualificationStatus} />
-            <KV k="Score" v={`${t.scorePercentage}%`} />
+            <KV k="Score" v={iqScoreLabel(t.scorePercentage, t.totalQuestions)} />
             <KV k="Correct" v={`${t.correctAnswers} / ${t.totalQuestions}`} />
             <KV k="Attempted" v={`${t.questionsAttempted}`} />
             <KV k="Time taken" v={`${t.timeTakenMinutes} min`} />
@@ -1317,7 +1318,7 @@ export default function CandidateDetailPage() {
     // Copy comes from Settings → Email templates ("Hired — congratulations" /
     // "Rejected — after interview"), so HR's saved edits seed this composer.
     const iqText = myIq[0]
-      ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${myIq[0].scorePercentage}%)`
+      ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${iqScoreLabel(myIq[0].scorePercentage, myIq[0].totalQuestions)})`
       : '—';
     const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
     fetchRenderedTemplate(kind === 'accept' ? 'hired_congratulations' : 'rejection_interview', {
@@ -1567,9 +1568,9 @@ export default function CandidateDetailPage() {
   const rejectAfterTest = (stage: 'IQ Test' | 'Assessment') => {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const iqScoreText = latestIq
-      ? `${latestIq.scorePercentage}% (${latestIq.correctAnswers}/${latestIq.totalQuestions} correct)`
+      ? `${iqScoreLabel(latestIq.scorePercentage, latestIq.totalQuestions)} (${latestIq.correctAnswers}/${latestIq.totalQuestions} correct)`
       : myIq[0]
-        ? `${myIq[0].scorePercentage}%`
+        ? iqScoreLabel(myIq[0].scorePercentage, myIq[0].totalQuestions)
         : null;
     const asgScoreText = asgInvite?.score != null ? `${asgInvite.score}%` : null;
 

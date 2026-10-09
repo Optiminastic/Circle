@@ -54,6 +54,23 @@ export const ASSESSMENT_PASS_PERCENT = 35; // candidate passes at 35% correct or
 export const iqScoreFromCorrect = (correct: number, _total: number): number =>
   correct * IQ_MARKS_PER_QUESTION;
 
+/**
+ * An IQ score with its denominator attached.
+ *
+ * It is marks, never a percentage - 30 of 50 correct scores 120 out of 200,
+ * and the pass mark is 100. `IqIndexEntry.scorePercentage` holds those marks
+ * despite its name, so every screen that appended a `%` to it was reporting
+ * 120%. Rendering goes through here so the unit travels with the number.
+ *
+ * The denominator follows the bank actually sat, since a shorter bank is not
+ * marked out of 200.
+ */
+export const iqScoreLabel = (marks: number | null | undefined, totalQuestions?: number): string => {
+  if (marks == null) return '—';
+  const outOf = totalQuestions ? totalQuestions * IQ_MARKS_PER_QUESTION : IQ_TOTAL_MARKS;
+  return `${marks} / ${outOf}`;
+};
+
 export const IQ_QUESTIONS: TestQuestion[] = [
   // ── Easy (IQ01–IQ10): warm-up — simple series & direct analogies ──────────
   {
