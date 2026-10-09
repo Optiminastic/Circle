@@ -93,6 +93,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ScreeningCallReport } from '@/components/ScreeningCallReport';
+import { StartScreeningCallDialog } from '@/components/StartScreeningCallDialog';
 import {
   Sheet,
   SheetContent,
@@ -213,6 +215,7 @@ export default function CandidateDetailPage() {
   const { data: interviewBanks = [] } = useInterviewBanks();
   const { data: kitSends = [] } = useInterviewKitSends();
   const { data: sentEmails = [] } = useSentEmails();
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
   const { data: invites = [] } = useQuery({
     queryKey: qk.testInvites.all,
     queryFn: () => repositories.testInvites.list(),
@@ -796,25 +799,6 @@ export default function CandidateDetailPage() {
     gray: 'bg-gray-400',
   };
 
-  // ---- email log — every email actually sent to (or, for the interviewer
-  // pack, about) this candidate, one line each ----
-  // `templateTitle` strings that need a friendlier one-liner; anything else
-  // (incl. the dynamic "{stage} — Rejected" titles) is shown as-is.
-  const EMAIL_LOG_LABELS: Record<string, string> = {
-    'Application received': 'Application received',
-    'IQ test invite': 'IQ Test — invite sent',
-    'Assessment invite': 'Assessment — invite sent',
-    'Interview Invitation': 'Interview scheduled',
-    'Interview scheduled email': 'Interview scheduled',
-    'Interview Rescheduled': 'Interview rescheduled',
-    'Interview — interviewer notified': 'Interview — interviewer notified',
-    'Interview — interviewer notified of reschedule': 'Interview reschedule — interviewer notified',
-    'Interview pack': 'Physical Interview — pack sent to interviewer',
-    'Interview — online link': 'Physical Interview — online (Google Meet) link sent',
-    'Reminder — JD': 'Reminder — JD sent',
-    'Offer / Congratulations': 'Hired — congratulations email sent',
-    'Shortlisted for offer': 'Shortlisted for the offer — confirmation email sent',
-  };
   const emailLog = useMemo(
     () =>
       sentEmails
@@ -830,7 +814,6 @@ export default function CandidateDetailPage() {
     return counts;
   }, [emailLog]);
   // Simple two-tone read: any rejection mail is red, everything else is green.
-  const emailLogTone = (m: SentEmailLog): 'red' | 'green' => (/reject/i.test(m.templateTitle) ? 'red' : 'green');
 
   const mustHaves = (candidate.screeningAnswers ?? []).filter(a => a.importance === 'Must Have');
   const goodToHaves = (candidate.screeningAnswers ?? []).filter(a => a.importance === 'Good to Have');
@@ -2870,37 +2853,23 @@ export default function CandidateDetailPage() {
             </ol>
           </div>
 
-          <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">
-            <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-gray-900">
-              <Mail size={14} className="text-accent-600" /> Email Log
-            </h3>
-            {emailLog.length === 0 ? (
-              <p className="text-[11px] text-gray-400">No emails sent to this candidate yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {emailLog.map(m => {
-                  const tone = emailLogTone(m);
-                  const cls = tone === 'red' ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100';
-                  const textCls = tone === 'red' ? 'text-red-700' : 'text-emerald-700';
-                  return (
-                    <div key={m.id} className={`rounded-md border px-3 py-2 ${cls}`}>
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className={`text-[12px] font-semibold ${textCls}`}>
-                          {EMAIL_LOG_LABELS[m.templateTitle] ?? m.templateTitle}
-                          {m.status === 'Failed' && (
-                            <span className="ml-1.5 font-normal text-red-500">(not sent)</span>
-                          )}
-                        </p>
-                        <span className="shrink-0 font-mono text-[10px] text-gray-400">
-                          {fmtDateTime(m.dateSent)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Replaces the Email Log that used to sit here. Delivery history
+              still exists - it feeds the per-stage email badges above and the
+              Email page - it just no longer earns a panel of its own. */}
+          <ScreeningCallReport
+            candidateId={candidate.id}
+            onStart={() => setCallDialogOpen(true)}
+          />
+          {callDialogOpen && (
+            <StartScreeningCallDialog
+              candidate={{
+                id: candidate.id,
+                fullName: candidate.fullName,
+                phone: candidate.phone,
+              }}
+              onClose={() => setCallDialogOpen(false)}
+            />
+          )}
 
           {upcomingInterviews.length > 0 && (
             <div className="rounded-lg border border-line bg-surface p-4 shadow-2xs">

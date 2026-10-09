@@ -21,6 +21,9 @@ export const qk = {
   emailTemplates: { all: ['email-templates'] as const },
   emailTemplateOverrides: { all: ['email-template-overrides'] as const },
   sentEmails: { all: ['sent-emails'] as const },
+  // Per candidate rather than a single list: a call carries its whole
+  // transcript, so the UI must never pull everyone's at once.
+  screeningCalls: { forCandidate: (id: string) => ['screening-calls', id] as const },
   offboarding: { all: ['offboarding'] as const },
   assessmentBanks: {
     all: ['assessment-banks'] as const,

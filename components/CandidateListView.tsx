@@ -3,6 +3,7 @@ import { Select } from './Select';
 import { clampCtcInput } from '@/lib/ctc';
 import { ActionMenu } from './ActionMenu';
 import { EditCandidateModal } from './EditCandidateModal';
+import { StartScreeningCallDialog } from './StartScreeningCallDialog';
 import { useToast } from './Toaster';
 /**
  * @license
@@ -51,6 +52,7 @@ import {
   Flag,
   Gauge,
   Radio,
+  PhoneCall,
   RotateCcw,
   Tag,
 } from 'lucide-react';
@@ -251,6 +253,8 @@ export function CandidateListView({
   const [resume, setResume] = useState<PickedFile | null>(null);
   // The manually-added candidate currently being edited (null = closed).
   const [editCand, setEditCand] = useState<Candidate | null>(null);
+  // The candidate an AI interview is being started for (null = closed).
+  const [callCand, setCallCand] = useState<Candidate | null>(null);
   const [newCand, setNewCand] = useState({
     fullName: '',
     email: '',
@@ -497,6 +501,12 @@ export function CandidateListView({
             toast.success(`${updated.fullName}'s details updated.`);
           }}
           onClose={() => setEditCand(null)}
+        />
+      )}
+      {callCand && (
+        <StartScreeningCallDialog
+          candidate={callCand}
+          onClose={() => setCallCand(null)}
         />
       )}
       {/* View Header with CTA triggers */}
@@ -804,6 +814,15 @@ export function CandidateListView({
                   <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
                       <ActionMenu
                         items={[
+                          // Unconditional: whether this candidate can be called
+                          // at all is the server's call, and it answers with a
+                          // reason written for HR rather than a dead menu item.
+                          {
+                            key: 'ai-interview',
+                            label: 'AI interview',
+                            icon: <PhoneCall size={13} />,
+                            onClick: () => setCallCand(cand),
+                          },
                           ...(onUpdateCandidate && cand.manuallyAdded
                             ? ([
                                 {
