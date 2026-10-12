@@ -7,6 +7,7 @@
  * computed or asserted here, so a tampered request can't manufacture a pass.
  */
 import { http, ApiError } from '@/lib/http/client';
+import { readErrorDetail } from '@/lib/http/error-detail';
 import { apiBase } from '@/lib/api-base';
 
 /** One question as served to the candidate — no `answer` field, by design. */
@@ -100,14 +101,7 @@ export async function submitAssignmentFile(
     cache: 'no-store',
   });
   if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const parsed = await res.json();
-      detail = parsed?.detail ?? detail;
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new ApiError(res.status, detail);
+    throw new ApiError(res.status, await readErrorDetail(res, res.statusText));
   }
   return res.json();
 }
@@ -130,14 +124,7 @@ export async function submitAssignmentLink(
     cache: 'no-store',
   });
   if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const parsed = await res.json();
-      detail = parsed?.detail ?? detail;
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new ApiError(res.status, detail);
+    throw new ApiError(res.status, await readErrorDetail(res, res.statusText));
   }
   return res.json();
 }

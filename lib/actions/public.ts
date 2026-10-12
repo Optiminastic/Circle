@@ -10,18 +10,15 @@
  * OTP generation/verification and trust-sensitive fields stay on the backend.
  */
 import { backendPost } from '@/lib/server/backend';
+import { readErrorDetail } from '@/lib/http/error-detail';
 import type { ApplicationInput } from '@/lib/api/public';
 
 /** Pull the backend's `detail` message off a non-OK response, else a fallback. */
 async function detail(res: Response, fallback: string): Promise<string> {
-  try {
-    const body = await res.json();
-    if (typeof body?.detail === 'string') return body.detail;
-  } catch {
-    /* non-JSON body */
-  }
-  if (res.status === 429) return 'Too many requests. Please wait a minute and try again.';
-  return fallback;
+  // One extraction for the whole app, so no copy of it can drift back into
+  // showing an applicant the raw response body.
+  const limited = res.status === 429 ? 'Too many requests. Please wait a minute and try again.' : fallback;
+  return readErrorDetail(res, limited);
 }
 
 /** Whether this email already applied to this posting (one application per role). */

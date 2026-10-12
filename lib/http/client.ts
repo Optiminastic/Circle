@@ -11,7 +11,11 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly detail: string,
   ) {
-    super(`${status}: ${detail}`);
+    // The message is what gets rendered when a page shows `err.message`,
+    // and some of those pages are public. Prefixing the status put
+    // "422: ..." in front of a candidate; `status` is still a property
+    // for the code that needs it.
+    super(detail);
     this.name = 'ApiError';
   }
 }

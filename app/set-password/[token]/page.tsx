@@ -24,6 +24,7 @@ import {
 import { Logo } from '@/components/Logo';
 import { BRAND } from '@/lib/brand';
 import { apiBase } from '@/lib/api-base';
+import { readErrorDetail } from '@/lib/http/error-detail';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -95,8 +96,7 @@ export default function SetPasswordPage() {
         body: JSON.stringify({ password, name: name.trim(), title: title.trim() }),
       });
       if (!res.ok) {
-        const detail = await res.text().catch(() => '');
-        throw new Error(detail || 'Could not set your password.');
+        throw new Error(await readErrorDetail(res, 'Could not set your password.'));
       }
       setPhase('done');
     } catch (err) {
