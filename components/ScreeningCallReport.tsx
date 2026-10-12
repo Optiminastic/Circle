@@ -24,7 +24,12 @@ import {
 import { ModalShell } from '@/components/ui/modal-shell';
 import { FIT_THRESHOLD, fitStyle } from '@/lib/screening';
 import { useScreeningCalls } from '@/features/screening-calls/hooks';
-import { isCallActive, type ScreeningCall, type ScreeningCallAnswer } from '@/lib/api/screening-calls';
+import {
+  isCallActive,
+  isCallStale,
+  type ScreeningCall,
+  type ScreeningCallAnswer,
+} from '@/lib/api/screening-calls';
 
 const PASS_BAR = Math.round(FIT_THRESHOLD * 100);
 
@@ -178,7 +183,21 @@ export function ScreeningCallReport({ candidateId, onStart }: ScreeningCallRepor
         </div>
       ) : (
         <div className="space-y-2.5">
-          {isCallActive(latest.status) ? (
+          {isCallActive(latest.status) && isCallStale(latest) ? (
+            // The call was placed and nothing came back. Saying so beats a
+            // spinner that never resolves, and the usual causes are worth
+            // naming: HR can act on a wrong webhook URL, not on "Dialling...".
+            <div className="space-y-2">
+              <p className="text-[12px] font-semibold text-gray-700">
+                No result came back
+              </p>
+              <p className="text-[11px] leading-relaxed text-gray-500">
+                The call was placed, but nothing was reported back. It may still have
+                happened - check with the candidate before calling again.
+              </p>
+              <StartButton label="Call again" />
+            </div>
+          ) : isCallActive(latest.status) ? (
             <div className="space-y-2">
               <p className="flex items-center gap-1.5 text-[12px] font-semibold text-amber-700">
                 <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />

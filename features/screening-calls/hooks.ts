@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '@/lib/query/keys';
 import {
   isCallActive,
+  isCallStale,
   listScreeningCalls,
   startScreeningCall,
   type ScreeningCall,
@@ -30,8 +31,12 @@ export function useScreeningCalls(candidateId?: string) {
     // Only while something is with the provider, then stop. A completed call
     // carries up to 50k characters of transcript, and polling that on every
     // open candidate tab forever would be a lot of nothing.
+    // Stops on its own when a call goes stale, so a webhook that never
+    // arrives does not leave every open tab polling until it is closed.
     refetchInterval: query =>
-      (query.state.data ?? []).some(call => isCallActive(call.status)) ? ACTIVE_POLL_MS : false,
+      (query.state.data ?? []).some(call => isCallActive(call.status) && !isCallStale(call))
+        ? ACTIVE_POLL_MS
+        : false,
   });
 }
 

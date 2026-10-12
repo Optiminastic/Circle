@@ -11,26 +11,19 @@
 import { http } from '@/lib/http/client';
 import type { FitRating, QuestionImportance, QuestionType } from '@/types';
 
-export type ScreeningCallMode = 'phone' | 'web';
+export type {
+  ScreeningCallMode,
+  ScreeningCallStatus,
+} from '@/lib/screening-call-status';
+export {
+  ACTIVE_CALL_STATUSES,
+  ACTIVE_STALE_AFTER_MS,
+  QUEUED_STALE_AFTER_MS,
+  isCallActive,
+  isCallStale,
+} from '@/lib/screening-call-status';
 
-export type ScreeningCallStatus =
-  | 'queued'
-  | 'ringing'
-  | 'in-progress'
-  | 'completed'
-  | 'failed'
-  | 'no-answer'
-  | 'declined';
-
-/** Still with the voice provider — the only states worth polling through. */
-export const ACTIVE_CALL_STATUSES: readonly ScreeningCallStatus[] = [
-  'queued',
-  'ringing',
-  'in-progress',
-];
-
-export const isCallActive = (status: ScreeningCallStatus): boolean =>
-  ACTIVE_CALL_STATUSES.includes(status);
+import type { ScreeningCallMode, ScreeningCallStatus } from '@/lib/screening-call-status';
 
 /**
  * One question as the call answered it.
