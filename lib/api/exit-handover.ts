@@ -6,6 +6,7 @@
  */
 import { apiBase } from '@/lib/api-base';
 import { http } from '@/lib/http/client';
+import { readErrorDetail } from '@/lib/http/error-detail';
 
 export interface HandoverDoc {
   documentId: string;
@@ -60,8 +61,7 @@ export async function submitHandoverCredentials(
     body: JSON.stringify({ workEmail, password, extras }),
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not submit credentials (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Could not submit credentials (${res.status})`));
   }
 }
 
@@ -71,8 +71,7 @@ export async function uploadHandoverDocument(token: string, file: File): Promise
   fd.append('file', file);
   const res = await fetch(`${portalUrl(token)}/upload`, { method: 'POST', body: fd });
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Upload failed (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Upload failed (${res.status})`));
   }
 }
 

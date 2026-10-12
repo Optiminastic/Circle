@@ -8,6 +8,7 @@
  */
 
 import { apiBase } from '@/lib/api-base';
+import { readErrorDetail } from '@/lib/http/error-detail';
 
 export interface DocumentMeta {
   id: string;
@@ -51,8 +52,7 @@ export async function uploadDocument(params: {
     if (res.status === 429) {
       throw new Error('Too many requests. Please wait a minute and try again.');
     }
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Upload failed (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Upload failed (${res.status})`));
   }
   return res.json();
 }
@@ -73,8 +73,7 @@ export async function importDriveDocument(params: {
     credentials: 'include',
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Drive import failed (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Drive import failed (${res.status})`));
   }
   return res.json();
 }

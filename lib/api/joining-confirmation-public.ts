@@ -6,6 +6,7 @@
  */
 import { JoiningConfirmation } from '@/types';
 import { apiBase } from '@/lib/api-base';
+import { readErrorDetail } from '@/lib/http/error-detail';
 
 /** Fetch a confirmation by its public token (used by the portal page). */
 export async function getJoiningConfirmation(token: string): Promise<JoiningConfirmation> {
@@ -30,8 +31,7 @@ export async function submitJoiningConfirmationResponse(
     body: JSON.stringify(changes),
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not save your response (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Could not save your response (${res.status})`));
   }
   return res.json();
 }
@@ -53,8 +53,7 @@ export async function uploadJoiningPhoto(
     { method: 'POST', body: fd },
   );
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not upload your photo (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Could not upload your photo (${res.status})`));
   }
   return res.json();
 }

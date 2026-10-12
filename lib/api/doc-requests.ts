@@ -18,6 +18,7 @@ import {
   ReferenceContact,
 } from '@/types';
 import { apiBase } from '@/lib/api-base';
+import { readErrorDetail } from '@/lib/http/error-detail';
 
 /** Fetch a request by its public token (used by the portal page). */
 export async function getDocRequest(token: string): Promise<DocRequest> {
@@ -42,8 +43,7 @@ export async function uploadRequestDocument(params: {
     { method: 'POST', body: fd },
   );
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Upload failed (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Upload failed (${res.status})`));
   }
   return res.json();
 }
@@ -64,8 +64,7 @@ export async function confirmSubmission(
     },
   );
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not confirm the details (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Could not confirm the details (${res.status})`));
   }
   return res.json();
 }
@@ -93,8 +92,7 @@ async function patchDocRequest(
     body: JSON.stringify(changes),
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `${failure} (${res.status})`);
+    throw new Error(await readErrorDetail(res, `${failure} (${res.status})`));
   }
   return res.json();
 }
@@ -161,8 +159,7 @@ export async function extractSubmissionFields(
     credentials: 'include',
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not read the document (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Could not read the document (${res.status})`));
   }
   return res.json();
 }
@@ -187,8 +184,7 @@ export async function reviewSubmission(params: {
     }),
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `Could not save the review (${res.status})`);
+    throw new Error(await readErrorDetail(res, `Could not save the review (${res.status})`));
   }
   return res.json();
 }
