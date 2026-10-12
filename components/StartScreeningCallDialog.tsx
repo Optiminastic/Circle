@@ -1,21 +1,25 @@
 'use client';
 
 /**
- * Choose how the AI interview reaches the candidate.
+ * Confirm before the AI interview rings a candidate.
  *
- * Two modes, and the difference matters enough to ask every time: one rings a
- * real person's phone and costs money, the other opens a link HR talks into
- * themselves. A single-action confirm could not say that, which is why this is
- * a dialog rather than `toast.confirm`.
+ * One route, deliberately asked about every time: this dials a real person's
+ * phone, costs money, and records them. A single-action confirm could not show
+ * the number it is about to call, which is the whole point of the step - a
+ * wrong number is caught here or not at all.
+ *
+ * There is no browser option. Sarvam's Instant Outbound places telephone calls
+ * and has no browser equivalent, so offering one would be offering a button
+ * that cannot work.
  */
 
 import React from 'react';
-import { Loader2, Monitor, PhoneCall, X } from 'lucide-react';
+import { Loader2, PhoneCall, X } from 'lucide-react';
 import { ModalShell } from '@/components/ui/modal-shell';
 import { useToast } from '@/components/Toaster';
 import { ApiError } from '@/lib/http/client';
 import { useStartScreeningCall } from '@/features/screening-calls/hooks';
-import type { ScreeningCall, ScreeningCallMode } from '@/lib/api/screening-calls';
+import type { ScreeningCall } from '@/lib/api/screening-calls';
 
 export interface StartScreeningCallDialogProps {
   candidate: { id: string; fullName: string; phone?: string };
@@ -32,19 +36,12 @@ export function StartScreeningCallDialog({
   const toast = useToast();
   const start = useStartScreeningCall();
 
-  const run = (mode: ScreeningCallMode) =>
+  const run = () =>
     start.mutate(
-      { candidateId: candidate.id, mode },
+      { candidateId: candidate.id, mode: 'phone' },
       {
         onSuccess: call => {
-          if (call.mode === 'web' && call.webCallUrl) {
-            // Popup blockers eat this often enough that the link is also left
-            // on the report card — this is the convenience, not the only way.
-            window.open(call.webCallUrl, '_blank', 'noopener,noreferrer');
-            toast.success('Call ready — opening it in a new tab.');
-          } else {
-            toast.success(`Calling ${candidate.fullName}…`);
-          }
+          toast.success(`Calling ${candidate.fullName}…`);
           onStarted?.(call);
           onClose();
         },
@@ -79,13 +76,14 @@ export function StartScreeningCallDialog({
         </button>
       </div>
       <p className="mb-4 text-[12px] leading-relaxed text-gray-600">
-        The agent asks {candidate.fullName.split(' ')[0]} this role&apos;s own screening
-        questions and reports back whether they are a fit. The call is recorded.
+        The agent calls {candidate.fullName.split(' ')[0]}, asks this role&apos;s own
+        screening questions and reports back whether they are a fit. The call is
+        recorded, and the candidate is told so.
       </p>
 
       <div className="space-y-2">
         <button
-          onClick={() => run('phone')}
+          onClick={run}
           disabled={busy || !candidate.phone}
           title={candidate.phone ? undefined : 'No phone number on this candidate'}
           className="flex w-full items-start gap-3 rounded-md border border-line bg-surface p-3 text-left transition hover:border-accent-400 hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-50"
@@ -102,21 +100,6 @@ export function StartScreeningCallDialog({
           </span>
         </button>
 
-        <button
-          onClick={() => run('web')}
-          disabled={busy}
-          className="flex w-full items-start gap-3 rounded-md border border-line bg-surface p-3 text-left transition hover:border-accent-400 hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Monitor size={15} className="mt-0.5 shrink-0 text-gray-500" />
-          <span className="min-w-0">
-            <span className="block text-[12.5px] font-semibold text-gray-900">
-              Test in my browser
-            </span>
-            <span className="block text-[11px] text-gray-500">
-              Opens a link you talk into yourself. No call is placed.
-            </span>
-          </span>
-        </button>
       </div>
 
       {busy && (
