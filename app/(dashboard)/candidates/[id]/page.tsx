@@ -59,6 +59,7 @@ import { useHrIdentity } from '@/features/employees/hooks';
 import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { useSentEmails } from '@/features/email/hooks';
 import { useIqTests } from '@/features/assessments/hooks';
+import { iqAttempts } from '@/lib/iq-attempts';
 import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { revertCandidateRejection } from '@/services/candidate.service';
 import { useScheduler } from '@/store/schedule-store';
@@ -523,7 +524,11 @@ export default function CandidateDetailPage() {
     }
   };
   const mySchedules = schedules.filter(s => s.candidateId === id && s.status !== 'Cancelled');
-  const myIq = iqTests.filter(t => t.candidateId === id);
+  // Newest attempt first. A retake writes a SECOND iq-tests row and the backend
+  // lists them oldest-first, so a plain filter made `myIq[0]` the candidate's
+  // first-ever attempt for good - which is how a retake's date ended up over
+  // the original attempt's score and verdict. See lib/iq-attempts.ts.
+  const myIq = iqAttempts(iqTests, id);
   const myInterviews = interviews.filter(iv => iv.candidateId === id);
   const myInvites = (invites as TestInvite[]).filter(i => i.candidateId === id);
   // Interview kits sent from Settings for this candidate (independent of the
@@ -538,11 +543,9 @@ export default function CandidateDetailPage() {
   const hrCallReached =
     hrCallDone || mySchedules.some(s => s.type === 'HR Call') || candidate.status === 'Moved to HR Call';
   const offerShortlisted = candidate.status === 'Offer Shortlisted';
-  // After a re-scheduled retake, show the LATEST attempt (newest first), not the
-  // first one created.
   const byCreatedDesc = (a: TestInvite, b: TestInvite) =>
     (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
-  const latestIq = [...myIq].sort((a, b) => (b.testDate ?? '').localeCompare(a.testDate ?? ''))[0];
+  const latestIq = myIq[0];
   const iqInvite = myInvites.filter(i => i.kind === 'iq').sort(byCreatedDesc)[0];
   const iqDone =
     myIq.length > 0 || Boolean(iqInvite && ['Completed', 'Auto-Submitted'].includes(iqInvite.status));
@@ -985,16 +988,36 @@ export default function CandidateDetailPage() {
     }
 
     if (label === 'IQ Test') {
-      const t = myIq[0];
+      const t = latestIq;
+      // Earlier sittings are listed rather than dropped: without them the card
+      // silently replaced one attempt with another, and nobody could tell a
+      // retake from a disputed score.
+      const earlier = myIq.slice(1);
       if (t)
         return (
           <div className="space-y-2.5">
+            {earlier.length > 0 && <KV k="Attempt" v={`${myIq.length} of ${myIq.length} (latest)`} />}
             <KV k="Result" v={t.qualificationStatus} />
             <KV k="Score" v={iqScoreLabel(t.scorePercentage, t.totalQuestions)} />
             <KV k="Correct" v={`${t.correctAnswers} / ${t.totalQuestions}`} />
             <KV k="Attempted" v={`${t.questionsAttempted}`} />
             <KV k="Time taken" v={`${t.timeTakenMinutes} min`} />
             {t.remarks && <p className="text-[11px] text-gray-500">{t.remarks}</p>}
+            {earlier.length > 0 && (
+              <div className="space-y-1 border-t border-line pt-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                  Earlier attempts
+                </p>
+                {earlier.map((prev, i) => (
+                  <p key={prev.id} className="text-[11px] text-gray-500">
+                    <span className="font-mono">{fmtDateTime(prev.testDate)}</span> — attempt{' '}
+                    {earlier.length - i}: {prev.qualificationStatus} ·{' '}
+                    {iqScoreLabel(prev.scorePercentage, prev.totalQuestions)} ·{' '}
+                    {prev.correctAnswers}/{prev.totalQuestions} correct
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         );
       const s = schedOf('IQ Test')[0];
@@ -1300,8 +1323,8 @@ export default function CandidateDetailPage() {
     setDecisionTo(candidate.email || '');
     // Copy comes from Settings → Email templates ("Hired — congratulations" /
     // "Rejected — after interview"), so HR's saved edits seed this composer.
-    const iqText = myIq[0]
-      ? `${myIq[0].correctAnswers}/${myIq[0].totalQuestions} (${iqScoreLabel(myIq[0].scorePercentage, myIq[0].totalQuestions)})`
+    const iqText = latestIq
+      ? `${latestIq.correctAnswers}/${latestIq.totalQuestions} (${iqScoreLabel(latestIq.scorePercentage, latestIq.totalQuestions)})`
       : '—';
     const asgText = asgInvite?.score != null ? `${asgInvite.score}%` : '—';
     fetchRenderedTemplate(kind === 'accept' ? 'hired_congratulations' : 'rejection_interview', {
@@ -1552,9 +1575,7 @@ export default function CandidateDetailPage() {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const iqScoreText = latestIq
       ? `${iqScoreLabel(latestIq.scorePercentage, latestIq.totalQuestions)} (${latestIq.correctAnswers}/${latestIq.totalQuestions} correct)`
-      : myIq[0]
-        ? iqScoreLabel(myIq[0].scorePercentage, myIq[0].totalQuestions)
-        : null;
+      : null;
     const asgScoreText = asgInvite?.score != null ? `${asgInvite.score}%` : null;
 
     // Mark rejected first, so the pipeline updates even if the email fails.
@@ -2004,7 +2025,7 @@ export default function CandidateDetailPage() {
     // interview schedule mail has gone out — HR can send any of them in any
     // order (no "IQ must pass before Assessment" gating).
     if (label === 'IQ Test' && !decided) {
-      const iqPassed = myIq[0]?.qualificationStatus === 'Passed';
+      const iqPassed = latestIq?.qualificationStatus === 'Passed';
       // Active once the interview is scheduled; Send until it's sent, then
       // Re-assign for a retry, hidden only once the candidate has passed.
       if (interviewReached && !iqPassed)
@@ -2656,7 +2677,7 @@ export default function CandidateDetailPage() {
                   // A completed test shows Passed/Failed even when the step is
                   // crossed out (the failure is what stopped the pipeline).
                   if (stage.label === 'IQ Test' && stage.done)
-                    return myIq[0]?.qualificationStatus === 'Passed'
+                    return latestIq?.qualificationStatus === 'Passed'
                       ? { label: 'Passed', cls: 'bg-emerald-50 text-emerald-700' }
                       : { label: 'Failed', cls: 'bg-red-50 text-red-600' };
                   if (stage.label === 'Assessment' && stage.done)
