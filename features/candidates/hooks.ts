@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BGVRequirement, Candidate, CandidateStatus, FitRating, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
+import { jobForCandidate } from '@/features/jobs/hooks';
 import { listOps } from '@/lib/query/optimistic';
 import { optimisticOptions } from '@/lib/query/mutations';
 import { buildBgvForCandidate, buildOnboardingForCandidate } from '@/services/candidate.service';
@@ -56,7 +57,7 @@ export function useCandidateMutations() {
       if (candidate.status === 'Shortlisted') {
         const existing = qc.getQueryData<OnboardingChecklist[]>(qk.onboarding.all) ?? [];
         if (!existing.some(o => o.candidateId === candidate.id)) {
-          await repositories.onboarding.create(buildOnboardingForCandidate(candidate));
+          await repositories.onboarding.create(buildOnboardingForCandidate(candidate, jobForCandidate(qc, candidate)));
         }
       }
       return candidate;

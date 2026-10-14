@@ -37,6 +37,14 @@ export interface RequiredDocDef {
    * whoever is sending the link to remember which is which.
    */
   employmentOnly?: boolean;
+  /**
+   * Only meaningful for an intern.
+   *
+   * The mirror of `employmentOnly`: a full-time hire has no previous
+   * internship letter to send, so the item stays out of their picker unless
+   * someone deliberately ticks it.
+   */
+  internOnly?: boolean;
 }
 
 /** The non-file items, referenced by both the picker and the portal. */
@@ -60,6 +68,7 @@ export const REQUIRED_DOCS: RequiredDocDef[] = [
   { type: 'Salary slips', label: 'Last 3 months salary slips', hint: 'From your current employer', kind: 'file', defaultSelected: false, employmentOnly: true },
   { type: 'Resignation letter', label: 'Resignation letter / acceptance mail', hint: 'Proof of resignation', kind: 'file', defaultSelected: false, employmentOnly: true },
   { type: 'Current offer letter', label: 'Current offer letter (if any)', hint: 'Any other offer in hand', kind: 'file', defaultSelected: false, optional: true },
+  { type: 'Previous internship letter', label: 'Previous internship letter', hint: 'Completion or offer letter from an earlier internship', kind: 'file', defaultSelected: false, internOnly: true },
   {
     type: REFERENCES_DOC_TYPE,
     label: 'Reference contacts from past org',
@@ -94,6 +103,24 @@ export const EMPLOYEE_DOC_TYPES: RequiredDocType[] = [
 export const DEFAULT_REQUIRED_DOC_TYPES: string[] = REQUIRED_DOCS.filter(d => d.defaultSelected).map(
   d => d.type,
 );
+
+/**
+ * What an intern is asked for. Deliberately not derived from `defaultSelected`:
+ * it drops bank details (no salary account to pay into) and adds the previous
+ * internship letter, which no full-time hire is asked for.
+ */
+export const INTERN_DEFAULT_DOC_TYPES: string[] = [
+  'Aadhaar card',
+  'PAN card',
+  'Address proof',
+  'Education certificates',
+  'Passport photo',
+  'Previous internship letter',
+];
+
+/** The documents picker's starting selection for a track. */
+export const defaultDocTypesFor = (track: 'employee' | 'intern'): string[] =>
+  track === 'intern' ? INTERN_DEFAULT_DOC_TYPES : DEFAULT_REQUIRED_DOC_TYPES;
 
 export const docDefByType = (type: string): RequiredDocDef | undefined =>
   REQUIRED_DOCS.find(d => d.type === type);

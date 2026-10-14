@@ -1,5 +1,6 @@
-import { BGVRequirement, Candidate, OnboardingChecklist } from '@/types';
+import { BGVRequirement, Candidate, Job, OnboardingChecklist } from '@/types';
 import { randomId, todayISO } from '@/lib/utils';
+import { resolveTrack } from '@/lib/onboarding-track';
 
 /**
  * Business rule: every new candidate gets a pre-registered BGV record.
@@ -32,12 +33,26 @@ export function buildBgvForCandidate(candidate: Candidate, services: string[] = 
   };
 }
 
-/** Business rule: shortlisting a candidate spins up an onboarding checklist. */
-export function buildOnboardingForCandidate(candidate: Candidate): OnboardingChecklist {
+/**
+ * Business rule: shortlisting a candidate spins up an onboarding checklist.
+ *
+ * `track` is resolved once, here, from the posting they applied to, and then
+ * persisted. The posting can be edited or closed long after onboarding starts,
+ * and the onboarding record outlives it, so re-deriving it on every read would
+ * let someone's flow change under them.
+ */
+export function buildOnboardingForCandidate(
+  candidate: Candidate,
+  job?: Pick<Job, 'employmentType'>,
+): OnboardingChecklist {
   return {
     candidateId: candidate.id,
     candidateName: candidate.fullName,
     candidateEmail: candidate.email,
+    // Only stamped when the posting says so. Leaving it unset for everyone else
+    // means a cache miss here cannot silently fix an intern onto the full-time
+    // path - an absent track is derived again later, and reads as 'employee'.
+    ...(resolveTrack(undefined, job) === 'intern' ? { track: 'intern' as const } : {}),
     onboardingStatus: 'Offer Accepted',
     progressPercentage: 40,
     tasks: [

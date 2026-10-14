@@ -77,7 +77,7 @@ import { RequestDocumentsModal } from '@/components/RequestDocumentsModal';
 import { StartBgvModal } from '@/components/StartBgvModal';
 import { VerifyBgvReportModal } from '@/components/VerifyBgvReportModal';
 import { RefreshButton } from '@/components/RefreshButton';
-import { bgvCheckByCode, isCheckRunning } from '@/lib/bgv-services';
+import { bgvCheckByCode, isCheckRunning, INTERN_BGV_CHECKS } from '@/lib/bgv-services';
 import {
   buildOnboardingEmailDraft,
   buildBuddyEmailDraft,
@@ -86,6 +86,14 @@ import {
 import { fetchRenderedTemplate } from '@/features/email-templates/hooks';
 import { HR_EMAIL } from '@/lib/config';
 import { useEmployees } from '@/features/employees/hooks';
+import { useJobs } from '@/features/jobs/hooks';
+import { resolveTrack, stepsFor } from '@/lib/onboarding-track';
+import {
+  SIGN_INTERNSHIP_TTL_HOURS,
+  SIGNED_INTERNSHIP_DOC,
+  signInternshipPath,
+} from '@/lib/sign-internship';
+import { SendInternshipLetterModal } from '@/components/SendInternshipLetterModal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -97,6 +105,7 @@ type StageAction =
   | { kind: 'email'; emailKind: OnboardingEmailKind; cta: string }
   | { kind: 'mark-signed'; cta: string }
   | { kind: 'mark-signed-appointment'; cta: string }
+  | { kind: 'mark-signed-internship'; cta: string }
   | { kind: 'request-docs'; cta: string }
   | { kind: 'start-bgv'; cta: string }
   | { kind: 'verify-bgv'; cta: string }
@@ -121,6 +130,11 @@ const STAGE_ICON_COLOR: Record<string, string> = {
   'Signed appointment letter': 'bg-violet-50 text-violet-600',
   Employee: 'bg-emerald-50 text-emerald-600',
   'Allocation of mail, system & desk': 'bg-cyan-50 text-cyan-600',
+  // Intern track
+  'Internship letter': 'bg-blue-50 text-blue-600',
+  'Internship letter received': 'bg-violet-50 text-violet-600',
+  'Joining date': 'bg-pink-50 text-pink-600',
+  'Allocation of mail': 'bg-cyan-50 text-cyan-600',
 };
 
 // One-line subtitle under each stage name (collapsed row) — static, unlike
@@ -136,6 +150,11 @@ const STAGE_NOTES: Record<string, string> = {
   'Signed appointment letter': 'Candidate returns their signed copy',
   Employee: 'Convert into the employee directory',
   'Allocation of mail, system & desk': 'Set up email, system/desk, and an onboarding buddy',
+  // Intern track
+  'Internship letter': 'Send the internship letter for signature',
+  'Internship letter received': 'Intern returns their signed copy',
+  'Joining date': 'Email the first working day & office address',
+  'Allocation of mail': 'Set up their company mailbox',
 };
 
 // "Times emailed" badge (top corner of the step icon) — the sentEmails
@@ -146,6 +165,9 @@ const STAGE_EMAIL_TITLES: Record<string, string[]> = {
   'Joining Documents': ['Joining documents requested'],
   'Joining date confirmation': ['Joining date confirmation'],
   'Appointment letter': ['Appointment letter sent'],
+  // Intern track
+  'Internship letter': ['Internship letter sent'],
+  'Joining date': ['Joining date confirmation'],
 };
 
 const fmtDate = (iso?: string) =>
@@ -164,7 +186,7 @@ const fmtLinkExpiry = (iso: string): string => {
 };
 
 /** Which signed letter a re-upload request is about. */
-type SignedLetter = 'offer' | 'appointment';
+type SignedLetter = 'offer' | 'appointment' | 'internship';
 
 /**
  * The signed offer/appointment upload link to act on. Sending the letter mints a
@@ -197,6 +219,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     sendComposed,
     markOfferSigned,
     markAppointmentSigned,
+    markInternshipSigned,
     markJoiningDocsSkipped,
     markBgvSkipped,
     markFirstDayArrived,
@@ -232,6 +255,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // The offer letter uses a richer modal (attachment + signed-copy upload link).
   const [sendOfferOpen, setSendOfferOpen] = useState(false);
   const [sendAppointmentOpen, setSendAppointmentOpen] = useState(false);
+  const [sendInternshipOpen, setSendInternshipOpen] = useState(false);
   // Editable request-documents email modal (To / Subject / Message).
   const [requestDocsOpen, setRequestDocsOpen] = useState(false);
   // "Start verification" check-picker (which BGV services to run).
@@ -263,6 +287,16 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const [buddySeed, setBuddySeed] = useState<ComposerSeed | null>(null);
 
   const candidate = candidates.find(c => c.id === checklist.candidateId);
+  // Only a fallback: the track is stamped on the record at creation. This
+  // catches records created before that, and any created while the jobs list
+  // was not yet cached.
+  const { data: jobs = [] } = useJobs();
+  // Which path this person is on. Stored on the record at creation; the posting
+  // only supplies the default for records that predate it.
+  const track = resolveTrack(
+    checklist,
+    jobs.find(j => j.id === candidate?.jobId),
+  );
   // Resending mints a fresh link, so pick the request that actually holds the
   // candidate's uploads (most submissions / bank), not just the newest.
   const docRequest = requests
@@ -333,6 +367,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // will be verified is asking for work that may not be needed.
   const chosenChecks = bgv?.services ?? [];
   const checksChosen = chosenChecks.length > 0;
+  // Nothing picked yet on the intern track: open the picker on the intern set
+  // rather than empty, so the common case is one click.
+  const bgvPreselection =
+    checksChosen || track !== 'intern' ? chosenChecks : [...INTERN_BGV_CHECKS];
   const validatedOrWaived = candidateValidated || nothingToValidate || validationOverridden;
   const canExecuteBgv = checksChosen && validatedOrWaived;
   // What OnGrid is actually running, which is not the same as what was asked
@@ -399,6 +437,24 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     Boolean(checklist.appointmentSignedReceivedAt) ||
     (Boolean(signedAppointmentDoc) && !signedAppointmentRejected);
 
+  // Signed internship letter (intern track) — mirrors the two blocks above. It
+  // is the intern's only letter: no appointment letter follows it.
+  const signedInternshipDoc = candidateDocs
+    .filter(d => d.category === SIGNED_INTERNSHIP_DOC)
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
+  const signInternshipReq = pickLetterRequest(requests, checklist.candidateId, 'signed-internship');
+  const signInternshipExpired = signInternshipReq
+    ? new Date(signInternshipReq.expiresAt).getTime() <= Date.now()
+    : false;
+  const signedInternshipSub = signInternshipReq?.submissions?.find(
+    s => s.docType === SIGNED_INTERNSHIP_DOC,
+  );
+  const signedInternshipRejected = signedInternshipSub?.status === 'Rejected';
+  const signedInternshipDone =
+    Boolean(checklist.internshipSignedReceivedAt) ||
+    (Boolean(signedInternshipDoc) && !signedInternshipRejected);
+
+
 
   // Counted over the documents still being asked for, on both sides of the
   // fraction. Counting every verified upload against the required list made
@@ -457,7 +513,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     return counts;
   }, [sentEmails, checklist.candidateName]);
 
-  const stages: {
+  type Stage = {
     Icon: typeof ShieldCheck;
     label: string;
     done: boolean;
@@ -465,7 +521,13 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     at?: string;
     detail: string;
     action: StageAction;
-  }[] = [
+  };
+
+  // Every step either track can show, keyed by label. Which of them this person
+  // actually gets, and in what order, is `stepsFor(track)` below - so the
+  // stepper and the onboarding list cannot disagree about who has what.
+  const byLabel: Record<string, Stage> = Object.fromEntries(
+    ([
     {
       Icon: FileSignature,
       label: 'Offer letter',
@@ -624,7 +686,71 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         : 'The final step — convert the candidate into an employee once the appointment letter is out.',
       action: { kind: 'convert-employee', cta: 'Convert to employee' },
     },
-  ];
+
+    // -- intern track ------------------------------------------------------
+    // An intern gets one letter, not two: no appointment letter follows it.
+    {
+      Icon: FileSignature,
+      label: 'Internship letter',
+      done: Boolean(checklist.internshipLetterSentAt),
+      desc: checklist.internshipLetterSentAt ? 'Sent' : 'Pending',
+      at: checklist.internshipLetterSentAt,
+      detail:
+        'Email the intern their internship letter to review. They are asked to sign it and send the signed copy back.',
+      action: { kind: 'email', emailKind: 'internship_letter', cta: 'internship letter' },
+    },
+    {
+      Icon: PenLine,
+      label: 'Internship letter received',
+      // Same rule as the signed offer: an upload alone does not complete it.
+      done: Boolean(checklist.internshipSignedReceivedAt),
+      desc: checklist.internshipSignedReceivedAt
+        ? 'Received'
+        : signedInternshipRejected
+          ? 'Re-upload requested'
+          : signedInternshipDoc
+            ? 'Uploaded — review'
+            : 'Awaiting',
+      at: checklist.internshipSignedReceivedAt,
+      detail: signedInternshipRejected
+        ? 'The uploaded copy was rejected and the intern has been asked to upload the correct signed internship letter. Their upload link is live again — this step completes once the new copy arrives and you confirm it.'
+        : signedInternshipDoc
+          ? 'The intern uploaded their signed internship letter. Preview/download it below, then confirm it is properly signed to complete this step — or ask them to re-upload if it is the wrong file.'
+          : 'The intern can upload their signed copy via the 72-hour link in the internship letter email, or mark it received here manually.',
+      action: { kind: 'mark-signed-internship', cta: 'Mark received' },
+    },
+    {
+      Icon: CalendarCheck,
+      label: 'Joining date',
+      done: joiningConfirmed,
+      desc: joiningConfirmed
+        ? `Sent${checklist.joiningDate ? ` · ${fmtDate(checklist.joiningDate)}` : ''}`
+        : 'Pending',
+      at: checklist.joiningDateConfirmedAt,
+      // No confirmation form: interns get a plain email with the date and the
+      // office address, and nothing to fill in.
+      detail:
+        'Email the intern their joining date and the office address. No form and nothing for them to confirm back.',
+      action: { kind: 'email', emailKind: 'joining_date', cta: 'joining date' },
+    },
+    {
+      Icon: KeyRound,
+      label: 'Allocation of mail',
+      // Interns bring their own laptop, so there is no system, desk or buddy to
+      // assign - the mailbox is the whole step.
+      done: allocationEmailDone,
+      desc: allocationEmailDone ? 'Done' : 'Pending',
+      detail:
+        "Set up the intern's company email. They bring their own laptop, so there is no system or desk to assign.",
+      action: { kind: 'allocation', cta: 'Allocate' },
+    },
+    ] as Stage[]).map(stage => [stage.label, stage]),
+  );
+
+  // The steps this person actually has, in order.
+  const stages: Stage[] = stepsFor(track)
+    .map(label => byLabel[label])
+    .filter((stage): stage is Stage => Boolean(stage));
 
   // First not-yet-done stage is "current" (the one HR should act on next).
   const firstOpen = stages.findIndex(s => !s.done);
@@ -692,6 +818,12 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       onError: () => toast.error('Could not record the signed appointment letter — try again.'),
     });
 
+  const markInternshipSignedNow = () =>
+    markInternshipSigned.mutate(checklist.candidateId, {
+      onSuccess: () => toast.success('Signed internship letter recorded.'),
+      onError: () => toast.error('Could not record the signed internship letter — try again.'),
+    });
+
   // Everything the two signed-letter steps differ by, in one place — the
   // re-upload flow below is identical for both.
   const signedLetter = (letter: SignedLetter) =>
@@ -703,13 +835,21 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           uploadPath: signOfferPath,
           linkLabel: 'Upload signed offer letter',
         }
-      : {
-          request: signAppointmentReq,
-          docType: SIGNED_APPOINTMENT_DOC,
-          ttlHours: SIGN_APPOINTMENT_TTL_HOURS,
-          uploadPath: signAppointmentPath,
-          linkLabel: 'Upload signed appointment letter',
-        };
+      : letter === 'appointment'
+        ? {
+            request: signAppointmentReq,
+            docType: SIGNED_APPOINTMENT_DOC,
+            ttlHours: SIGN_APPOINTMENT_TTL_HOURS,
+            uploadPath: signAppointmentPath,
+            linkLabel: 'Upload signed appointment letter',
+          }
+        : {
+            request: signInternshipReq,
+            docType: SIGNED_INTERNSHIP_DOC,
+            ttlHours: SIGN_INTERNSHIP_TTL_HOURS,
+            uploadPath: signInternshipPath,
+            linkLabel: 'Upload signed internship letter',
+          };
 
   // Step 1 of "Request re-upload": turn HR's reason into an editable email.
   const openReuploadComposer = (letter: SignedLetter) => {
@@ -730,10 +870,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       ttlHours,
     );
     setReuploadSeed({
-      title:
-        letter === 'offer'
-          ? 'Request a correct signed offer letter'
-          : 'Request a correct signed appointment letter',
+      title: `Request a correct signed ${letter} letter`,
       to: toEmail,
       subject: draft.subject,
       body: draft.body,
@@ -1194,6 +1331,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     if (a.kind === 'email' && a.emailKind === 'offer_letter') return !signedOfferDone;
     // Once the signed appointment letter is received, stop offering to (re)send it.
     if (a.kind === 'email' && a.emailKind === 'appointment_letter') return !signedAppointmentDone;
+    // Same for the intern's single letter.
+    if (a.kind === 'email' && a.emailKind === 'internship_letter') return !signedInternshipDone;
     return (
       a.kind === 'email' ||
       a.kind === 'request-docs' ||
@@ -1240,11 +1379,20 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           setSendAppointmentOpen(true);
           return;
         }
+        // The internship letter opens its own send modal. The intern's joining
+        // date deliberately does NOT: it falls through to the plain composer
+        // below, which sends an email with no confirmation form attached.
+        if (a.emailKind === 'internship_letter') {
+          setSendInternshipOpen(true);
+          return;
+        }
         return openComposer(a.emailKind, a.cta);
       case 'mark-signed':
         return markSigned();
       case 'mark-signed-appointment':
         return markAppointmentSignedNow();
+      case 'mark-signed-internship':
+        return markInternshipSignedNow();
       case 'request-docs':
         return requestDocs();
       case 'confirm-joining':
@@ -1340,6 +1488,15 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           onClose={() => setSendAppointmentOpen(false)}
         />
       )}
+      {sendInternshipOpen && (
+        <SendInternshipLetterModal
+          candidate={candidate}
+          candidateId={checklist.candidateId}
+          candidateName={checklist.candidateName}
+          email={toEmail}
+          onClose={() => setSendInternshipOpen(false)}
+        />
+      )}
       {sendJoiningDateOpen && (
         <SendJoiningDateModal
           candidateId={checklist.candidateId}
@@ -1356,6 +1513,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           email={toEmail}
           role={candidate?.appliedRole}
           prior={docRequest}
+          track={track}
           onClose={() => setRequestDocsOpen(false)}
         />
       )}
@@ -1365,7 +1523,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       {selectChecksOpen && (
         <StartBgvModal
           selectOnly
-          preselected={chosenChecks}
+          preselected={bgvPreselection}
           onSelect={codes => {
             setSelectChecksOpen(false);
             if (!bgv) return;
@@ -1385,7 +1543,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           submissions={allSubmissions}
           uploadedDocTypes={allSubmissions.map(sub => sub.docType)}
           alreadyStarted={startedCodes}
-          isFresher={claims.isFresher}
+          isFresher={claims.isFresher ?? track === 'intern'}
           candidateName={checklist.candidateName}
           pending={updateBgv.isPending}
           onStart={confirmBgv}
@@ -1400,7 +1558,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           submissions={allSubmissions}
           uploadedDocTypes={allSubmissions.map(sub => sub.docType)}
           alreadyStarted={startedCodes}
-          isFresher={claims.isFresher}
+          isFresher={claims.isFresher ?? track === 'intern'}
           onRequestDocuments={() => {
             setStartBgvOpen(false);
             requestDocs();
@@ -2306,6 +2464,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                           )}
                         </div>
 
+                        {/* Interns bring their own laptop: no system, desk or buddy to assign. */}
+                        {track !== 'intern' && (
+                        <>
                         {/* Sub-step 2: Assign system and desk */}
                         <div
                           className={`rounded-md border border-line p-3 ${
@@ -2451,6 +2612,8 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                             </div>
                           )}
                         </div>
+                        </>
+                        )}
                       </div>
                     )}
 
@@ -2580,6 +2743,80 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 onSuccess: () =>
                                   toast.success(
                                     `Upload link re-activated for ${SIGN_APPOINTMENT_TTL_HOURS} hours.`,
+                                  ),
+                                onError: () => toast.error('Could not activate the link — try again.'),
+                              },
+                            )
+                          }
+                          disabled={reactivateDocRequest.isPending}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          {reactivateDocRequest.isPending ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Send size={13} />
+                          )}
+                          Activate link again
+                        </button>
+                      )}
+
+                    {stage.action.kind === 'mark-signed-internship' && signedInternshipDoc && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() =>
+                            window.open(
+                              documentPreviewUrl(signedInternshipDoc.id),
+                              '_blank',
+                              'noopener,noreferrer',
+                            )
+                          }
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
+                        >
+                          <Eye size={13} /> Preview signed internship letter
+                        </button>
+                        <button
+                          onClick={() => downloadDocument(signedInternshipDoc.id, signedInternshipDoc.fileName)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-[12px] font-semibold text-gray-700 transition hover:bg-surface-sunken"
+                        >
+                          <Download size={13} /> Download
+                        </button>
+                        {/* HR confirms the uploaded copy is properly signed → completes the step. */}
+                        {!checklist.internshipSignedReceivedAt && (
+                          <button
+                            onClick={markInternshipSignedNow}
+                            disabled={markInternshipSigned.isPending}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            title="Confirm the signed internship letter is valid"
+                          >
+                            {markInternshipSigned.isPending ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Check size={13} />
+                            )}
+                            Confirm valid &amp; received
+                          </button>
+                        )}
+                        {/* Wrong file? Reject it with a reason and email a fresh link. */}
+                        {!checklist.internshipSignedReceivedAt &&
+                          renderReuploadControls('internship')}
+                      </div>
+                    )}
+
+                    {/* Signed-copy upload link expired (nothing uploaded, not yet marked
+                        received) — one button to re-open it (72h) so the candidate can
+                        upload again. */}
+                    {stage.action.kind === 'mark-signed-internship' &&
+                      !signedInternshipDone &&
+                      signInternshipReq &&
+                      signInternshipExpired && (
+                        <button
+                          onClick={() =>
+                            reactivateDocRequest.mutate(
+                              { id: signInternshipReq.id, hours: SIGN_INTERNSHIP_TTL_HOURS },
+                              {
+                                onSuccess: () =>
+                                  toast.success(
+                                    `Upload link re-activated for ${SIGN_INTERNSHIP_TTL_HOURS} hours.`,
                                   ),
                                 onError: () => toast.error('Could not activate the link — try again.'),
                               },

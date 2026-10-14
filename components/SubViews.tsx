@@ -6,6 +6,7 @@ import { SendInterviewKitTab } from './SendInterviewKitTab';
 import { DocumentsPanel } from './DocumentsPanel';
 import { DocRequestPanel } from './DocRequestPanel';
 import { OnboardingStepper } from './OnboardingStepper';
+import { percentFor, resolveTrack } from '@/lib/onboarding-track';
 import { ActionMenu } from './ActionMenu';
 import { EmailTemplatesManager } from './EmailTemplatesManager';
 import { useToast } from './Toaster';
@@ -929,8 +930,9 @@ function onboardingTags(
   return tags;
 }
 
-/** Live progress + status label across the real 10 onboarding steps (see
- *  OnboardingStepper.tsx — same done-conditions). `checklist.progressPercentage`
+/** Live progress + status label across this person's own onboarding steps
+ *  (see lib/onboarding-track.ts for the two step tables, and
+ *  OnboardingStepper.tsx for the same done-conditions). `checklist.progressPercentage`
  *  /`onboardingStatus` are separate, legacy fields (driven by a "tasks"
  *  checklist nobody uses from this flow) hardcoded at creation
  *  ("Offer Accepted" / 40%) and never recomputed — they do NOT reflect the
@@ -945,21 +947,36 @@ function onboardingProgress(
   const signedAppointment = docRequests.find(
     d => d.candidateId === o.candidateId && d.kind === 'signed-appointment',
   );
-  const done = [
-    Boolean(o.offerLetterSentAt),
-    Boolean(o.offerSignedReceivedAt) || signedOffer?.status === 'Submitted' || signedOffer?.status === 'Verified',
-    joiningDocs?.status === 'Verified' || Boolean(o.joiningDocsSkippedAt),
-    bgv?.overallStatus === 'Verified' || Boolean(o.bgvSkippedAt), // sent-but-not-yet-verified does NOT count on its own
-    Boolean(o.joiningDateConfirmedAt),
-    Boolean(o.firstDayArrivedAt),
-    Boolean(o.appointmentLetterSentAt),
-    Boolean(o.appointmentSignedReceivedAt) ||
-      signedAppointment?.status === 'Submitted' ||
-      signedAppointment?.status === 'Verified',
-    Boolean(o.convertedToEmployeeAt) || Boolean(o.employeeId),
-    Boolean(o.allocationEmailSavedAt) && Boolean(o.systemDeskSavedAt) && Boolean(o.buddyAssignedAt),
-  ];
-  const percentage = Math.round((done.filter(Boolean).length / done.length) * 100);
+  const signedInternship = docRequests.find(
+    d => d.candidateId === o.candidateId && d.kind === 'signed-internship',
+  );
+  const returned = (r: DocRequest | undefined) => r?.status === 'Submitted' || r?.status === 'Verified';
+
+  // Keyed by step label, then counted against this person's own track: an
+  // intern has no appointment letter, and counting them out of the ten
+  // full-time steps left them permanently short of 100 however much they did.
+  const done: Record<string, boolean> = {
+    'Offer letter': Boolean(o.offerLetterSentAt),
+    'Signed offer received': Boolean(o.offerSignedReceivedAt) || returned(signedOffer),
+    'Internship letter': Boolean(o.internshipLetterSentAt),
+    'Internship letter received':
+      Boolean(o.internshipSignedReceivedAt) || returned(signedInternship),
+    'Joining Documents': joiningDocs?.status === 'Verified' || Boolean(o.joiningDocsSkippedAt),
+    // sent-but-not-yet-verified does NOT count on its own
+    'Background verification': bgv?.overallStatus === 'Verified' || Boolean(o.bgvSkippedAt),
+    'Joining date confirmation': Boolean(o.joiningDateConfirmedAt),
+    'Joining date': Boolean(o.joiningDateConfirmedAt),
+    'Allocation of mail, system & desk':
+      Boolean(o.allocationEmailSavedAt) && Boolean(o.systemDeskSavedAt) && Boolean(o.buddyAssignedAt),
+    // Interns bring their own laptop, so the mailbox is the whole step.
+    'Allocation of mail': Boolean(o.allocationEmailSavedAt),
+    'First day': Boolean(o.firstDayArrivedAt),
+    'Appointment letter': Boolean(o.appointmentLetterSentAt),
+    'Signed appointment letter':
+      Boolean(o.appointmentSignedReceivedAt) || returned(signedAppointment),
+    Employee: Boolean(o.convertedToEmployeeAt) || Boolean(o.employeeId),
+  };
+  const percentage = percentFor(resolveTrack(o), done);
   const status =
     percentage === 100 ? 'Onboarding Completed' : percentage >= 60 ? 'Ready to Join' : percentage >= 40 ? 'Documentation Completed' : 'Offer Accepted';
   return { percentage, status };
