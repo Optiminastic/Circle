@@ -37,23 +37,26 @@ export async function openDocument(id: string): Promise<void> {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-/** Download the file (fetch the presigned URL as a blob and save it). Falls back
- *  to opening it in a tab if the cross-origin fetch is blocked. */
+/**
+ * Save the file.
+ *
+ * The link is presigned as an attachment server-side, so the browser saves it
+ * whatever the file type is. This used to fetch the inline link as a blob
+ * instead, and fall back to opening a tab when that cross-origin fetch was
+ * blocked - which quietly turned "download" into "view" for every file, and
+ * only looked broken for images, because the browser's PDF viewer supplies a
+ * download button of its own and its image rendering does not.
+ *
+ * `a.download` is kept for the filename, and is ignored cross-origin; the
+ * server's Content-Disposition carries the real name.
+ */
 export async function downloadDocument(id: string, fileName?: string): Promise<void> {
-  const { url, fileName: fn } = await getDocumentUrl(id);
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('fetch failed');
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = fileName || fn || 'document';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objectUrl);
-  } catch {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
+  const { url, fileName: fn } = await getDocumentUrl(id, { download: true });
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName || fn || 'document';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }

@@ -16,6 +16,25 @@ export function useJobs() {
   return useQuery({ queryKey: qk.jobs.all, queryFn: () => repositories.jobs.list() });
 }
 
+/**
+ * The posting a candidate applied to, from whatever is already cached.
+ *
+ * Used when onboarding is created, to decide whether this is an internship.
+ * Deliberately cache-only and best-effort: `jobId` is optional on a candidate
+ * (direct adds have none), and a candidate whose posting cannot be found is a
+ * full-time hire, which is what every record did before intern onboarding
+ * existed. Never fetches, so it can be called inside a mutation without
+ * putting a network round-trip in front of the write.
+ */
+export function jobForCandidate(
+  qc: ReturnType<typeof useQueryClient>,
+  candidate: Pick<Candidate, 'jobId'>,
+): Job | undefined {
+  if (!candidate.jobId) return undefined;
+  const jobs = qc.getQueryData<Job[]>(qk.jobs.all) ?? [];
+  return jobs.find(j => j.id === candidate.jobId) ?? qc.getQueryData<Job>(qk.jobs.detail(candidate.jobId));
+}
+
 /** A single job — backs the public posting page. */
 export function useJob(id: string) {
   return useQuery({

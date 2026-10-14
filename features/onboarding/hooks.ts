@@ -5,6 +5,8 @@ import { BUDDY_RESOURCE_LINKS } from '@/lib/onboarding-email-templates';
 import { AppointmentLetterData, Candidate, OfferLetterData, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
+import { jobForCandidate } from '@/features/jobs/hooks';
+import { resolveTrack } from '@/lib/onboarding-track';
 import { optimisticOptions } from '@/lib/query/mutations';
 import { toggleOnboardingTask } from '@/services/onboarding.service';
 import { buildEmployeeFromCandidate } from '@/services/employee.service';
@@ -31,7 +33,7 @@ export function useEnsureOnboarding() {
     mutationFn: async (candidate: Candidate) => {
       const list = await repositories.onboarding.list();
       if (list.some(o => o.candidateId === candidate.id)) return;
-      await repositories.onboarding.create(buildOnboardingForCandidate(candidate));
+      await repositories.onboarding.create(buildOnboardingForCandidate(candidate, jobForCandidate(qc, candidate)));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.onboarding.all }),
   });
@@ -61,6 +63,7 @@ export type OnboardingEmailKind =
   | 'offer_letter'
   | 'office_invite'
   | 'joining_date'
+  | 'internship_letter'
   | 'appointment_letter';
 
 // The checklist field each email stamps when sent.
@@ -69,6 +72,7 @@ const stampByKind: Record<OnboardingEmailKind, () => Partial<OnboardingChecklist
   offer_letter: () => ({ offerLetterSentAt: nowISO() }),
   office_invite: () => ({ officeInviteSentAt: nowISO() }),
   joining_date: () => ({ joiningDateConfirmedAt: nowISO() }),
+  internship_letter: () => ({ internshipLetterSentAt: nowISO() }),
   appointment_letter: () => ({ appointmentLetterSentAt: nowISO() }),
 };
 
@@ -218,6 +222,13 @@ export function useOnboardingEmails() {
   const markAppointmentSigned = useMutation({
     mutationFn: (candidateId: string) =>
       repositories.onboarding.patch(candidateId, { appointmentSignedReceivedAt: nowISO() }),
+    onSuccess: invalidate,
+  });
+
+  // The intern track's equivalent: their internship letter is the only one.
+  const markInternshipSigned = useMutation({
+    mutationFn: (candidateId: string) =>
+      repositories.onboarding.patch(candidateId, { internshipSignedReceivedAt: nowISO() }),
     onSuccess: invalidate,
   });
 
@@ -379,6 +390,7 @@ export function useOnboardingEmails() {
     sendComposed,
     markOfferSigned,
     markAppointmentSigned,
+    markInternshipSigned,
     markJoiningDocsSkipped,
     markBgvSkipped,
     revertEmployeeConversion,
@@ -464,10 +476,15 @@ export function usePromoteFromOnboarding() {
       // checklist and then dropped: the employee was created with the candidate's
       // PERSONAL address instead, which downstream code (offboarding handover,
       // granted credentials) treats as the work address.
+      const track = resolveTrack(checklist, jobForCandidate(qc, candidate));
       const companyEmail = checklist.allocationEmail?.trim();
       if (!companyEmail) {
+        // Both tracks allocate a mailbox, so both are gated on it - the intern
+        // step is just named for the one thing it does.
         throw new Error(
-          'Add the company email under "Allocation of mail, system & desk" before converting.',
+          track === 'intern'
+            ? 'Add the company email under "Allocation of mail" before converting.'
+            : 'Add the company email under "Allocation of mail, system & desk" before converting.',
         );
       }
 
@@ -494,11 +511,16 @@ export function usePromoteFromOnboarding() {
           companyEmail,
           employeeCode,
           grantedBy: user?.name || user?.email || 'HR',
+          track,
         }),
         ...(passportPhoto ? { avatarUrl: documentPreviewUrl(passportPhoto.documentId) } : {}),
         joining: {
-          offerLetterSentAt: checklist.offerLetterSentAt,
-          offerSignedReceivedAt: checklist.offerSignedReceivedAt,
+          // An intern has no offer or appointment letter; their internship
+          // letter takes the offer slots so the employee file still shows when
+          // the letter went out and when the signed copy came back.
+          offerLetterSentAt: checklist.offerLetterSentAt ?? checklist.internshipLetterSentAt,
+          offerSignedReceivedAt:
+            checklist.offerSignedReceivedAt ?? checklist.internshipSignedReceivedAt,
           officeInviteSentAt: checklist.officeInviteSentAt,
           appointmentLetterSentAt: checklist.appointmentLetterSentAt,
         },

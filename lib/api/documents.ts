@@ -83,8 +83,21 @@ export function documentPreviewUrl(id: string): string {
   return `${apiBase()}/api/documents/${id}/preview`;
 }
 
-export async function getDocumentUrl(id: string): Promise<{ url: string; fileName: string }> {
-  const res = await fetch(`${apiBase()}/api/documents/${id}/url`, {
+/**
+ * A short-lived link to the stored file.
+ *
+ * `download` asks the server to presign it as an attachment, which is what
+ * makes a browser save the file instead of rendering it. Without it the link is
+ * inline, and what happens then depends on the file type: a PDF opens in the
+ * browser's own viewer (which has a download button) while an image is just
+ * painted on the page (which has not).
+ */
+export async function getDocumentUrl(
+  id: string,
+  opts?: { download?: boolean },
+): Promise<{ url: string; fileName: string }> {
+  const query = opts?.download ? '?download=true' : '';
+  const res = await fetch(`${apiBase()}/api/documents/${id}/url${query}`, {
     cache: 'no-store',
     credentials: 'include',
   });

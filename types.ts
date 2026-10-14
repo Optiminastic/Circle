@@ -452,6 +452,8 @@ export type RequiredDocType =
   | 'Salary slips'
   | 'Resignation letter'
   | 'Current offer letter'
+  /** Intern track: the completion or offer letter from a previous internship. */
+  | 'Previous internship letter'
   | 'Bank details'
   | 'Reference contacts'
   /** Employee-directory "Request docs" only (distinct from the 72h
@@ -666,10 +668,11 @@ export interface DocRequest {
    *  copy the public portal shows (e.g. employee requests skip the BGV
    *  consent section — they're already hired and verified). */
   entityType?: 'candidate' | 'employee';
-  /** 'signed-offer' / 'signed-appointment' = a 72h link for the candidate's
-   *  signed offer/appointment letter (kept separate from the joining-documents
-   *  request). undefined = joining docs. */
-  kind?: 'signed-offer' | 'signed-appointment';
+  /** 'signed-offer' / 'signed-appointment' / 'signed-internship' = a 72h link
+   *  for the candidate's signed letter (kept separate from the joining-documents
+   *  request). 'signed-internship' is the intern track's only letter.
+   *  undefined = joining docs. */
+  kind?: 'signed-offer' | 'signed-appointment' | 'signed-internship';
   /** What HR asked for — drives which cards the portal shows. May include the
    *  non-file items 'Bank details' and 'Reference contacts'. */
   requiredDocs: string[];
@@ -931,6 +934,11 @@ export interface AppointmentLetterData {
   updatedAt?: string;
 }
 
+/** Which onboarding path this person follows. See lib/onboarding-track.ts for
+ *  the step tables; interns get one letter, no appointment letter, a plain
+ *  joining-date email and a mailbox but no company laptop. */
+export type OnboardingTrack = 'employee' | 'intern';
+
 export interface OnboardingChecklist {
   candidateId: string;
   candidateName: string;
@@ -972,6 +980,15 @@ export interface OnboardingChecklist {
   joiningDateConfirmedAt?: string;
   /** Candidate arrived in office on their first day (also fired the handoff webhook). */
   firstDayArrivedAt?: string;
+  /** Which path this onboarding follows. Defaulted from the posting's
+   *  employmentType at creation and then persisted, because the posting can be
+   *  edited or closed long after onboarding starts. Absent on every record
+   *  created before intern onboarding existed, which reads as 'employee'. */
+  track?: OnboardingTrack;
+  /** Internship letter email sent (intern track; replaces the offer letter). */
+  internshipLetterSentAt?: string;
+  /** HR confirmed the intern's signed internship letter as received/valid. */
+  internshipSignedReceivedAt?: string;
   /** Letter of appointment email sent. */
   appointmentLetterSentAt?: string;
   /** HR confirmed the candidate's signed appointment letter as received/valid. */

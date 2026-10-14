@@ -61,6 +61,17 @@ export const BGV_CATALOG: BgvCatalogNode[] = [
  * cannot run for want of data (no UAN, no qualification details, no configured
  * reference schema).
  */
+/**
+ * What an intern's background check covers.
+ *
+ * Employment verification (EMPV) and employment history (EHC) are left out:
+ * most interns have never been employed, so those checks have nothing to go to
+ * an employer about and come back empty after the wait. Their previous
+ * internship letter is collected as a document instead, not sent for
+ * verification.
+ */
+export const INTERN_BGV_CHECKS: readonly string[] = ['PANV', 'EDUV', 'PAV', 'CCRV'];
+
 export const RUNNABLE_BGV_CODES: readonly string[] = [
   'PANV',
   'CCRV',

@@ -12,10 +12,11 @@ import { qk } from '@/lib/query/keys';
 import { randomId, nowISO } from '@/lib/utils';
 import {
   REQUIRED_DOCS,
-  DEFAULT_REQUIRED_DOC_TYPES,
+  defaultDocTypesFor,
   docDefsFor,
   DOC_REQUEST_TTL_HOURS,
 } from '@/lib/onboarding-docs';
+import type { OnboardingTrack } from '@/types';
 import { emailTemplateById } from '@/lib/email-templates-catalog';
 import {
   useEmailTemplateOverrides,
@@ -41,10 +42,20 @@ interface Props {
   email: string;
   role?: string;
   prior?: DocRequest;
+  /** Which onboarding path they are on; decides the starting selection. */
+  track?: OnboardingTrack;
   onClose: () => void;
 }
 
-export function RequestDocumentsModal({ candidateId, candidateName, email, role, prior, onClose }: Props) {
+export function RequestDocumentsModal({
+  candidateId,
+  candidateName,
+  email,
+  role,
+  prior,
+  track = 'employee',
+  onClose,
+}: Props) {
   const toast = useToast();
   const qc = useQueryClient();
   const { create } = useDocRequestMutations();
@@ -57,11 +68,11 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
   // Re-requesting keeps whatever HR asked for last time; a fresh request starts
   // from the standard set.
   const [docs, setDocs] = useState<string[]>(
-    prior?.requiredDocs?.length ? prior.requiredDocs : DEFAULT_REQUIRED_DOC_TYPES,
+    prior?.requiredDocs?.length ? prior.requiredDocs : defaultDocTypesFor(track),
   );
   // Set here when HR already knows. The candidate can still correct it in the
   // portal, which is why this is a starting point rather than the final word.
-  const [isFresher, setIsFresher] = useState(Boolean(prior?.isFresher));
+  const [isFresher, setIsFresher] = useState(prior ? Boolean(prior.isFresher) : track === 'intern');
 
   // Ticking it drops the documents that only exist for someone with prior
   // employment, so HR does not have to know which of the eleven those are.
@@ -292,7 +303,12 @@ export function RequestDocumentsModal({ candidateId, candidateName, email, role,
                 </label>
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                   {REQUIRED_DOCS.filter(
-                    d => d.scope !== 'employee' && !(isFresher && d.employmentOnly),
+                    d =>
+                      d.scope !== 'employee' &&
+                      !(isFresher && d.employmentOnly) &&
+                      // The previous-internship letter is only meaningful on the
+                      // intern track; everything else shows on both.
+                      (track === 'intern' || !d.internOnly),
                   ).map(d => (
                     <DocRow key={d.type} type={d.type} label={d.label} />
                   ))}

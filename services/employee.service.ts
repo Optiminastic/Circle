@@ -1,5 +1,6 @@
-import { Candidate, CredentialRecord, Employee } from '@/types';
+import { Candidate, CredentialRecord, Employee, OnboardingTrack } from '@/types';
 import { randomId, todayISO } from '@/lib/utils';
+import { internEmploymentType } from '@/lib/onboarding-track';
 
 /** Everything the new employee record needs that the candidate record cannot supply. */
 export interface EmployeeProvisioning {
@@ -9,6 +10,9 @@ export interface EmployeeProvisioning {
   employeeCode: string;
   /** The HR user performing the conversion, recorded on credentials they grant. */
   grantedBy: string;
+  /** Which onboarding path they came through. Interns are marked as such in the
+   *  directory, which is what drives their shorter notice policy. */
+  track?: OnboardingTrack;
 }
 
 /** Build a new employee record when a candidate finishes onboarding.
@@ -34,6 +38,10 @@ export function buildEmployeeFromCandidate(
     joiningDate: todayISO(),
     workLocation: candidate.location || '',
     status: 'Active',
+    // Jobs say 'Internship', employees say 'Intern'; the two vocabularies meet
+    // in `internEmploymentType` and nowhere else. Left unset for a full-time
+    // hire, exactly as every record written before this.
+    employmentType: internEmploymentType(provisioning.track ?? 'employee'),
     // Keep the link + agreed pay so the employee file can show BGV/docs/offer history.
     candidateId: candidate.id,
     annualCtc: candidate.expectedCtc || candidate.currentCtc || '',

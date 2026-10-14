@@ -3,9 +3,10 @@
  * a composer, tweaks the subject/body, and sends — so nothing is locked to a
  * fixed backend template. The offer letter mirrors the company's PDF format.
  */
-import { Candidate, OnboardingChecklist } from '@/types';
+import { Candidate, OnboardingChecklist, OnboardingTrack } from '@/types';
 import { OnboardingEmailKind } from '@/features/onboarding/hooks';
 import { OFFICE_LOCATION_URL } from '@/lib/config';
+import { SIGN_INTERNSHIP_TTL_HOURS } from '@/lib/sign-internship';
 
 export interface EmailDraft {
   subject: string;
@@ -21,12 +22,15 @@ const HR_EMAIL = 'hr@optiminastic.com';
 export function buildOnboardingEmailDraft(
   kind: OnboardingEmailKind,
   candidate: Pick<Candidate, 'fullName' | 'appliedRole' | 'expectedCtc' | 'currentCtc'> | undefined,
-  opts?: { startDate?: string },
+  opts?: { startDate?: string; track?: OnboardingTrack },
 ): EmailDraft {
   const name = candidate?.fullName || 'Candidate';
   const role = candidate?.appliedRole || 'the role';
   const ctc = candidate?.expectedCtc || candidate?.currentCtc || '[Annual CTC]';
   const startDate = opts?.startDate || '[start date]';
+  // An intern never receives an offer letter, so pointing them at one for the
+  // document list would send them looking for an email that does not exist.
+  const letterName = opts?.track === 'intern' ? 'internship letter' : 'offer letter';
 
   switch (kind) {
     case 'job_offer':
@@ -127,9 +131,29 @@ export function buildOnboardingEmailDraft(
           'Please visit our office on your joining date to complete the joining formalities:',
           OFFICE,
           '',
-          'Do carry the documents mentioned in your offer letter. If anything prevents you from joining on this date, please let the HR team know at your earliest convenience.',
+          `Do carry the documents mentioned in your ${letterName}. If anything prevents you from joining on this date, please let the HR team know at your earliest convenience.`,
           '',
           'We look forward to welcoming you!',
+          '',
+          'Warm regards,',
+          `${COMPANY} HR`,
+        ].join('\n'),
+      };
+
+    case 'internship_letter':
+      return {
+        subject: `Your internship letter — ${role} at ${COMPANY}`,
+        body: [
+          `Dear ${name},`,
+          '',
+          `Congratulations! We are delighted to offer you an internship as ${role} at ${COMPANY}. Your internship letter is attached.`,
+          '',
+          `Please review it, sign it, and upload the signed copy using the link below. The link is valid for ${SIGN_INTERNSHIP_TTL_HOURS} hours.`,
+          '',
+          `Once we have your signed copy we will share the joining formalities, including your start date and our office address:`,
+          OFFICE,
+          '',
+          'If you have any questions in the meantime, just reply to this email.',
           '',
           'Warm regards,',
           `${COMPANY} HR`,
@@ -160,13 +184,13 @@ export function buildOnboardingEmailDraft(
  * the caller, so they can replace the file through the same URL.
  */
 export function buildSignedLetterReuploadDraft(
-  letter: 'offer' | 'appointment',
+  letter: 'offer' | 'appointment' | 'internship',
   candidateName: string | undefined,
   reason: string,
   ttlHours: number,
 ): EmailDraft {
   const name = candidateName || 'Candidate';
-  const doc = letter === 'offer' ? 'offer letter' : 'appointment letter';
+  const doc = `${letter === 'offer' ? 'offer' : letter === 'appointment' ? 'appointment' : 'internship'} letter`;
 
   return {
     subject: `Action needed — please re-upload your signed ${doc} | ${COMPANY}`,
