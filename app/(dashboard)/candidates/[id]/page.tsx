@@ -81,7 +81,7 @@ import {
 import { randomId, randomToken, nowISO, formatCtc } from '@/lib/utils';
 import { SendTestModal, SendTestResult } from '@/components/SendTestModal';
 import { useToast } from '@/components/Toaster';
-import { openDocument, useDocuments } from '@/features/documents/hooks';
+import { downloadDocument, openDocument, useDocuments } from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
 import { INTERVIEW_MODULES, type InterviewBank } from '@/lib/question-banks';
 import { useInterviewBanks, useInterviewKitSends } from '@/features/question-banks/hooks';
@@ -3198,7 +3198,9 @@ export default function CandidateDetailPage() {
                       <Eye size={14} /> Preview submission
                     </button>
                     <button
-                      onClick={() => openDocument(asgInvite.submissionDocId!)}
+                      onClick={() =>
+                        downloadDocument(asgInvite.submissionDocId!, asgInvite.submissionFileName)
+                      }
                       className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-secondary cursor-pointer"
                     >
                       <Download size={14} /> {asgInvite.submissionFileName ?? 'Download'}

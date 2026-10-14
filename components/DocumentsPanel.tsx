@@ -2,7 +2,12 @@
 
 import React, { useRef } from 'react';
 import { Download, Eye, FileText, Loader2, Trash2, Upload } from 'lucide-react';
-import { openDocument, useDocumentMutations, useDocuments } from '@/features/documents/hooks';
+import {
+  downloadDocument,
+  openDocument,
+  useDocumentMutations,
+  useDocuments,
+} from '@/features/documents/hooks';
 import { documentPreviewUrl } from '@/lib/api/documents';
 import { Tip } from '@/components/ui/tooltip';
 
@@ -122,7 +127,7 @@ export function DocumentsPanel({
                   </Tip>
                   <Tip label="Download">
                     <button
-                      onClick={() => openDocument(doc.id)}
+                      onClick={() => downloadDocument(doc.id, doc.fileName)}
                       aria-label="Download"
                       className="p-1 text-gray-500 hover:text-accent-600 cursor-pointer"
                     >
