@@ -117,6 +117,9 @@ export interface OngridStatusResult {
   overallStatus?: string;
   checks?: OngridCheckStatus[];
   reportUrl?: string;
+  /** True/False as OnGrid stated it; undefined when they did not say. An
+   *  interim report must never be shown as the final one. */
+  reportComplete?: boolean | null;
   reason?: string;
 }
 

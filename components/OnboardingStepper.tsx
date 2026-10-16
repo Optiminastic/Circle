@@ -377,8 +377,19 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // for - only fetched once the candidate exists over there.
   const ongridStatus = useOngridStatus(candidate?.id, Boolean(bgv?.ongridIndividualId));
   const liveChecks = ongridStatus.data?.ok ? (ongridStatus.data.checks ?? []) : [];
+  // Named so the panel can say WHY there is no report yet, rather than leaving
+  // a blank where the download button would be.
+  const unfinishedChecks = liveChecks
+    .filter(c => !/success|completed|verified/i.test(c.status ?? ''))
+    .map(c => `${c.code} ${c.status}`);
   const startedCodes = liveChecks.map(c => c.code);
   const bgvReportUrl = ongridStatus.data?.reportUrl;
+  // OnGrid serves an interim report while checks are still running, so the
+  // label has to say which one this is - an interim report filed as the final
+  // one is worse than no report.
+  const bgvReportComplete = ongridStatus.data?.reportComplete;
+  const bgvReportLabel =
+    bgvReportComplete === false ? 'Download interim report' : 'Download report';
   const bgvRunning = startedCodes.length > 0;
   // A candidate accumulates one record per "send joining date" -- re-sends add
   // more, and only the one the candidate actually opened carries their answers.
@@ -2263,15 +2274,32 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                               this button offers depends on what OnGrid says is
                               actually running - re-sending a check that is already
                               under way just pays for it twice. */}
-                          {bgvReportUrl && (
+                          {bgvReportUrl ? (
                             <a
                               href={bgvReportUrl}
                               target="_blank"
                               rel="noopener noreferrer"
+                              title={
+                                bgvReportComplete === false
+                                  ? 'Checks are still running — this is OnGrid’s interim report, not the final one'
+                                  : 'The consolidated OnGrid report'
+                              }
                               className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent-600 px-3 text-[12px] font-semibold text-white transition hover:bg-accent-700"
                             >
-                              <Download size={13} /> Download report
+                              <Download size={13} /> {bgvReportLabel}
                             </a>
+                          ) : (
+                            // A missing report is information, not nothing: the
+                            // panel used to render blank here, which is how a
+                            // stalled check looked identical to a broken page.
+                            ongridStatus.data?.ok && (
+                              <span className="text-[11px] text-gray-500">
+                                No report from OnGrid yet
+                                {unfinishedChecks.length > 0
+                                  ? ` — waiting on ${unfinishedChecks.join(', ')}`
+                                  : ''}
+                              </span>
+                            )
                           )}
                           <button
                             onClick={() => setStartBgvOpen(true)}
