@@ -976,6 +976,14 @@ function onboardingProgress(
       Boolean(o.appointmentSignedReceivedAt) || returned(signedAppointment),
     Employee: Boolean(o.convertedToEmployeeAt) || Boolean(o.employeeId),
   };
+  // Blanket "skip this step" override (see OnboardingStepper.tsx) — Joining
+  // Documents / Background verification already fold their own skip flags in
+  // above, so they're excluded here to avoid double-counting.
+  for (const label of Object.keys(done)) {
+    if (label !== 'Joining Documents' && label !== 'Background verification' && o.skippedSteps?.includes(label)) {
+      done[label] = true;
+    }
+  }
   const percentage = percentFor(resolveTrack(o), done);
   const status =
     percentage === 100 ? 'Onboarding Completed' : percentage >= 60 ? 'Ready to Join' : percentage >= 40 ? 'Documentation Completed' : 'Offer Accepted';

@@ -27,6 +27,7 @@ import {
   Laptop,
   UserCheck,
   Pencil,
+  SkipForward,
 } from 'lucide-react';
 import { BGVRequirement, DocRequest, OnboardingChecklist, SentEmailLog } from '@/types';
 import {
@@ -222,6 +223,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     markInternshipSigned,
     markJoiningDocsSkipped,
     markBgvSkipped,
+    setSkippedSteps,
     markFirstDayArrived,
     saveAllocationEmail,
     saveSystemDesk,
@@ -757,6 +759,39 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     },
     ] as Stage[]).map(stage => [stage.label, stage]),
   );
+
+  // Blanket "skip any step" escape hatch (see types.ts skippedSteps). Joining
+  // Documents and Background verification keep their own dedicated fields —
+  // they predate this and already have their own skip affordance below — so
+  // they're excluded here to avoid showing two skip controls on the same step.
+  const skippedSteps = checklist.skippedSteps ?? [];
+  const genericallySkippable = (label: string) =>
+    label !== 'Joining Documents' && label !== 'Background verification';
+  const stepSkipped = (label: string) => skippedSteps.includes(label);
+  const skipStep = (label: string) => {
+    if (stepSkipped(label)) return;
+    setSkippedSteps.mutate(
+      { candidateId: checklist.candidateId, skippedSteps: [...skippedSteps, label] },
+      {
+        onSuccess: () => toast.success(`Skipped "${label}" — come back to it anytime.`),
+        onError: () => toast.error('Could not skip this step — try again.'),
+      },
+    );
+  };
+  const unskipStep = (label: string) => {
+    setSkippedSteps.mutate(
+      { candidateId: checklist.candidateId, skippedSteps: skippedSteps.filter(s => s !== label) },
+      {
+        onSuccess: () => toast.success(`"${label}" reopened.`),
+        onError: () => toast.error('Could not reopen this step — try again.'),
+      },
+    );
+  };
+  for (const label of Object.keys(byLabel)) {
+    if (genericallySkippable(label) && stepSkipped(label)) {
+      byLabel[label] = { ...byLabel[label], done: true, desc: 'Skipped' };
+    }
+  }
 
   // The steps this person actually has, in order.
   const stages: Stage[] = stepsFor(track)
@@ -1895,6 +1930,52 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                 {infoShown && (
                   <div className="space-y-3 rounded-b-lg border-t border-strong/15 bg-surface px-3.5 py-3">
                     <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
+
+                    {/* Blanket "skip this step" — every step can be bypassed without
+                        being completed. Joining Documents / Background verification
+                        have their own equivalent control further below instead. */}
+                    {genericallySkippable(stage.label) &&
+                      (stepSkipped(stage.label) ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5">
+                          <p className="text-[11.5px] text-amber-800">
+                            This step was skipped without being completed.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => unskipStep(stage.label)}
+                            disabled={setSkippedSteps.isPending}
+                            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[11.5px] font-semibold text-gray-600 transition hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700 disabled:opacity-60"
+                          >
+                            {setSkippedSteps.isPending ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <RefreshCw size={12} />
+                            )}
+                            Reopen step
+                          </button>
+                        </div>
+                      ) : (
+                        !stage.done && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
+                            <p className="text-[11px] text-gray-500">
+                              Not ready, or doesn&apos;t apply? Skip this step without completing it.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => skipStep(stage.label)}
+                              disabled={setSkippedSteps.isPending}
+                              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[11.5px] font-semibold text-gray-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-60"
+                            >
+                              {setSkippedSteps.isPending ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <SkipForward size={12} />
+                              )}
+                              Skip this step
+                            </button>
+                          </div>
+                        )
+                      ))}
 
                     {/* Joining date: once confirmed, the action row is gone. Re-send from
                         here — opens the same modal, pre-filled with the confirmed date. */}

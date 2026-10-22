@@ -965,6 +965,13 @@ export interface OnboardingChecklist {
    *  (pill, report upload, undo) and can still be marked Verified later. */
   bgvSkippedAt?: string;
 
+  /** Stage labels HR has explicitly chosen to skip without completing — a
+   *  blanket escape hatch so any step can be bypassed, alongside the two
+   *  dedicated overrides above (Joining Documents / Background verification,
+   *  which predate this and keep their own fields). Reversible — see
+   *  "Reopen step" in OnboardingStepper.tsx. */
+  skippedSteps?: string[];
+
   // Post-verification email sequence (ISO timestamps; undefined = not yet done).
   /** Job-offer email (offer details) sent to the candidate. */
   jobOfferSentAt?: string;
