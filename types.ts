@@ -847,6 +847,21 @@ export interface BGVRequirement {
   extractedFields?: Record<string, Record<string, string>>;
   /** When HR requested the checks from OnGrid (as opposed to just onboarding). */
   ongridVerificationsSentAt?: string;
+  /**
+   * Per-check outcome from the last "Execute BGV" send — one row per code HR
+   * selected that time, including the ones that did NOT start. `reason` is
+   * OnGrid's own message or ours (e.g. "No UAN on file"), passed through
+   * verbatim. A code only shows in `ongridStatus.checks` (live, from OnGrid)
+   * once it actually starts — this is the only place a failed-to-start code's
+   * reason is recorded at all.
+   */
+  ongridChecks?: {
+    code: string;
+    ok: boolean;
+    requestId?: string | null;
+    documentId?: string | null;
+    reason?: string | null;
+  }[];
 }
 
 export type BGVDocumentType =
