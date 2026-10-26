@@ -32,7 +32,7 @@
  * because the API looks the override up by that key.
  */
 
-export type EmailTemplateGroup = 'standalone' | 'hiring' | 'onboarding';
+export type EmailTemplateGroup = 'standalone' | 'hiring' | 'onboarding' | 'rejection';
 
 export interface EmailTemplateDef {
   id: string;
@@ -295,10 +295,50 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     ].join('\n'),
   },
   {
+    id: 'rejection_general',
+    label: 'Rejected — general',
+    description: 'The quick "Reject" email HR can send at any stage, before the IQ test.',
+    group: 'rejection',
+    placeholders: ['candidate_name', 'role', 'hr_signoff'],
+    defaultSubject: 'Update on your application — {{role}} at Optiminastic',
+    defaultBody: [
+      'Dear {{candidate_name}},',
+      '',
+      'Thank you for taking the time to apply for the {{role}} role at Optiminastic and for sharing your background with us.',
+      '',
+      'After careful consideration, we have decided not to move forward with your application at this stage, as the profile is not the right fit for the requirements of this particular role.',
+      '',
+      'This is not a reflection of your abilities, and we encourage you to apply for future openings that match your experience. We wish you the very best in your job search.',
+      '',
+      'Warm regards,',
+      '{{hr_signoff}}',
+    ].join('\n'),
+  },
+  {
+    id: 'rejection_hr_call',
+    label: 'Rejected — after HR call',
+    description: 'Sent when a candidate is rejected following the HR call.',
+    group: 'rejection',
+    placeholders: ['candidate_name', 'role', 'hr_signoff'],
+    defaultSubject: 'Update on your application — {{role}} at Optiminastic',
+    defaultBody: [
+      'Dear {{candidate_name}},',
+      '',
+      'Thank you for taking the time to speak with us about the {{role}} role at Optiminastic.',
+      '',
+      'After reviewing our conversation, we have decided not to move forward with your application at this stage.',
+      '',
+      'This is not a reflection of your abilities, and we encourage you to apply for future openings that match your experience.',
+      '',
+      'Warm regards,',
+      '{{hr_signoff}}',
+    ].join('\n'),
+  },
+  {
     id: 'rejection_iq',
     label: 'Rejected — IQ test',
     description: 'Sent when a candidate does not clear the IQ round.',
-    group: 'hiring',
+    group: 'rejection',
     placeholders: ['candidate_name', 'role', 'iq_score', 'hr_signoff'],
     defaultSubject: 'Update on your application — {{role}} at Optiminastic',
     defaultBody: [
@@ -320,7 +360,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     id: 'rejection_assessment',
     label: 'Rejected — assessment',
     description: 'Sent when a candidate does not clear the assessment.',
-    group: 'hiring',
+    group: 'rejection',
     placeholders: ['candidate_name', 'role', 'iq_score', 'assessment_score', 'hr_signoff'],
     defaultSubject: 'Update on your application — {{role}} at Optiminastic',
     defaultBody: [
@@ -343,7 +383,7 @@ export const EMAIL_TEMPLATES: EmailTemplateDef[] = [
     id: 'rejection_interview',
     label: 'Rejected — after interview',
     description: 'Sent when the hiring decision is “reject”.',
-    group: 'hiring',
+    group: 'rejection',
     placeholders: ['candidate_name', 'role', 'iq_score', 'assessment_score', 'summary', 'hr_signoff'],
     defaultSubject: 'Update on your application — {{role}} at Optiminastic',
     defaultBody: [

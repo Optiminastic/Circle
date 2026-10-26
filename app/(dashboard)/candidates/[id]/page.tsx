@@ -325,17 +325,35 @@ export default function CandidateDetailPage() {
   // Record the HR introductory call outcome from the candidate's own flow.
   const saveHrCall = useMutation({
     mutationFn: async (record: HRCallRecord) => {
-      const patch: Partial<{ hrCall: HRCallRecord; status: CandidateStatus }> = {
+      const patch: Partial<{
+        hrCall: HRCallRecord;
+        status: CandidateStatus;
+        stageDecisions: Record<string, StageDecision>;
+        decidedAt: string;
+      }> = {
         hrCall: { ...record, completedDate: record.completedDate ?? new Date().toISOString() },
       };
-      if (record.nextStep === 'Reject') patch.status = 'Rejected';
+      // Folded into this same patch (not a separate setStageDecision write
+      // afterward) — the cache won't have this mutation's own hrCall update
+      // yet by the time onSuccess runs, and setStageDecision PUTs the whole
+      // candidate, which would silently revert it back to stale.
+      if (record.nextStep === 'Reject') {
+        patch.status = 'Rejected';
+        patch.stageDecisions = { ...(candidate.stageDecisions ?? {}), 'HR Call': 'Rejected' };
+        patch.decidedAt = nowISO();
+      }
       await repositories.candidates.patch(id, patch);
       return record;
     },
-    onSuccess: () => {
+    onSuccess: record => {
       qc.invalidateQueries({ queryKey: qk.candidates.all });
       setOpenForm(null);
       toast.success('HR call details saved.');
+      // "Reject Candidate" as the next step rejects on save — send the result
+      // email too, so a rejection decided from inside the call form isn't a
+      // silent one. The decision itself is already saved above; this only
+      // sends the email.
+      if (record.nextStep === 'Reject') emailHrCallRejection();
     },
     onError: () => toast.error('Could not save the HR call — try again.'),
   });
@@ -413,6 +431,9 @@ export default function CandidateDetailPage() {
       toast.error('No email on file for this candidate.');
       return;
     }
+    // Seed with this fallback copy immediately so the composer isn't blank
+    // while the template loads, then replace with Settings → Rejection mail
+    // templates' edited copy once it resolves.
     setMail({
       kind: 'reject',
       subject: `Update on your application — ${mailRole}`,
@@ -428,6 +449,14 @@ export default function CandidateDetailPage() {
         'Warm regards,',
         hr.signoff,
       ].join('\n'),
+    });
+    fetchRenderedTemplate('rejection_general', {
+      candidate_name: candidate.fullName,
+      role: mailRole,
+      hr_signoff: hr.signoff,
+    }).then(tpl => {
+      if (!tpl) return;
+      setMail(prev => (prev && prev.kind === 'reject' ? { ...prev, subject: tpl.subject, body: tpl.body } : prev));
     });
   };
   const openReminderMail = () => {
@@ -482,7 +511,12 @@ export default function CandidateDetailPage() {
     if (!mail || !candidate.email || mailSending) return;
     setMailSending(true);
     try {
-      const res = await sendCustomEmail({ to: candidate.email, subject: mail.subject, body: mail.body });
+      const res = await sendCustomEmail({
+        to: candidate.email,
+        subject: mail.subject,
+        body: mail.body,
+        fromNotification: mail.kind === 'reject',
+      });
       if (res.sent) {
         // The header Reject also marks the candidate rejected at whatever stage
         // they're currently on — matching every other reject path, and required
@@ -1377,6 +1411,7 @@ export default function CandidateDetailPage() {
         to,
         subject: decisionSubject,
         body: decisionBody,
+        fromNotification: !isAccept,
       });
       repositories.sentEmails
         .create({
@@ -1598,7 +1633,12 @@ export default function CandidateDetailPage() {
       .then(tpl => {
         if (!tpl) throw new Error('missing template');
         sentSubject = tpl.subject;
-        return sendCustomEmail({ to: candidate.email, subject: tpl.subject, body: tpl.body });
+        return sendCustomEmail({
+          to: candidate.email,
+          subject: tpl.subject,
+          body: tpl.body,
+          fromNotification: true,
+        });
       })
       .then(res => {
         if (res.sent) {
@@ -1621,6 +1661,65 @@ export default function CandidateDetailPage() {
         else toast.info('Candidate rejected — the result email could not be sent.');
       })
       .catch(() => toast.error('Candidate rejected, but sending the email failed.'));
+  };
+
+  // The email half of an HR Call rejection — split out from the state write
+  // (setStageDecision) so the HR-call-form save path can fold the decision
+  // into its own patch and still reuse this for just the email (see
+  // saveHrCall above for why those two can't be separate PUT/PATCH calls).
+  const emailHrCallRejection = () => {
+    const position = candidate.appliedRole || candidate.department || 'the role';
+    if (!candidate.email) {
+      toast.info('Candidate rejected — no email on file, so no result email was sent.');
+      return;
+    }
+    // Copy comes from Settings → Email templates ("Rejected — after HR call"),
+    // so HR's saved edits are what goes out.
+    let sentSubject = '';
+    fetchRenderedTemplate('rejection_hr_call', {
+      candidate_name: candidate.fullName,
+      role: position,
+      hr_signoff: hr.signoff,
+    })
+      .then(tpl => {
+        if (!tpl) throw new Error('missing template');
+        sentSubject = tpl.subject;
+        return sendCustomEmail({
+          to: candidate.email,
+          subject: tpl.subject,
+          body: tpl.body,
+          fromNotification: true,
+        });
+      })
+      .then(res => {
+        if (res.sent) {
+          toast.success('Rejection email sent.');
+          repositories.sentEmails
+            .create({
+              id: randomId('EML'),
+              recipientName: candidate.fullName,
+              recipientEmail: candidate.email,
+              templateTitle: 'HR Call — Rejected',
+              subject: sentSubject,
+              dateSent: nowISO(),
+              status: 'Sent',
+              relatedEntity: candidate.fullName,
+            })
+            .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
+            .catch(() => {});
+        } else if (res.reason === 'not_configured')
+          toast.info('Email not sent — SMTP is not configured.');
+        else toast.info('The result email could not be sent.');
+      })
+      .catch(() => toast.error('Could not send the result email.'));
+  };
+
+  // Reject a candidate after the HR call via the stage's own Reject button —
+  // marks the decision and sends the result email together. (The HR-call-form
+  // save path does the same two things but via its own patch + emailHrCallRejection above.)
+  const rejectAfterHrCall = () => {
+    setStageDecision('HR Call', 'Rejected', 'Rejected');
+    emailHrCallRejection();
   };
 
   const openScreening = () => {
@@ -2213,6 +2312,25 @@ export default function CandidateDetailPage() {
     const showResultDecision =
       isCurrent && ((label === 'IQ Test' && iqDone) || (label === 'Assessment' && asgDone));
     const showNext = isCurrent && label === 'Interview Schedule' && interviewReached;
+    // A take-home submission (PDF) can be rejected the moment it's in, without
+    // waiting for HR to score it first — the file itself (wrong file, blank,
+    // not actually the assignment) can be reason enough. Grading still goes
+    // through "Grade submission" above; this is only the reject-and-email path.
+    const showTakeHomeReject =
+      isCurrent &&
+      label === 'Assessment' &&
+      asgInvite?.kind === 'take-home' &&
+      asgInvite.status === 'Submitted';
+
+    if (showTakeHomeReject)
+      return (
+        <button
+          onClick={() => rejectAfterTest('Assessment')}
+          className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+        >
+          <ThumbsDown size={11} /> Reject &amp; email
+        </button>
+      );
 
     if (showGate || showResultDecision) {
       // A failed/disqualified IQ test or Assessment offers only "Reject & email"
@@ -2243,7 +2361,7 @@ export default function CandidateDetailPage() {
             <Pause size={11} /> On Hold
           </button>
           <button
-            onClick={() => rejectStage(label)}
+            onClick={() => (label === 'HR Call' ? rejectAfterHrCall() : rejectStage(label))}
             className="inline-flex items-center gap-1 rounded-sm border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
           >
             <ThumbsDown size={11} /> Reject

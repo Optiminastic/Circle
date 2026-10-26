@@ -274,4 +274,47 @@ function TemplateEditor({
   );
 }
 
+/**
+ * Settings → Rejection mail templates. Every rejection email in one place —
+ * the quick general reject, after HR call, IQ test, assessment, and after
+ * interview — so HR edits one subject/body per stage and it's what goes out
+ * to every candidate rejected there from then on. Shares TemplateCard /
+ * TemplateEditor with EmailTemplatesManager above: same edit/save/reset
+ * behaviour, just scoped to the 'rejection' group and shown flat (no
+ * accordion needed for one group).
+ */
+export function RejectionEmailTemplatesManager() {
+  const { data: overrides, isLoading } = useEmailTemplateOverrides();
+  const [editing, setEditing] = useState<EmailTemplateDef | null>(null);
+  const items = emailTemplatesIn('rejection');
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-[13px] font-bold text-gray-900">Rejection mail templates</p>
+        <p className="text-[11.5px] text-gray-500">
+          Edit the subject &amp; content for each rejection stage. Saved changes are sent to every
+          candidate rejected there from the next rejection onward.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-8 text-[12px] text-gray-500">
+          <Loader2 size={14} className="animate-spin" /> Loading templates…
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map(t => (
+            <TemplateCard key={t.id} def={t} overrides={overrides} onEdit={() => setEditing(t)} />
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <TemplateEditor def={editing} overrides={overrides} onClose={() => setEditing(null)} />
+      )}
+    </div>
+  );
+}
+
 export default EmailTemplatesManager;
