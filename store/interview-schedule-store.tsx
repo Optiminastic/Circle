@@ -208,23 +208,21 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       const interviewerAttendees = [input.interviewerEmail, HR_EMAIL].filter(
         (e): e is string => !!e && e.trim().length > 0,
       );
-      // Update the same calendar event (keyed by the interview id). In-person by
-      // default. When Google creates it, its invite from hr@ is the candidate's
-      // email — carry the composed subject + body on the event and skip the app one.
-      let reschedPushed = false;
+      // Update the same calendar event (keyed by the interview id). HR only on
+      // the event — the candidate is emailed separately from notification@ below,
+      // so Google must not send them an hr@ invite.
       try {
-        const r = await pushCalendarEvent({
+        await pushCalendarEvent({
           appEventId: existing.id,
           type: 'Interview',
           title: input.emailSubject,
           dateTimeIso: input.dateTimeIso,
           durationMin: input.durationMin,
           location: input.location,
-          attendees,
+          attendees: [HR_EMAIL].filter((e): e is string => !!e && e.trim().length > 0),
           notes: plainText(input.emailBody),
-          online: false,
+          online: input.type === 'Online',
         });
-        reschedPushed = r.pushed;
       } catch {
         /* calendar sync is best-effort */
       }
@@ -242,7 +240,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             // No office location on the interviewer's event (candidate-only).
             attendees: interviewerAttendees,
             notes: `Rescheduled interview for ${c.fullName} (${position}).`,
-            online: false,
+            online: input.type === 'Online',
           });
           reschedInterviewerPushed = r.pushed;
         } catch {
@@ -252,10 +250,9 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
 
       let emailStatus: Interview['emailStatus'] = 'Not Sent';
       if (c.email) {
-        if (reschedPushed) {
-          emailStatus = 'Sent'; // the hr@ calendar invite is the candidate's email
-        } else {
+        {
           try {
+            // Candidate only, from the notification address — no HR CC.
             const r = await sendCustomEmail({
               to: c.email,
               subject: input.emailSubject,
@@ -268,6 +265,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
               organizerName: `${BRAND.company} HR`,
               attendees,
               eventUid: existing.id,
+              noCc: true,
             });
             emailStatus = r.sent ? 'Sent' : 'Failed';
           } catch {
@@ -284,7 +282,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             id: randomId('EML'),
             recipientName: c.fullName,
             recipientEmail: c.email,
-            templateTitle: reschedPushed ? 'Interview Rescheduled (Google Calendar)' : 'Interview Rescheduled',
+            templateTitle: 'Interview Rescheduled',
             subject: input.emailSubject,
             dateSent: nowISO(),
             status: 'Sent',
@@ -418,6 +416,8 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       ]
         .filter(Boolean)
         .join('\n');
+      // The candidate's event notes are the composed email body (plain text).
+      const candidateEventNotes = plainText(input.emailBody);
       // Create the event on the connected HR Google Calendar. Google emails its
       // own invite to the attendees (candidate + interviewer + HR) via
       // sendUpdates=all, and the event shows on the HR calendar embedded on the
@@ -429,15 +429,16 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
         const res = await pushCalendarEvent({
           appEventId: id,
           type: 'Interview',
-          // Google's invite (from hr@) IS the candidate's email — carry the
-          // composed subject + body on the event itself.
+          // The candidate is emailed separately from notification@ (below), so the
+          // calendar event carries HR only — Google must NOT send the candidate an
+          // invite from hr@.
           title: input.emailSubject,
           dateTimeIso: input.dateTimeIso,
           durationMin: input.durationMin,
           location: input.location,
-          attendees,
-          notes: plainText(input.emailBody),
-          online: false,
+          attendees: [HR_EMAIL].filter((e): e is string => !!e && e.trim().length > 0),
+          notes: candidateEventNotes,
+          online: input.type === 'Online',
         });
         pushed = res.pushed;
         meetLink = res.meetLink;
@@ -479,7 +480,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
             // candidate brief + time only (office address is for the candidate).
             attendees: interviewerAttendees,
             notes: eventDescription,
-            online: false,
+            online: input.type === 'Online',
           });
           interviewerPushed = ivRes.pushed;
         } catch {
@@ -514,23 +515,23 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
       sessionRef.current = session;
     }
 
-    const { id, eventFields, interviewerEventFields, candidatePushed, interviewerPushed, meetLink, googleEventId } =
-      session;
+    const {
+      id, eventFields, interviewerEventFields, interviewerPushed,
+      meetLink, googleEventId,
+    } = session;
 
-    // 2) Notify the candidate. When Google created the event, its invite from hr@
-    // (carrying the composed subject + body) IS the email — don't send a second
-    // one from notification@. Only fall back to the app email (with an .ics) when
-    // Google isn't connected. This step gates the modal.
+    // 2) Notify the candidate — ALWAYS from the notification address, to the
+    // candidate ONLY (no HR CC). The calendar event above carries HR only, so the
+    // candidate never gets a separate hr@ invite; this single email is their copy.
     let emailStatus: Interview['emailStatus'] = 'Not Sent';
     if (c.email) {
-      if (candidatePushed) {
-        emailStatus = 'Sent'; // the hr@ calendar invite is the candidate's email
-      } else {
+      {
         try {
           const r = await sendCustomEmail({
             to: c.email,
             subject: input.emailSubject,
             body: input.emailBody,
+            noCc: true,
             ...eventFields,
           });
           emailStatus = r.sent ? 'Sent' : 'Failed';
@@ -551,7 +552,7 @@ export function InterviewScheduleProvider({ children }: { children: React.ReactN
           id: randomId('EML'),
           recipientName: c.fullName,
           recipientEmail: c.email,
-          templateTitle: candidatePushed ? 'Interview Invitation (Google Calendar)' : 'Interview Invitation',
+          templateTitle: 'Interview Invitation',
           subject: input.emailSubject,
           dateSent: nowISO(),
           status: 'Sent',

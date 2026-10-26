@@ -237,6 +237,15 @@ export default function CandidateDetailPage() {
     kind: 'reject' | 'reminder' | 'reinstate';
     subject: string;
     body: string;
+    /** Which stage this rejection is for. Omitted = the header's own quick
+     *  Reject, which still means "whatever the candidate's current stage is"
+     *  and records the decision itself on send (unchanged below). */
+    stage?: string;
+    /** True for HR Call / IQ Test / Assessment reject, where the stage
+     *  decision is written immediately on click (fresh state, no race) and
+     *  this composer only handles the email — sending here must not write
+     *  the decision again. */
+    decisionAlreadySet?: boolean;
   } | null>(null);
   const [mailSending, setMailSending] = useState(false);
   const toast = useToast();
@@ -349,10 +358,10 @@ export default function CandidateDetailPage() {
       qc.invalidateQueries({ queryKey: qk.candidates.all });
       setOpenForm(null);
       toast.success('HR call details saved.');
-      // "Reject Candidate" as the next step rejects on save — send the result
-      // email too, so a rejection decided from inside the call form isn't a
-      // silent one. The decision itself is already saved above; this only
-      // sends the email.
+      // "Reject Candidate" as the next step rejects on save — open the result
+      // email draft too, so a rejection decided from inside the call form
+      // isn't a silent one. The decision itself is already saved above; this
+      // only opens the composer.
       if (record.nextStep === 'Reject') emailHrCallRejection();
     },
     onError: () => toast.error('Could not save the HR call — try again.'),
@@ -520,8 +529,14 @@ export default function CandidateDetailPage() {
       if (res.sent) {
         // The header Reject also marks the candidate rejected at whatever stage
         // they're currently on — matching every other reject path, and required
-        // for later steps to render crossed-out instead of staying green.
-        if (mail.kind === 'reject') setStageDecision(stages[currentIndex].label, 'Rejected', 'Rejected');
+        // for later steps to render crossed-out instead of staying green. Skipped
+        // when the caller already wrote the decision itself (HR Call / IQ Test /
+        // Assessment reject, which do it immediately on click, before this
+        // composer even opens — writing it again here could use a stale candidate
+        // snapshot by the time HR finishes reviewing the draft and hits Send).
+        if (mail.kind === 'reject' && !mail.decisionAlreadySet) {
+          setStageDecision(mail.stage ?? stages[currentIndex].label, 'Rejected', 'Rejected');
+        }
         repositories.sentEmails
           .create({
             id: randomId('EML'),
@@ -529,7 +544,7 @@ export default function CandidateDetailPage() {
             recipientEmail: candidate.email,
             templateTitle:
               mail.kind === 'reject'
-                ? `${stages[currentIndex].label} — Rejected`
+                ? `${mail.stage ?? stages[currentIndex].label} — Rejected`
                 : mail.kind === 'reinstate'
                   ? 'Back in process'
                   : 'Reminder — JD',
@@ -542,7 +557,7 @@ export default function CandidateDetailPage() {
           .catch(() => {});
         toast.success(
           mail.kind === 'reject'
-            ? 'Candidate rejected — email sent.'
+            ? 'Rejection email sent.'
             : mail.kind === 'reinstate'
               ? 'Candidate told they are back in the process.'
               : 'Reminder email sent.',
@@ -1602,10 +1617,12 @@ export default function CandidateDetailPage() {
     toast.info('Candidate marked as rejected.');
   };
 
-  // Reject a candidate who did NOT clear the IQ test / Assessment, and email them
-  // their result. Triggered ONLY by the "Reject & email" button (never automatic).
-  // IQ fail → share the IQ score. Assessment fail → share the IQ score + note the
-  // assessment was not cleared.
+  // Reject a candidate who did NOT clear the IQ test / Assessment. Triggered
+  // ONLY by the "Reject & email" button (never automatic). The decision is
+  // recorded immediately so the pipeline updates right away; the result email
+  // opens as an editable draft (prefilled from Settings → Email templates)
+  // instead of going out unreviewed — IQ fail shares the IQ score, Assessment
+  // fail shares the IQ score + notes the assessment wasn't cleared.
   const rejectAfterTest = (stage: 'IQ Test' | 'Assessment') => {
     const position = candidate.appliedRole || candidate.department || 'the role';
     const iqScoreText = latestIq
@@ -1613,16 +1630,13 @@ export default function CandidateDetailPage() {
       : null;
     const asgScoreText = asgInvite?.score != null ? `${asgInvite.score}%` : null;
 
-    // Mark rejected first, so the pipeline updates even if the email fails.
     setStageDecision(stage, 'Rejected', 'Rejected');
+    toast.success(`${stage} — candidate rejected.`);
 
     if (!candidate.email) {
-      toast.info('Candidate rejected — no email on file, so no result email was sent.');
+      toast.info('No email on file, so no result email was drafted.');
       return;
     }
-    // Copy comes from Settings → Email templates ("Rejected — IQ test" /
-    // "Rejected — assessment"), so HR's saved edits are what goes out.
-    let sentSubject = '';
     fetchRenderedTemplate(stage === 'IQ Test' ? 'rejection_iq' : 'rejection_assessment', {
       candidate_name: candidate.fullName,
       role: position,
@@ -1631,36 +1645,10 @@ export default function CandidateDetailPage() {
       hr_signoff: hr.signoff,
     })
       .then(tpl => {
-        if (!tpl) throw new Error('missing template');
-        sentSubject = tpl.subject;
-        return sendCustomEmail({
-          to: candidate.email,
-          subject: tpl.subject,
-          body: tpl.body,
-          fromNotification: true,
-        });
+        if (!tpl) return;
+        setMail({ kind: 'reject', subject: tpl.subject, body: tpl.body, stage, decisionAlreadySet: true });
       })
-      .then(res => {
-        if (res.sent) {
-          toast.success(`Candidate rejected — ${stage} result email sent.`);
-          repositories.sentEmails
-            .create({
-              id: randomId('EML'),
-              recipientName: candidate.fullName,
-              recipientEmail: candidate.email,
-              templateTitle: `${stage} — Rejected`,
-              subject: sentSubject,
-              dateSent: nowISO(),
-              status: 'Sent',
-              relatedEntity: candidate.fullName,
-            })
-            .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
-            .catch(() => {});
-        } else if (res.reason === 'not_configured')
-          toast.info('Candidate rejected. Email not sent — SMTP is not configured.');
-        else toast.info('Candidate rejected — the result email could not be sent.');
-      })
-      .catch(() => toast.error('Candidate rejected, but sending the email failed.'));
+      .catch(() => toast.error('Could not load the result email — try again from the candidate\'s stage.'));
   };
 
   // The email half of an HR Call rejection — split out from the state write
@@ -1670,55 +1658,37 @@ export default function CandidateDetailPage() {
   const emailHrCallRejection = () => {
     const position = candidate.appliedRole || candidate.department || 'the role';
     if (!candidate.email) {
-      toast.info('Candidate rejected — no email on file, so no result email was sent.');
+      toast.info('No email on file, so no result email was drafted.');
       return;
     }
     // Copy comes from Settings → Email templates ("Rejected — after HR call"),
-    // so HR's saved edits are what goes out.
-    let sentSubject = '';
+    // so HR's saved edits seed the draft. Opens as an editable composer
+    // instead of sending straight away — see sendHeaderMail for how it's sent.
     fetchRenderedTemplate('rejection_hr_call', {
       candidate_name: candidate.fullName,
       role: position,
       hr_signoff: hr.signoff,
     })
       .then(tpl => {
-        if (!tpl) throw new Error('missing template');
-        sentSubject = tpl.subject;
-        return sendCustomEmail({
-          to: candidate.email,
+        if (!tpl) return;
+        setMail({
+          kind: 'reject',
           subject: tpl.subject,
           body: tpl.body,
-          fromNotification: true,
+          stage: 'HR Call',
+          decisionAlreadySet: true,
         });
       })
-      .then(res => {
-        if (res.sent) {
-          toast.success('Rejection email sent.');
-          repositories.sentEmails
-            .create({
-              id: randomId('EML'),
-              recipientName: candidate.fullName,
-              recipientEmail: candidate.email,
-              templateTitle: 'HR Call — Rejected',
-              subject: sentSubject,
-              dateSent: nowISO(),
-              status: 'Sent',
-              relatedEntity: candidate.fullName,
-            })
-            .then(() => qc.invalidateQueries({ queryKey: qk.sentEmails.all }))
-            .catch(() => {});
-        } else if (res.reason === 'not_configured')
-          toast.info('Email not sent — SMTP is not configured.');
-        else toast.info('The result email could not be sent.');
-      })
-      .catch(() => toast.error('Could not send the result email.'));
+      .catch(() => toast.error('Could not load the result email — try again from the HR Call step.'));
   };
 
   // Reject a candidate after the HR call via the stage's own Reject button —
-  // marks the decision and sends the result email together. (The HR-call-form
-  // save path does the same two things but via its own patch + emailHrCallRejection above.)
+  // marks the decision immediately, then opens the result email as an
+  // editable draft. (The HR-call-form save path does the same two things but
+  // via its own patch + emailHrCallRejection above.)
   const rejectAfterHrCall = () => {
     setStageDecision('HR Call', 'Rejected', 'Rejected');
+    toast.success('HR Call — candidate rejected.');
     emailHrCallRejection();
   };
 
@@ -2497,7 +2467,7 @@ export default function CandidateDetailPage() {
                 <Mail size={15} className="text-accent-600" />
               )}
               {mail?.kind === 'reject'
-                ? 'Send rejection email'
+                ? `Send rejection email${mail.stage ? ` — ${mail.stage}` : ''}`
                 : mail?.kind === 'reinstate'
                   ? 'Let them know they are back in the process'
                   : 'Send JD reminder email'}
