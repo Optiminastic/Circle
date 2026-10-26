@@ -420,6 +420,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     'candidate',
     checklist.candidateId,
   );
+  // The résumé uploaded on the job-application form, not during onboarding —
+  // same lookup the candidate profile page uses.
+  const resumeDoc = candidateDocs.find(d => d.category === 'resume');
   const signedOfferDoc = candidateDocs
     .filter(d => d.category === 'Signed Offer Letter')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
@@ -1658,6 +1661,19 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
           {stages.length} Steps
         </span>
+        {/* The résumé they applied with — carried over from the job-application
+            flow, not an onboarding document, so it's shown here rather than as
+            a step of its own. */}
+        {resumeDoc && (
+          <button
+            type="button"
+            onClick={() => window.open(documentPreviewUrl(resumeDoc.id), '_blank', 'noopener,noreferrer')}
+            title="Preview résumé"
+            className="ml-2 inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700"
+          >
+            <FileText size={12} /> Résumé
+          </button>
+        )}
         {/* Pull fresh uploads / statuses without a full page reload. No explicit
             keys: refetch every active query so documents (per-entity keys) and the
             checklist/doc-requests/BGV all come back current. */}
