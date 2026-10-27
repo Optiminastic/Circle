@@ -2282,17 +2282,15 @@ export default function CandidateDetailPage() {
     const showResultDecision =
       isCurrent && ((label === 'IQ Test' && iqDone) || (label === 'Assessment' && asgDone));
     const showNext = isCurrent && label === 'Interview Schedule' && interviewReached;
-    // A take-home submission (PDF) can be rejected the moment it's in, without
-    // waiting for HR to score it first — the file itself (wrong file, blank,
-    // not actually the assignment) can be reason enough. Grading still goes
-    // through "Grade submission" above; this is only the reject-and-email path.
-    const showTakeHomeReject =
-      isCurrent &&
-      label === 'Assessment' &&
-      asgInvite?.kind === 'take-home' &&
-      asgInvite.status === 'Submitted';
+    // Assessment can be rejected the moment it's reached, even before it's
+    // done — sent but never started, still in progress, or a take-home PDF
+    // that's in but not yet graded. HR shouldn't have to wait on a candidate
+    // who's gone quiet, or wait for scoring, just to close them out. Once it
+    // IS done, this is superseded by the normal showResultDecision/testFailed
+    // path below (so a pass still gets the full Accept/On Hold/Reject set).
+    const showAssessmentReject = isCurrent && label === 'Assessment' && asgReached && !asgDone;
 
-    if (showTakeHomeReject)
+    if (showAssessmentReject)
       return (
         <button
           onClick={() => rejectAfterTest('Assessment')}
