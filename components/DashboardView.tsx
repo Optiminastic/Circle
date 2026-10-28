@@ -162,6 +162,7 @@ export function DashboardView({
   // interviews whose candidate still exists are shown, so a deleted candidate's
   // orphaned interview never lingers here.
   const now = Date.now();
+  const candidateById = new Map(candidates.map(c => [c.id, c]));
   const liveCandidateIds = new Set(candidates.map(c => c.id));
   const upcomingInterviews = interviews
     .filter(iv => iv.status === 'Scheduled' && liveCandidateIds.has(iv.candidateId))
@@ -297,6 +298,15 @@ export function DashboardView({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {upcomingInterviews.map(iv => {
               const online = iv.interviewRound === 'Online' || iv.interviewType === 'Online';
+              // The interview record freezes the candidate's name/role/department
+              // at the moment it was scheduled. If the candidate's application
+              // (role, department) changes afterward, that snapshot goes stale —
+              // so always prefer the live candidate record it links to, and only
+              // fall back to the snapshot if that candidate can't be found.
+              const liveCandidate = candidateById.get(iv.candidateId);
+              const displayName = liveCandidate?.fullName || iv.candidateName;
+              const displayDepartment = liveCandidate?.department || iv.department;
+              const displayRole = liveCandidate?.appliedRole || iv.appliedRole;
               return (
                 <button
                   key={iv.id}
@@ -308,11 +318,11 @@ export function DashboardView({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 border-l-[3px] border-accent-500 pl-2.5">
                       <h5 className="truncate text-sm font-bold text-gray-900 group-hover:text-accent-700">
-                        {iv.candidateName}
+                        {displayName}
                       </h5>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {iv.department && <TagPill color="purple">{iv.department}</TagPill>}
-                        {iv.appliedRole && <TagPill color="gray">{iv.appliedRole}</TagPill>}
+                        {displayDepartment && <TagPill color="purple">{displayDepartment}</TagPill>}
+                        {displayRole && <TagPill color="gray">{displayRole}</TagPill>}
                       </div>
                     </div>
                     <span className="grid size-6 shrink-0 place-items-center rounded-sm text-gray-400 transition group-hover:bg-surface-sunken group-hover:text-accent-600">
