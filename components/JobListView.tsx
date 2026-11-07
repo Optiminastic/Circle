@@ -955,9 +955,16 @@ export function JobListView({
                       <Label htmlFor="job-location" className="text-sm font-medium">
                         Location
                       </Label>
-                      <Input id="job-location" value="Mumbai" readOnly disabled className="mt-2" />
+                      <EditableSelect
+                        value={form.location}
+                        onChange={v => setForm({ ...form, location: v })}
+                        options={org.locations}
+                        onAdd={v => org.add('locations', v)}
+                        placeholder="Select location"
+                        className="mt-2"
+                      />
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        All roles are based at the Mumbai office.
+                        Pick an office, or add one that isn&apos;t listed yet.
                       </p>
                     </div>
                   </div>

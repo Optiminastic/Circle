@@ -90,24 +90,24 @@ function ListEditor({ title, description, kind, values, placeholder }: ListEdito
 }
 
 /**
- * Global-settings editor for the org taxonomy — roles, departments, and
+ * Global-settings editor for the org taxonomy — roles, departments, locations, and
  * application sources. Additions persist (localStorage) and flow into every
  * dropdown across the app via the org-settings store.
  */
 export function TaxonomyManager() {
-  const { roles, departments, sources } = useOrgSettings();
+  const { roles, departments, locations, sources } = useOrgSettings();
 
   return (
     <div className="space-y-3">
       <div>
         <h4 className="font-bold text-gray-850">Custom lists</h4>
         <p className="text-[11px] text-gray-500">
-          Manage the roles, departments, and sources offered in dropdowns across the app. Changes
-          apply everywhere immediately.
+          Manage the roles, departments, locations, and sources offered in dropdowns across the
+          app. Changes apply everywhere immediately.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
         <ListEditor
           title="Roles / Designations"
           description="Applied roles for candidates and jobs."
@@ -121,6 +121,13 @@ export function TaxonomyManager() {
           kind="departments"
           values={departments}
           placeholder="e.g. Marketing"
+        />
+        <ListEditor
+          title="Office Locations"
+          description="Where a job is based."
+          kind="locations"
+          values={locations}
+          placeholder="e.g. Bengaluru"
         />
         <ListEditor
           title="Application Sources"

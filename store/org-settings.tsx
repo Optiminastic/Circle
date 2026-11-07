@@ -4,15 +4,19 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 /**
  * Org-level taxonomy that HR can customise from Global Settings — roles,
- * departments, and application sources. Kept out of the code (no hardcoded
- * lists) and persisted to localStorage so additions survive reloads.
+ * departments, office locations, and application sources. Kept out of the code
+ * (no hardcoded lists) and persisted to localStorage so additions survive
+ * reloads.
  */
 
-export type TaxonomyKind = 'roles' | 'departments' | 'sources';
+export type TaxonomyKind = 'roles' | 'departments' | 'locations' | 'sources';
 
 interface OrgTaxonomy {
   roles: string[];
   departments: string[];
+  /** Where a job is based. The posting form used to hard-code one office, so a
+   *  role anywhere else could not be posted at all. */
+  locations: string[];
   sources: string[];
 }
 
@@ -32,6 +36,7 @@ const DEFAULTS: OrgTaxonomy = {
     'HR Director',
   ],
   departments: ['Engineering', 'Product', 'Design', 'Sales', 'Human Resources'],
+  locations: ['Mumbai', 'Pune', 'Remote'],
   sources: ['LinkedIn', 'Referral', 'Direct Application', 'Headhunted', 'Job Posting'],
 };
 
@@ -51,6 +56,7 @@ export function OrgSettingsProvider({ children }: { children: React.ReactNode })
       setTaxonomy({
         roles: saved.roles?.length ? saved.roles : DEFAULTS.roles,
         departments: saved.departments?.length ? saved.departments : DEFAULTS.departments,
+        locations: saved.locations?.length ? saved.locations : DEFAULTS.locations,
         sources: saved.sources?.length ? saved.sources : DEFAULTS.sources,
       });
     } catch {
