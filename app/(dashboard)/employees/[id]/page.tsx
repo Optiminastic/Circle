@@ -40,6 +40,8 @@ import { useBgvs } from '@/features/candidates/hooks';
 import { useDocRequests } from '@/features/doc-requests/hooks';
 import { PageLoading } from '@/components/PageLoading';
 import { DocumentsPanel } from '@/components/DocumentsPanel';
+import { useDocuments } from '@/features/documents/hooks';
+import { documentPreviewUrl } from '@/lib/api/documents';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AvatarUploader } from '@/components/AvatarUploader';
 import { EditEmployeeDialog } from '@/components/EditEmployeeDialog';
@@ -89,6 +91,18 @@ export default function EmployeeDetailPage() {
   const [resignNoticeDays, setResignNoticeDays] = useState(30);
 
   const employee = employees.find(e => e.id === id);
+  // Conversion moves a candidate's joining documents to entityType "employee"
+  // (see circle-be candidate_promote.py), but an older employee record
+  // converted before that migration existed may still have them sitting under
+  // entityType "candidate" — checked here (hooks must run unconditionally,
+  // before the early returns below) so that legacy case isn't silently hidden.
+  const { data: legacyCandidateDocs = [] } = useDocuments('candidate', employee?.candidateId ?? '');
+  const { data: employeeDocs = [] } = useDocuments('employee', id);
+  // Same lookup as the candidate profile page — wherever it ended up after
+  // conversion (migrated to "employee", or still "candidate" for an older
+  // record), the résumé they applied with.
+  const resumeDoc =
+    employeeDocs.find(d => d.category === 'resume') ?? legacyCandidateDocs.find(d => d.category === 'resume');
 
   if (isLoading) return <PageLoading />;
   if (!employee) {
@@ -314,6 +328,16 @@ export default function EmployeeDetailPage() {
                   <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted px-2 py-0.5 text-[11px] text-gray-600">
                     <MapPin size={11} /> {employee.workLocation || '—'}
                   </span>
+                  {resumeDoc && (
+                    <button
+                      type="button"
+                      onClick={() => window.open(documentPreviewUrl(resumeDoc.id), '_blank', 'noopener,noreferrer')}
+                      title="Preview résumé"
+                      className="mt-1.5 ml-1.5 inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-accent-600 transition hover:border-accent-300 hover:bg-accent-50"
+                    >
+                      <FileText size={11} /> Résumé
+                    </button>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <span className={`rounded-full px-2.5 py-1 font-mono text-[10px] font-bold ${statusTone}`}>
@@ -539,7 +563,11 @@ export default function EmployeeDetailPage() {
                 )}
               </Card>
 
-              {cid && (
+              {/* Conversion migrates joining documents to entityType "employee"
+                  (see candidate_promote.py), so they already show up in the
+                  panel below. This one only ever has anything for a record
+                  converted before that migration existed. */}
+              {cid && legacyCandidateDocs.length > 0 && (
                 <DocumentsPanel
                   entityType="candidate"
                   entityId={cid}
@@ -547,7 +575,12 @@ export default function EmployeeDetailPage() {
                   previewOnly
                 />
               )}
-              <DocumentsPanel entityType="employee" entityId={employee.id} category="document" title="Important documents" />
+              <DocumentsPanel
+                entityType="employee"
+                entityId={employee.id}
+                category="document"
+                title="Documents (joining documents + employee records)"
+              />
             </>
           )}
 

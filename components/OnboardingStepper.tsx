@@ -27,6 +27,8 @@ import {
   Laptop,
   UserCheck,
   Pencil,
+  SkipForward,
+  AlertTriangle,
 } from 'lucide-react';
 import { BGVRequirement, DocRequest, OnboardingChecklist, SentEmailLog } from '@/types';
 import {
@@ -67,7 +69,7 @@ import {
   OnboardingEmailKind,
 } from '@/features/onboarding/hooks';
 import { nowISO } from '@/lib/utils';
-import type { ClaimDetails } from '@/lib/bgv-claim-fields';
+import { CLAIM_SECTIONS, sectionsFor, type ClaimDetails } from '@/lib/bgv-claim-fields';
 import { useToast } from '@/components/Toaster';
 import { OnboardingEmailComposer, type ComposerSeed } from '@/components/OnboardingEmailComposer';
 import { SendOfferLetterModal } from '@/components/SendOfferLetterModal';
@@ -222,6 +224,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     markInternshipSigned,
     markJoiningDocsSkipped,
     markBgvSkipped,
+    setSkippedSteps,
     markFirstDayArrived,
     saveAllocationEmail,
     saveSystemDesk,
@@ -260,6 +263,10 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   const [requestDocsOpen, setRequestDocsOpen] = useState(false);
   // "Start verification" check-picker (which BGV services to run).
   const [startBgvOpen, setStartBgvOpen] = useState(false);
+  // When opened from a "Provide details & retry" button below (see "Didn't
+  // start"), only that failed check is preselected instead of everything HR
+  // has ever chosen — so the picker opens straight into just what's missing.
+  const [retryCodes, setRetryCodes] = useState<string[] | null>(null);
   // "Mark BGV verified" report-upload modal.
   const [bgvReportModalOpen, setBgvReportModalOpen] = useState(false);
   // "Send joining date" modal (welcome email + public confirmation link).
@@ -413,6 +420,9 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     'candidate',
     checklist.candidateId,
   );
+  // The résumé uploaded on the job-application form, not during onboarding —
+  // same lookup the candidate profile page uses.
+  const resumeDoc = candidateDocs.find(d => d.category === 'resume');
   const signedOfferDoc = candidateDocs
     .filter(d => d.category === 'Signed Offer Letter')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
@@ -758,6 +768,39 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
     ] as Stage[]).map(stage => [stage.label, stage]),
   );
 
+  // Blanket "skip any step" escape hatch (see types.ts skippedSteps). Joining
+  // Documents and Background verification keep their own dedicated fields —
+  // they predate this and already have their own skip affordance below — so
+  // they're excluded here to avoid showing two skip controls on the same step.
+  const skippedSteps = checklist.skippedSteps ?? [];
+  const genericallySkippable = (label: string) =>
+    label !== 'Joining Documents' && label !== 'Background verification';
+  const stepSkipped = (label: string) => skippedSteps.includes(label);
+  const skipStep = (label: string) => {
+    if (stepSkipped(label)) return;
+    setSkippedSteps.mutate(
+      { candidateId: checklist.candidateId, skippedSteps: [...skippedSteps, label] },
+      {
+        onSuccess: () => toast.success(`Skipped "${label}" — come back to it anytime.`),
+        onError: () => toast.error('Could not skip this step — try again.'),
+      },
+    );
+  };
+  const unskipStep = (label: string) => {
+    setSkippedSteps.mutate(
+      { candidateId: checklist.candidateId, skippedSteps: skippedSteps.filter(s => s !== label) },
+      {
+        onSuccess: () => toast.success(`"${label}" reopened.`),
+        onError: () => toast.error('Could not reopen this step — try again.'),
+      },
+    );
+  };
+  for (const label of Object.keys(byLabel)) {
+    if (genericallySkippable(label) && stepSkipped(label)) {
+      byLabel[label] = { ...byLabel[label], done: true, desc: 'Skipped' };
+    }
+  }
+
   // The steps this person actually has, in order.
   const stages: Stage[] = stepsFor(track)
     .map(label => byLabel[label])
@@ -1010,17 +1053,35 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
   // the candidate + their documents to OnGrid in one go.
   const beginBgv = () => {
     if (!candidate) return;
+    setRetryCodes(null);
     setStartBgvOpen(true);
+  };
+  // "Provide details & retry" on one failed-to-start check (see "Didn't
+  // start" below) — opens the same picker pre-selected to just that code.
+  const retryFailedCheck = (code: string) => {
+    setRetryCodes([code]);
+    setStartBgvOpen(true);
+  };
+  // Plain retry, no typed input needed — a self-contained check (or one that
+  // hit a transient OnGrid-side error) just gets sent again.
+  const retryChecks = (codes: string[]) => {
+    if (!candidate) return;
+    confirmBgv(codes, {});
   };
   const confirmBgv = async (services: string[], details: ClaimDetails) => {
     if (!candidate) return;
+    // Merge into whatever was already selected rather than replacing it — a
+    // targeted retry of just the checks that failed to start (see "Didn't
+    // start" below) must not make the record forget the others HR already
+    // chose and that are running fine.
+    const allServices = Array.from(new Set([...(bgv?.services ?? []), ...services]));
     try {
       // Record which verifications HR selected (create the record or update it on
       // a re-send), so the "verifications sent" list reflects this selection.
       if (bgv) {
-        await updateBgv.mutateAsync({ ...bgv, services });
+        await updateBgv.mutateAsync({ ...bgv, services: allServices });
       } else {
-        await startBgv.mutateAsync({ candidate, services });
+        await startBgv.mutateAsync({ candidate, services: allServices });
       }
     } catch {
       toast.error('Could not save the selected verifications — try again.');
@@ -1044,6 +1105,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                     } check(s) requested, ${up} document(s) uploaded.`,
                   );
                   setStartBgvOpen(false);
+                  setRetryCodes(null);
                 } else if (v.reason === 'different_ongrid_community') {
                   toast.error(
                     'This candidate belongs to a different OnGrid community — clear the old link before running checks here.',
@@ -1563,7 +1625,7 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
       )}
       {startBgvOpen && (
         <StartBgvModal
-          preselected={chosenChecks}
+          preselected={retryCodes ?? chosenChecks}
           extracted={bgv?.extractedFields}
           claims={claims}
           submissions={allSubmissions}
@@ -1572,12 +1634,16 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
           isFresher={claims.isFresher ?? track === 'intern'}
           onRequestDocuments={() => {
             setStartBgvOpen(false);
+            setRetryCodes(null);
             requestDocs();
           }}
           candidateName={checklist.candidateName}
           pending={startBgv.isPending || updateBgv.isPending || ongridOnboard.isPending}
           onStart={confirmBgv}
-          onClose={() => setStartBgvOpen(false)}
+          onClose={() => {
+            setStartBgvOpen(false);
+            setRetryCodes(null);
+          }}
         />
       )}
       {bgvReportModalOpen && (
@@ -1595,6 +1661,19 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
         <span className="rounded-full bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700">
           {stages.length} Steps
         </span>
+        {/* The résumé they applied with — carried over from the job-application
+            flow, not an onboarding document, so it's shown here rather than as
+            a step of its own. */}
+        {resumeDoc && (
+          <button
+            type="button"
+            onClick={() => window.open(documentPreviewUrl(resumeDoc.id), '_blank', 'noopener,noreferrer')}
+            title="Preview résumé"
+            className="ml-2 inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700"
+          >
+            <FileText size={12} /> Résumé
+          </button>
+        )}
         {/* Pull fresh uploads / statuses without a full page reload. No explicit
             keys: refetch every active query so documents (per-entity keys) and the
             checklist/doc-requests/BGV all come back current. */}
@@ -1896,6 +1975,52 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                   <div className="space-y-3 rounded-b-lg border-t border-strong/15 bg-surface px-3.5 py-3">
                     <p className="text-[12.5px] leading-relaxed text-gray-600">{stage.detail}</p>
 
+                    {/* Blanket "skip this step" — every step can be bypassed without
+                        being completed. Joining Documents / Background verification
+                        have their own equivalent control further below instead. */}
+                    {genericallySkippable(stage.label) &&
+                      (stepSkipped(stage.label) ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5">
+                          <p className="text-[11.5px] text-amber-800">
+                            This step was skipped without being completed.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => unskipStep(stage.label)}
+                            disabled={setSkippedSteps.isPending}
+                            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[11.5px] font-semibold text-gray-600 transition hover:border-accent-300 hover:bg-accent-50 hover:text-accent-700 disabled:opacity-60"
+                          >
+                            {setSkippedSteps.isPending ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <RefreshCw size={12} />
+                            )}
+                            Reopen step
+                          </button>
+                        </div>
+                      ) : (
+                        !stage.done && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
+                            <p className="text-[11px] text-gray-500">
+                              Not ready, or doesn&apos;t apply? Skip this step without completing it.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => skipStep(stage.label)}
+                              disabled={setSkippedSteps.isPending}
+                              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[11.5px] font-semibold text-gray-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-60"
+                            >
+                              {setSkippedSteps.isPending ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <SkipForward size={12} />
+                              )}
+                              Skip this step
+                            </button>
+                          </div>
+                        )
+                      ))}
+
                     {/* Joining date: once confirmed, the action row is gone. Re-send from
                         here — opens the same modal, pre-filled with the confirmed date. */}
                     {stage.action.kind === 'confirm-joining' && stage.done && (
@@ -2126,6 +2251,80 @@ export function OnboardingStepper({ checklist }: OnboardingStepperProps) {
                                 </p>
                               )}
                             </div>
+
+                            {/* Checks HR selected that did NOT start. OnGrid's status
+                                above only ever shows what's actually running, so without
+                                this a code that never started (missing input, a missing
+                                document, or server config) just silently disappears with
+                                no explanation of why. */}
+                            {(() => {
+                              const liveCodes = new Set(startedCodes);
+                              const notStarted = (bgv.ongridChecks ?? []).filter(
+                                c => !c.ok && !liveCodes.has(c.code),
+                              );
+                              if (notStarted.length === 0) return null;
+                              return (
+                                <div className="mt-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5">
+                                  <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-wider text-amber-700">
+                                    <AlertTriangle size={11} /> Didn&apos;t start ({notStarted.length})
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {notStarted.map(({ code, reason }) => {
+                                      const check = bgvCheckByCode(code);
+                                      const section = sectionsFor([code])[0];
+                                      const needsServerConfig = /configured|schema/i.test(reason ?? '');
+                                      const needsCandidate =
+                                        !section && !needsServerConfig && /uploaded|documents portal/i.test(reason ?? '');
+                                      return (
+                                        <div
+                                          key={code}
+                                          className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-amber-200/70 bg-surface px-2 py-1.5"
+                                        >
+                                          <span className="min-w-0 flex-1 text-[11.5px] leading-snug">
+                                            <span className="font-mono text-[10px] font-bold text-amber-800">
+                                              {code}
+                                            </span>
+                                            {check?.name && (
+                                              <span className="text-gray-500"> · {check.name}</span>
+                                            )}
+                                            <span className="block text-gray-600">
+                                              {reason ?? 'Did not start.'}
+                                            </span>
+                                          </span>
+                                          {section ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => retryFailedCheck(code)}
+                                              title={`Fill in: ${CLAIM_SECTIONS[section].title}`}
+                                              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-accent-300 bg-accent-50 px-2.5 text-[11px] font-semibold text-accent-700 transition hover:bg-accent-100"
+                                            >
+                                              <Fingerprint size={11} /> Provide details & retry
+                                            </button>
+                                          ) : needsCandidate ? (
+                                            <button
+                                              type="button"
+                                              onClick={requestDocs}
+                                              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[11px] font-semibold text-gray-600 transition hover:bg-surface-sunken"
+                                            >
+                                              <Send size={11} /> Request documents
+                                            </button>
+                                          ) : needsServerConfig ? null : (
+                                            <button
+                                              type="button"
+                                              onClick={() => retryChecks([code])}
+                                              disabled={ongridVerify.isPending}
+                                              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[11px] font-semibold text-gray-600 transition hover:bg-surface-sunken disabled:opacity-60"
+                                            >
+                                              <RefreshCw size={11} /> Retry
+                                            </button>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })()}
 
                             {/* Documents pushed to OnGrid. */}
                             {!!bgv.ongridDocuments?.length && (

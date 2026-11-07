@@ -847,6 +847,21 @@ export interface BGVRequirement {
   extractedFields?: Record<string, Record<string, string>>;
   /** When HR requested the checks from OnGrid (as opposed to just onboarding). */
   ongridVerificationsSentAt?: string;
+  /**
+   * Per-check outcome from the last "Execute BGV" send — one row per code HR
+   * selected that time, including the ones that did NOT start. `reason` is
+   * OnGrid's own message or ours (e.g. "No UAN on file"), passed through
+   * verbatim. A code only shows in `ongridStatus.checks` (live, from OnGrid)
+   * once it actually starts — this is the only place a failed-to-start code's
+   * reason is recorded at all.
+   */
+  ongridChecks?: {
+    code: string;
+    ok: boolean;
+    requestId?: string | null;
+    documentId?: string | null;
+    reason?: string | null;
+  }[];
 }
 
 export type BGVDocumentType =
@@ -882,10 +897,26 @@ export type BGVOverallStatus = BGVDocumentStatus;
  *  letter is created and fixed thereafter. */
 export type LetterCompany = 'optiminastic' | 'alt_opti';
 
+/** HR's freely-edited footer content (Optiminastic letters only — ALT OPTI has
+ *  no footer). Every field falls back to the default Optiminastic footer
+ *  (lib/letter-company.ts) when blank/absent, field by field — so e.g. setting
+ *  only `phone` leaves the rest on the default rather than blanking them. */
+export interface LetterFooterContent {
+  companyName?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  email?: string;
+  website?: string;
+  phone?: string;
+  socialHandle?: string;
+}
+
 /** HR-built offer letter values (rendered into the selected entity's letterhead format). */
 export interface OfferLetterData {
   /** Defaults to 'optiminastic' when absent (letters created before this field existed). */
   company?: LetterCompany;
+  /** Empty/absent = use the default Optiminastic footer. See LetterFooterContent. */
+  customFooter?: LetterFooterContent;
   candidateName: string;
   salutation: string;
   role: string;
@@ -919,6 +950,8 @@ export interface OfferLetterData {
 export interface AppointmentLetterData {
   /** Defaults to 'optiminastic' when absent (letters created before this field existed). */
   company?: LetterCompany;
+  /** Empty/absent = use the default Optiminastic footer. See LetterFooterContent. */
+  customFooter?: LetterFooterContent;
   candidateName: string;
   address: string;
   role: string;
@@ -964,6 +997,13 @@ export interface OnboardingChecklist {
    *  override, not an auto-complete. BGV itself is still tracked separately
    *  (pill, report upload, undo) and can still be marked Verified later. */
   bgvSkippedAt?: string;
+
+  /** Stage labels HR has explicitly chosen to skip without completing — a
+   *  blanket escape hatch so any step can be bypassed, alongside the two
+   *  dedicated overrides above (Joining Documents / Background verification,
+   *  which predate this and keep their own fields). Reversible — see
+   *  "Reopen step" in OnboardingStepper.tsx. */
+  skippedSteps?: string[];
 
   // Post-verification email sequence (ISO timestamps; undefined = not yet done).
   /** Job-offer email (offer details) sent to the candidate. */

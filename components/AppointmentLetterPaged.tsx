@@ -128,7 +128,7 @@ export function AppointmentLetterPaged({
                 <div key={bi}>{blocks[bi]}</div>
               ))}
             </div>
-            <LetterFoot company={data.company} />
+            <LetterFoot company={data.company} footer={data.customFooter} />
           </div>
         );
       })}

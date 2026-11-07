@@ -8,7 +8,7 @@ import { DocRequestPanel } from './DocRequestPanel';
 import { OnboardingStepper } from './OnboardingStepper';
 import { percentFor, resolveTrack } from '@/lib/onboarding-track';
 import { ActionMenu } from './ActionMenu';
-import { EmailTemplatesManager } from './EmailTemplatesManager';
+import { EmailTemplatesManager, RejectionEmailTemplatesManager } from './EmailTemplatesManager';
 import { useToast } from './Toaster';
 import { useUiStore } from '@/store/ui-store';
 import { useSchedules } from '@/features/schedule/hooks';
@@ -976,6 +976,14 @@ function onboardingProgress(
       Boolean(o.appointmentSignedReceivedAt) || returned(signedAppointment),
     Employee: Boolean(o.convertedToEmployeeAt) || Boolean(o.employeeId),
   };
+  // Blanket "skip this step" override (see OnboardingStepper.tsx) — Joining
+  // Documents / Background verification already fold their own skip flags in
+  // above, so they're excluded here to avoid double-counting.
+  for (const label of Object.keys(done)) {
+    if (label !== 'Joining Documents' && label !== 'Background verification' && o.skippedSteps?.includes(label)) {
+      done[label] = true;
+    }
+  }
   const percentage = percentFor(resolveTrack(o), done);
   const status =
     percentage === 100 ? 'Onboarding Completed' : percentage >= 60 ? 'Ready to Join' : percentage >= 40 ? 'Documentation Completed' : 'Offer Accepted';
@@ -2623,7 +2631,7 @@ function GoogleCalendarCard() {
 export function SettingsView() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
-    'general' | 'email' | 'lists' | 'questions' | 'interviewKit' | 'roles' | 'rules'
+    'general' | 'email' | 'rejectionEmail' | 'lists' | 'questions' | 'interviewKit' | 'roles' | 'rules'
   >('general');
 
   return (
@@ -2641,13 +2649,22 @@ export function SettingsView() {
         value={activeTab}
         onValueChange={v =>
           setActiveTab(
-            v as 'general' | 'email' | 'lists' | 'questions' | 'interviewKit' | 'roles' | 'rules',
+            v as
+              | 'general'
+              | 'email'
+              | 'rejectionEmail'
+              | 'lists'
+              | 'questions'
+              | 'interviewKit'
+              | 'roles'
+              | 'rules',
           )
         }
       >
         <TabsList>
           <TabsTrigger value="general">General Workspace</TabsTrigger>
           <TabsTrigger value="email">Email Templates</TabsTrigger>
+          <TabsTrigger value="rejectionEmail">Rejection Mail Template</TabsTrigger>
           <TabsTrigger value="lists">Custom Lists</TabsTrigger>
           <TabsTrigger value="questions">Question Bank</TabsTrigger>
           <TabsTrigger value="interviewKit">Interview Kit</TabsTrigger>
@@ -2693,6 +2710,10 @@ export function SettingsView() {
 
         <TabsContent value="email">
           <EmailTemplatesManager />
+        </TabsContent>
+
+        <TabsContent value="rejectionEmail">
+          <RejectionEmailTemplatesManager />
         </TabsContent>
 
         <TabsContent value="lists">

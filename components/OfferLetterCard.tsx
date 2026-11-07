@@ -15,6 +15,7 @@ import {
   offerLetterFileBaseName,
   renderOfferLetterBody,
 } from '@/lib/offer-letter';
+import { OPTIMINASTIC_FOOTER, isAltOpti } from '@/lib/letter-company';
 import { useCandidates } from '@/features/candidates/hooks';
 import { useOnboardingEmails } from '@/features/onboarding/hooks';
 import { nowISO } from '@/lib/utils';
@@ -67,6 +68,8 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
   const set = <K extends keyof OfferLetterData>(key: K, value: OfferLetterData[K]) =>
     setDraft(d => (d ? { ...d, [key]: value } : d));
   const setNum = (key: keyof OfferLetterData, v: string) => set(key, (Number(v) || 0) as never);
+  const setFooterField = (key: keyof NonNullable<OfferLetterData['customFooter']>, value: string) =>
+    setDraft(d => (d ? { ...d, customFooter: { ...d.customFooter, [key]: value } } : d));
 
   const save = () => {
     if (!draft) return;
@@ -383,6 +386,86 @@ export function OfferLetterCard({ candidateId, candidateName, offerLetter }: Off
                     </div>
                   </AccordionContent>
                 </AccordionItem>
+
+                {!isAltOpti(draft.company) && (
+                <AccordionItem value="footer">
+                  <AccordionTrigger>Footer (advanced)</AccordionTrigger>
+                  <AccordionContent>
+                    <p className="mb-2 text-[11px] text-gray-500">
+                      The address/contact/social block printed at the bottom of every page. Leave a
+                      field blank to use the default shown as its placeholder — only the fields you
+                      fill in here are overridden.
+                    </p>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      <Field label="Company name">
+                        <input
+                          className={inputCls}
+                          value={draft.customFooter?.companyName || ''}
+                          onChange={e => setFooterField('companyName', e.target.value)}
+                          placeholder={OPTIMINASTIC_FOOTER.companyName}
+                        />
+                      </Field>
+                      <Field label="Phone">
+                        <input
+                          className={inputCls}
+                          value={draft.customFooter?.phone || ''}
+                          onChange={e => setFooterField('phone', e.target.value)}
+                          placeholder={OPTIMINASTIC_FOOTER.phone}
+                        />
+                      </Field>
+                      <Field label="Address line 1">
+                        <input
+                          className={inputCls}
+                          value={draft.customFooter?.addressLine1 || ''}
+                          onChange={e => setFooterField('addressLine1', e.target.value)}
+                          placeholder={OPTIMINASTIC_FOOTER.addressLine1}
+                        />
+                      </Field>
+                      <Field label="Address line 2">
+                        <input
+                          className={inputCls}
+                          value={draft.customFooter?.addressLine2 || ''}
+                          onChange={e => setFooterField('addressLine2', e.target.value)}
+                          placeholder={OPTIMINASTIC_FOOTER.addressLine2}
+                        />
+                      </Field>
+                      <Field label="Email">
+                        <input
+                          className={inputCls}
+                          value={draft.customFooter?.email || ''}
+                          onChange={e => setFooterField('email', e.target.value)}
+                          placeholder={OPTIMINASTIC_FOOTER.email}
+                        />
+                      </Field>
+                      <Field label="Website">
+                        <input
+                          className={inputCls}
+                          value={draft.customFooter?.website || ''}
+                          onChange={e => setFooterField('website', e.target.value)}
+                          placeholder={OPTIMINASTIC_FOOTER.website}
+                        />
+                      </Field>
+                      <Field label="Social handle">
+                        <input
+                          className={inputCls}
+                          value={draft.customFooter?.socialHandle || ''}
+                          onChange={e => setFooterField('socialHandle', e.target.value)}
+                          placeholder={OPTIMINASTIC_FOOTER.socialHandle}
+                        />
+                      </Field>
+                    </div>
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => set('customFooter', undefined)}
+                        className="text-[11px] font-semibold text-gray-500 hover:text-gray-700"
+                      >
+                        Reset to default footer
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+                )}
               </Accordion>
             </div>
 

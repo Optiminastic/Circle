@@ -57,6 +57,12 @@ export function sendCustomEmail(input: {
   attendees?: string[];
   eventUid?: string;
   links?: { label: string; url: string }[];
+  // Skip the default HR CC (candidate-only sends, e.g. the interview invite).
+  noCc?: boolean;
+  // Send from the plain notification address (notification@optiminastic.com)
+  // instead of the general sender — for candidate-facing results emails
+  // like a rejection.
+  fromNotification?: boolean;
   // Optional file attachment (e.g. the offer-letter PDF), base64-encoded.
   attachmentName?: string;
   attachmentBase64?: string;

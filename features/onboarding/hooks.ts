@@ -248,6 +248,14 @@ export function useOnboardingEmails() {
     onSuccess: invalidate,
   });
 
+  // HR skips any other step without completing it (reversible — the caller
+  // sends the whole updated array, so the same mutation also un-skips).
+  const setSkippedSteps = useMutation({
+    mutationFn: ({ candidateId, skippedSteps }: { candidateId: string; skippedSteps: string[] }) =>
+      repositories.onboarding.patch(candidateId, { skippedSteps }),
+    onSuccess: invalidate,
+  });
+
   // Undo an employee conversion tag on the onboarding record — used when the
   // employee record it points to gets deleted (e.g. a mistaken conversion), so
   // the candidate reverts to "Pending" and stays visible in onboarding.
@@ -393,6 +401,7 @@ export function useOnboardingEmails() {
     markInternshipSigned,
     markJoiningDocsSkipped,
     markBgvSkipped,
+    setSkippedSteps,
     revertEmployeeConversion,
     setJoiningDate,
     markFirstDayArrived,
