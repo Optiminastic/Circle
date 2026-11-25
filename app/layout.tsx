@@ -4,6 +4,7 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from './providers';
 import { BRAND } from '@/lib/brand';
+import { PerfReporter } from '@/components/PerfReporter';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: '{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://circle.optiminastic.com/#organization","name":"Optiminastic","url":"https://circle.optiminastic.com/"},{"@type":"WebSite","@id":"https://circle.optiminastic.com/#website","name":"Optiminastic","url":"https://circle.optiminastic.com/","publisher":{"@id":"https://circle.optiminastic.com/#organization"}}]}' }}
         />
+        <PerfReporter />
         <Providers>{children}</Providers>
       </body>
     </html>
