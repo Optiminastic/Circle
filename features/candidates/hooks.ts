@@ -14,10 +14,22 @@ export function useCandidates() {
     queryKey: qk.candidates.all,
     queryFn: () => repositories.candidates.list(),
     // Public applications land outside this session's own mutations (a
-    // candidate applying doesn't invalidate anyone's cache) — poll so the
-    // dashboard's New Candidates panel (and everywhere else) picks up fresh
-    // applicants on its own, no manual reload needed.
-    refetchInterval: 30_000,
+    // candidate applying doesn't invalidate anyone's cache), so this can't
+    // rely on invalidation alone to ever pick up a new applicant. But this
+    // hook is mounted globally (ScheduleProvider wraps every dashboard
+    // route — see store/schedule-store.tsx), and the full candidates table
+    // (including each candidate's extracted resume text) was being
+    // re-downloaded in full every 30s on EVERY page, not just the one or
+    // two screens that show new applicants — see docs/PERFORMANCE_AUDIT.md
+    // P0-3. refetchOnWindowFocus already covers "I tabbed away and came
+    // back"; this interval is just a background safety net for a tab left
+    // open for a while, at a frequency that no longer dominates network
+    // traffic. (This session's own create/update/move/remove/setFit
+    // mutations already invalidate qk.candidates.all directly — see
+    // useCandidateMutations below — so this interval only exists for
+    // OTHER sessions' writes, not this one's own.)
+    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60_000,
   });
 }
 

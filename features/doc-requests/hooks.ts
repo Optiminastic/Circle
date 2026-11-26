@@ -17,14 +17,30 @@ import {
 } from '@/lib/onboarding-docs';
 
 export function useDocRequests() {
-  // Candidates upload from their own session, so HR must poll to see new
-  // submissions land — refetch on focus/mount and every 20s while open.
+  // Candidates upload from their own session, so this session's own
+  // mutations (create/verify/verifyBank/reactivate/extract — all below)
+  // can't invalidate this cache for THEIR action: a fresh candidate upload
+  // never fires one of those. Polling is the only way to see it land.
+  //
+  // But it only needs to run while something could actually still change
+  // outside this session: a live (unexpired) request sitting at 'Pending'
+  // is the one state a candidate's own upload can move without any HR
+  // mutation firing here. Once every request is Submitted/Verified/expired,
+  // nothing is left for a candidate to do that this session wouldn't
+  // already see via its own invalidate() calls — see docs/PERFORMANCE_AUDIT.md
+  // P0-3/P1-7 for why the previous unconditional refetchOnMount:'always' +
+  // 20s-forever poll (re-downloading the whole table on every mount of
+  // every component below) was the bigger problem, not this hook's freshness.
   return useQuery({
     queryKey: qk.docRequests.all,
     queryFn: () => repositories.docRequests.list(),
+    staleTime: 15_000,
     refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
-    refetchInterval: 20_000,
+    refetchInterval: query => {
+      const data = query.state.data ?? [];
+      const awaitingCandidateUpload = data.some(r => r.status === 'Pending' && isDocRequestLive(r));
+      return awaitingCandidateUpload ? 20_000 : false;
+    },
   });
 }
 
