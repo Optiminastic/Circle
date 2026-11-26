@@ -41,6 +41,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // Perceived performance: once signed in, warm the cache for every section in
   // the background so navigating the sidebar renders instantly from cache
   // (with React Query refreshing stale data silently).
+  //
+  // Staggered + delayed, not fired all at once: live production network
+  // timing (2026-11-26) showed all 16 of these full-table requests hitting
+  // the backend in the same ~10ms window, saturating its DB connection pool
+  // (6 + 4 overflow per uvicorn worker) and dragging the DASHBOARD'S OWN
+  // critical-path queries (/api/stats/overview, /api/stats/upcoming-interviews)
+  // from a normal <1s down to 2.8s/5.6s, with several of the warm-up requests
+  // themselves queueing 9-14s behind the contention. A short delay lets the
+  // current page's own queries claim connections first; the concurrency cap
+  // keeps the warm-up from reproducing the same stampede once it starts. See
+  // docs/PERFORMANCE_IMPLEMENTATION_LOG.md Phase 3 (post-merge production
+  // report) for the full timing capture.
   const qc = useQueryClient();
   useEffect(() => {
     if (!ready || !user) return;
@@ -62,9 +74,22 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       [qk.screeningBanks.all, () => repositories.screeningBanks.list()],
       [qk.iqBank.all, () => repositories.iqBank.list()],
     ];
-    for (const [queryKey, queryFn] of targets) {
-      qc.prefetchQuery({ queryKey, queryFn, staleTime: 30_000 });
-    }
+    const WARMUP_DELAY_MS = 2000;
+    const WARMUP_CONCURRENCY = 3;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      for (let i = 0; i < targets.length; i += WARMUP_CONCURRENCY) {
+        if (cancelled) return;
+        const batch = targets.slice(i, i + WARMUP_CONCURRENCY);
+        await Promise.allSettled(
+          batch.map(([queryKey, queryFn]) => qc.prefetchQuery({ queryKey, queryFn, staleTime: 30_000 }))
+        );
+      }
+    }, WARMUP_DELAY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [ready, user, qc]);
 
   // Bootstrap status: is the server reachable? A cheap /api/health check
