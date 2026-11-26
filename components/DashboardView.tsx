@@ -9,15 +9,8 @@ import Link from 'next/link';
 import { NewCandidatesPanel } from './NewCandidatesPanel';
 import { CountUp } from '@/components/ui/count-up';
 import { useAuth, displayName } from '@/store/auth-store';
-import {
-  Candidate,
-  Interview,
-  IQTest,
-  Assignment,
-  Job,
-  Employee,
-  OffboardingWorkflow,
-} from '../types';
+import { Candidate } from '../types';
+import type { DashboardOverview, UpcomingInterviewPair } from '@/lib/api/stats';
 import {
   Briefcase,
   Users,
@@ -36,17 +29,18 @@ import { TagPill, StatusPill } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 
 interface DashboardViewProps {
-  candidates: Candidate[];
-  interviews: Interview[];
-  iqTests: IQTest[];
-  assignments: Assignment[];
-  jobs: Job[];
-  employees: Employee[];
-  offboarding: OffboardingWorkflow[];
+  /** The 4 KPI cards — computed server-side (COUNT/conditional aggregates),
+   *  not derived from a full-table fetch. See docs/PERFORMANCE_AUDIT.md P0-3. */
+  stats: DashboardOverview;
+  /** Next N Scheduled interviews, already joined with each candidate's
+   *  CURRENT record server-side (candidate is `null` if since deleted). */
+  upcomingInterviews: UpcomingInterviewPair[];
+  /** Newest applicants, already sorted + bounded server-side
+   *  (GET /api/candidates?sortBy=appliedAt&sortOrder=desc&limit=N) —
+   *  not sliced from a full-table fetch. */
+  newCandidates: Candidate[];
   onSelectCandidate: (id: string) => void;
 }
-
-const PROBATION_MONTHS = 6;
 
 // Looping, muted ambient video behind the dashboard greeting header.
 // Self-hosted from /public so the header doesn't depend on a third-party CDN.
@@ -62,12 +56,9 @@ const fmtSlot = (iso: string) => {
 };
 
 export function DashboardView({
-  candidates,
-  interviews,
-  iqTests,
-  jobs,
-  employees,
-  offboarding,
+  stats,
+  upcomingInterviews: upcomingInterviewPairs,
+  newCandidates,
   onSelectCandidate,
 }: DashboardViewProps) {
   const { user } = useAuth();
@@ -92,34 +83,25 @@ export function DashboardView({
     );
   }, []);
 
-  // ---- Real, derived metrics (no more hardcoded numbers) ----
-  const openPositions = jobs.filter(j => j.status === 'Open').length;
-  const activeCandidates = candidates.filter(
-    c => c.status !== 'Rejected' && c.status !== 'Duplicate Profile',
-  ).length;
-  const interviewingCount = new Set(
-    interviews.filter(i => i.status === 'Scheduled').map(i => i.candidateId),
-  ).size;
-  const activeEmployees = employees.filter(e => e.status === 'Active').length;
+  // ---- Real, server-computed metrics (COUNT/conditional aggregates, not a
+  // full-table fetch filtered client-side) — see docs/PERFORMANCE_AUDIT.md P0-3 ----
+  const openPositions = stats.jobs.open;
+  const totalJobs = stats.jobs.total;
+  const activeCandidates = stats.candidates.active;
+  const interviewingCount = stats.candidates.interviewing;
+  const activeEmployees = stats.employees.active;
+  const totalEmployees = stats.employees.total;
+  const onProbation = stats.employees.onProbation;
+  const activeExits = stats.offboarding.activeExits;
+  const onNotice = stats.offboarding.onNotice;
 
-  const onProbation = employees.filter(e => {
-    if (e.status !== 'Active') return false;
-    const d = new Date(e.joiningDate);
-    if (Number.isNaN(d.getTime())) return false;
-    const months = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
-    return months >= 0 && months < PROBATION_MONTHS;
-  }).length;
-
-  const activeExits = offboarding.filter(o => o.status !== 'Completed').length;
-  const onNotice = offboarding.filter(o => o.status === 'Notice Period Active').length;
-
-  const stats = [
+  const statCards = [
     {
       id: 'open-positions',
       title: 'Open Positions',
       value: openPositions,
-      total: jobs.length,
-      sub: `${jobs.length} total posting${jobs.length === 1 ? '' : 's'}`,
+      total: totalJobs,
+      sub: `${totalJobs} total posting${totalJobs === 1 ? '' : 's'}`,
       href: '/jobs',
       Icon: Briefcase,
       iconCls: 'text-accent-600 bg-accent-50 border-accent-100',
@@ -138,7 +120,7 @@ export function DashboardView({
       id: 'employees',
       title: 'Active Employees',
       value: activeEmployees,
-      total: employees.length,
+      total: totalEmployees,
       sub: `${onProbation} on probation`,
       href: '/directory',
       Icon: UserCheck,
@@ -156,21 +138,19 @@ export function DashboardView({
     },
   ];
 
-  // Candidates coming in for interviews — the next 6 scheduled interviews from
-  // now onward, soonest first. Derived from the live `interviews` query, so it
-  // refreshes automatically as new interviews are scheduled / rescheduled. Only
-  // interviews whose candidate still exists are shown, so a deleted candidate's
-  // orphaned interview never lingers here.
-  const now = Date.now();
-  const candidateById = new Map(candidates.map(c => [c.id, c]));
-  const liveCandidateIds = new Set(candidates.map(c => c.id));
-  const upcomingInterviews = interviews
-    .filter(iv => iv.status === 'Scheduled' && liveCandidateIds.has(iv.candidateId))
-    .map(iv => ({ iv, t: new Date(iv.dateTime).getTime() }))
-    .filter(x => !Number.isNaN(x.t) && x.t >= now)
-    .sort((a, b) => a.t - b.t)
-    .slice(0, 6)
-    .map(x => x.iv);
+  // Candidates coming in for interviews — already the next N Scheduled
+  // interviews from now, soonest first, joined with each candidate's CURRENT
+  // record server-side (see circle-be/app/repositories/stats_repository.py
+  // upcoming_interviews) instead of downloading both full tables to filter/
+  // sort/join them here. `candidate` is null when that candidate has since
+  // been deleted — falls back to the interview's own frozen snapshot, same
+  // as before.
+  const upcomingInterviews = upcomingInterviewPairs.map(pair => pair.interview);
+  const candidateById = new Map(
+    upcomingInterviewPairs
+      .filter(pair => pair.candidate !== null)
+      .map(pair => [pair.interview.candidateId, pair.candidate as Candidate]),
+  );
 
   return (
     <div className="relative space-y-4 select-none pb-8">
@@ -233,7 +213,7 @@ export function DashboardView({
 
       {/* KPI stat cards — real values, clickable */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s, i) => {
+        {statCards.map((s, i) => {
           const Icon = s.Icon;
           return (
             <Link
@@ -356,7 +336,7 @@ export function DashboardView({
       </section>
 
       {/* New candidates */}
-      <NewCandidatesPanel candidates={candidates} />
+      <NewCandidatesPanel candidates={newCandidates} />
     </div>
   );
 }

@@ -26,9 +26,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const start = PERF_LOG_ENABLED ? performance.now() : 0;
   let status = 0;
+  let aborted = false;
   try {
     const res = await fetch(`${apiBase()}/api${path}`, {
       method,
@@ -38,6 +39,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       // Send/receive the httpOnly session cookie so the backend can authenticate
       // the dashboard user. Harmless for the public token-gated pages.
       credentials: 'include',
+      // Lets React Query cancel a now-stale in-flight request (e.g. a
+      // paginated list refetching while the user is still typing a search
+      // term) instead of racing it against the next one. See
+      // docs/PERFORMANCE_AUDIT.md P0-2 / PERFORMANCE_ROADMAP.md Phase B1.
+      signal,
     });
     status = res.status;
 
@@ -48,20 +54,24 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     }
 
     return (await res.json()) as T;
+  } catch (err) {
+    aborted = err instanceof DOMException && err.name === 'AbortError';
+    throw err;
   } finally {
     if (PERF_LOG_ENABLED) {
       const durationMs = performance.now() - start;
       const slow = durationMs >= SLOW_REQUEST_MS;
+      const statusLabel = aborted ? 'ABORTED' : status || 'ERROR';
       // eslint-disable-next-line no-console
-      console[slow ? 'warn' : 'debug'](
-        `[perf] api_request method=${method} path=${path} status=${status || 'ERROR'} duration_ms=${durationMs.toFixed(1)}${slow ? ' SLOW' : ''}`,
+      console[slow && !aborted ? 'warn' : 'debug'](
+        `[perf] api_request method=${method} path=${path} status=${statusLabel} duration_ms=${durationMs.toFixed(1)}${slow && !aborted ? ' SLOW' : ''}`,
       );
     }
   }
 }
 
 export const http = {
-  get: <T>(path: string) => request<T>('GET', path),
+  get: <T>(path: string, signal?: AbortSignal) => request<T>('GET', path, undefined, signal),
   post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),

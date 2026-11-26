@@ -1,13 +1,34 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BGVRequirement, Candidate, CandidateStatus, FitRating, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
+import { PageParams } from '@/lib/api/resource-repository';
 import { qk } from '@/lib/query/keys';
 import { jobForCandidate } from '@/features/jobs/hooks';
 import { listOps } from '@/lib/query/optimistic';
 import { optimisticOptions } from '@/lib/query/mutations';
 import { buildBgvForCandidate, buildOnboardingForCandidate } from '@/services/candidate.service';
+
+/** Database-side paginated candidates (search/sort pushed to the backend —
+ *  see docs/PERFORMANCE_AUDIT.md P0-2). Use this for the candidates list
+ *  view; `useCandidates()` above stays for consumers that need the whole
+ *  set (dashboard bootstrap gate, cross-referencing by id, etc.).
+ *
+ *  `keepPreviousData` shows the OLD page's rows (greyed by the caller via
+ *  `isFetching`) while the next page loads, instead of a blank/loading
+ *  flash — but never the previous SEARCH/FILTER's rows under a new one;
+ *  since page/search/sortBy/sortOrder are all part of the query key
+ *  (see qk.candidates.page), changing any of them is a different cache
+ *  entry, not a mutation of this one, so "previous data" can only ever be
+ *  a different PAGE of the SAME filter, never a stale filter's results. */
+export function useCandidatesPage(params: PageParams) {
+  return useQuery({
+    queryKey: qk.candidates.page(params),
+    queryFn: ({ signal }) => repositories.candidates.listPaginated(params, signal),
+    placeholderData: keepPreviousData,
+  });
+}
 
 export function useCandidates() {
   return useQuery({

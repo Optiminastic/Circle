@@ -4,12 +4,8 @@ import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardView } from '@/components/DashboardView';
 import { PageLoading } from '@/components/PageLoading';
-import { useCandidates } from '@/features/candidates/hooks';
-import { useInterviews } from '@/features/interviews/hooks';
-import { useAssignments, useIqTests } from '@/features/assessments/hooks';
-import { useJobs } from '@/features/jobs/hooks';
-import { useEmployees } from '@/features/employees/hooks';
-import { useOffboarding } from '@/features/offboarding/hooks';
+import { useCandidatesPage } from '@/features/candidates/hooks';
+import { useDashboardOverview, useUpcomingInterviews } from '@/features/dashboard/hooks';
 
 export default function DashboardPage() {
   return (
@@ -19,30 +15,37 @@ export default function DashboardPage() {
   );
 }
 
+const NEW_CANDIDATES_LIMIT = 10;
+
 // Embeds CandidateListView (New Candidates panel), which calls
 // `useSearchParams()` internally even with its filter UI hidden — Next.js
 // requires a Suspense boundary around any use of it.
+//
+// Replaces what used to be 7 full-table fetches (candidates, interviews,
+// iqTests, assignments, jobs, employees, offboarding — the last two of
+// which DashboardView never even read) with 3 small, bounded requests: the
+// KPI aggregates, the next few upcoming interviews (already joined with
+// their candidates server-side), and the newest 10 candidates (already
+// sorted server-side). See docs/PERFORMANCE_AUDIT.md P0-3.
 function DashboardPageInner() {
   const router = useRouter();
-  const { data: candidates = [] } = useCandidates();
-  const { data: interviews = [], isLoading: l1 } = useInterviews();
-  const { data: iqTests = [], isLoading: l2 } = useIqTests();
-  const { data: assignments = [], isLoading: l3 } = useAssignments();
-  const { data: jobs = [] } = useJobs();
-  const { data: employees = [] } = useEmployees();
-  const { data: offboarding = [] } = useOffboarding();
+  const overview = useDashboardOverview();
+  const upcoming = useUpcomingInterviews(6);
+  const newCandidates = useCandidatesPage({
+    page: 1,
+    limit: NEW_CANDIDATES_LIMIT,
+    sortBy: 'appliedAt',
+    sortOrder: 'desc',
+  });
 
-  if (l1 || l2 || l3) return <PageLoading />;
+  if (overview.isLoading || upcoming.isLoading || newCandidates.isLoading) return <PageLoading />;
+  if (!overview.data || !upcoming.data || !newCandidates.data) return <PageLoading />;
 
   return (
     <DashboardView
-      candidates={candidates}
-      interviews={interviews}
-      iqTests={iqTests}
-      assignments={assignments}
-      jobs={jobs}
-      employees={employees}
-      offboarding={offboarding}
+      stats={overview.data}
+      upcomingInterviews={upcoming.data}
+      newCandidates={newCandidates.data.data}
       onSelectCandidate={id => router.push(`/candidates/${id}`)}
     />
   );

@@ -1,8 +1,9 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Candidate, Job } from '@/types';
 import { repositories } from '@/lib/api/repositories';
+import { PageParams } from '@/lib/api/resource-repository';
 import { qk } from '@/lib/query/keys';
 import { listOps } from '@/lib/query/optimistic';
 import { optimisticOptions } from '@/lib/query/mutations';
@@ -14,6 +15,16 @@ const revalidatePublicJob = (jobId?: string) => revalidatePublicJobAction(jobId)
 /** All job postings (used by the HR dashboard). */
 export function useJobs() {
   return useQuery({ queryKey: qk.jobs.all, queryFn: () => repositories.jobs.list() });
+}
+
+/** Database-side paginated jobs — see docs/PERFORMANCE_AUDIT.md P0-2 and
+ *  useCandidatesPage's doc comment for the full rationale. */
+export function useJobsPage(params: PageParams) {
+  return useQuery({
+    queryKey: qk.jobs.page(params),
+    queryFn: ({ signal }) => repositories.jobs.listPaginated(params, signal),
+    placeholderData: keepPreviousData,
+  });
 }
 
 /**
