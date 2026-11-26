@@ -27,9 +27,11 @@ import {
   CommandItem,
 } from '@/components/ui/command';
 import { useUiStore } from '@/store/ui-store';
-import { useCandidates } from '@/features/candidates/hooks';
-import { useJobs } from '@/features/jobs/hooks';
-import { useEmployees } from '@/features/employees/hooks';
+import { useCandidatesPage } from '@/features/candidates/hooks';
+import { useJobsPage } from '@/features/jobs/hooks';
+import { useEmployeesPage } from '@/features/employees/hooks';
+
+const TOP_N = 50;
 
 interface NavEntry {
   href: string;
@@ -65,9 +67,22 @@ export function CommandPalette() {
   const router = useRouter();
   const { commandOpen, setCommandOpen } = useUiStore();
 
-  const { data: candidates = [] } = useCandidates();
-  const { data: jobs = [] } = useJobs();
-  const { data: employees = [] } = useEmployees();
+  // Fetches only the top TOP_N of each, server-side — this component only
+  // ever rendered the first 50 of whatever useCandidates()/useJobs()/
+  // useEmployees() returned anyway (cmdk fuzzy-filters within what's
+  // rendered, not the full table), so this is the same rendered result for
+  // a fraction of the data: previously the ENTIRE candidates table (1,500+
+  // rows, each with its full extracted resume text) was downloaded just to
+  // keep 50 of them. See docs/PERFORMANCE_AUDIT.md P0-2. This does not fix
+  // "can't find a candidate past the first 50" — that limitation already
+  // existed before this change — it only removes the cost of fetching the
+  // other 1,450+ rows no view of this component could ever reach anyway.
+  const { data: candidatesPage } = useCandidatesPage({ page: 1, limit: TOP_N });
+  const { data: jobsPage } = useJobsPage({ page: 1, limit: TOP_N });
+  const { data: employeesPage } = useEmployeesPage({ page: 1, limit: TOP_N });
+  const candidates = candidatesPage?.data ?? [];
+  const jobs = jobsPage?.data ?? [];
+  const employees = employeesPage?.data ?? [];
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,11 +100,11 @@ export function CommandPalette() {
     router.push(href);
   };
 
-  // Cap entity results so a large directory doesn't flood the list — cmdk
-  // already fuzzy-filters by the typed query.
-  const topCandidates = candidates.slice(0, 50);
-  const topJobs = jobs.slice(0, 50);
-  const topEmployees = employees.slice(0, 50);
+  // Already capped to TOP_N server-side (useCandidatesPage/etc above) — cmdk
+  // fuzzy-filters by the typed query within whatever's rendered here.
+  const topCandidates = candidates;
+  const topJobs = jobs;
+  const topEmployees = employees;
 
   return (
     <CommandDialog

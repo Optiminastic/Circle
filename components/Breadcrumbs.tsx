@@ -3,10 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
-import { useCandidates } from '@/features/candidates/hooks';
-import { useEmployees } from '@/features/employees/hooks';
-import { useJobs } from '@/features/jobs/hooks';
+import { repositories } from '@/lib/api/repositories';
+import { qk } from '@/lib/query/keys';
 
 /** Human label for each known route segment. */
 const LABELS: Record<string, string> = {
@@ -57,15 +57,52 @@ interface Crumb {
 /**
  * Global breadcrumb shown on every dashboard page (hidden on the dashboard root).
  * Derives the trail from the URL, resolving entity ids (candidate / employee /
- * job) to their names from cached data. Only links to routes that really exist.
+ * job) to their names. Only links to routes that really exist.
+ *
+ * Looks up exactly the one record a detail page's URL names (GET
+ * /api/{resource}/{id}, an indexed PK lookup) instead of the full
+ * candidates/employees/jobs tables (previously fetched here UNCONDITIONALLY,
+ * on every single page including the dashboard root where this component
+ * renders nothing at all) — see docs/PERFORMANCE_AUDIT.md P0-2 and the live
+ * production report that caught this: candidates alone was 1,500+ rows with
+ * each one's full extracted resume text.
  */
 export function Breadcrumbs() {
   const pathname = usePathname() ?? '/';
-  const { data: candidates = [] } = useCandidates();
-  const { data: employees = [] } = useEmployees();
-  const { data: jobs = [] } = useJobs();
-
   const segments = pathname.split('/').filter(Boolean);
+
+  // Which single entity (if any) this page's URL needs a name for — decided
+  // before any data hook, so only the one record actually needed is fetched.
+  let candidateId: string | undefined;
+  let employeeId: string | undefined;
+  let jobId: string | undefined;
+  segments.forEach((seg, i) => {
+    const parent = segments[i - 1];
+    if (LABELS[seg]) return;
+    // 'applicants' = a candidate opened from a job's applicants list
+    // (/jobs/[jobId]/applicants/[candidateId]) — same candidate lookup.
+    if (parent === 'candidates' || parent === 'applicants') candidateId = seg;
+    else if (parent === 'employees') employeeId = seg;
+    else if (parent === 'jobs') jobId = seg;
+  });
+
+  // Hooks must run unconditionally (Rules of Hooks) — `enabled` is what
+  // actually skips the fetch when this page doesn't need that lookup.
+  const candidateQuery = useQuery({
+    queryKey: qk.candidates.detail(candidateId ?? ''),
+    queryFn: () => repositories.candidates.get(candidateId as string),
+    enabled: Boolean(candidateId),
+  });
+  const employeeQuery = useQuery({
+    queryKey: qk.employees.detail(employeeId ?? ''),
+    queryFn: () => repositories.employees.get(employeeId as string),
+    enabled: Boolean(employeeId),
+  });
+  const jobQuery = useQuery({
+    queryKey: qk.jobs.detail(jobId ?? ''),
+    queryFn: () => repositories.jobs.get(jobId as string),
+    enabled: Boolean(jobId),
+  });
 
   // Nothing to show on the dashboard home.
   if (segments.length === 0) return null;
@@ -79,18 +116,16 @@ export function Breadcrumbs() {
 
     // Dynamic entity id (anything not in the label map, under a known parent).
     if (!known) {
-      // 'applicants' = a candidate opened from a job's applicants list
-      // (/jobs/[jobId]/applicants/[candidateId]) — same candidate lookup.
       if (parent === 'candidates' || parent === 'applicants') {
-        crumbs.push({ label: candidates.find(c => c.id === seg)?.fullName ?? seg, href: null });
+        crumbs.push({ label: candidateQuery.data?.fullName ?? seg, href: null });
         return;
       }
       if (parent === 'employees') {
-        crumbs.push({ label: employees.find(e => e.id === seg)?.fullName ?? seg, href: null });
+        crumbs.push({ label: employeeQuery.data?.fullName ?? seg, href: null });
         return;
       }
       if (parent === 'jobs') {
-        crumbs.push({ label: jobs.find(j => j.id === seg)?.title ?? seg, href: null });
+        crumbs.push({ label: jobQuery.data?.title ?? seg, href: null });
         return;
       }
       crumbs.push({ label: humanize(seg), href: null });
