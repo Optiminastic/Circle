@@ -20,11 +20,12 @@ export function useJobs() {
 
 /** Database-side paginated jobs — see docs/PERFORMANCE_AUDIT.md P0-2 and
  *  useCandidatesPage's doc comment for the full rationale. */
-export function useJobsPage(params: PageParams) {
+export function useJobsPage(params: PageParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.jobs.page(params),
     queryFn: ({ signal }) => repositories.jobs.listPaginated(params, signal),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 

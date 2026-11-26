@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Candidate, CandidateStatus, ScheduleEvent, ScheduleType, TestInvite } from '@/types';
 import { useSchedules, useScheduleMutations } from '@/features/schedule/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
-import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
+import { useCandidateMutations } from '@/features/candidates/hooks';
 import { ScheduleModal } from '@/components/ScheduleModal';
 import { BusySlot } from '@/lib/schedule-conflicts';
 import { useToast } from '@/components/Toaster';
@@ -37,7 +37,6 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [pending, setPending] = useState<Pending | null>(null);
   const { data: schedules = [] } = useSchedules();
   const { data: interviews = [] } = useInterviews();
-  const { data: candidates = [] } = useCandidates();
   const { create } = useScheduleMutations();
   const { move } = useCandidateMutations();
 
@@ -108,13 +107,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     setPending(null);
 
     // Best-effort candidate notification — never blocks/undoes the schedule.
-    let candidate: Candidate | undefined = candidates.find(c => c.id === p.candidateId);
-    if (!candidate?.email) {
-      try {
-        candidate = await repositories.candidates.get(p.candidateId);
-      } catch {
-        /* fall through to the no-email path */
-      }
+    // Fetched directly (this dialog only ever needs the ONE candidate being
+    // scheduled, not the whole table - see
+    // docs/PRODUCTION_PERFORMANCE_FIX_REPORT.md's route-priority fetching
+    // work for why this used to fetch every candidate just for this lookup).
+    let candidate: Candidate | undefined;
+    try {
+      candidate = await repositories.candidates.get(p.candidateId);
+    } catch {
+      /* fall through to the no-email path */
     }
     const email = candidate?.email ?? '';
 

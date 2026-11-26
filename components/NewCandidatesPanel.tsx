@@ -12,9 +12,13 @@ import { Candidate } from '../types';
 import { useCandidateMutations } from '@/features/candidates/hooks';
 import { useScheduler } from '@/store/schedule-store';
 import { CandidateListView } from '@/components/CandidateListView';
+import { SkeletonRows } from '@/components/ui/skeleton';
 
 interface NewCandidatesPanelProps {
   candidates: Candidate[];
+  /** Shows a skeleton instead of the (still-empty) list - this panel's data
+   *  loads independently of the rest of the dashboard. */
+  loading?: boolean;
 }
 
 const TOP_N = 10;
@@ -35,7 +39,7 @@ function sortByRecency(list: Candidate[]) {
  * matches the Candidates page. `candidates` is refetched on an interval (see
  * `useCandidates`), so this panel picks up new applicants without a reload.
  */
-export function NewCandidatesPanel({ candidates }: NewCandidatesPanelProps) {
+export function NewCandidatesPanel({ candidates, loading = false }: NewCandidatesPanelProps) {
   const router = useRouter();
   const { openSchedule } = useScheduler();
   const { create, remove, setFit } = useCandidateMutations();
@@ -50,7 +54,7 @@ export function NewCandidatesPanel({ candidates }: NewCandidatesPanelProps) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-gray-500">
-            New Candidates ({newCandidates.length})
+            New Candidates {loading ? '' : `(${newCandidates.length})`}
           </h3>
           <p className="mt-0.5 text-[11px] text-gray-500">
             The {TOP_N} most recently applied candidates.
@@ -64,7 +68,11 @@ export function NewCandidatesPanel({ candidates }: NewCandidatesPanelProps) {
         </Link>
       </div>
 
-      {newCandidates.length === 0 ? (
+      {loading ? (
+        <div className="rounded-md border border-line bg-surface">
+          <SkeletonRows rows={4} />
+        </div>
+      ) : newCandidates.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-line bg-surface py-10 text-center">
           <UserPlus size={20} className="text-gray-400" />
           <p className="text-xs text-gray-500">No new applications right now.</p>

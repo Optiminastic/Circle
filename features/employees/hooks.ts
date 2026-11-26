@@ -19,11 +19,12 @@ export function useEmployees() {
  *  and useCandidatesPage's doc comment for the full rationale. Use for the
  *  Employee Directory list view; `useEmployees()` above stays for
  *  consumers that need the whole set. */
-export function useEmployeesPage(params: PageParams) {
+export function useEmployeesPage(params: PageParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.employees.page(params),
     queryFn: ({ signal }) => repositories.employees.listPaginated(params, signal),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 

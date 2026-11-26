@@ -26,6 +26,7 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { TagPill, StatusPill } from '@/components/ui/table';
+import { SkeletonRows } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
 interface DashboardViewProps {
@@ -40,6 +41,14 @@ interface DashboardViewProps {
    *  not sliced from a full-table fetch. */
   newCandidates: Candidate[];
   onSelectCandidate: (id: string) => void;
+  /** Independent per-section loading - the page itself only waits on
+   *  `stats` (the fastest of the three); these two render their own
+   *  skeleton instead of blocking the whole page. See
+   *  docs/PRODUCTION_PERFORMANCE_FIX_REPORT.md's route-priority fetching
+   *  work ("never use one global loading flag that waits for all
+   *  application APIs"). */
+  upcomingInterviewsLoading?: boolean;
+  newCandidatesLoading?: boolean;
 }
 
 // Looping, muted ambient video behind the dashboard greeting header.
@@ -60,6 +69,8 @@ export function DashboardView({
   upcomingInterviews: upcomingInterviewPairs,
   newCandidates,
   onSelectCandidate,
+  upcomingInterviewsLoading = false,
+  newCandidatesLoading = false,
 }: DashboardViewProps) {
   const { user } = useAuth();
   const name = (user?.name || displayName(user?.email) || 'there').split(' ')[0];
@@ -254,7 +265,7 @@ export function DashboardView({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="font-mono text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Upcoming Interviews ({upcomingInterviews.length})
+            Upcoming Interviews {upcomingInterviewsLoading ? '' : `(${upcomingInterviews.length})`}
           </h4>
           <Link
             href="/calendar"
@@ -264,7 +275,11 @@ export function DashboardView({
           </Link>
         </div>
 
-        {upcomingInterviews.length === 0 ? (
+        {upcomingInterviewsLoading ? (
+          <div className="rounded-md border border-line bg-surface">
+            <SkeletonRows rows={3} columns={[30, 25, 20, 15]} />
+          </div>
+        ) : upcomingInterviews.length === 0 ? (
           <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-line bg-surface px-5 py-4">
             <p className="text-xs text-gray-500">No upcoming interviews scheduled.</p>
             <Link
@@ -336,7 +351,7 @@ export function DashboardView({
       </section>
 
       {/* New candidates */}
-      <NewCandidatesPanel candidates={newCandidates} />
+      <NewCandidatesPanel candidates={newCandidates} loading={newCandidatesLoading} />
     </div>
   );
 }

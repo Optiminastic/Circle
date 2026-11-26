@@ -38,14 +38,19 @@ function DashboardPageInner() {
     sortOrder: 'desc',
   });
 
-  if (overview.isLoading || upcoming.isLoading || newCandidates.isLoading) return <PageLoading />;
-  if (!overview.data || !upcoming.data || !newCandidates.data) return <PageLoading />;
+  // Only `stats` (the fastest of the three - see
+  // docs/PRODUCTION_PERFORMANCE_FIX_REPORT.md) gates the whole page; the
+  // other two render their own skeleton via DashboardView/NewCandidatesPanel
+  // instead of blocking everything behind one combined flag.
+  if (overview.isLoading || !overview.data) return <PageLoading />;
 
   return (
     <DashboardView
       stats={overview.data}
-      upcomingInterviews={upcoming.data}
-      newCandidates={newCandidates.data.data}
+      upcomingInterviews={upcoming.data ?? []}
+      upcomingInterviewsLoading={upcoming.isLoading}
+      newCandidates={newCandidates.data?.data ?? []}
+      newCandidatesLoading={newCandidates.isLoading}
       onSelectCandidate={id => router.push(`/candidates/${id}`)}
     />
   );

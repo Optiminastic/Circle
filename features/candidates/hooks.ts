@@ -23,11 +23,12 @@ import { buildBgvForCandidate, buildOnboardingForCandidate } from '@/services/ca
  *  (see qk.candidates.page), changing any of them is a different cache
  *  entry, not a mutation of this one, so "previous data" can only ever be
  *  a different PAGE of the SAME filter, never a stale filter's results. */
-export function useCandidatesPage(params: PageParams) {
+export function useCandidatesPage(params: PageParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: qk.candidates.page(params),
     queryFn: ({ signal }) => repositories.candidates.listPaginated(params, signal),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 

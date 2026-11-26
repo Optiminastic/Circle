@@ -71,15 +71,23 @@ export function CommandPalette() {
   // ever rendered the first 50 of whatever useCandidates()/useJobs()/
   // useEmployees() returned anyway (cmdk fuzzy-filters within what's
   // rendered, not the full table), so this is the same rendered result for
-  // a fraction of the data: previously the ENTIRE candidates table (1,500+
+  // a fraction of the data: previously the ENTIRE candidates table (2,400+
   // rows, each with its full extracted resume text) was downloaded just to
   // keep 50 of them. See docs/PERFORMANCE_AUDIT.md P0-2. This does not fix
   // "can't find a candidate past the first 50" — that limitation already
   // existed before this change — it only removes the cost of fetching the
-  // other 1,450+ rows no view of this component could ever reach anyway.
-  const { data: candidatesPage } = useCandidatesPage({ page: 1, limit: TOP_N });
-  const { data: jobsPage } = useJobsPage({ page: 1, limit: TOP_N });
-  const { data: employeesPage } = useEmployeesPage({ page: 1, limit: TOP_N });
+  // other rows no view of this component could ever reach anyway.
+  //
+  // `enabled: commandOpen` — this component is mounted on EVERY route (via
+  // DashboardShell), so without this it fired all three fetches on every
+  // single page load regardless of whether the palette was ever opened.
+  // Only fetches once the user actually opens it (Ctrl/Cmd+K); after that,
+  // normal React Query caching means re-opening doesn't refetch unless
+  // stale. See docs/PRODUCTION_PERFORMANCE_FIX_REPORT.md's route-priority
+  // fetching work.
+  const { data: candidatesPage } = useCandidatesPage({ page: 1, limit: TOP_N }, { enabled: commandOpen });
+  const { data: jobsPage } = useJobsPage({ page: 1, limit: TOP_N }, { enabled: commandOpen });
+  const { data: employeesPage } = useEmployeesPage({ page: 1, limit: TOP_N }, { enabled: commandOpen });
   const candidates = candidatesPage?.data ?? [];
   const jobs = jobsPage?.data ?? [];
   const employees = employeesPage?.data ?? [];
