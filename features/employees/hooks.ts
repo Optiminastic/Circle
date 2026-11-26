@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppraisalRecord, AssetRecord, Employee } from '@/types';
 import { repositories } from '@/lib/api/repositories';
+import { PageParams } from '@/lib/api/resource-repository';
 import { qk } from '@/lib/query/keys';
 import { listOps } from '@/lib/query/optimistic';
 import { optimisticOptions } from '@/lib/query/mutations';
@@ -12,6 +13,18 @@ import { resolveHr, type HrIdentity } from '@/lib/hr-identity';
 
 export function useEmployees() {
   return useQuery({ queryKey: qk.employees.all, queryFn: () => repositories.employees.list() });
+}
+
+/** Database-side paginated employees — see docs/PERFORMANCE_AUDIT.md P0-2
+ *  and useCandidatesPage's doc comment for the full rationale. Use for the
+ *  Employee Directory list view; `useEmployees()` above stays for
+ *  consumers that need the whole set. */
+export function useEmployeesPage(params: PageParams) {
+  return useQuery({
+    queryKey: qk.employees.page(params),
+    queryFn: ({ signal }) => repositories.employees.listPaginated(params, signal),
+    placeholderData: keepPreviousData,
+  });
 }
 
 /**

@@ -1,5 +1,32 @@
 import { http } from '@/lib/http/client';
 
+/** Params for the paginated list endpoint — mirrors circle-be's
+ *  ResourceService.list_paginated exactly (page/limit/search/sortBy/sortOrder).
+ *  See docs/PERFORMANCE_AUDIT.md P0-2. */
+export interface PageParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+/** Matches the backend's `{data, pagination}` envelope exactly — see
+ *  circle-be/app/services/resource_service.py's `Page.to_dict()`. */
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface PagedResult<T> {
+  data: T[];
+  pagination: Pagination;
+}
+
 /**
  * Generic Repository over a single API resource (Repository pattern, parity with
  * the backend). Domain code depends on these typed instances, never on raw HTTP.
@@ -9,6 +36,24 @@ export class ResourceRepository<T> {
 
   list(): Promise<T[]> {
     return http.get<T[]>(`/${this.slug}`);
+  }
+
+  /** Database-side pagination/search/sort — see docs/PERFORMANCE_AUDIT.md
+   *  P0-2. Only resources the backend has actually wired up search/sort
+   *  fields for (app/domain/resource_search.py) honor `search`/`sortBy`;
+   *  every resource accepts `page`/`limit` and sorts by `createdAt` by
+   *  default. Backward compatible with `list()` above: passing no `page` at
+   *  all would fall back to the old bare-array shape server-side, but this
+   *  method always passes `page` (defaulting to 1), so it always gets the
+   *  `{data, pagination}` envelope. */
+  listPaginated(params: PageParams = {}, signal?: AbortSignal): Promise<PagedResult<T>> {
+    const qs = new URLSearchParams();
+    qs.set('page', String(params.page ?? 1));
+    if (params.limit != null) qs.set('limit', String(params.limit));
+    if (params.search) qs.set('search', params.search);
+    if (params.sortBy) qs.set('sortBy', params.sortBy);
+    if (params.sortOrder) qs.set('sortOrder', params.sortOrder);
+    return http.get<PagedResult<T>>(`/${this.slug}?${qs.toString()}`, signal);
   }
 
   get(id: string): Promise<T> {
