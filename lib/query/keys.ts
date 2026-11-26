@@ -16,6 +16,8 @@ function pageKey(resource: string, params: PageParams) {
     params.search ?? '',
     params.sortBy ?? '',
     params.sortOrder ?? 'asc',
+    // Sorted so {a:1,b:2} and {b:2,a:1} are the same cache entry.
+    JSON.stringify(Object.entries(params.filters ?? {}).sort()),
   ] as const;
 }
 
@@ -25,12 +27,32 @@ export const qk = {
     all: ['jobs'] as const,
     detail: (id: string) => ['jobs', id] as const,
     page: (params: PageParams) => pageKey('jobs', params),
+    // Separate from `page` above - a different endpoint/contract
+    // (circle-be's dedicated /api/jobs/search, not the generic paginated
+    // route), but still prefixed with 'jobs' so a plain `invalidateQueries({
+    // queryKey: qk.jobs.all })` after a create/update/delete also catches
+    // this one.
+    search: (params: { page?: number; limit?: number; search?: string; sortBy?: string; sortOrder?: string }) =>
+      [
+        'jobs',
+        'search',
+        params.page ?? 1,
+        params.limit,
+        params.search ?? '',
+        params.sortBy ?? '',
+        params.sortOrder ?? 'asc',
+      ] as const,
   },
   schedules: { all: ['schedules'] as const },
   candidates: {
     all: ['candidates'] as const,
     detail: (id: string) => ['candidates', id] as const,
     page: (params: PageParams) => pageKey('candidates', params),
+    // Separate from `page` above - circle-be's dedicated /api/candidates/search
+    // (stage/CTC/keyword filters, not the generic paginated route). Still
+    // prefixed with 'candidates' so invalidateQueries({queryKey: qk.candidates.all})
+    // after a create/update/delete also catches this one.
+    search: (params: Record<string, unknown>) => ['candidates', 'search', JSON.stringify(params)] as const,
   },
   testInvites: {
     all: ['test-invites'] as const,

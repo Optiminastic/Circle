@@ -14,7 +14,10 @@ import { useUiStore } from '@/store/ui-store';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useCandidates, useBgvs, useCandidateMutations, useRestoreFromBlacklist } from '@/features/candidates/hooks';
 import { useDocRequests } from '@/features/doc-requests/hooks';
-import { useEmployees } from '@/features/employees/hooks';
+import { useEmployees, useEmployeesPage } from '@/features/employees/hooks';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { PageLoading } from '@/components/PageLoading';
+import { QueryError } from '@/components/ui/query-error';
 import { useJobs } from '@/features/jobs/hooks';
 import {
   useInitiateOffboarding,
@@ -1216,7 +1219,6 @@ export function OnboardingChecklistView({ onboarding }: OnboardingViewProps) {
 // 5. EMPLOYEE DIRECTORY VIEW
 // ==========================================
 interface DirectoryViewProps {
-  employees: Employee[];
   onSelectEmployee: (id: string) => void;
   onUpdateEmployee: (updated: Employee) => void;
   onAddEmployee?: (employee: Employee) => void;
@@ -1249,7 +1251,6 @@ const EMPTY_EMPLOYEE_FORM = {
 };
 
 export function EmployeeDirectoryView({
-  employees,
   onSelectEmployee,
   onUpdateEmployee,
   onAddEmployee,
@@ -1268,6 +1269,24 @@ export function EmployeeDirectoryView({
   const [empForm, setEmpForm] = useState(EMPTY_EMPLOYEE_FORM);
 
   const departments = ['All', ...org.departments];
+
+  // Debounced so a server request isn't fired on every keystroke — the
+  // input itself (bound to `search`/`setSearch` above) stays instant.
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const {
+    data: page,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useEmployeesPage({
+    page: f.page,
+    limit: f.pageSize,
+    search: debouncedSearch || undefined,
+    filters: selectedDept !== 'All' ? { department: selectedDept } : undefined,
+  });
+  const employees = page?.data ?? [];
+  const total = page?.pagination.total ?? 0;
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1323,16 +1342,13 @@ export function EmployeeDirectoryView({
     toast.success(`${created.fullName} added to the directory (${created.id}).`);
   };
 
-  const filtered = employees.filter(e => {
-    const matchesSearch =
-      e.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      e.role.toLowerCase().includes(search.toLowerCase());
-    const matchesDept = selectedDept === 'All' || e.department === selectedDept;
-    return matchesSearch && matchesDept;
-  });
+  // Search and department filtering now happen server-side (see
+  // useEmployeesPage above) - `employees` here is already exactly the
+  // current page's matching rows.
+  const filtered = employees;
 
   const sel = useTableSelection(filtered.map(e => e.id));
-  const pg = usePagination(filtered.length, {
+  const pg = usePagination(total, {
     page: f.page,
     pageSize: f.pageSize,
     setPage: p => setF({ page: p }),
@@ -1364,6 +1380,20 @@ export function EmployeeDirectoryView({
       },
     });
   };
+
+  // Only true on the very first load - a page/filter change while data is
+  // already showing keeps the old page visible (keepPreviousData) instead
+  // of falling back to this full-page state.
+  if (isLoading) return <PageLoading />;
+  if (isError)
+    return (
+      <QueryError
+        title="Could not load the directory"
+        description="The employee list could not be fetched. Nothing has been lost - this is a problem reaching the server."
+        onRetry={() => refetch()}
+        retrying={isFetching}
+      />
+    );
 
   return (
     <div className="space-y-4 text-xs select-none">
@@ -1439,14 +1469,14 @@ export function EmployeeDirectoryView({
           <Th icon={<CheckCircle size={11} />}>Status</Th>
         </THead>
         <TBody>
-          {filtered.length === 0 ? (
+          {total === 0 ? (
             <tr>
               <Td colSpan={8}>
                 <EmptyState
                   icon={Users}
-                  title={employees.length === 0 ? 'No employees yet' : 'No matches'}
+                  title={!search && selectedDept === 'All' ? 'No employees yet' : 'No matches'}
                   description={
-                    employees.length === 0
+                    !search && selectedDept === 'All'
                       ? 'Active employees will appear here once added.'
                       : 'No employees match the current filters.'
                   }
@@ -1455,7 +1485,7 @@ export function EmployeeDirectoryView({
               </Td>
             </tr>
           ) : (
-            filtered.slice(pg.start, pg.end).map(emp => (
+            filtered.map(emp => (
               <Tr key={emp.id} selected={sel.isSelected(emp.id)} onClick={() => onSelectEmployee(emp.id)}>
                 <Td select checked={sel.isSelected(emp.id)} onToggle={() => sel.toggle(emp.id)} />
                 <Td>
@@ -1502,7 +1532,7 @@ export function EmployeeDirectoryView({
         </TBody>
       </Table>
       <Pagination
-        totalItems={filtered.length}
+        totalItems={total}
         pageSize={pg.pageSize}
         page={pg.page}
         onPageChange={pg.setPage}

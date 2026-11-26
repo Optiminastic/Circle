@@ -60,6 +60,10 @@ import {
 import { ActionMenu } from '@/components/ActionMenu';
 import { EditableSelect } from '@/components/ui/editable-select';
 import { useOrgSettings } from '@/store/org-settings';
+import { useJobsSearch } from '@/features/jobs/hooks';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { PageLoading } from '@/components/PageLoading';
+import { QueryError } from '@/components/ui/query-error';
 import {
   Table,
   THead,
@@ -106,8 +110,6 @@ const newExtraQuestion = (): ExtraQuestion => ({
 type SortKey = 'title' | 'exp' | 'salary' | 'status' | 'applicants';
 
 interface JobListViewProps {
-  jobs: Job[];
-  applicantCounts: Record<string, number>;
   onCreateJob: (job: Job) => void;
   onUpdateJob: (job: Job) => void;
   onSetStatus: (id: string, status: JobStatus) => void;
@@ -145,8 +147,6 @@ function statusBadge(status: JobStatus): string {
 }
 
 export function JobListView({
-  jobs,
-  applicantCounts,
   onCreateJob,
   onUpdateJob,
   onSetStatus,
@@ -199,6 +199,31 @@ export function JobListView({
   });
   const search = f.search;
   const setSearch = (v: string) => setF({ search: v, page: 1 });
+  const sort = { key: f.sortKey, dir: f.sortDir };
+
+  // Debounced so a server request isn't fired on every keystroke - the
+  // input itself (bound to `search`/`setSearch`) stays instant.
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const {
+    data: jobsPage,
+    isLoading: jobsLoading,
+    isError: jobsError,
+    isFetching: jobsFetching,
+    refetch: refetchJobs,
+  } = useJobsSearch({
+    page: f.page,
+    limit: f.pageSize,
+    search: debouncedSearch || undefined,
+    sortBy: sort.key,
+    sortOrder: sort.dir,
+  });
+  const sortedJobs = jobsPage?.data ?? [];
+  const jobsTotal = jobsPage?.pagination.total ?? 0;
+  const openCount = jobsPage?.summary.openCount ?? 0;
+  const closedCount = jobsPage?.summary.closedCount ?? 0;
+  const totalApplicants = jobsPage?.summary.totalApplicants ?? 0;
+  const totalJobs = jobsPage?.summary.totalJobs ?? 0;
+
   // Reusable Must-have/Good-to-have sets from the Question Library (DB-backed).
   const { data: screeningBanks = [] } = useScreeningBanks();
   const { create: createScreeningBank, update: updateScreeningBank } =
@@ -248,14 +273,12 @@ export function JobListView({
     });
   };
 
-  const sort = { key: f.sortKey, dir: f.sortDir };
   const toggleSort = (key: SortKey) =>
     setF(
       f.sortKey === key
         ? { sortKey: key, sortDir: f.sortDir === 'asc' ? 'desc' : 'asc' }
         : { sortKey: key, sortDir: 'asc' },
     );
-  const toNum = (s: string) => Number(String(s).replace(/[^0-9.]/g, '')) || 0;
   // Auto-capitalise the first letter of the job title (stored & shown that way).
   const capitalizeFirst = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -619,39 +642,11 @@ export function JobListView({
     </div>
   );
 
-  const openCount = jobs.filter(j => j.status === 'Open').length;
-  const closedCount = jobs.filter(j => j.status === 'Closed' || j.status === 'On Hold').length;
-  const totalApplicants = Object.values(applicantCounts).reduce((a, b) => a + b, 0);
-
-  const q = search.trim().toLowerCase();
-  const visibleJobs = jobs.filter(j => {
-    return (
-      !q ||
-      j.title.toLowerCase().includes(q) ||
-      j.department.toLowerCase().includes(q) ||
-      j.location.toLowerCase().includes(q) ||
-      j.id.toLowerCase().includes(q)
-    );
-  });
-
-  const sortedJobs = [...visibleJobs].sort((a, b) => {
-    const dir = sort.dir === 'asc' ? 1 : -1;
-    switch (sort.key) {
-      case 'exp':
-        return (a.minExperienceYears - b.minExperienceYears) * dir;
-      case 'salary':
-        return (toNum(a.salaryMin) - toNum(b.salaryMin)) * dir;
-      case 'status':
-        return a.status.localeCompare(b.status) * dir;
-      case 'applicants':
-        return ((applicantCounts[a.id] ?? 0) - (applicantCounts[b.id] ?? 0)) * dir;
-      default:
-        return a.title.localeCompare(b.title) * dir;
-    }
-  });
-
+  // Search, sort, and the summary counts (openCount/closedCount/
+  // totalApplicants) are now computed server-side by useJobsSearch above -
+  // `sortedJobs` is already exactly the current page's matching rows.
   const sel = useTableSelection(sortedJobs.map(j => j.id));
-  const pg = usePagination(sortedJobs.length, {
+  const pg = usePagination(jobsTotal, {
     page: f.page,
     pageSize: f.pageSize,
     setPage: p => setF({ page: p }),
@@ -698,11 +693,24 @@ export function JobListView({
   );
 
   const stats = [
-    { label: 'Total openings', value: jobs.length, dot: 'bg-accent-500' },
+    { label: 'Total openings', value: totalJobs, dot: 'bg-accent-500' },
     { label: 'Live & open', value: openCount, dot: 'bg-emerald-500' },
     { label: 'Closed / hold', value: closedCount, dot: 'bg-gray-400' },
     { label: 'Applicants', value: totalApplicants, dot: 'bg-purple-500' },
   ];
+
+  // Only true on the very first load - a page/filter/sort change while data
+  // is already showing keeps the old page visible (keepPreviousData).
+  if (jobsLoading) return <PageLoading />;
+  if (jobsError)
+    return (
+      <QueryError
+        title="Could not load job postings"
+        description="The job list could not be fetched. Your postings are safe - this is a problem reaching the server."
+        onRetry={() => refetchJobs()}
+        retrying={jobsFetching}
+      />
+    );
 
   return (
     <div className="space-y-5 text-xs select-none">
@@ -758,7 +766,7 @@ export function JobListView({
       </div>
 
       {/* Job cards grid */}
-      {jobs.length === 0 ? (
+      {totalJobs === 0 ? (
         <div className="bg-surface border border-dashed border-line-strong rounded-lg py-16 flex flex-col items-center gap-3 text-center px-6">
           <span className="w-14 h-14 rounded-lg bg-accent-50 text-accent-500 flex items-center justify-center">
             <Briefcase size={26} />
@@ -795,8 +803,8 @@ export function JobListView({
               <Th align="right">Actions</Th>
             </THead>
             <TBody>
-              {sortedJobs.slice(pg.start, pg.end).map(job => {
-                const count = applicantCounts[job.id] ?? 0;
+              {sortedJobs.map(job => {
+                const count = job.applicantCount;
                 return (
                   <Tr key={job.id} selected={sel.isSelected(job.id)} onClick={() => openApplicants(job.id)}>
                     <Td select checked={sel.isSelected(job.id)} onToggle={() => sel.toggle(job.id)} />
@@ -892,7 +900,7 @@ export function JobListView({
             </TBody>
           </Table>
           <Pagination
-            totalItems={sortedJobs.length}
+            totalItems={jobsTotal}
             pageSize={pg.pageSize}
             page={pg.page}
             onPageChange={pg.setPage}

@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { Candidate, Job } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { PageParams } from '@/lib/api/resource-repository';
+import { JobSearchParams, searchJobs } from '@/lib/api/jobs-search';
 import { qk } from '@/lib/query/keys';
 import { listOps } from '@/lib/query/optimistic';
 import { optimisticOptions } from '@/lib/query/mutations';
@@ -23,6 +24,17 @@ export function useJobsPage(params: PageParams) {
   return useQuery({
     queryKey: qk.jobs.page(params),
     queryFn: ({ signal }) => repositories.jobs.listPaginated(params, signal),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Job postings list view (search/sort/pagination), including the two
+ *  derived sort keys (applicant count, parsed salary) the generic paginated
+ *  route can't express — see circle-be/app/services/job_search.py. */
+export function useJobsSearch(params: JobSearchParams) {
+  return useQuery({
+    queryKey: qk.jobs.search(params),
+    queryFn: ({ signal }) => searchJobs(params, signal),
     placeholderData: keepPreviousData,
   });
 }

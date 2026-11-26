@@ -9,6 +9,12 @@ export interface PageParams {
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  /** Exact-match filters, one query param per entry (e.g. `{department:
+   *  'Engineering'}` -> `?department=Engineering`). The backend only honors
+   *  fields on that resource's own allowlist
+   *  (circle-be/app/domain/resource_search.py FILTERABLE_FIELDS) - anything
+   *  else is silently ignored server-side, not a 400. */
+  filters?: Record<string, string>;
 }
 
 /** Matches the backend's `{data, pagination}` envelope exactly — see
@@ -53,6 +59,9 @@ export class ResourceRepository<T> {
     if (params.search) qs.set('search', params.search);
     if (params.sortBy) qs.set('sortBy', params.sortBy);
     if (params.sortOrder) qs.set('sortOrder', params.sortOrder);
+    for (const [key, value] of Object.entries(params.filters ?? {})) {
+      if (value) qs.set(key, value);
+    }
     return http.get<PagedResult<T>>(`/${this.slug}?${qs.toString()}`, signal);
   }
 

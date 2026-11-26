@@ -21,7 +21,9 @@ import { CandidateStatusHover } from '@/components/StatusHoverCard';
 import { useUiStore } from '@/store/ui-store';
 import { useOrgSettings } from '@/store/org-settings';
 import { useJobs } from '@/features/jobs/hooks';
-import { useCandidateMutations } from '@/features/candidates/hooks';
+import { useCandidateMutations, useCandidatesSearch } from '@/features/candidates/hooks';
+import { PageLoading } from '@/components/PageLoading';
+import { QueryError } from '@/components/ui/query-error';
 import { useEnsureOnboarding } from '@/features/onboarding/hooks';
 import { useSchedules } from '@/features/schedule/hooks';
 import { useInterviews } from '@/features/interviews/hooks';
@@ -99,7 +101,16 @@ const deptColor = (d: string): DotColor => DEPT_COLOR[d] ?? 'gray';
 
 
 interface CandidateListViewProps {
-  candidates: Candidate[];
+  /** When given, the view renders exactly this array (client-side filtering,
+   *  the original behavior) — used by NewCandidatesPanel's small, already-
+   *  fetched top-N list, which needs no search/filter server round trip.
+   *  When omitted, the view fetches its own data server-side (search,
+   *  filters, sort, pagination all computed by the backend) — see
+   *  useCandidatesSearch. */
+  candidates?: Candidate[];
+  /** Server mode only: scopes results to one job's applicants (the
+   *  Applicants tab on a job posting). Ignored when `candidates` is given. */
+  jobId?: string;
   onSelectCandidate: (id: string) => void;
   onAddCandidate: (cand: Candidate) => void;
   onUpdateCandidate?: (cand: Candidate) => void;
@@ -114,6 +125,7 @@ interface CandidateListViewProps {
 
 export function CandidateListView({
   candidates,
+  jobId,
   onSelectCandidate,
   onAddCandidate,
   onUpdateCandidate,
@@ -122,6 +134,10 @@ export function CandidateListView({
   showHeader = true,
   showFilters = true,
 }: CandidateListViewProps) {
+  // Server mode: no `candidates` prop given, so this view fetches its own
+  // page from /api/candidates/search instead of filtering a prop array.
+  const isServerMode = candidates === undefined;
+  const candidateList = candidates ?? [];
   const toast = useToast();
   const qc = useQueryClient();
   const { openCandidate } = useUiStore();
@@ -148,34 +164,13 @@ export function CandidateListView({
     );
   };
 
-  // Cross-entity data needed to derive each candidate's current pipeline stage
-  // (same signals the detail page uses). All are cached/prefetched, so cheap.
-  const { data: schedules = [] } = useSchedules();
-  const { data: interviews = [] } = useInterviews();
-  const { data: iqTests = [] } = useIqTests();
-  const { data: invites = [] } = useTestInvites();
-  const pipelineCtx = useMemo(
-    () => ({ schedules, interviews, iqTests, invites }),
-    [schedules, interviews, iqTests, invites],
-  );
-  const stageOf = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof candidateStageStatus>>();
-    for (const c of candidates) map.set(c.id, candidateStageStatus(c, pipelineCtx));
-    return (id: string) => map.get(id);
-  }, [candidates, pipelineCtx]);
-
-  // Applied-role options are sourced ONLY from live job postings (status
-  // "Open") so a candidate can never be admitted against a role we aren't
-  // actually hiring for. De-duplicated by title.
-  const postedRoles = Array.from(
-    new Set(jobs.filter(j => j.status === 'Open').map(j => j.title)),
-  );
   // Filters + pagination live in the URL query string — they survive a page
   // refresh, are shareable/bookmarkable, and "open a candidate → back" always
   // restores exactly the state you left (no separate in-memory persistence
   // needed; the URL already is the persisted state). One combined object so a
   // filter change and its page-1 reset land in a single navigation, not two
-  // racing ones — see lib/use-url-state.ts.
+  // racing ones — see lib/use-url-state.ts. Declared before pipelineCtx/
+  // stageOf/useCandidatesSearch below, all of which read these values.
   const [f, setF] = useUrlState({
     search: '',
     dept: 'All',
@@ -200,7 +195,8 @@ export function CandidateListView({
   // visible value (instant, local state) from the committed filter/URL
   // value (debounced ~250ms after typing stops), so typing itself always
   // feels snappy and the table only re-filters once per pause, not once
-  // per keystroke.
+  // per keystroke. The same debounced `search` value is what's sent to the
+  // server in server mode — no second debounce needed.
   const [searchInput, setSearchInput] = useState(search);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -248,6 +244,67 @@ export function CandidateListView({
   const keywordBand = f.keyword as 'all' | 'high' | 'medium' | 'low' | 'none';
   const setKeywordBand = (v: typeof keywordBand) => setF({ keyword: v, page: 1 });
 
+  // Server mode: the backend applies every filter above (plus the
+  // stage-status/CTC-band/keyword-band ones a plain SQL WHERE can't express -
+  // see circle-be/app/services/candidate_search.py) and returns exactly one
+  // page, already sorted newest-first. Disabled entirely in client mode
+  // (a `candidates` prop was given) so it never fires an unused request.
+  const {
+    data: serverPage,
+    isLoading: serverLoading,
+    isError: serverError,
+    isFetching: serverFetching,
+    refetch: refetchServer,
+  } = useCandidatesSearch(
+    {
+      page: f.page,
+      limit: f.pageSize,
+      search: search || undefined,
+      department: selectedDept,
+      stageStatus: selectedStatus,
+      source: selectedSource,
+      rejected: rejectedFilter,
+      maxNoticePeriod,
+      minExperience,
+      ctcBand,
+      ctcMin: ctcMin || undefined,
+      ctcMax: ctcMax || undefined,
+      keywordBand,
+      jobId,
+    },
+    { enabled: isServerMode },
+  );
+  const serverCandidates = serverPage?.data ?? [];
+
+  // Cross-entity data needed to derive each candidate's current pipeline stage
+  // in CLIENT mode (same signals the detail page uses). All are cached/
+  // prefetched, so cheap; in server mode the search endpoint already
+  // computed every row's stage, so this is only exercised for the
+  // `candidates`-prop case (NewCandidatesPanel's small top-N list).
+  const { data: schedules = [] } = useSchedules();
+  const { data: interviews = [] } = useInterviews();
+  const { data: iqTests = [] } = useIqTests();
+  const { data: invites = [] } = useTestInvites();
+  const pipelineCtx = useMemo(
+    () => ({ schedules, interviews, iqTests, invites }),
+    [schedules, interviews, iqTests, invites],
+  );
+  const stageOf = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof candidateStageStatus>>();
+    for (const c of candidateList) map.set(c.id, candidateStageStatus(c, pipelineCtx));
+    // Server mode: prefer the endpoint's own computed stage over a client
+    // recomputation that would otherwise see candidateList = [].
+    for (const c of serverCandidates) if (c.stageStatus) map.set(c.id, c.stageStatus);
+    return (id: string) => map.get(id);
+  }, [candidateList, pipelineCtx, serverCandidates]);
+
+  // Applied-role options are sourced ONLY from live job postings (status
+  // "Open") so a candidate can never be admitted against a role we aren't
+  // actually hiring for. De-duplicated by title.
+  const postedRoles = Array.from(
+    new Set(jobs.filter(j => j.status === 'Open').map(j => j.title)),
+  );
+
   // New Candidate Modal Form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [resume, setResume] = useState<PickedFile | null>(null);
@@ -292,7 +349,7 @@ export function CandidateListView({
   /** Resume keywords on this candidate that match the current search term. */
   const hitKeywords = (cand: Candidate) =>
     q === '' ? [] : (cand.keywordMatches ?? []).filter(k => k.toLowerCase().includes(q));
-  const filtered = candidates
+  const filtered = candidateList
     // Blacklisted candidates never show here (or anywhere derived from this
     // view — the dashboard's New Candidates panel, jobs' Applicants tab).
     // They only surface in the dedicated "Blacklisted candidates" view on
@@ -360,8 +417,24 @@ export function CandidateListView({
     })
     .sort((a, b) => recencyKey(b).localeCompare(recencyKey(a)));
 
-  const sel = useTableSelection(filtered.map(c => c.id));
-  const pg = usePagination(filtered.length, {
+  // In server mode `filtered` is always [] (candidateList is []) - the
+  // search/filter/sort/pagination already happened server-side, so the
+  // rows to render and the total count come from serverPage instead.
+  const rows = isServerMode ? serverCandidates : filtered;
+  const total = isServerMode ? (serverPage?.pagination.total ?? 0) : filtered.length;
+  const noFiltersActive =
+    !search &&
+    selectedDept === 'All' &&
+    selectedStatus === 'All' &&
+    selectedSource === 'All' &&
+    rejectedFilter === 'all' &&
+    ctcBand === 'all' &&
+    keywordBand === 'all' &&
+    maxNoticePeriod === 9999 &&
+    minExperience === 0;
+
+  const sel = useTableSelection(rows.map(c => c.id));
+  const pg = usePagination(total, {
     page: f.page,
     pageSize: f.pageSize,
     setPage: p => setF({ page: p }),
@@ -486,6 +559,21 @@ export function CandidateListView({
     });
     toast.success(`${created.fullName} added to the candidate pipeline.`);
   };
+
+  // Server mode only - client mode's data already arrived via its own
+  // loading/error handling one level up (the page that fetched `candidates`).
+  // Only true on the very first load - a page/filter change while data is
+  // already showing keeps the old page visible (keepPreviousData).
+  if (isServerMode && serverLoading) return <PageLoading />;
+  if (isServerMode && serverError)
+    return (
+      <QueryError
+        title="Could not load candidates"
+        description="The candidate list could not be fetched. Nothing has been lost - this is a problem reaching the server."
+        onRetry={() => refetchServer()}
+        retrying={serverFetching}
+      />
+    );
 
   return (
     <div className="space-y-4 text-xs select-none">
@@ -688,14 +776,14 @@ export function CandidateListView({
           <Th align="right">Actions</Th>
         </THead>
         <TBody>
-          {filtered.length === 0 ? (
+          {total === 0 ? (
             <tr>
               <Td colSpan={13}>
                 <EmptyState
                   icon={UserSearch}
-                  title={candidates.length === 0 ? 'No candidates yet' : 'No matches'}
+                  title={noFiltersActive ? 'No candidates yet' : 'No matches'}
                   description={
-                    candidates.length === 0
+                    noFiltersActive
                       ? 'Candidates will appear here as they apply or are added.'
                       : 'No candidate records match the current filters.'
                   }
@@ -704,7 +792,7 @@ export function CandidateListView({
               </Td>
             </tr>
           ) : (
-            filtered.slice(pg.start, pg.end).map(cand => (
+            rows.map(cand => (
               <Tr
                 key={cand.id}
                 selected={sel.isSelected(cand.id)}
@@ -910,7 +998,7 @@ export function CandidateListView({
         </TBody>
       </Table>
       <Pagination
-        totalItems={filtered.length}
+        totalItems={total}
         pageSize={pg.pageSize}
         page={pg.page}
         onPageChange={pg.setPage}

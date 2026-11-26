@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { BGVRequirement, Candidate, CandidateStatus, FitRating, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
 import { PageParams } from '@/lib/api/resource-repository';
+import { CandidateSearchParams, searchCandidates } from '@/lib/api/candidates-search';
 import { qk } from '@/lib/query/keys';
 import { jobForCandidate } from '@/features/jobs/hooks';
 import { listOps } from '@/lib/query/optimistic';
@@ -27,6 +28,20 @@ export function useCandidatesPage(params: PageParams) {
     queryKey: qk.candidates.page(params),
     queryFn: ({ signal }) => repositories.candidates.listPaginated(params, signal),
     placeholderData: keepPreviousData,
+  });
+}
+
+/** CandidateListView.tsx's full search/filter/pagination (stage, CTC band,
+ *  keyword band, resume search, etc.) — all computed server-side. `enabled`
+ *  lets a caller that already has a `candidates` array (e.g.
+ *  NewCandidatesPanel's small, pre-fetched top-N list) opt out of this
+ *  fetch entirely rather than running it unused. */
+export function useCandidatesSearch(params: CandidateSearchParams, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: qk.candidates.search(params as Record<string, unknown>),
+    queryFn: ({ signal }) => searchCandidates(params, signal),
+    placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -80,7 +95,8 @@ export function useCandidateMutations() {
       qc,
       qk.candidates.all,
       candidate => listOps.prepend(candidate),
-      [qk.candidates.all],
+      // A new candidate with a jobId is one more applicant on that job.
+      [qk.candidates.all, qk.jobs.all],
     ),
   });
 
@@ -133,6 +149,9 @@ export function useCandidateMutations() {
         qk.docRequests.all,
         qk.onboarding.all,
         qk.bgvs.all,
+        // A deleted candidate's jobId is one less applicant on that job's
+        // count (JobListView's "applicants" sort + summary card).
+        qk.jobs.all,
       ],
     ),
   });

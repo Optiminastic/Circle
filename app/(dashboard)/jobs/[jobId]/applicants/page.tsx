@@ -76,10 +76,15 @@ function JobApplicantsPageInner() {
       <JobApplicantsOverview job={job} applicants={applicants} />
       <hr className="border-t border-line" />
 
-      {/* Same candidates experience, scoped to this job's applicants */}
+      {/* Same candidates experience, scoped to this job's applicants - the
+          TABLE itself fetches server-side (search/filter/sort/pagination,
+          jobId-scoped) rather than re-filtering the `applicants` array
+          above, which stays only for JobApplicantsOverview's chart + the
+          header count (both need every applicant at once for an accurate
+          breakdown, not one page of them). */}
       <CandidateListView
         showHeader={false}
-        candidates={applicants}
+        jobId={jobId}
         onSelectCandidate={id => router.push(`/jobs/${jobId}/applicants/${id}`)}
         onAddCandidate={candidate =>
           create.mutate({
