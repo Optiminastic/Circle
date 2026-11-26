@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Breadcrumbs } from './Breadcrumbs';
@@ -11,10 +11,11 @@ import { CommandPalette } from './CommandPalette';
 import { BrandLoading } from './LogoLoader';
 import { useUiStore } from '@/store/ui-store';
 import { useAuth } from '@/store/auth-store';
-import { useCandidates } from '@/features/candidates/hooks';
-import { useEmployees } from '@/features/employees/hooks';
+import { fetchBackendHealth } from '@/lib/api/health';
 import { repositories } from '@/lib/api/repositories';
 import { qk } from '@/lib/query/keys';
+
+const HEALTH_QUERY_KEY = ['backend-health'] as const;
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -66,18 +67,30 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }, [ready, user, qc]);
 
-  // Bootstrap status comes from the primary queries — no manual loading flags.
-  const candidates = useCandidates();
-  const employees = useEmployees();
-  const loading = candidates.isLoading || employees.isLoading;
-  const error = candidates.isError || employees.isError;
-  const retrying = candidates.isFetching || employees.isFetching;
+  // Bootstrap status: is the server reachable? A cheap /api/health check
+  // (a few bytes, one lightweight DB ping server-side) — NOT the full
+  // candidates/employees tables this used to fetch just to read
+  // .isLoading/.isError/.isFetching off of (the data itself was never used
+  // here). That meant every page load blocked on two full-table fetches
+  // before showing ANY content, on every route in the app. See
+  // docs/PERFORMANCE_AUDIT.md P0-3 and the live production report that
+  // caught this (the dashboard's "Loading…" never seemed to resolve for a
+  // candidates/employees table that had grown large enough).
+  const health = useQuery({
+    queryKey: HEALTH_QUERY_KEY,
+    queryFn: ({ signal }) => fetchBackendHealth(signal),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    retry: false, // the self-heal poll below already re-tries every 5s
+  });
+  const loading = health.isLoading;
+  const error = health.isError || health.data?.database === 'down';
+  const retrying = health.isFetching;
 
-  // Re-fetch the bootstrap queries. Used by the "Try again" button and the
+  // Re-fetch the bootstrap query. Used by the "Try again" button and the
   // self-heal poll below.
   const retry = useCallback(() => {
-    qc.refetchQueries({ queryKey: qk.candidates.all });
-    qc.refetchQueries({ queryKey: qk.employees.all });
+    qc.refetchQueries({ queryKey: HEALTH_QUERY_KEY });
   }, [qc]);
 
   // Self-heal: the backend may come up after the frontend (e.g. started a few
