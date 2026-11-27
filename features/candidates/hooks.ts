@@ -3,6 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BGVRequirement, Candidate, CandidateStatus, FitRating, OnboardingChecklist } from '@/types';
 import { repositories } from '@/lib/api/repositories';
+import { ApiError } from '@/lib/http/client';
 import { PageParams } from '@/lib/api/resource-repository';
 import { CandidateSearchParams, searchCandidates } from '@/lib/api/candidates-search';
 import { qk } from '@/lib/query/keys';
@@ -52,21 +53,37 @@ export function useCandidates() {
     queryFn: () => repositories.candidates.list(),
     // Public applications land outside this session's own mutations (a
     // candidate applying doesn't invalidate anyone's cache), so this can't
-    // rely on invalidation alone to ever pick up a new applicant. But this
-    // hook is mounted globally (ScheduleProvider wraps every dashboard
-    // route — see store/schedule-store.tsx), and the full candidates table
-    // (including each candidate's extracted resume text) was being
-    // re-downloaded in full every 30s on EVERY page, not just the one or
-    // two screens that show new applicants — see docs/PERFORMANCE_AUDIT.md
-    // P0-3. refetchOnWindowFocus already covers "I tabbed away and came
-    // back"; this interval is just a background safety net for a tab left
-    // open for a while, at a frequency that no longer dominates network
-    // traffic. (This session's own create/update/move/remove/setFit
+    // rely on invalidation alone to ever pick up a new applicant.
+    // refetchOnWindowFocus already covers "I tabbed away and came back";
+    // this interval is just a background safety net for a tab left open
+    // for a while. (This session's own create/update/move/remove/setFit
     // mutations already invalidate qk.candidates.all directly — see
     // useCandidateMutations below — so this interval only exists for
     // OTHER sessions' writes, not this one's own.)
+    //
+    // Fetches the FULL table (incl. every candidate's extracted resume
+    // text) — only use this for consumers that genuinely need the whole
+    // set (cross-referencing by id across many candidates at once, bulk
+    // exports). A single candidate's own page should use useCandidate(id)
+    // below instead - see docs/PRODUCTION_PERFORMANCE_FIX_REPORT.md.
     refetchOnWindowFocus: true,
     refetchInterval: 5 * 60_000,
+  });
+}
+
+/** One candidate, fetched directly by id - not sliced out of the full
+ *  table. Use this for any single-candidate view (the candidate detail
+ *  page, an applicant's profile card) instead of useCandidates() + .find().
+ *  A 404 means "this candidate doesn't exist" (not a fetch failure), so it
+ *  isn't retried - callers distinguish it from a real network error via
+ *  `error instanceof ApiError && error.status === 404`. */
+export function useCandidate(id: string) {
+  return useQuery({
+    queryKey: qk.candidates.detail(id),
+    queryFn: () => repositories.candidates.get(id),
+    enabled: Boolean(id),
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 404) && failureCount < 2,
   });
 }
 

@@ -50,7 +50,8 @@ import {
   StageDecision,
   TestInvite,
 } from '@/types';
-import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
+import { useCandidate, useCandidateMutations } from '@/features/candidates/hooks';
+import { ApiError } from '@/lib/http/client';
 import { EditCandidateDialog } from '@/components/EditCandidateDialog';
 import { RefreshButton } from '@/components/RefreshButton';
 import { useSchedules } from '@/features/schedule/hooks';
@@ -209,7 +210,13 @@ export default function CandidateDetailPage() {
   // both routes above without hardcoding either one.
   const backHref = pathname.replace(/\/[^/]+$/, '') || '/candidates';
 
-  const { data: candidates = [], isLoading, isError, refetch, isFetching } = useCandidates();
+  // Fetches ONLY this candidate (GET /api/candidates/{id}) - not the full
+  // table. This is the page's Priority-1 request: it alone gates the page
+  // below; every other hook on this page is best-effort secondary data
+  // that renders in as it arrives (see the `= []` defaults throughout and
+  // the single isLoading/isError gate below, which depends on nothing but
+  // this fetch). See docs/PRODUCTION_PERFORMANCE_FIX_REPORT.md.
+  const { data: candidate, isLoading, isError, error, refetch, isFetching } = useCandidate(id);
   const { data: schedules = [] } = useSchedules();
   const { data: interviews = [] } = useInterviews();
   const { data: iqTests = [] } = useIqTests();
@@ -251,7 +258,7 @@ export default function CandidateDetailPage() {
   const toast = useToast();
   const qc = useQueryClient();
 
-  const candidate = candidates.find(c => c.id === id);
+  const is404 = isError && error instanceof ApiError && error.status === 404;
 
   // Replay the stepper entrance animation each time the page (or candidate) loads.
   const [stepIn, setStepIn] = useState(false);
@@ -392,11 +399,38 @@ export default function CandidateDetailPage() {
     onError: () => toast.error('Could not save the grade — try again.'),
   });
 
+  // Hooks must run unconditionally on every render - these two used to sit
+  // AFTER the isLoading/isError/!candidate early returns below, so the
+  // component called fewer hooks while loading than once `candidate`
+  // resolved, a Rules-of-Hooks violation (React error #310, "Rendered
+  // fewer hooks than expected") that crashed this page on every COLD
+  // navigation to a candidate not already in the React Query cache -
+  // reproduced live in production on 2026-11-27. Moved up here,
+  // unconditional, with `candidate?.` since `candidate` isn't resolved yet
+  // on the loading render.
+  const emailLog = useMemo(
+    () =>
+      sentEmails
+        .filter((m: SentEmailLog) => m.relatedEntity === candidate?.fullName)
+        .sort((a, b) => new Date(a.dateSent).getTime() - new Date(b.dateSent).getTime()),
+    [sentEmails, candidate?.fullName],
+  );
+  const stageEmailCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const [label, titles] of Object.entries(STAGE_EMAIL_TITLES)) {
+      counts[label] = emailLog.filter(m => titles.includes(m.templateTitle)).length;
+    }
+    return counts;
+  }, [emailLog]);
+
   if (isLoading) return <PageLoading />;
   // A failed fetch used to fall through to "Candidate not found", which tells
   // someone their record is gone when the server merely could not be reached.
   // The two need separating: one is recoverable by retrying, the other is not.
-  if (isError)
+  // A 404 from GET /api/candidates/{id} IS "not found" (handled below,
+  // alongside the !candidate fallback); any other error is a real fetch
+  // failure.
+  if (isError && !is404)
     return (
       <QueryError
         title="Could not load this candidate"
@@ -851,20 +885,6 @@ export default function CandidateDetailPage() {
     gray: 'bg-gray-400',
   };
 
-  const emailLog = useMemo(
-    () =>
-      sentEmails
-        .filter((m: SentEmailLog) => m.relatedEntity === candidate.fullName)
-        .sort((a, b) => new Date(a.dateSent).getTime() - new Date(b.dateSent).getTime()),
-    [sentEmails, candidate.fullName],
-  );
-  const stageEmailCount = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const [label, titles] of Object.entries(STAGE_EMAIL_TITLES)) {
-      counts[label] = emailLog.filter(m => titles.includes(m.templateTitle)).length;
-    }
-    return counts;
-  }, [emailLog]);
   // Simple two-tone read: any rejection mail is red, everything else is green.
 
   const mustHaves = (candidate.screeningAnswers ?? []).filter(a => a.importance === 'Must Have');
