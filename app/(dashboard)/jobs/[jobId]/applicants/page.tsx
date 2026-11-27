@@ -8,7 +8,7 @@ import { JobApplicantsOverview } from '@/components/JobApplicantsOverview';
 import { PageLoading } from '@/components/PageLoading';
 import { useScheduler } from '@/store/schedule-store';
 import { useJob } from '@/features/jobs/hooks';
-import { useCandidates, useCandidateMutations } from '@/features/candidates/hooks';
+import { useCandidatesSearch, useCandidateMutations } from '@/features/candidates/hooks';
 import { ArrowLeft, MapPin } from 'lucide-react';
 
 /** Dedicated page listing everyone who applied to one job posting — the same
@@ -29,7 +29,17 @@ function JobApplicantsPageInner() {
   const jobId = params?.jobId ?? '';
 
   const { data: job, isLoading: jobLoading } = useJob(jobId);
-  const { data: candidates = [], isLoading: candidatesLoading } = useCandidates();
+  // Scoped to this job's own applicants, not the full 2,000+ row candidates
+  // table - JobApplicantsOverview's chart + the header count both need
+  // every applicant of THIS job at once (for an accurate breakdown), never
+  // every candidate app-wide. The table below (CandidateListView) fetches
+  // its own paginated slice separately via its `jobId` prop. See
+  // docs/PRODUCTION_PERFORMANCE_FIX_REPORT.md.
+  const { data: applicantsPage, isLoading: candidatesLoading } = useCandidatesSearch(
+    { jobId, limit: 2000 },
+    { enabled: Boolean(jobId) },
+  );
+  const candidates = applicantsPage?.data ?? [];
   const router = useRouter();
   const { openSchedule } = useScheduler();
   const { create, remove } = useCandidateMutations();
@@ -51,7 +61,8 @@ function JobApplicantsPageInner() {
     );
   }
 
-  const applicants = candidates.filter(c => c.jobId === jobId);
+  // Already scoped to this job server-side (jobId param above).
+  const applicants = candidates;
 
   return (
     <div className="space-y-4">
